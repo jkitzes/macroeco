@@ -1,10 +1,10 @@
-'''Python program to examine SAR and EAR 
+'''
+Python program to examine SAR and EAR 
 
 Creates an XYtable class which generates SAR and EAR
 curves
 
 Date of last update:1/31/2012
-
 '''
 
 import numpy as np
@@ -13,37 +13,73 @@ import random
 import math
 import matplotlib as plt
 
-
-
-
-class XYtable:
-    '''The XYtable class
-    
-    This class will perform SAR and EAR operations
-    on the species occurence data
-    
+class Plot:
     '''
-    def __init__(self, filename):
-        '''This method takes in a filename and turns this file into 
-        a numpy rec array.  This method EXPECTS that the file will be formatted
-        similar to cocoli.txt and sherman.txt (**see files for formatting**).
-        One rec array is created with three columns (names=(species, x ,y)).  
-        
-         
+    Plot class to store abundance data for multiple species in contiguous 
+    subplots. Multiple non-contiguous plots, each of which may contain 
+    subplots, should be declared as class Network.
+    '''
+
+    def __init__(self, filename, minmax_x, minmax_y, unit = 1):
+        '''
+        Filename must point to a text file with appropriate formatting for 
+        either a dense or a sparse grid (see documentation). At the moment, 
+        must be csv (comma delimited) and have header row.
+
+        minmax_x and minmax_y are tuples giving the lowest and highest possible 
+        subplot centroid, respectively.
         '''
         try:
-            #Careful with 'S6' datatype. Refers to a six character string
-            dt = dict(names = ('species','x','y'),
-                                formats = ('S6',np.float,np.float,))
-            self.full_xy_table = np.loadtxt(filename, dt, skiprows = 1, 
-                                            usecols = (1,2,3)).view(np.recarray)
-            #Making cocoli just a rectangle 
-            in_plot = test_if_in_cell(0, 0, 200, 100, self.full_xy_table, 1)
-            self.xy_table = self.full_xy_table[in_plot]
-            
+            self.data = np.loadtxt(filename, skiprows = 1, delimiter = ',')
+            self.minmax_x = minmax_x
+            self.minmax_y = minmax_y
         except IOError as detail:
-                print 'That file does not exist...Details: ' , detail
-        
+                print detail
+
+        # TODO: Error checking for correct plot type
+        # TODO: Change name Plot to something more unique - grid, tract, area?
+        # TODO: Currently only takes in comma delimited, allow other options
+        # TODO: Rather than passing arguments other than filename, method
+        # should read a metadata file that gives minmax_x and _y, unit, and
+        # coordinates of origin (top left of plot).
+
+
+    def SAR_sample(self, x_strips = 1, y_strips = 1, full = False):
+        '''
+        Calculate a sampled SAR with subplots with shape and area defined as a 
+        fraction of the total plot dimensions by x_strips and y_strips. Unlike 
+        SAR_grid, x_strips and y_strips need not be integers, and the arguments 
+        necessary to sample an arbitrary subplot shape can be calculated using 
+        XXXX.
+        '''
+        # TODO: Define method for arbitrary subplots.
+        pass
+
+
+    def EAR_sample(self):
+        pass
+
+
+    def SAR_grid(self, x_strips = 1, y_strips = 1, full = False):
+        '''
+        Calculate a gridded SAR from subplots created by taking x_strips and 
+        y_strips slices of the whole plot. The choice of slices along with the 
+        plot dimensions and unit determines the area.
+        '''
+        pass
+
+
+    def EAR_grid(self):
+        pass
+
+
+def rect_area(width, height):
+    ''' Return area of a rectangle of known width and height '''
+    return width * height
+
+
+
+
     #assuming for now that I am only passing one type of shape
     #Will need to adjust parameters later  
     #Going to implement this for only handling rectanglar plots
