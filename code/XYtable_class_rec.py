@@ -1,10 +1,5 @@
 '''
-Python program to examine SAR and EAR 
-
-Creates an XYtable class which generates SAR and EAR
-curves
-
-Date of last update:1/31/2012
+Python program to examine SAR and EAR
 '''
 
 import numpy as np
@@ -13,6 +8,32 @@ import random
 import math
 import matplotlib as plt
 
+# Temporarily define sample sparse and dense plot for testing
+plot_sparse = np.loadtxt('data/test.csv', skiprows = 1, delimiter = ',')
+
+
+# LOAD_PLOT - Load plot data from file
+def load_plot():
+    '''
+    Load plot and metadata from file. Data should be returned as a 3D numpy 
+    array if dense, or a 3 col numpy array if sparse. If sparse, first col must 
+    be an int index of species number, and function should also load the 
+    recarray that shows the match between index and spp name/code as given in 
+    the original data.
+    '''
+    # TODO: Add loading and parsing metadata
+    # TODO: Currently only takes in comma delimited, allow other options
+    # TODO: Currently only takes in sparse - may be harder to read grid data in 
+    # file - what format will it be?
+    try:
+        data = np.loadtxt(filename, skiprows = 1, delimiter = ',')
+    except IOError as detail:
+        print detail
+    
+    return data
+
+
+# CLASS PLOT - Define plot class
 class Plot:
     '''
     Plot class to store abundance data for multiple species in contiguous 
@@ -20,39 +41,36 @@ class Plot:
     subplots, should be declared as class Network.
     '''
 
-    def __init__(self, filename, minmax_x, minmax_y, unit = 1):
+    def __init__(self, data, x_minmax, y_minmax, nspp, sparse = True,
+                 unit = 0.1):
         '''
-        Filename must point to a text file with appropriate formatting for 
-        either a dense or a sparse grid (see documentation). At the moment, 
-        must be csv (comma delimited) and have header row.
+        x_minmax and y_minmax are tuples giving the lowest and highest possible 
+        subplot centroid, respectively, nspp is number of species 
+        '''
+        self.data = data
 
-        minmax_x and minmax_y are tuples giving the lowest and highest possible 
-        subplot centroid, respectively.
-        '''
-        try:
-            self.data = np.loadtxt(filename, skiprows = 1, delimiter = ',')
-            self.minmax_x = minmax_x
-            self.minmax_y = minmax_y
-        except IOError as detail:
-                print detail
+        self.x_min = x_minmax[0]
+        self.x_max = x_minmax[1]
+        self.p_width = self.x_max - self.x_min + 1  # Width in num units
+
+        self.y_min = y_minmax[0]
+        self.y_max = y_minmax[1]
+        self.p_height = self.y_max - self.y_min + 1  # Height in num units
+
+        self.nspp = nspp
+        self.sparse = sparse
+        self.unit = unit
 
         # TODO: Error checking for correct plot type
         # TODO: Change name Plot to something more unique - grid, tract, area?
-        # TODO: Currently only takes in comma delimited, allow other options
-        # TODO: Rather than passing arguments other than filename, method
-        # should read a metadata file that gives minmax_x and _y, unit, and
-        # coordinates of origin (top left of plot).
+        # TODO: Convert arguments after data to metadata input from 
 
 
-    def SAR_sample(self, x_strips = 1, y_strips = 1, full = False):
+    def SAR_sample(self, width, height, full = False):
         '''
-        Calculate a sampled SAR with subplots with shape and area defined as a 
-        fraction of the total plot dimensions by x_strips and y_strips. Unlike 
-        SAR_grid, x_strips and y_strips need not be integers, and the arguments 
-        necessary to sample an arbitrary subplot shape can be calculated using 
-        XXXX.
+        Calculate a sampled SAR with subplots with subplots of specified width 
+        and height (given in units).
         '''
-        # TODO: Define method for arbitrary subplots.
         pass
 
 
@@ -60,23 +78,56 @@ class Plot:
         pass
 
 
-    def SAR_grid(self, x_strips = 1, y_strips = 1, full = False):
+    def SAR_grid(self, div_list, full = False):
         '''
-        Calculate a gridded SAR from subplots created by taking x_strips and 
-        y_strips slices of the whole plot. The choice of slices along with the 
-        plot dimensions and unit determines the area.
-        '''
-        pass
+        Calculate a gridded SAR from subplots created by evenly dividing a plot 
+        along the vertical and horizontal dimensions, with numbers of divisions 
+        given by tuples div in div_list, wher div = (x_divs, y_divs). A 
+        division of one corresponds to no cut (ie, the whole plot).
 
+        Because of rounding, x_ and y_ divs that do not evenly split the plot 
+        in integer number of units will lead to subplots with different numbers 
+        of sample points, artificially inflating the variance of the species 
+        abundance or counts of the subplots. To avoid this, the values of x_ 
+        and y_divs must divide each dimension into an even number of units.
+        '''
+        # TODO: Error check that div must be > 1
+
+        out_area = out_result = []
+
+        for div in div_list:  # Loop each division tuple
+            sp_width = self.p_width / float(div[0])
+            sp_height = self.p_height / float(div[1])
+            sp_area = sp_width * sp_height
+            # TODO: Error check that x and y strips divide dimensions evenly - 
+            # use remainder function and ensure 0.
+
+            for x_div_count in xrange(0,div[0]-1):  # Loop x_divs
+                x_st = self.x_min + x_div_count * sp_width
+                x_en = x_st + sp_width
+
+                for y_div_count in xrange(0,div[1]-1):  # Loop y_divs
+                    y_st = self.y_min + y_div_count * sp_height
+                    y_en = y_st + sp_height
+
+                    area, result = subSAD(x_st, x_en, y_st, y_en, full)
+# Make whole table if full, count if not
+
+    def subSAD(self, x_start, x_end, y_start, y_end, full):
+        '''
+        Calculates a SAD for a subplot of known starting and ending 
+        coordinates. Only works for rectangles. If full, returns a ndarray of 
+        all species with abundances of each, else returns an int count of the 
+        species in the subplot.
+        '''
 
     def EAR_grid(self):
         pass
 
 
-def rect_area(width, height):
-    ''' Return area of a rectangle of known width and height '''
-    return width * height
-
+# CLASS NETWORK - Network of plots
+class Network():
+    pass
 
 
 
