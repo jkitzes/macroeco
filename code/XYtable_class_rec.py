@@ -3,15 +3,23 @@ Python program to examine SAR and EAR
 '''
 
 import numpy as np
-import random
-import matplotlib as plt
+
 
 # CONVERSION UTILITIES
 def xytable_to_sparse(xytable):
     ''' Convert xytable data into sparse plot data '''
-    # TODO: Loop through rows, if unique row add to sparse w/ a 1 in last col, 
-    # if matches a row already in sparse, increment last col by 1.
-    pass
+    sparse_row = [np.array((None, None, None))]  # Dummy row, removed later,
+    sparse_count = [None]                        # so '==' always works
+    
+    for row in xytable:
+        if ~np.all(sparse_row == row, axis = 1).any():
+            sparse_row.append(row); sparse_count.append(1)
+        else:
+            row_ind = np.where(np.all(sparse_row == row, axis = 1))[0][0]
+            sparse_count[row_ind] += 1
+
+    return np.vstack((np.array(sparse_row[1:]).transpose(), 
+                      np.array(sparse_count[1:]))).transpose()
 
 
 def dense_to_sparse(dense, unit):
@@ -47,6 +55,8 @@ def sparse_to_dense(sparse, x_minmax, y_minmax, unit, nspp):
 # Temporarily define sample sparse and dense plots for testing
 test_dense = np.array((0,0,0,1,1,3,0,0,4,1,0,0,0,2,2,1)*2).reshape(4,4,2)
 test_sparse = dense_to_sparse(test_dense, 0.1)
+test_xy = test_sparse[:,0:3]
+test_xy = np.vstack((test_xy,test_xy[0:8,:]))
 
 
 # LOAD_PLOT - Load plot data from file
