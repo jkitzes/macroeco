@@ -3,6 +3,15 @@ Python program to examine SAR and EAR
 '''
 
 import numpy as np
+import numpy.random as rand
+
+# UTILITY METHODS
+def sample(array):
+    '''
+    Returns random element from 1D numpy array.
+    Equivalent to np.random.choice in Numpy v1.7
+    '''
+    return array[rand.randint(0,len(array))]
 
 
 # CONVERSION UTILITIES
@@ -108,32 +117,24 @@ class Plot:
         self.sparse = sparse
         self.unit = unit
 
-        if sparse:
+        if self.sparse:
             self.total_abund = self.sparse_abund(data)
         else:
             self.total_abund = self.data.sum(axis=0).sum(axis=0)
 
         # TODO: Error checking for correct plot type
         # TODO: Change name Plot to something more unique - grid, tract, area?
-        # TODO: Convert arguments after data to metadata input from 
-
-
-    def SAD_sample(self, width, height, full = False):
-        '''
-        Calculate a sampled SAR with subplots with subplots of specified width 
-        and height (given in units).
-        '''
-        pass
-
+        # TODO: Convert arguments after data to metadata input 
 
 
     def SAD_grid(self, div_list, summary = ''):
         '''
-        summary SAD, SAR, EAR
-        Calculate a gridded SAR from subplots created by evenly dividing a plot 
+        Calculate gridded SADs from subplots created by evenly dividing a plot 
         along the vertical and horizontal dimensions, with numbers of divisions 
         given by tuples div in div_list, wher div = (x_divs, y_divs). A 
         division of one corresponds to no cut (ie, the whole plot).
+
+        summary takes three arguments: '' (full SAD), 'SAR', and 'EAR'
 
         Because of rounding, x_ and y_ divs that do not evenly split the plot 
         in integer number of units will lead to subplots with different numbers 
@@ -143,15 +144,16 @@ class Plot:
         '''
         # TODO: Error check that div must be >= 1
 
-        out_area = []
-        out_result = []
+        result = []
 
         for div in div_list:  # Loop each division tuple
+            div_result = []
             sp_width = self.p_width / float(div[0])
             sp_height = self.p_height / float(div[1])
             # TODO: Error check that x and y strips divide dimensions evenly - 
             # use remainder function and ensure 0.
 
+            # CHANGE TO SUBMETHOD TO GENERATE LIST FOR ALL PLOTS, USE FOR QS
             for x_div_count in xrange(0,div[0]):  # Loop x_divs
                 x_st = self.x_min + x_div_count * sp_width
                 x_en = x_st + sp_width
@@ -160,15 +162,80 @@ class Plot:
                     y_st = self.y_min + y_div_count * sp_height
                     y_en = y_st + sp_height
 
-                    out_area.append(sp_width * sp_height)
-                    out_result.append(self.subSAD(x_st, x_en, y_st, y_en, 
-                                                  summary))
+                    div_result.append(self.subSAD(self.data, x_st, x_en, y_st, 
+                                                  y_en, summary))
 
-        return np.vstack((out_area, 
-                          np.array(out_result).transpose())).transpose()
+            result.append(np.array(div_result))
+
+        return result
 
 
-    def subSAD(self, x_st, x_en, y_st, y_en, summary):
+    def SAD_sample(self, wh_list, samples, summary = ''):
+        '''
+        Calculate a sampled SAR with subplots with subplots of specified width 
+        and height (given in units).
+        '''
+        result = []
+
+        for wh in wh_list:  # Loop each width-height tuple
+            wh_result = []
+            sp_width = wh[0]
+            sp_height = wh[1]
+            x_origins = np.arange(self.x_min, self.x_max - sp_width + 
+                                  2*self.unit, self.unit)
+            y_origins = np.arange(self.y_min, self.y_max - sp_width + 
+                                  2*self.unit, self.unit)
+
+            for s in xrange(0,samples):  # Loop each sample
+                # TODO: Currently fails for sp_width = whole plot
+                x_st = sample(x_origins)
+                y_st = sample(y_origins)
+
+                x_en = x_st + sp_width
+                y_en = y_st + sp_height
+
+                wh_result.append(self.subSAD(self.data, x_st, x_en, y_st, y_en, 
+                                             summary))
+
+            result.append(np.array(wh_result))
+
+        return result
+
+
+    def QS_grid(self, div_list):
+        '''
+        Calculates commonality between pairs of subplots in a gridded plot as 
+        the Sorensen index (equivalent to Chi in Harte et al. papers, and 1 - 
+        Bray-Curtis dissimilarity). Note that method requires a dense plot 
+        representation.
+        '''
+        # TODO: Make sure that divs divide plot evenly and that divs are of
+        # width at least one unit.
+
+        if not self.sparse:
+            plot = sparse_to_dense(self.data, self.x_minmax, self.y_minmax, 
+                                   self.unit, self.nspp)
+        else:
+            plot = self.data
+
+        sparse_old = self.sparse  # Set sparse flag to false 
+        self.sparse = False
+
+        for div in div_list:
+
+            sp_list = []
+            for x in xrange(0, div[0]):
+                for y in xrange(0, div[1]):
+                    sp_list.append((x, y))
+
+            for ind_a, sp_a in enumerate(sp_list):
+                for ind_b, sp_b in enumerate(sp_list[(ind_a + 1):]):
+                    SAD_a = subSAD(sp_a[0], sp_a[0] + 1, sp_a[1])
+
+        return (0)
+
+
+    def subSAD(self, data, x_st, x_en, y_st, y_en, summary):
         '''
         Calculates a SAD for a subplot of known starting and ending 
         coordinates. Only works for rectangles. If full, returns a ndarray of 
@@ -177,15 +244,14 @@ class Plot:
         '''
         
         if self.sparse:
-            in_sp = np.all([self.data[:,1] >= x_st, self.data[:,1] < x_en,
-                           self.data[:,2] >= y_st, self.data[:,2] < y_en],
+            in_sp = np.all([data[:,1] >= x_st, data[:,1] < x_en,
+                           data[:,2] >= y_st, data[:,2] < y_en],
                            axis = 0)
-            sp_data = self.data[in_sp]
+            sp_data = data[in_sp]
             sub_abund = self.sparse_abund(sp_data)
                 
         else:
-            sub_abund = self.data[y_st:y_en, x_st:x_en, 
-                                  :].sum(axis=0).sum(axis=0)
+            sub_abund = data[y_st:y_en, x_st:x_en, :].sum(axis=0).sum(axis=0)
 
         if summary is 'SAR':
             return sum(sub_abund > 0)
@@ -203,7 +269,7 @@ class Plot:
         return abund
 
 
-# CLASS NETWORK - Network of plots
+# CLASS NETWORK - Network of plots - NOT YET IMPLEMENTED
 class Network():
     pass
 
