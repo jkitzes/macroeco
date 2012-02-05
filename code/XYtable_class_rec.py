@@ -13,6 +13,10 @@ def sample(array):
     '''
     return array[rand.randint(0,len(array))]
 
+def distance(pt1, pt2):
+    ''' Calculate Euclidean distance between two points '''
+    return np.sqrt((pt1[0] - pt2[0])**2 + (pt1[1] - pt2[1])**2)
+
 
 # CONVERSION UTILITIES
 def xytable_to_sparse(xytable):
@@ -63,6 +67,7 @@ def sparse_to_dense(sparse, x_minmax, y_minmax, unit, nspp):
 
 # Temporarily define sample sparse and dense plots for testing
 test_dense = np.array((0,0,0,1,1,3,0,0,4,1,0,0,0,2,2,1)*2).reshape(4,4,2)
+test_dense[1,0,0] = 0
 test_sparse = dense_to_sparse(test_dense, 0.1)
 test_xy = test_sparse[:,0:3]
 test_xy = np.vstack((test_xy,test_xy[0:8,:]))
@@ -151,9 +156,8 @@ class Plot:
             sp_width = self.p_width / float(div[0])
             sp_height = self.p_height / float(div[1])
             # TODO: Error check that x and y strips divide dimensions evenly - 
-            # use remainder function and ensure 0.
+            # use remainder function on *_max + unit and ensure 0.
 
-            # CHANGE TO SUBMETHOD TO GENERATE LIST FOR ALL PLOTS, USE FOR QS
             for x_div_count in xrange(0,div[0]):  # Loop x_divs
                 x_st = self.x_min + x_div_count * sp_width
                 x_en = x_st + sp_width
@@ -162,8 +166,8 @@ class Plot:
                     y_st = self.y_min + y_div_count * sp_height
                     y_en = y_st + sp_height
 
-                    div_result.append(self.subSAD(self.data, x_st, x_en, y_st, 
-                                                  y_en, summary))
+                    div_result.append(self.subSAD(x_st, x_en, y_st, y_en, 
+                                                  summary))
 
             result.append(np.array(div_result))
 
@@ -194,7 +198,7 @@ class Plot:
                 x_en = x_st + sp_width
                 y_en = y_st + sp_height
 
-                wh_result.append(self.subSAD(self.data, x_st, x_en, y_st, y_en, 
+                wh_result.append(self.subSAD(x_st, x_en, y_st, y_en, 
                                              summary))
 
             result.append(np.array(wh_result))
@@ -206,36 +210,68 @@ class Plot:
         '''
         Calculates commonality between pairs of subplots in a gridded plot as 
         the Sorensen index (equivalent to Chi in Harte et al. papers, and 1 - 
-        Bray-Curtis dissimilarity). Note that method requires a dense plot 
-        representation.
+        Bray-Curtis dissimilarity).
+
+        In result, the first two cols are the plot indices, indexed in single 
+        sequence rowwise.
         '''
         # TODO: Make sure that divs divide plot evenly and that divs are of
         # width at least one unit.
 
-        if not self.sparse:
-            plot = sparse_to_dense(self.data, self.x_minmax, self.y_minmax, 
-                                   self.unit, self.nspp)
-        else:
-            plot = self.data
+        result = []
 
-        sparse_old = self.sparse  # Set sparse flag to false 
-        self.sparse = False
+        # SAD and sp_cent have the same number of list elements and row
+        # structure within arrays
+        SAD = self.SAD_grid(div_list, summary = '')
+        sp_cent = self.get_sp_centers(div_list)
 
+        for ind_div, div in enumerate(div_list):
+            div_result = []
+            nsp = div[0] * div[1]
+
+            div_SAD = SAD[ind_div]
+            div_sp_cent = sp_cent[ind_div]
+
+            for ind_a in xrange(0, nsp - 1):
+                spp_in_a = (div_SAD[ind_a,:] > 0)
+                for ind_b in xrange(ind_a + 1, nsp):
+                    spp_in_b = (div_SAD[ind_b,:] > 0)
+                    dist = distance(div_sp_cent[ind_a,:], div_sp_cent[ind_b,:])
+                    QS = sum(spp_in_a * spp_in_b) / (0.5 * (sum(spp_in_a) + 
+                                                            sum(spp_in_b)))
+                    div_result.append((ind_a, ind_b, dist, QS))
+
+            result.append(np.array(div_result))
+
+        return result
+
+    def get_sp_centers(self, div_list):
+        '''
+        Get coordinate of center of plots in landscape gridded according to 
+        divisions in div_list
+        '''
+        # TODO: Did not confirm that this works for x_min and y_min > 0
+        sp_centers = []
         for div in div_list:
+            sp_width = self.p_width / float(div[0])
+            sp_height = self.p_height / float(div[1])
 
-            sp_list = []
-            for x in xrange(0, div[0]):
-                for y in xrange(0, div[1]):
-                    sp_list.append((x, y))
+            div_sp_cent = []
+            for sp_x in xrange(0, div[0]):  # Same sp order as SAD_grid
+                x_origin = (self.x_min + sp_x * sp_width)
+                x_cent = x_origin + 0.5 * (sp_width - self.unit)
+                for sp_y in xrange(0, div[1]):
+                    y_origin = (self.y_min + sp_y * sp_height)
+                    y_cent = y_origin + 0.5 * (sp_height - self.unit)
 
-            for ind_a, sp_a in enumerate(sp_list):
-                for ind_b, sp_b in enumerate(sp_list[(ind_a + 1):]):
-                    SAD_a = subSAD(sp_a[0], sp_a[0] + 1, sp_a[1])
+                    div_sp_cent.append((x_cent, y_cent))
 
-        return (0)
+            sp_centers.append(np.array(div_sp_cent))
+
+        return sp_centers
 
 
-    def subSAD(self, data, x_st, x_en, y_st, y_en, summary):
+    def subSAD(self, x_st, x_en, y_st, y_en, summary):
         '''
         Calculates a SAD for a subplot of known starting and ending 
         coordinates. Only works for rectangles. If full, returns a ndarray of 
@@ -244,14 +280,15 @@ class Plot:
         '''
         
         if self.sparse:
-            in_sp = np.all([data[:,1] >= x_st, data[:,1] < x_en,
-                           data[:,2] >= y_st, data[:,2] < y_en],
+            in_sp = np.all([self.data[:,1] >= x_st, self.data[:,1] < x_en,
+                           self.data[:,2] >= y_st, self.data[:,2] < y_en],
                            axis = 0)
-            sp_data = data[in_sp]
+            sp_data = self.data[in_sp]
             sub_abund = self.sparse_abund(sp_data)
                 
         else:
-            sub_abund = data[y_st:y_en, x_st:x_en, :].sum(axis=0).sum(axis=0)
+            sub_abund = self.data[y_st:y_en, x_st:x_en, 
+                                  :].sum(axis=0).sum(axis=0)
 
         if summary is 'SAR':
             return sum(sub_abund > 0)
