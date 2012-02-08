@@ -1,0 +1,13 @@
+.DS_Store
+*.aux
+*.bbl
+*.blg
+*.log
+*.fdb_latexmk
+*.gz
+~$*
+*.m~
+*.swp
+*.swo
+*.pyc
+tags
