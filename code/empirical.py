@@ -8,22 +8,22 @@ calculate macroecological metrics.
 
 Classes
 -------
-- `Patch` - a single spatially and temporally identified data set
+- `Patch` -- a single spatially and temporally identified data set
 
 Patch Methods
 -------------
-- `SAD_grid` - calculate gridded SAD, SAR, or EAR
-- `SAD_sample` - calculate sampled SAD, SAR, or EAR
-- `QS_grid` - calculate gridded commonality for pairs of subpatches
-- `sub_SAD` - calculate SAD, spp count, or endemics count for subset of patch
-- `get_nspp` - count number of species in sparse or dense data
-- `get_sparse_bool` - return True if patch data is in sparse format
-- `get_total_abund` - count total abundance of each species in patch
+- `SAD_grid` -- calculate gridded SAD, SAR, or EAR
+- `SAD_sample` -- calculate sampled SAD, SAR, or EAR
+- `QS_grid` -- calculate gridded commonality for pairs of subpatches
+- `sub_SAD` -- calculate SAD, spp count, or endemics count for subset of patch
+- `get_nspp` -- count number of species in sparse or dense data
+- `get_sparse_bool` -- return True if patch data is in sparse format
+- `get_total_abund` -- count total abundance of each species in patch
 
 Misc functions
 --------------
-- `sample` - return random element from 1D numpy array
-- `distance` - return Euclidean distance between two points
+- `sample` -- return random element from 1D numpy array
+- `distance` -- return Euclidean distance between two points
 '''
 
 import numpy as np
