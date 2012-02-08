@@ -1,15 +1,36 @@
 #!/usr/bin/python
 
-# To convert CSV files in which the rows are N-S steps and the columns E-W steps
-# of ?equal size?, and the entries are measurements.
+'''Convert .mat files of species counts in a spatial grid to a .csv file in d,x,y format.
+
+'''
+
 
 import scipy.io
 import sys
 import pylab
 
+__author__ = "Chloe Lewis"
+__copyright__ = "Copyright 2012, Regents of the University of California"
+__credits__ = ["John Harte"]
+__license__ = Null
+__version__ = "0.5"
+__maintainer__ = "Chloe Lewis"
+__email__ = "chlewis@berkeley.edu"
+__status__ = "Development"
+
+def load_matfile(filename):
+    ''' Open the .mat file as a numpy array.'''
+    return scipy.io.loadmat(filename)
+     
+
 
 def explore_matfile(filename):
-    '''Interactively decide which data in the .mat file to translate to d,x,y format.'''
+    '''Interactively decide which data in the .mat file to translate to d,x,y format.
+
+    Will name the sub-elements of the mat file and, if requested,
+    show a heat map of their layers and write tables to the .csv format
+    that the rest of macroeco uses.
+'''
     grid = scipy.io.loadmat(filename)
     print 'Contents:'
     for k in  grid.keys():
@@ -43,13 +64,17 @@ def explore_matfile(filename):
         donext = raw_input("Convert a table to dxy format? ")
                 
 def  make_xy(data_array, subname):     
-    '''Given the name of a data_array of species observations, write a csv with m rows
+    '''Given data_array of species observations, write a csv file.
+
+    File will have n rows
            m,x,y
-    if there were n observations of species m at offset x,y. Observations 0 get no rows.'''
+    if there were n observations of species m at offset x,y.
+    Missing and 0 observations get no rows.
+    '''
     with open(subname.rstrip()+'_xy.csv', 'w') as xyfile:
         ymax,xmax,d = data_array.shape
         cumulative = 0
-        for species in range(d): #TODO: unique species identifiers/names?
+        for species in range(d): 
             for x in range(xmax):
                 for y in range(ymax):
                     for count in range(data_array[y,x,species]):
@@ -59,6 +84,9 @@ def  make_xy(data_array, subname):
                                 
 
 def look_at_pieces(filename):  
+    '''Show heatmaps of a species map divided into quadrants.
+
+    '''
     grid = scipy.io.loadmat(filename)
     fig1 = pylab.figure()
     partialaxes = {}
@@ -83,12 +111,16 @@ def look_at_pieces(filename):
                        
 
 def get_conversion_values():
-    '''Placeholder to know how to translate offsets, name columns.'''
+    '''Placeholder to know how to translate offsets, name columns.
+    '''
     return ((0,0), 1, 1, None) #TODO: get the corners in the right orientation, eg negative y-stride.
 
 def convert_to_datum(xy, scale):
-    '''Conversion to standard ?? datum: not implemented. TODO '''
-    pass 
+    '''Conversion to standard ?? datum: not implemented. TODO
+
+    '''
+    pass
+
 if __name__=="__main__":
     explore_matfile(sys.argv[1])
 
