@@ -32,14 +32,18 @@ def load_data(filename):
 # CONVERSIONS
 #
 
-def xytable_to_sparse(xytable):
+def xytable_to_sparse(xytable, compress = True):
     ''' Convert xytable data into sparse plot data
     
     Note that an xytable with a fourth column of all '1' values can also be 
     used in place of sparse data matrix, although calculations may be slower.
-    '''
-    # TODO: Add flag not to compress
 
+    If compress = False, just append a col of 1's, otherwise compress.
+    '''
+
+    if not compress:
+        return np.hstack((xytable,np.ones((np.size(xytable,0),1))))
+    
     # Add dummy first row to sparse so that equality check sparse_row == row
     # works for first real row.
     sparse_row = [np.array((None, None, None))]
