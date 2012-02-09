@@ -21,7 +21,7 @@ def load_data(filename):
     # TODO: Currently only takes in sparse - may be harder to read grid data in 
     # file - what format will it be?
     try:
-        data = np.loadtxt(filename, skiprows = 1, delimiter = ',')
+        data = np.loadtxt(filename, delimiter = ',')
     except IOError as detail:
         print detail
     
