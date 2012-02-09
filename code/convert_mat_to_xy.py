@@ -12,7 +12,7 @@ import pylab
 __author__ = "Chloe Lewis"
 __copyright__ = "Copyright 2012, Regents of the University of California"
 __credits__ = ["John Harte"]
-__license__ = Null
+__license__ = None
 __version__ = "0.5"
 __maintainer__ = "Chloe Lewis"
 __email__ = "chlewis@berkeley.edu"
