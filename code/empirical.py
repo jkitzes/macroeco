@@ -17,15 +17,15 @@ Patch Methods
 - `SAD_grid` -- calculate gridded SAD, SAR, or EAR
 - `SAD_sample` -- calculate sampled SAD, SAR, or EAR
 - `QS_grid` -- calculate gridded commonality for pairs of subpatches
-- `sub_SAD` -- calculate SAD, spp count, or endemics count for subset of patch
-- `get_nspp` -- count number of species in sparse or dense data
-- `get_sparse_bool` -- return True if patch data is in sparse format
-- `get_total_abund` -- count total abundance of each species in patch
+- `_sub_SAD` -- calculate SAD, spp count, or endemics count for subset of patch
+- `_get_nspp` -- count number of species in sparse or dense data
+- `_get_sparse_bool` -- return True if patch data is in sparse format
+- `_get_total_abund` -- count total abundance of each species in patch
 
 Misc functions
 --------------
-- `sample` -- return random element from 1D numpy array
-- `distance` -- return Euclidean distance between two points
+- `_sample` -- return random element from 1D numpy array
+- `_distance` -- return Euclidean distance between two points
 '''
 
 
@@ -43,7 +43,6 @@ __version__ = "0.1"
 __maintainer__ = "Justin Kitzes"
 __email__ = "jkitzes@berkeley.edu"
 __status__ = "Development"
-
 
 # Temporarily define sample sparse and dense plots for testing
 test_dense = np.array((0,0,0,1,1,3,0,0,4,1,0,0,0,2,2,1)*2).reshape(4,4,2)
