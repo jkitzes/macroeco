@@ -11,3 +11,5 @@
 *.swo
 *.pyc
 tags
+.#*
+code/convert_mat_to_xy.pyc
