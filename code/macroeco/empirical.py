@@ -108,7 +108,8 @@ class Patch:
         self.data = data
         self.unit = unit
         self.sparse = self._get_sparse_bool()
-        self.nspp = self._get_nspp()
+        self.spp_codes = self._get_sppcodes()
+        self.nspp = len(self.spp_codes)
         self.total_abund = self._get_total_abund()
 
         self.x_min = x_minmax[0]
@@ -327,8 +328,9 @@ class Patch:
 
         if summary is 'SAR':
             return sum(sub_abund > 0)
-        elif summary is 'EAR':
-            return sum(sub_abund == self.total_abund)
+        elif summary is 'EAR': # Don't count if self.total_abund = 0
+            return sum((sub_abund == self.total_abund) * \
+                       (self.total_abund != 0))
         else:
             return sub_abund
 
@@ -367,10 +369,11 @@ class Patch:
             self.total_abund = self.data.sum(axis=0).sum(axis=0)
 
 
-    def _get_nspp(self):
-        ''' Get total number of species in self.data '''
+    def _get_sppcodes(self):
+        ''' Get array of codes of all species in self.data '''
+        # TODO: Dense here still counts 3rd dim 'floors' with 0 individs
         if self.sparse:
-            return max(self.data[:,0]) + 1  # Account for spp w/ index 0
+            return np.unique(self.data)
         else:
             return np.size(self.data, 2)  # Size of 3rd dim
 
