@@ -108,8 +108,8 @@ class Patch:
         self.data = data
         self.unit = unit
         self.sparse = self._get_sparse_bool()
-        self.spp_codes = self._get_sppcodes()
-        self.nspp = len(self.spp_codes)
+        self.sppcodes = self._get_sppcodes()
+        self.nspp = len(self.sppcodes)
         self.total_abund = self._get_total_abund()
 
         self.x_min = x_minmax[0]
@@ -373,7 +373,7 @@ class Patch:
         ''' Get array of codes of all species in self.data '''
         # TODO: Dense here still counts 3rd dim 'floors' with 0 individs
         if self.sparse:
-            return np.unique(self.data)
+            return np.unique(self.data[:,0]).astype(int)
         else:
             return np.size(self.data, 2)  # Size of 3rd dim
 
@@ -385,10 +385,12 @@ class Patch:
 
     def _get_sparse_abund(self, data):
         ''' Calculate abundance of each species in a sparse patch '''
-        abund = np.zeros(self.nspp)
+        # If the maximum spp code is much higher than S - 1, this will be
+        # inefficient.
+        abund = np.zeros(max(self.sppcodes) + 1)
         for row in data:
             abund[row[0]] += row[3]
-        return abund
+        return abund # Only return codes in sppcodes
 
 
 #
