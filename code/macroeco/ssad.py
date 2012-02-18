@@ -92,7 +92,7 @@ def bin(n, N, a, summary = False):
 
 def nbd(n, N, a, k, summary = False):
     '''
-    nbd(n, N, a, summmary = False)
+    nbd(n, N, a, k, summmary = False)
     
     Negative binomial pmf.
 
