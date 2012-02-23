@@ -89,3 +89,18 @@ root = Tk()
 app = Chooser(root)
 root.title("AutoMETE")
 root.mainloop()
+
+testing = '''Human test-script:
+
+are lists correctly populated? Check against filesystem.
+
+is default project directory correct?
+
+run one d vs one a:
+    log & output in default project directory?
+
+change output directory:
+    readable and correct in GUI?
+    run multiple data vs multiple analysis:
+        log and output correctly named, in new project directory?"
+
