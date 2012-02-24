@@ -221,9 +221,9 @@ class Patch:
             sp_width = wh[0]
             sp_height = wh[1]
             x_origins = np.arange(self.x_min, self.x_max - sp_width + 
-                                  2*self.unit, self.unit)
+                                  self.unit, self.unit)
             y_origins = np.arange(self.y_min, self.y_max - sp_width + 
-                                  2*self.unit, self.unit)
+                                  self.unit, self.unit)
 
             for s in xrange(0,samples):  # Loop each sample
                 # TODO: Currently fails for sp_width = whole plot
@@ -390,7 +390,7 @@ class Patch:
         abund = np.zeros(max(self.sppcodes) + 1)
         for row in data:
             abund[row[0]] += row[3]
-        return abund # Only return codes in sppcodes
+        return abund[self.sppcodes] # Only return codes in sppcodes
 
 
 #
