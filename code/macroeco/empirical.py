@@ -24,8 +24,8 @@ Patch Methods
 
 Misc functions
 --------------
-- `_sample` -- return random element from 1D numpy array
-- `_distance` -- return Euclidean distance between two points
+- `r_choice` -- return random element from 1D numpy array
+- `distance` -- return Euclidean distance between two points
 '''
 
 
@@ -57,7 +57,7 @@ test_xy = np.vstack((test_xy,test_xy[0:8,:]))
 #
 class Patch:
     '''
-    Patch(data, x_minmax, y_minmax, unit)
+    Patch(data, x_minmax, y_minmax, precision)
 
     A patch object represents a single spatially and temporally discrete 
     ecological dataset containing information on species abundances.
@@ -75,15 +75,15 @@ class Patch:
         Minimum and maximum survey points along x-axis
     y_minmax : tuple or list
         Minimum and maximum survey points along y-axis
-    unit : float
-        Smallest survey unit (ie, minimum mapping distance between points)
+    precision : float
+        Precision of census data (ie, minimum mapping distance between points)
 
     Attributes
     ----------
     data : ndarray
         Array specifying locations and abundances of all species in patch
-    unit : float
-        Smallest survey unit (ie, minimum mapping distance between points)
+    precision : float
+        Smallest survey precision (ie, minimum mapping distance between points)
     sparse : bool
         True if data is of form sparse, False if data is of form dense
     nspp : int
@@ -93,12 +93,12 @@ class Patch:
     x_min, x_max, y_min, y_max : float
         x and y coordinates of min and max survey point in patch
     p_width, p_height : float
-        Inclusive width and height of patch, in units
+        Inclusive width and height of patch, in precisions
         Equal to number of survey points along x and y axis
     '''
     # TODO: Configure to work with 3D data sets
 
-    def __init__(self, data, x_minmax, y_minmax, unit):
+    def __init__(self, data, x_minmax, y_minmax, precision):
         '''
         Initialize object of class Patch. See class documentation.
         '''
@@ -106,7 +106,7 @@ class Patch:
         # TODO: Take extracted metadata fields and loaded data as args
 
         self.data = data
-        self.unit = unit
+        self.precision = precision
         self.sparse = self._get_sparse_bool()
         self.sppcodes = self._get_sppcodes()
         self.nspp = len(self.sppcodes)
@@ -114,12 +114,10 @@ class Patch:
 
         self.x_min = x_minmax[0]
         self.x_max = x_minmax[1]
-        self.p_width = self.x_max - self.x_min + unit  # Width in num units
-
+        self.p_width = self.x_max - self.x_min + precision
         self.y_min = y_minmax[0]
         self.y_max = y_minmax[1]
-        self.p_height = self.y_max - self.y_min + unit  # Height in num units
-
+        self.p_height = self.y_max - self.y_min + precision
 
     def SAD_grid(self, div_list, summary = ''):
         '''
@@ -163,7 +161,7 @@ class Patch:
             sp_width = self.p_width / float(div[0])
             sp_height = self.p_height / float(div[1])
             # TODO: Error check that x and y strips divide dimensions evenly - 
-            # use remainder function on *_max + unit and ensure 0.
+            # use remainder function on *_max + precision and ensure 0.
 
             for x_div_count in xrange(0,div[0]):  # Loop x_divs
                 x_st = self.x_min + x_div_count * sp_width
@@ -193,19 +191,22 @@ class Patch:
         Parameters
         ----------
         wh_list : list of tuples
-            Width and height, in units, of subpatches to be placed in patch. 
-            Width and height must be less than patch p_width and p_height.
+            Width and height of subpatches to be placed in patch. Width and 
+            height must be less than patch p_width and p_height.
+        samples : int
+            Number of randomly sampled subpatches to draw for each width/height 
+            combination in wh_list.
         summary : string equal to '', 'SAR', or 'EAR'
             Chooses to summarize results as full SAD, SAR, or EAR. See Returns.
 
         Returns
         -------
         result : list of ndarrays
-            List of same length as div_list, with each element corresponding to 
-            an division tuple from div_list. If summary = '', elements are a 2D 
-            ndarray with each subpatch in a row and each species in a col. If 
-            summary = 'SAR' or 'EAR', elements are a 1D ndarray giving the 
-            count of species or endemics in each subpatch.
+            List of same length as wh_list, with each element corresponding to 
+            a width/height tuple from wh_list. If summary = '', elements are a 
+            2D ndarray with each sampled subpatch in a row and each species in 
+            a col. If summary = 'SAR' or 'EAR', elements are a 1D ndarray 
+            giving the count of species or endemics in each sampled subpatch.
             
         Notes
         -----
@@ -221,14 +222,14 @@ class Patch:
             sp_width = wh[0]
             sp_height = wh[1]
             x_origins = np.arange(self.x_min, self.x_max - sp_width + 
-                                  self.unit, self.unit)
+                                  self.precision, self.precision)
             y_origins = np.arange(self.y_min, self.y_max - sp_width + 
-                                  self.unit, self.unit)
+                                  self.precision, self.precision)
 
             for s in xrange(0,samples):  # Loop each sample
                 # TODO: Currently fails for sp_width = whole plot
-                x_st = sample(x_origins)
-                y_st = sample(y_origins)
+                x_st = r_choice(x_origins)
+                y_st = r_choice(y_origins)
 
                 x_en = x_st + sp_width
                 y_en = y_st + sp_height
@@ -275,7 +276,7 @@ class Patch:
         identical number of survey points.
         '''
         # TODO: Make sure that divs divide plot evenly and that divs are of
-        # width at least one unit.
+        # width at least one precision.
         # TODO: Failed with test_dense?
         # TODO: Arg to spit out individ species, not Sorensen
 
@@ -349,10 +350,10 @@ class Patch:
             div_sp_cent = []
             for sp_x in xrange(0, div[0]):  # Same sp order as SAD_grid
                 x_origin = (self.x_min + sp_x * sp_width)
-                x_cent = x_origin + 0.5 * (sp_width - self.unit)
+                x_cent = x_origin + 0.5 * (sp_width - self.precision)
                 for sp_y in xrange(0, div[1]):
                     y_origin = (self.y_min + sp_y * sp_height)
-                    y_cent = y_origin + 0.5 * (sp_height - self.unit)
+                    y_cent = y_origin + 0.5 * (sp_height - self.precision)
 
                     div_sp_cent.append((x_cent, y_cent))
 
@@ -397,10 +398,11 @@ class Patch:
 # MISC FUNCTIONS
 #
 
-def sample(array):
+def r_choice(array):
     ''' Returns random element from 1D numpy array.
 
-    Equivalent to np.random.choice in Numpy v1.7
+    Equivalent to np.random.choice in Numpy v1.7. Calls to this function can be 
+    replaced with random.choice once all user packages update to 1.7.
     '''
     return array[rand.randint(0, len(array))]
 
