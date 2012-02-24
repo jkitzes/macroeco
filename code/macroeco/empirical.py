@@ -24,13 +24,12 @@ Patch Methods
 
 Misc functions
 --------------
-- `r_choice` -- return random element from 1D numpy array
 - `distance` -- return Euclidean distance between two points
 '''
 
 
 import numpy as np
-import numpy.random as rand
+from random import choice
 import data
 reload(data)
 
@@ -228,8 +227,8 @@ class Patch:
 
             for s in xrange(0,samples):  # Loop each sample
                 # TODO: Currently fails for sp_width = whole plot
-                x_st = r_choice(x_origins)
-                y_st = r_choice(y_origins)
+                x_st = choice(x_origins)
+                y_st = choice(y_origins)
 
                 x_en = x_st + sp_width
                 y_en = y_st + sp_height
@@ -397,15 +396,6 @@ class Patch:
 #
 # MISC FUNCTIONS
 #
-
-def r_choice(array):
-    ''' Returns random element from 1D numpy array.
-
-    Equivalent to np.random.choice in Numpy v1.7. Calls to this function can be 
-    replaced with random.choice once all user packages update to 1.7.
-    '''
-    return array[rand.randint(0, len(array))]
-
 
 def distance(pt1, pt2):
     ''' Calculate Euclidean distance between two points '''
