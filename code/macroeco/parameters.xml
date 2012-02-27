@@ -1,0 +1,39 @@
+<?xml version='1.0'?>
+<METE>
+    <analysis scriptname='RunExists' version='0.5'>
+        <run name='ParamfileTestCase'>
+            <interactive>F</interactive>
+            <param name='size' value='4.4' />
+            <param name='species' value='E. coli' />
+            <param name='layers' value='[0,3,12]' />
+        </run>
+    </analysis>
+    <analysis scriptname='ManyNIRuns' version='0.5'>
+        <run name='FirstCase' >
+            <interactive>F</interactive>
+            <param name='size' value='4.4' />
+            <param name='species' value='E. coli' />
+            <param name='layers' value='[0,3,12]' />
+        </run>
+        <run name='SecondCase' >
+            <interactive>F</interactive>
+            <param name='size' value='2.2' />
+            <param name='species' value='H. sapiens' />
+            <param name='layers' value='[5]' />
+        </run>
+    </analysis>
+    <analysis scriptname='Unnamed' version='0.5'>
+        <run>
+            <interactive>F</interactive>
+            <param name='size' value='4.4' />
+            <param name='species' value='E. coli' />
+            <param name='layers' value='[0,3,12]' />
+        </run>
+        <run>
+            <interactive>F</interactive>
+            <param name='size' value='2.2' />
+            <param name='species' value='H. sapiens' />
+            <param name='layers' value='[5]' />
+        </run>
+    </analysis>
+</METE>
