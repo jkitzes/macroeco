@@ -400,3 +400,19 @@ class Patch:
 def distance(pt1, pt2):
     ''' Calculate Euclidean distance between two points '''
     return np.sqrt((pt1[0] - pt2[0]) ** 2 + (pt1[1] - pt2[1]) ** 2)
+
+'''
+Unit test ideas
+    Correctly recognized - 3D/4D, sparse and dense data
+    Pull out test cases
+    Make sure nothing depends on a contiguous list of sppcodes
+    assert length total_abund and sppcode same
+    still works if 0 in last col of sparse
+    Make sure throws error if not multiple of precision
+    Make sp to spa
+    Import division from __future__
+    Off by one error in SAD_grid check
+    Check dim of div_result, and whole result
+    sub_sad check for rectangle
+    make sure all run as dense and sparse and give same result
+'''
