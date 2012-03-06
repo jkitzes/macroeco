@@ -43,13 +43,6 @@ __maintainer__ = "Justin Kitzes"
 __email__ = "jkitzes@berkeley.edu"
 __status__ = "Development"
 
-# Temporarily define sample sparse and dense plots for testing
-test_dense = np.array((0,0,0,1,1,3,0,0,4,1,0,0,0,2,2,1)*2).reshape(4,4,2)
-test_dense[1,0,0] = 0
-test_sparse = data.dense_to_sparse(test_dense, 1)
-test_xy = test_sparse[:,0:3]
-test_xy = np.vstack((test_xy,test_xy[0:8,:]))
-
 
 #
 # CLASS PATCH
@@ -399,6 +392,7 @@ class Patch:
 
 def distance(pt1, pt2):
     ''' Calculate Euclidean distance between two points '''
+    # TODO: Replace with built in
     return np.sqrt((pt1[0] - pt2[0]) ** 2 + (pt1[1] - pt2[1]) ** 2)
 
 '''
