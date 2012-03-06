@@ -1,25 +1,44 @@
+#!/usr/bin/python
+
 '''
 Routines for loading and converting data.
+
+This module provides functions that load raw macroecological data and convert 
+it between forms.
+
+Functions
+---------
+- `load_xytable` -- load xytable data and metadata from file
+- `add_count_xytable` -- add count column to xytable if not already present
 '''
+
 
 import numpy as np
 
-#
-# LOADING
-#
 
-def load_data(filename):
-    ''' Load plot and metadata from file. NOT YET COMPLETE.
-    
-    Data should be returned as a 3D numpy array if dense, or a 4 col numpy 
-    array if sparse. If sparse, first col must be an int index of species 
-    number. Should also read metadata file so that it can be passed to class 
-    Plot later.
+def load_xytable(filepath, param_dict):
     '''
+    Load xytable data and metadata from file.
+    
+    Parameters
+    ----------
+    filepath : str
+        Path to xytable data file. File must have header row and include cols, 
+        at a minimum, named int_code, x, and y.
+    param_dict : dict
+        If exists, returned as dict of parameters for analysis of data. If not, 
+        param_dict is loaded from metadata xml file.
+        
+    Returns
+    -------
+    xy_data : 2D ndarray
+        Array of xytable data with cols specified in xy_head
+    xy_head : list
+        List of headers for cols in xy_data
+    '''
+
     # TODO: Add loading and parsing metadata
     # TODO: Currently only takes in comma delimited, allow other options
-    # TODO: Currently only takes in sparse - may be harder to read grid data in 
-    # file - what format will it be?
     try:
         data = np.loadtxt(filename, delimiter = ',')
     except IOError as detail:
@@ -28,89 +47,37 @@ def load_data(filename):
     return data
 
 
-#
-# CONVERSIONS
-#
-
-def xytable_to_sparse(xytable, compress = True):
-    ''' Convert xytable data into sparse plot data
-    
-    Note that an xytable with a fourth column of all '1' values can also be 
-    used in place of sparse data matrix, although calculations may be slower.
-
-    If compress = False, just append a col of 1's, otherwise compress.
+def xytable_add_count(xy_in_data, xy_in_head, compress):
     '''
+    Add count column to xytable if not already present.
+    
+    Count gives the number of individuals of spp found at the point x, y. Note 
+    that the option to compress the data is not yet implemented.
+
+    Parameters
+    ----------
+    xy_in_data : 2D ndarray
+        Array of xytable data with cols specified in xy_in_head
+    xy_in_head : list
+        List of headers for cols in xy_in_data
+    compress : bool
+        Flag to compress data so that there is only one row in xytable for each 
+        combination of spp and point coordinate.
+
+    Returns
+    -------
+    xy_out_data : 2D ndarray
+        Array of updated xytable data with cols specified in xy_out_head
+    xy_out_head : list
+        List of headers for cols in xy_out_data
+    '''
+    
+    # Check if already header named count, if so do not add col, else add 1's
+
+    # Check if compress - if not, do nothing, if so, 
+    #
 
     if not compress:
-        return np.hstack((xytable,np.ones((np.size(xytable,0),1))))
-    
-    # Add dummy first row to sparse so that equality check sparse_row == row
-    # works for first real row.
-    sparse_row = [np.array((None, None, None))]
-    sparse_count = [None]
-
-    # Loop through rows in xytable and add new row to sparse if this spp and
-    # coordinate is not already in sparse. If this combination already exists,
-    # increment the associated count.
-    for row in xytable:
-        # TODO: Return row_ind as below, use implicit false
-        if ~np.all(sparse_row == row, axis=1).any():
-            sparse_row.append(row)
-            sparse_count.append(1)
-        else:
-            # TODO: sparse_row[np.where(sparse_row == row)]?
-            row_ind = np.where(np.all(sparse_row == row, axis=1))[0][0]
-            sparse_count[row_ind] += 1
-
-    # TODO: Change this to use .T without extra transpose
-    return np.vstack((np.array(sparse_row[1:]).transpose(),
-                      np.array(sparse_count[1:]))).transpose()
-
-
-def dense_to_sparse(dense, unit):
-    ''' Convert dense plot data into sparse plot data
-    
-    Dense data must already be numpy array or a similar data type with three 
-    dimensions.
-    '''
-
-    # Record number of subplots in y and x direction, and num of species
-    sp_y = dense.shape[0]
-    sp_x = dense.shape[1]
-    nspp = dense.shape[2]
-
-    # Loop through each cell of dense and add row to sparse
-    sparse = []
-    for spp in xrange(0, nspp):
-        for x in xrange(0, sp_x):
-            for y in xrange(0, sp_y):
-                if dense[y, x, spp] > 0:
-                    sparse.append([spp, x * unit, y * unit, dense[y, x, spp]])
-
-    return np.array(sparse)
-
-
-def sparse_to_dense(sparse, x_minmax, y_minmax, unit, nspp):
-    ''' Convert sparse plot data into dense plot data
-    
-    Note that the resulting dense data can be VERY large is the extent of x and 
-    y is large and unit is small. Use with caution. If the desired operation is 
-    to take a sparse table and calculate the SAD (third dimension of dense) at 
-    some coarser scale, use SAD_grid instead.
-    '''
-
-    # Calculate dimension of dense in x and y direction
-    x_min = x_minmax[0]
-    y_min = y_minmax[0]
-    nx = (x_minmax[1] - x_minmax[0] + unit) / float(unit)
-    ny = (y_minmax[1] - y_minmax[0] + unit) / float(unit)
-
-    # Fill cells in dense
-    dense = np.zeros((ny, nx, nspp))
-    for row in sparse:
-        dense[(row[2] - y_min) / unit, (row[1] - x_min) / unit,
-              row[0]] += row[3]
-
-    return dense
-
-
+        return xy_out_data, xy_out_head
+    else:
+        raise NotImplementedError('Compression of xytable not yet implemented')
