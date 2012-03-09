@@ -118,8 +118,13 @@ def nbd(n, N, a, k, summary = False):
     p = float(1) / (mu / float(k) + 1)  # See Bolker book Chapt 4
     pmf = scipy.stats.nbinom.pmf(n, k, p)
     
-    if summary: return -sum(np.log(pmf))
-    else:       return pmf
+    if summary:
+        if (pmf == 0).any():
+            return np.nan
+        else:
+            return -sum(np.log(pmf))
+    else:
+        return pmf
 
 
 def fnbd(n, N, a, k, summary = False):
@@ -164,8 +169,13 @@ def fnbd(n, N, a, k, summary = False):
     for i in xrange(0,np.size(n)):
         pmf[i] = ln_L(n[i], N, a, k)
 
-    if summary: return -sum(pmf)
-    else:       return np.exp(pmf)
+    if summary:
+        if (pmf == 0).any():
+            return np.nan
+        else:
+            return -sum(np.log(pmf))
+    else:
+        return pmf
 
 
 def cnbd(n, N, a, k, summary = False):
