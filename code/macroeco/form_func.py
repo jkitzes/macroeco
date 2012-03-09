@@ -8,6 +8,11 @@ import csv
 import matplotlib.mlab as plt
 import glob
 
+gcwd = os.getcwd #get current directory
+pd = os.path.dirname #get parent directory
+chdir = os.chdir #change directories
+jp = os.path.join #Join paths
+
 __author__ = "Mark Wilber"
 __copyright__ = "Copyright 2012, Regents of University of California"
 __credits__ = "John Harte"
@@ -30,7 +35,7 @@ def get_files(filetype, num, direct):
     num -- expected number of files of type 'direct_????.filetype'
 
     direct -- the directory within /data/archival/ where the files are.
-              example 'BCIS'
+              example 'BCIS' of 'COCO'
     
     returns:
         A list of strings
@@ -38,10 +43,13 @@ def get_files(filetype, num, direct):
     '''
 
     #NOTE:This function is vulnerable to break! More checking needed
-    datadir = os.path.dirname((os.path.dirname(os.getcwd())))
-    globdir = datadir + '/archival/' + direct
-    datafiles = glob.glob(globdir + '/' + direct + '_????.' + filetype)
-    datafiles = [x.split('/')[len(x.split('/')) - 1] for x in datafiles]
+    #NOTE: Need to remove the slashes! 
+    assert direct.find('/') == -1, "%s should not contain a '/'" % (direct)
+    cwd = gcwd();
+    filedir = jp(pd(pd(gcwd())), 'archival', direct)
+    chdir(filedir)
+    datafiles = glob.glob(direct + '_????.' + filetype)
+    chdir(cwd)
     if not(len(datafiles) == num):
         raise Exception("Must be exactly {0} {1}_*.{2} file in /archival/{1}"\
                         .format(num, direct, filetype))     
@@ -65,6 +73,11 @@ def make_spec_dict(spp_array):
     species occurences in a plot and returns a species 
     dictionary with spp_codes coressponding to species
     names.
+
+    spp_array -- 1D array of all species occurences
+
+    returns:
+        2D structured np.array
 
     '''
     unq_specs = np.unique(spp_array)
@@ -111,9 +124,11 @@ def rm_trees_reduce(tot_int, data, year):
         A rec array containing the data for a given year
         
         '''
-    
-    alive = data[(data['recr' + str(year)] == 'A')]
-    tot_int_alive = tot_int[(data['recr' + str(year)] == 'A')]
+    include = np.bitwise_or((data['recr' + str(year)] == 'A'),\
+                          (data['recr' + str(year)] == 'P'))
+                            
+    alive = data[include]
+    tot_int_alive = tot_int[include]
     sample = len(tot_int_alive)
     data_out = np.empty(sample, dtype=[('spp_code', np.int), ('x', np.float), \
                                        ('y', np.float)])
@@ -155,13 +170,108 @@ def create_intcodes(speclist, unq_specs, unq_ints):
 def output_form(data, filename):
     '''This function writes the formatted data into
     the appropriate formatted folder as a .csv file.
+
+    data -- An np structured array containing the the data
+            to be output
+
+    filename -- A string representing the name of the file to 
+                be output.
+
+    Notes: Must be called within the appropriate formatted directory
     '''
-    
-    savedir = os.getcwd() + '/' + (filename.split('.')[0] + '.csv')
+    savedir = jp(gcwd(), filename.split('.')[0] + '.csv')
     fout = csv.writer(open(savedir, 'w'), delimiter=',')
     fout.writerow(data.dtype.names)
     for i in xrange(len(data)):
         fout.writerow(data[i])
 
+
+
+def open_dense_data(filenames, direct, delim=','):
+    '''This function takes in a list of dense data file names, opens
+    them and returns them as list of rec arrays.
+
+    filenames -- a list of filenames
+
+    direct -- The directory within data/archival/ where the files are.
+              example 'ANBO_2010' or 'LBRI'
+
+    delim -- Default file delimiter is ','
+
+    returns:
+        A list of rec arrays
+
+    '''
+    assert direct.find('/') == -1, "%s should not contain a '/'" % (direct)
+    filedir = jp(pd(pd(gcwd())), 'archival', direct)
+    datayears = []
+    for name in filenames:
+        data = plt.csv2rec(jp(filedir, name), delimiter=delim)
+        datayears.append(data)
+    return datayears
+
+def make_dense_spec_dict(datayears):
+    '''This function makes and returns a global species dictionary
+    for a list of dense data.  It assigns each species in the 
+    data a unique integer code. The dense file should be formatted
+    like LBRI of ANBO for this to work.
+
+    datayears -- list of rec arrays containing data
+
+    returns:
+        A 1D array of tuples
+
+    '''
+    
+    spp_array = np.empty(0)
+    for data in datayears:
+        spp = np.array(data.dtype.names[3:]) #species names
+        spp_array = np.concatenate((spp_array, spp))
+    spec_dict = make_spec_dict(spp_array)
+    return spec_dict
+
+def format_dense(datayears, spec_dict):
+    '''This function takes a list of data from 
+    as well as a global species dictionary.  This functions interates 
+    through the list and formats each year of data and stores the 
+    formatted data into a list containing all years of formatted data.
+
+    datayears -- a list of rec arrays containing all years of data
+
+    spec_dict -- a 1D structured array of tuples containing the name of 
+                 each species and the corresponding integer.
+    
+    returns:
+        A list of formatted structured arrays.
+
+    NOTE: Do not use this function unless you are sure that your data 
+    match the formatting 
+
+    '''
+
+    for data in datayears:
+        if set(data.dtype.names[0:3]) != set(['cell', 'column', 'row']):
+            raise Exception("Improper labeling of first 3 columns")
+
+    data_formatted = []
+    for data in datayears:
+        ls = len(data.dtype.names[3:])
+        data_out = np.empty(ls * len(data), \
+                        dtype=[('spp_code', np.int), ('x', np.int),
+                               ('y', np.int), ('count', np.int)])
+
+        tot_int = create_intcodes(np.array(data.dtype.names[3:]), \
+                                   spec_dict['spp'], spec_dict['spp_code'])
+        cnt = 0 
+        for i in xrange(len(data)):
+            data_out['x'][cnt:(ls*(i+1))] = data['row'][i]
+            data_out['y'][cnt:(ls*(i+1))] = data['column'][i]
+            data_out['spp_code'][cnt:(ls*(i+1))] = tot_int
+            data_out['count'][cnt:(ls*(i+1))] = np.array(list(data[i]))[3:]
+            cnt = cnt + ls
+
+        data_formatted.append(data_out)
+
+    return data_formatted
 
 
