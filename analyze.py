@@ -6,14 +6,12 @@ Note: Depends on the file structure we ship with.
 '''
 
 
-
 from Tkinter import *
 from tkFileDialog   import askdirectory
 import subprocess
 import glob
 import os
-
-
+from datetime import datetime
 
  
 __author__ = "Chloe Lewis"
@@ -28,7 +26,8 @@ __status__ = "Development"
 class Chooser:
     '''GUI to choose the data, analysis script, and output directory.'''
     def __init__(self, master):
-        self.structure={'data':"./data/*", 'code':"./code/*.py", 'output':os.path.abspath("./projects")}
+        self.structure={'data':"data/*", 'code':"code/*.py",
+                        'output':os.path.abspath("projects")}
         self.master = master
         Label(master,text="Datafile:").grid(row=0,column=0,padx=2)
         Label(master,text="Analysis:").grid(row=0,column=2,padx=2)
@@ -38,18 +37,22 @@ class Chooser:
         Label(master, textvariable=self.output).grid(row=13,column=0,columnspan=4,padx=2)
         self.dlist = Listbox(master,exportselection=0,selectmode=MULTIPLE)
         self.dlist.grid(row=1,column=0,rowspan=10,columnspan=2,padx=2)
-        self.alist = Listbox(master,exportselection=0,selectmode=SINGLE)
+        self.alist = Listbox(master,exportselection=0,selectmode=MULTIPLE)
         self.alist.grid(row=1,column=2,columnspan=2,rowspan=10,padx=2)
 
-        self.fill_list('data',['./data/archival','./data/formatted'],self.dlist)
+        self.fill_list('data',['data/archival','data/formatted'],self.dlist)
         self.fill_list('code',[],self.alist)
 
-        self.projectbutton = Button(master, text="Change output directory", command=self.change_project).grid(row=14, column=0)
-        self.quitbutton = Button(master, text="Exit", fg="red", command=master.quit).grid(row=14,column=2)
-        self.runbutton = Button(master, text="Run", command=self.call_script).grid(row=14,column=3)
+        self.projectbutton = Button(master, text="Change output directory",
+                                    command=self.change_project).grid(row=14, column=0)
+        self.quitbutton = Button(master, text="Exit", fg="red",
+                                 command=master.quit).grid(row=14,column=2)
+        self.runbutton = Button(master, text="Run",
+                                command=self.call_script).grid(row=14,column=3)
 
         self.dlist.selection_set(0)
-        self.alist.selection_set(2) #TODO: also 0 when dir structure cleaned up
+        self.alist.selection_set(0) 
+        
     def change_project(self):
         '''Change the directory in which output will be saved.'''
 
@@ -72,17 +75,34 @@ class Chooser:
     def call_script(self):
         '''Runs the chosen data,analysis,output triple.
 
+        There can be more than one dataset; they will be run in sequence with the same analysis.
+
         Note that the GUI stays open: user can choose another triple to run.'''
         METEbase = os.path.dirname(os.path.abspath(__file__))
-        # print self.dlist.realcontent[int(self.dlist.curselection()[0])]
-        # TODO: figure out why I can't clip off leading './'. Do I need them at all?
-        data = os.path.join(METEbase,self.dlist.realcontent[int(self.dlist.curselection()[0])])
-        script = os.path.join(METEbase,self.alist.realcontent[int(self.alist.curselection()[0])])
-        print METEbase, data, script
-        output = self.structure['output']
+        for dfile in self.dlist.curselection():
+            for afile in self.alist.curselection():
+                data = self.dlist.realcontent[int(dfile)]
+                dpath = os.path.join(METEbase, data)
+                script = self.alist.realcontent[int(afile)]
+                spath = os.path.join(METEbase,script)
+                print METEbase, data, script
+                dt = datetime.utcnow()
+                with open("logfile.txt","a") as log:
+                    log.write( dt.strftime("%Y %I:%M%p UTC")+" :\t"
+                               + dpath + "\t" + spath+'\n')
+                output = self.structure['output']
+                outputID = self.output_name([script, data])
+                print outputID
+                subprocess.Popen(["python", spath, dpath, outputID], cwd=output,
+                                 shell=False,stdin=None,stdout=None,close_fds=True)
 
-        
-        subprocess.Popen(["python", script, data],cwd=output,shell=False,stdin=None,stdout=None,close_fds=True) 
+    def output_name(self,textlist):
+        '''Pretties up the identifier for each output in the project directory.'''
+        #TODO: add the run ID from Parameters
+        out = []
+        for text in textlist:
+            out.append(text.split("/")[-1].split('.')[0])
+        return '_'.join(out)
 
 root = Tk()
 
@@ -102,5 +122,6 @@ run one d vs one a:
 change output directory:
     readable and correct in GUI?
     run multiple data vs multiple analysis:
-        log and output correctly named, in new project directory?"
+        log and output correctly named, in new project directory?
+'''
 
