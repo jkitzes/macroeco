@@ -92,7 +92,8 @@ class XYTable():
         # Attempt to load header of data file
         with open(datapath) as file:
             xy_head = file.next()
-        xy_head = xy_head.replace(',','').split()  # Remove commas, make list
+        xy_head = xy_head.replace(' ','').replace('\n','').replace('\r','')
+        xy_head = xy_head.split(',')
 
         # Check that there are cols in data named spp_code, x, y
         req_cols = set(['spp_code', 'x', 'y'])
@@ -110,7 +111,7 @@ class XYTable():
         try:
             np.loadtxt('not_implemented')  # TODO: Add reader implementation
         except IOError:
-            print('No metadata file found, meta filled with 0\'s')
+            print('No metadata file found, meta filled with 0s.')
             meta = {'precision': 0, 'xrange': (0, 0), \
                     'yrange': (0, 0)}
             
