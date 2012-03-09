@@ -4,35 +4,32 @@
 Routines for calculating empirical macroecological metrics.
 
 This module primarily declares a class Patch that represents a single, 
-spatially located ecological survey (such as the STRI BCI forest plot, 
-serpentine grassland plot, etc). Patch has many methods that are used to 
-calculate macroecological metrics.
+spatially and temporally discrete ecological census (such as the STRI BCI 
+forest plot 2005, serpentine grassland plot 1998, etc). Patch has many methods 
+that are used to calculate empirical macroecological metrics.
 
 Classes
 -------
-- `Patch` -- a single spatially and temporally identified data set
+- `Patch` -- a single censused area
 
 Patch Methods
 -------------
-- `SAD_grid` -- calculate gridded SAD, SAR, or EAR
-- `SAD_sample` -- calculate sampled SAD, SAR, or EAR
-- `QS_grid` -- calculate gridded commonality for pairs of subpatches
-- `_sub_SAD` -- calculate SAD, spp count, or endemics count for subset of patch
-- `_get_nspp` -- count number of species in sparse or dense data
-- `_get_sparse_bool` -- return True if patch data is in sparse format
-- `_get_total_abund` -- count total abundance of each species in patch
+- `sad_grid` -- calculate gridded SAD, SAR, or EAR
+- `sad_sample` -- calculate sampled SAD, SAR, or EAR
+- `qs_grid` -- calculate commonality for all possible pairs of sub-patches
+- `get_sub_sad` -- return SAD, SAR, or EAR for rectangular sub-patch
+- `get_sub_abund` -- return vector of abundances for given table
+- `get_sp_centers` -- 
 
 Misc functions
 --------------
 - `distance` -- return Euclidean distance between two points
 '''
 
-
+from __future__ import division
 import numpy as np
 from random import choice
-import data
-reload(data)
-
+from data import XYTable
 
 __author__ = "Justin Kitzes"
 __copyright__ = "Copyright 2012, Regents of the University of California"
@@ -43,78 +40,69 @@ __maintainer__ = "Justin Kitzes"
 __email__ = "jkitzes@berkeley.edu"
 __status__ = "Development"
 
-
 #
 # CLASS PATCH
 #
 class Patch:
     '''
-    Patch(data, x_minmax, y_minmax, precision)
-
-    A patch object represents a single spatially and temporally discrete 
+    A Patch object represents a single spatially and temporally discrete 
     ecological dataset containing information on species abundances.
 
     Multiple non-contiguous patches or temporal series of data from a single 
-    patch should be declared as class Network.
+    patch should be declared as an object of class Network.
 
     Parameters
     ----------
-    (for the __new__ method)
-
-    data : sparse or dense ndarray
-        See data.py for routines for properly formatting the data array
-    x_minmax : tuple or list
-        Minimum and maximum survey points along x-axis
-    y_minmax : tuple or list
-        Minimum and maximum survey points along y-axis
-    precision : float
-        Precision of census data (ie, minimum mapping distance between points)
+    filepath : str
+        Path to xytable data file. File must have header row and include cols, 
+        at a minimum, named int_code, x, and y.
 
     Attributes
     ----------
-    data : ndarray
-        Array specifying locations and abundances of all species in patch
-    precision : float
-        Smallest survey precision (ie, minimum mapping distance between points)
-    sparse : bool
-        True if data is of form sparse, False if data is of form dense
-    nspp : int
-        Total number of species in patch
-    total_abund : ndarray
-        1D array of length nspp giving total abundances of each species
+    xy : object of class XYTable
+        Object containing patch data and metadata.
+    S : int
+        Number of species in patch.
+    N : int
+        Number of total individuals in patch.
+    n0_vect : ndarray
+        1D array of abundance for each species code.
     x_min, x_max, y_min, y_max : float
-        x and y coordinates of min and max survey point in patch
-    p_width, p_height : float
-        Inclusive width and height of patch, in precisions
-        Equal to number of survey points along x and y axis
+        Minimum and maximum values of x and y for patch.
+    width, height : float
+        Inclusive width and height of patch, in precisions.
     '''
-    # TODO: Configure to work with 3D data sets
 
-    def __init__(self, data, x_minmax, y_minmax, precision):
+    def __init__(self, datapath):
+        ''' Initialize object of class Patch. See class documentation. '''
+        self.xy = XYTable(datapath)
+        self.set_attributes()
+
+
+    def set_attributes(self):
+        ''' Set attributes other than xy. See class documentation. '''
+        xr = self.xy.meta['xrange']
+        yr = self.xy.meta['yrange']
+        pr = self.xy.meta['precision']
+
+        self.x_min = xr[0]
+        self.x_max = rnd(xr[1] + pr)
+        self.y_min = yr[0]
+        self.y_max = rnd(yr[1] + pr)
+
+        self.width = rnd(xr[1] - xr[0] + pr)
+        self.height = rnd(yr[1] - yr[0] + pr)
+        
+        # S and N are actual num of spp and individs present. n0_vect sums to
+        # N  but has max_spp_code + 1 elements, not S elements.
+        self.n0_vect = self.get_sub_sad(xr[0], rnd(xr[1] + pr), yr[0], 
+                                        rnd(yr[1] + pr), summary = '')
+        self.S = sum(self.n0_vect > 0)
+        self.N = sum(self.n0_vect)
+
+
+    def sad_grid(self, div_list, summary = ''):
         '''
-        Initialize object of class Patch. See class documentation.
-        '''
-        # TODO: Error checking for correct plot type
-        # TODO: Take extracted metadata fields and loaded data as args
-
-        self.data = data
-        self.precision = precision
-        self.sparse = self._get_sparse_bool()
-        self.sppcodes = self._get_sppcodes()
-        self.nspp = len(self.sppcodes)
-        self.total_abund = self._get_total_abund()
-
-        self.x_min = x_minmax[0]
-        self.x_max = x_minmax[1]
-        self.p_width = self.x_max - self.x_min + precision
-        self.y_min = y_minmax[0]
-        self.y_max = y_minmax[1]
-        self.p_height = self.y_max - self.y_min + precision
-
-    def SAD_grid(self, div_list, summary = ''):
-        '''
-        SAD_grid(div_list, summary = '')
-
         Calculate gridded SAD, SAR, or EAR for patch.
 
         Divides patch into evenly sized strips along vertical and horizontal 
@@ -125,7 +113,7 @@ class Patch:
         ----------
         div_list : list of tuples
             Number of divisions of patch along (x, y) axes to use for grid.
-            Input of (1, 1) corresponds to no divisions, ie the whole patch.
+            Tuple (2, 1), for example, splits the patch with a vertical cut.
         summary : string equal to '', 'SAR', or 'EAR'
             Chooses to summarize results as full SAD, SAR, or EAR. See Returns.
 
@@ -133,7 +121,7 @@ class Patch:
         -------
         result : list of ndarrays
             List of same length as div_list, with each element corresponding to 
-            an division tuple from div_list. If summary = '', elements are a 2D 
+            a division tuple from div_list. If summary = '', elements are a 2D 
             ndarray with each subpatch in a row and each species in a col. If 
             summary = 'SAR' or 'EAR', elements are a 1D ndarray giving the 
             count of species or endemics in each subpatch.
@@ -144,27 +132,32 @@ class Patch:
         p_width and p_height, respectively, so that every subpatch will have an 
         identical number of survey points.
         '''
-        # TODO: Error check that div must be >= 1
-
+        
         result = []
 
         for div in div_list:  # Loop each division tuple
+
+            # Check that x and y divs are factors of width and height
+            x_d = divisible(self.width, self.xy.meta['precision'], div[0])
+            y_d = divisible(self.height, self.xy.meta['precision'], div[1])
+            if not (x_d and y_d):
+                raise IndexError('Patch not evenly divisible by div.')
+            
+            # Calculate result for this div
             div_result = []
-            sp_width = self.p_width / float(div[0])
-            sp_height = self.p_height / float(div[1])
-            # TODO: Error check that x and y strips divide dimensions evenly - 
-            # use remainder function on *_max + precision and ensure 0.
+            sub_width = rnd(self.width / div[0])
+            sub_height = rnd(self.height / div[1])
 
-            for x_div_count in xrange(0,div[0]):  # Loop x_divs
-                x_st = self.x_min + x_div_count * sp_width
-                x_en = x_st + sp_width
+            for grid_row in xrange(0, div[0]):  # Loop rows of grid
+                x_st = rnd(self.x_min + grid_row * sub_width)
+                x_en = rnd(x_st + sub_width)
 
-                for y_div_count in xrange(0,div[1]):  # Loop y_divs
-                    y_st = self.y_min + y_div_count * sp_height
-                    y_en = y_st + sp_height
+                for grid_col in xrange(0, div[1]):  # Loop cols of grid
+                    y_st = rnd(self.y_min + grid_col * sub_height)
+                    y_en = rnd(y_st + sub_height)
 
-                    div_result.append(self._sub_SAD(x_st, x_en, y_st, y_en, 
-                                                    summary))
+                    div_result.append(self.get_sub_sad(x_st, x_en, y_st, y_en, 
+                                                       summary))
 
             result.append(np.array(div_result))
 
@@ -173,8 +166,6 @@ class Patch:
 
     def SAD_sample(self, wh_list, samples, summary = ''):
         '''
-        SAD_sample(wh_list, samples, summary = '')
-
         Calculate sampled SAD, SAR, or EAR for patch.
 
         Randomly places subpatches of width and height given in wh_list down in 
@@ -300,38 +291,41 @@ class Patch:
         return result
 
 
-    def _sub_SAD(self, x_st, x_en, y_st, y_en, summary):
+    def get_sub_sad(self, x_st, x_en, y_st, y_en, summary):
         '''
         Calculates a SAD, SAR, or EAR (according to summary, see class 
-        docstring) for a subpatch of known starting and ending coordinates. 
-        Only works for rectangles.
+        docstring) for a subpatch of known starting and ending coordinates.
         '''
         
-        if self.sparse:
-            # TODO: Use masked array instead of this bool?
-            in_sp = np.all([self.data[:,1] >= x_st, self.data[:,1] < x_en,
-                           self.data[:,2] >= y_st, self.data[:,2] < y_en],
-                           axis = 0)
-            sp_data = self.data[in_sp]
-            sub_abund = self._get_sparse_abund(sp_data)
-                
-        else:
-            sub_abund = self.data[y_st:y_en, x_st:x_en, 
-                                  :].sum(axis=0).sum(axis=0)
+        sub_table = self.xy.get_sub_table(x_st, x_en, y_st, y_en)
+        sub_abund = self.get_sub_abund(sub_table)
 
-        if summary is 'SAR':
+        if summary is 'SAR': 
             return sum(sub_abund > 0)
-        elif summary is 'EAR': # Don't count if self.total_abund = 0
-            return sum((sub_abund == self.total_abund) * \
-                       (self.total_abund != 0))
+        elif summary is 'EAR':  # Don't count if self.total_abund = 0
+            return sum((sub_abund == self.n0_vect) * \
+                       (self.n0_vect != 0))
         else:
             return sub_abund
 
 
-    def _get_sp_centers(self, div_list):
+    def get_sub_abund(self, table):
+        '''
+        Calculate abundance of each species in a xytable.
+        
+        If the maximum spp code is much higher than S - 1, this will be
+        inefficient.
+        '''
+        abund = np.zeros(self.xy.max_spp_code + 1)
+        for row in table:
+            abund[row[self.xy.col_spp_code]] += row[self.xy.col_count]
+        return abund
+
+
+    def get_sp_centers(self, div_list):
         '''
         Get coordinate of center of patches in landscape gridded according to 
-        divisions in div_list. Works for both sparse and dense data.
+        divisions in div_list.
         '''
         # TODO: Did not confirm that this works for x_min and y_min > 0
         sp_centers = []
@@ -354,36 +348,6 @@ class Patch:
         return sp_centers
 
 
-    def _get_total_abund(self):
-        ''' Calculate total abundance of each species in entire patch '''
-        if self.sparse:
-            return self._get_sparse_abund(self.data)
-        else:
-            self.total_abund = self.data.sum(axis=0).sum(axis=0)
-
-
-    def _get_sppcodes(self):
-        ''' Get array of codes of all species in self.data '''
-        # TODO: Dense here still counts 3rd dim 'floors' with 0 individs
-        if self.sparse:
-            return np.unique(self.data[:,0]).astype(int)
-        else:
-            return np.size(self.data, 2)  # Size of 3rd dim
-
-
-    def _get_sparse_bool(self):
-        ''' Return true if data is sparse, false if dense '''
-        return len(self.data.shape) == 2  # If data is 2D, is sparse
-
-
-    def _get_sparse_abund(self, data):
-        ''' Calculate abundance of each species in a sparse patch '''
-        # If the maximum spp code is much higher than S - 1, this will be
-        # inefficient.
-        abund = np.zeros(max(self.sppcodes) + 1)
-        for row in data:
-            abund[row[0]] += row[3]
-        return abund[self.sppcodes] # Only return codes in sppcodes
 
 
 #
@@ -392,21 +356,35 @@ class Patch:
 
 def distance(pt1, pt2):
     ''' Calculate Euclidean distance between two points '''
-    # TODO: Replace with built in
     return np.sqrt((pt1[0] - pt2[0]) ** 2 + (pt1[1] - pt2[1]) ** 2)
 
-'''
-Unit test ideas
-    Correctly recognized - 3D/4D, sparse and dense data
-    Pull out test cases
-    Make sure nothing depends on a contiguous list of sppcodes
-    assert length total_abund and sppcode same
-    still works if 0 in last col of sparse
-    Make sure throws error if not multiple of precision
-    Make sp to spa
-    Import division from __future__
-    Off by one error in SAD_grid check
-    Check dim of div_result, and whole result
-    sub_sad check for rectangle
-    make sure all run as dense and sparse and give same result
-'''
+def divisible(dividend, precision, divisor, tol = 1e-9):
+    '''
+    Check if dividend (here width or height of patch) is evenly divisible by 
+    divisor (here a number of patch divs) while accounting for floating point 
+    rounding issues.
+    '''
+    if divisor == 0:
+        return False
+    if divisor > round(dividend / precision):
+        return False
+
+    quot_raw = (dividend / precision) / divisor
+    quot_round = round(quot_raw)
+    diff = abs(quot_raw - quot_round)
+
+    if diff < tol:
+        return True
+    else:
+        return False
+
+def rnd(num):
+    '''
+    Round num to number of decimal places in precision. Used to avoid issues 
+    with floating points in the patch and subpatch width and height that make 
+    subpatches not lie exactly on even divisions of patch.
+
+    WARNING: The current implementation requires that precision be no less than 
+    0.01! I don't know a good way to check for this.
+    '''
+    return round(num, 2)
