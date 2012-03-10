@@ -4,11 +4,11 @@
 
 '''
 
-import xml.etree.ElementTree as etree
 import sys
-from matplotlib.mlab import csv
-
-
+import os
+from xml.etree.ElementTree import ElementTree
+#from xml.dom.ext.reader import PyExpat
+#from xml.xpath          import Evaluate
 
 __author__ = "Chloe Lewis"
 __copyright__ = "Copyright 2012, Regents of the University of California"
@@ -23,25 +23,61 @@ __status__ = "Development"
 class Metadata:
     '''Metadata values for any analysis. Metadata is intrinsic to a dataset, and is stored using Ecological Markup Language. %citation TODO.'''
 
-    def __init__(self, datapath, asklist):
-        ''' Reads the metadata values requested in asklist from the EML file sibling to datapath (same location, same filename, .XML extension).'''
+    def __init__(self, datapath):
+        ''' Parses the metadata from the EML file sibling to datapath (same location, same filename, .XML extension).
 
-        assert type(asklist) == type(())
-        xmlfile = datapath.split('.')[-2] + '.xml'
-        print xmlfile
-        try:
-            xf = open(xmlfile,'r')
+datapath is expected to be relative (from cwd).'''#TODO: handle absolute.
+        
+        dPath, dExtension = os.path.splitext(datapath)
+	xmlpath = os.path.abspath(os.path.join(dPath + '.xml'))
+	print xmlpath
+	try:
+            xmlfile = open(xmlpath)
         except IOError:
-            print 'IOError: Could not open %s'%xmlfile
+            print 'IOError: Could not open %s'%xmlpath
+	except:
+            print 'Error trying to open %s:'%xmlpath, sys.exc_info()[0]
+ 	
+        try:
+	
+            self.doc = ElementTree(file=xmlfile)
+	    self.root = self.doc.getroot()
+        except IOError:
+            print 'IOError: Could not open %s'%xmlpath
+	except:
+            print 'Error trying to open %s:'%xmlpath, sys.exc_info()[0]
 
-        # Dumb beginner version: just a string reader
+	self.TableDescr = None
+	self.GeneralAttribs = None
 
-             
-        reader = csv.reader(xf)
- 
-        self.data = {}
-        for line in reader:
-            self.data[line[0]] = line[1]
+    def get_dataTable_values(self, asklist):
+        ''' The asklist is pairs of column names and sub-attributes of that column,
+	e.g. ('gx','precision').
+
+        Metadata.TableDescr = {(columnName, subAttribute):subAttributeValue}'''
+        self.TableDescr = {}
+        for request in asklist:
+	    print 'looking for %s in %s'%(request[1],request[0])
+	    a = self.get_columnAtt_by_name(request[0])
+	    v = self.get_subattribute_value(a, request[1])
+	    self.TableDescr[request] = v
+
+
+    def get_columnAtt_by_name(self, attribName):
+        '''Returns list of XML elements of type attribute with the requested attributeName.'''
+
+        attributes = self.root.findall('.//dataTable/attributeList/attribute')
+	for a in attributes:
+	    if a.find('.//attributeName').text == attribName:
+		return a
+	print 'No match found for ', attribName #TODO: catch sensibly
+
+    def get_subattribute_value(self, att, subatt):
+	'''Returns the value of the subatt of the given att'''
+	return att.find('.//%s'%subatt).text
+
+
+	
 
         
 

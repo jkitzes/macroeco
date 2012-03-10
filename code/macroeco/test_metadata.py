@@ -2,7 +2,7 @@ import unittest
 import metadata
 from matplotlib.mlab import csv
 
-class DummyMetadataString(unittest.TestCase):
+later = '''class DummyMetadataString(unittest.TestCase):
 
     def setUp(self):
         self.asklist = {'gx/measurementScale/interval/precision':'1.1',
@@ -21,8 +21,22 @@ class DummyMetadataString(unittest.TestCase):
     def test_getFromComment(self):
         meta = metadata.Metadata('test_metadata.csv',('gx','gy'))
         for ask in self.asklist:
-            assert meta.data[ask] == self.asklist[ask]
+            assert meta.data[ask] == self.asklist[ask]'''
 
+class MorphoMetadata(unittest.TestCase):
+
+    def test_getfromBCIS_Arch(self):
+        asklist = [('gx','precision'),
+                        ('gy','precision'),
+                        ('gx','minimum'),
+                        ('gx','maximum'),
+                        ('gy','maximum')]
+        values = ['0.1', '0.1','0','999.9','499.9']
+        expect = dict(zip(asklist, values))
+        meta = metadata.Metadata('../../data/archival/BCIS/BCIS_1995.csv')
+        meta.get_dataTable_values(asklist)
+        for ask in asklist:
+            assert meta.TableDescr[ask] == expect[ask]
 
 if __name__=="__main__":
     unittest.main()
