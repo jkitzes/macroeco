@@ -48,7 +48,6 @@ datapath is expected to be relative (from cwd).'''#TODO: handle absolute.
             print 'Error trying to open %s:'%xmlpath, sys.exc_info()[0]
 
 	self.TableDescr = None
-	self.GeneralAttribs = None
 
     def get_dataTable_values(self, asklist):
         ''' The asklist is pairs of column names and sub-attributes of that column,
