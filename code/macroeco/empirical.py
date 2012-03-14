@@ -164,7 +164,7 @@ class Patch:
         return result
 
 
-    def SAD_sample(self, wh_list, samples, summary = ''):
+    def sad_sample(self, wh_list, samples, summary = ''):
         '''
         Calculate sampled SAD, SAR, or EAR for patch.
 
@@ -197,28 +197,29 @@ class Patch:
         p_width and p_height, respectively, so that every subpatch will have an 
         identical number of survey points.
         '''
-        # TODO: Check that width and height < pwidth and pheight
+
         result = []
 
         for wh in wh_list:  # Loop each width-height tuple
+            
+            # Calculate result for this width height
+            pr = self.xy.meta['precision']
+            
             wh_result = []
-            sp_width = wh[0]
-            sp_height = wh[1]
-            x_origins = np.arange(self.x_min, self.x_max - sp_width + 
-                                  self.precision, self.precision)
-            y_origins = np.arange(self.y_min, self.y_max - sp_width + 
-                                  self.precision, self.precision)
+            sub_w = rnd(wh[0])
+            sub_h = rnd(wh[1])
+            x_sts = np.arange(self.x_min, rnd(self.x_max - sub_w + pr), pr)
+            y_sts = np.arange(self.y_min, rnd(self.y_max - sub_h + pr), pr)
 
             for s in xrange(0,samples):  # Loop each sample
-                # TODO: Currently fails for sp_width = whole plot
-                x_st = choice(x_origins)
-                y_st = choice(y_origins)
+                x_st = choice(x_sts)
+                y_st = choice(y_sts)
 
-                x_en = x_st + sp_width
-                y_en = y_st + sp_height
+                x_en = rnd(x_st + sub_w)
+                y_en = rnd(y_st + sub_h)
 
-                wh_result.append(self._sub_SAD(x_st, x_en, y_st, y_en, 
-                                               summary))
+                wh_result.append(self.get_sub_sad(x_st, x_en, y_st, y_en, 
+                                                  summary))
 
             result.append(np.array(wh_result))
 
