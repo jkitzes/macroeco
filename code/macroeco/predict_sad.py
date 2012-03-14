@@ -4,8 +4,26 @@
 #A script to predict sad calculations
 #TODO: Make appropriate python header
 '''
+Calculate pmf and likelihood of spatial-abundance distributions.
+
+All distributions have an argument summary, which if False returns the entire 
+pmf for the inputted values of n, and if true returns the summed negative 
+log-likelihood of the inputted values (useful for likelihood ratio tests or 
+AIC).
+
+Distributions
+-------------
+- 'logser_pmf' -- Fisher's log series (Fisher et al. 1943)
+- 'plognorm_pmf' -- Poisson lognormal (Bulmer 1974)
+- 'mete_logser_pmf' -- METE log series (Harte 2011)
+- 'mete_logser_approx_pmf' -- METE log series using approximation (Harte 2011)
+
+
 References
 ----------
+
+Bulmer, M. G. 1974. On fitting the poisson lognormal distribution to species
+abundance data. Biometrics, 30:101-110.
 
 Fisher, R. A., Corbet, A. S., and C. B. Williams. 1943. The relation between
 The number of species and the number of individuals in a random sample
@@ -14,8 +32,8 @@ of an animal populatin. Journal of Animal Ecology, 12:42-58.
 Harte, J. 2011. Maximum Entropy and Ecology: A Theory of Abundance,
 Distribution, and Energetics. Oxford University Press.
 
-Hubbels, S. P. 2001. The unified theory of biodiversity and biogeography. 
-Monographs in Population Biology, 32,1:375
+Hubbell, S. P. 2001. The unified theory of biodiversity and biogeography. 
+Monographs in Population Biology, 32,1:375.
 
 '''
 
@@ -83,42 +101,61 @@ def lgser_pmf(S, N, summary=False):
 
 def plognorm_pmf(abundances, summary=False):
     '''
-    Generates a lognormal distribution given a species abundance
-    distribution. 
+    plognorm_pmf(abundance, summary=False)
 
-    abundances -- 1D np.array of abundances
+    Poisson log-normal pmf (Bulmer 1974)
 
-    TODO: Need error checking and unit testing on this function
-    Large values of N are problematic
-    In progress...
+    Parameters
+    ----------
+    abundances : A list, np.array, or tuple of the abundance fo each
+                 species in the plot.  len(abundance) should equal 
+                 the total number of species in the plot and sum(abundances)
+                 should equal the total number of individuals in the plot
+
+     Returns
+    -------
+    : ndarray (1D)
+        If summary is False, returns array with pmf. If summary is True,
+        returns the summed log likelihood of all values in n.
+
+    Notes
+    -----
+    Multiplying pmf by len(abundances) gives predicted number of species
+    at each n.
 
     '''
+    assert type(abundances) == list or type(abundances) == tuple \
+           or type(abundances) == np.ndarray, "Invalid parameter type"
+    assert len(np.unique(np.array(abundances))) > 1, "Error: variance is zero"
 
+    abundances = np.array(abundances)
     N = int(np.sum(abundances))
-    S = int(len(abundances))
+    S = int(len(abundances)) #Might not need S
     log_abund = np.log(abundances)
     mean = np.mean(log_abund)
-    var = np.var(log_abund)
+    var = np.var(log_abund, ddof=1)
     sd = var**0.5
 
-    pmf = np.empty(N)
     eq = lambda t, x: np.exp(t * x - np.exp(t) - 0.5*((t - mean) / sd)**2)
+    pmf = np.empty(N)
     for i in xrange(1, N + 1):
-        integral = integrate.quad(eq, -np.inf, np.inf, args=(i))
-        norm = m.exp((-0.5 * m.log(2 * m.pi * var) - m.lgamma(i + 1)))
-        pmf[i - 1] = norm * integral[0]
+        if i <= 170:
+            integral = integrate.quad(eq, -np.inf, np.inf, args=(i))[0]
+            norm = np.exp((-0.5 * m.log(2 * m.pi * var) - m.lgamma(i + 1)))
+            pmf[i - 1] = norm * integral
+        else:
+            z = (m.log(i) - mean) / sd
+            pmf[i - 1] = (1 + (z**2 + m.log(i) - mean - 1) / (2 * i * sd**2)) *\
+                         np.exp(-0.5 * z**2) / (m.sqrt(2 * m.pi) * sd * i)   
         
     
     if summary: return -sum(np.log(pmf))
     else:       return pmf
 
         
-
-
-
 def mete_lgsr_pmf(S, N, summary=False):
     '''
-    mete_logsr_pmf(S, N, summary=False)
+    mete_lgsr_pmf(S, N, summary=False)
 
     Truncated log series pmf (Harte 2011)
 
@@ -161,8 +198,6 @@ def mete_lgsr_pmf(S, N, summary=False):
 
     eq = lambda x, S, N: (sum(x ** n) / sum((x ** n) / n)) - (float(N)/S)
     x = scipy.optimize.brentq(eq, start, stop, args=(S,N), disp=True)
-    print x
-    print -m.log(x)
     #Taken from Ethan White's trun_logser_pmf
     nvals = np.linspace(1, N, num=N)
     norm = sum(x ** nvals / nvals)        
@@ -240,8 +275,6 @@ def mete_logsr_approx_pmf(S, N, summary=False, root=2):
         if ymax < 0:
             raise RootError('No solution to constraint equation with given ' + \
                             'values of S and N') 
-    print x
-    print -m.log(x)
     k = np.linspace(1, N - S + 1, num = N - S + 1)
     g = -1/m.log(x)
     pmf = (1/m.log(g)) * ((x**k)/k) 
