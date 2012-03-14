@@ -1,0 +1,17 @@
+<?xml version='1.0'?>
+<METE>
+  <analysis scriptname='test' version='0.5'>
+    <run name='red'>
+      <interactive>F</interactive>
+        <param name='color' value='red' />
+    </run>
+  </analysis>
+  <analysis scriptname='callparams' version='0.5'>
+    <run name='autoname0'>
+      <interactive>F</interactive>
+      <param name='size' value='4' />
+      <param name='species' value='foo' />
+      <param name='layers' value='[1, 5, 13]' />
+    </run>
+  </analysis>
+</METE>
