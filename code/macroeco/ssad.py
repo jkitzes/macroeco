@@ -167,7 +167,7 @@ def fnbd(n, N, a, k, summary = False):
 
     pmf = np.zeros(np.size(n))
     for i in xrange(0,np.size(n)):
-        pmf[i] = ln_L(n[i], N, a, k)
+        pmf[i] = np.exp(ln_L(n[i], N, a, k))
 
     if summary:
         if (pmf == 0).any():
