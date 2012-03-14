@@ -23,13 +23,10 @@ and Energetics. Oxford University Press.
 '''
 
 import numpy as np
-import scipy as sp
-import scipy.stats as stats
 import scipy.optimize 
 import scipy.special
 import math as m
-import exceptions
-import scipy.integrate as integrate
+import sys
 
 def mete_energy_theta_pdf(S, N, E, n, summary=False):
     '''
@@ -58,8 +55,14 @@ def mete_energy_theta_pdf(S, N, E, n, summary=False):
     -----
 
     '''
-    lambda2 = float(S) / (E - N) #Harte (2011) 7.26
+    assert S < N, "S must be less than N"
+    assert S > 1, "S must be greater than 1"
+    assert N > 0, "N must be greater than 0"
+    assert N < E, "N must be less than E"
+    assert n < N, "n must be less than N"
 
+    lambda2 = float(S) / (E - N) #Harte (2011) 7.26
+    
     epi = np.linspace(1, E, num=E*10) #Ten is arbitrary
     pdf = (n * lambda2 * np.exp(-lambda2 * n * epi)) / (np.exp(-lambda2 * n)\
           - np.exp(-lambda2 * n * E)) #Harte (2011) 7.25
@@ -97,15 +100,23 @@ def mete_energy_psi_pdf(S, N, E, summary=False):
 
     '''
 
+    assert S < N, "S must be less than N"
+    assert S > 1, "S must be greater than 1"
+    assert N > 0, "N must be greater than 0"
+    assert N < E, "N must be less than E"
+
+    
+    #Start and stop for root finders
     start = 0.3
     stop = 2
 
     #Could make a get beta function like Ethan White...
-    k = np.linspace(1, N, num=N) 
-    eq = lambda x, S, N: (sum(x ** k) / sum((x ** k) / k)) - (float(N)/S)
-    x = scipy.optimize.brentq(eq, start, stop, args=(S,N), disp=True)
+    #Getting beta
+    k = np.linspace(1, N, num=N)
+    eq = lambda x: sum(x ** k / float(N) * S) -  sum((x ** k) / k)
+    x = scipy.optimize.brentq(eq, start, min((sys.float_info[0] / S)**(1/float(N)),\
+                              stop), disp=True)
     beta = -m.log(x)
-
     lambda2 = float(S) / (E - N) #Harte (2011) 7.26
     lambda1 = beta - lambda2
     sigma = lambda1 + (E * lambda2)
@@ -117,12 +128,11 @@ def mete_energy_psi_pdf(S, N, E, summary=False):
     epi = np.linspace(1, E, num=E*10) #10 is arbitrary
     exp_neg_gamma = np.exp(-(beta + (epi - 1) * lambda2)) #Notation from E.W.
 
-    #EW believes equation 7.24 may have an error
-
     pdf1 = (float(S) / (N * norm)) * ((exp_neg_gamma  / (1 - exp_neg_gamma)**2) - \
           ((exp_neg_gamma**N / (1 - exp_neg_gamma)) * (N + (exp_neg_gamma / (1 - \
           exp_neg_gamma))))) # Harte (2011) 7.24
-    
+
+    #EW believes equation 7.24 may have an error
     norm_factor = lambda2 / ((np.exp(-beta) - np.exp(-beta * (N + 1))) / (1 - \
                   np.exp(-beta)) - (np.exp(-sigma) - np.exp(-sigma * (N + 1))) / \
                   (1 - np.exp(-sigma)))
@@ -134,9 +144,11 @@ def mete_energy_psi_pdf(S, N, E, summary=False):
     #Based on some graphical analysis, there is a slight difference between the 
     #pdf as the values get higher. 
 
-    
 
-    return pdf1, pdf2 
+    if summary: return -sum(np.log(pdf1))
+    else:       return pdf1
+
+    
 
 
 
