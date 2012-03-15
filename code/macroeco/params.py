@@ -68,7 +68,7 @@ class Parameters:
             self.write_to_xml()
             return
         
-        else:
+            else:
             raise Error #user wasn't helpful... TODO error type'''
          
     def read_from_xml(self, asklist):
@@ -77,7 +77,7 @@ class Parameters:
             pf = open(paramfile,'r')
             pf.close()
         except IOError:
-            print 'IOError: Could not read %s'%paramfile #Note; can't write is also an IOError 
+            print 'IOError: Could not open %s'%paramfile #Note; can't write is also an IOError 
 
         parser = etree.XMLParser() # Without this, parsing works in iPython, console, not script. ??
         parser.parser.UseForeignDTD(True)
@@ -94,6 +94,14 @@ class Parameters:
                 # check if any of these match scriptname TODO: and version (later)
                 if child.get('scriptname') == self.script:
                     analysis = child
+                    if 'interactive' in child.attrib:
+                        ia = child.get('interactive')
+                        if ia == 'F' or ia == 'False' or ia == 'f' or ia == 'false':
+                            self.interactive = False
+                        else:
+                            self.interactive = True
+                    else:
+                        self.interactive = False #TODO: consider the default.
                     if len(analysis) > 0:
                         for run in analysis.getchildren():
                             if 'name' in run.attrib:
@@ -103,13 +111,10 @@ class Parameters:
                                 runcount += 1
                             self.params[current_run] = {}
                             for elt in run.getchildren():
-                                if elt.tag == 'interactive':
-                                    if elt.text == 'F' or elt.text == 'False':
-                                        self.interactive = False
-                                    else:
-                                        self.interactive = True
                                 if elt.tag == 'param':
                                     self.params[current_run][elt.get('name')] = elt.get('value')
+        else:
+            print "Error: need run entries for analysis %s in %s"%(self.script, paramfile)
 
         # if none, *or* if interactive, put up dialog asking for values for all the params
 

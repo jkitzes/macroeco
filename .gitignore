@@ -12,4 +12,5 @@
 *.pyc
 tags
 .#*
+projects/BOUNDS/*
 code/convert_mat_to_xy.pyc

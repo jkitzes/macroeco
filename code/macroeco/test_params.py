@@ -19,23 +19,20 @@ class ParamfileTestCase(unittest.TestCase):
         self.pf = open(params.paramfile, 'w')
         self.pf.write("""<?xml version='1.0'?>
 <METE>
-    <analysis scriptname='RunExists' version='0.5'>
+    <analysis scriptname='RunExists' version='0.5' interactive='F'>
         <run name='ParamfileTestCase'>
-            <interactive>F</interactive>
             <param name='size' value='4.4' />
             <param name='species' value='E. coli' />
             <param name='layers' value='[0,3,12]' />
         </run>
     </analysis>
-    <analysis scriptname='ManyNIRuns' version='0.5'>
+    <analysis scriptname='ManyNIRuns' version='0.5' interactive='f'>
         <run name='FirstCase' >
-            <interactive>F</interactive>
             <param name='size' value='4.4' />
             <param name='species' value='E. coli' />
             <param name='layers' value='[0,3,12]' />
         </run>
         <run name='SecondCase' >
-            <interactive>F</interactive>
             <param name='size' value='2.2' />
             <param name='species' value='H. sapiens' />
             <param name='layers' value='[5]' />
@@ -43,18 +40,29 @@ class ParamfileTestCase(unittest.TestCase):
     </analysis>
     <analysis scriptname='Unnamed' version='0.5'>
         <run>
-            <interactive>F</interactive>
             <param name='size' value='4.4' />
             <param name='species' value='E. coli' />
             <param name='layers' value='[0,3,12]' />
         </run>
         <run>
-            <interactive>F</interactive>
             <param name='size' value='2.2' />
             <param name='species' value='H. sapiens' />
             <param name='layers' value='[5]' />
         </run>
     </analysis>
+    <analysis scriptname='Interactive' version='0.5' interactive='T'>
+        <run>
+            <param name='size' value='4.4' />
+            <param name='species' value='E. coli' />
+            <param name='layers' value='[0,3,12]' />
+        </run>
+        <run>
+            <param name='size' value='2.2' />
+            <param name='species' value='H. sapiens' />
+            <param name='layers' value='[5]' />
+        </run>
+    </analysis>
+    
 </METE>""")
         self.pf.close()
 
@@ -92,7 +100,9 @@ class ParamfileTestCase(unittest.TestCase):
         self.assertTrue(pa.params['autoname1']['species'] == 'H. sapiens')
         self.assertTrue(pa.params['autoname1']['layers'] == '[5]')
 
-
+    def test_InteractiveRun(self):
+        pa = params.Parameters('Interactive', self.asklist)
+        self.assertTrue(pa.interactive == True)
 
 if __name__ == '__main__':
     unittest.main()

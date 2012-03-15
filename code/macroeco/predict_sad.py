@@ -1,11 +1,29 @@
 #!/usr/bin/python
 
 
-#A script to predict sad calculations
-#TODO: Make appropriate python header
+
 '''
+Calculate pmf and likelihood of spatial-abundance distributions.
+
+All distributions have an argument summary, which if False returns the entire 
+pmf for the inputted values of n, and if true returns the summed negative 
+log-likelihood of the inputted values (useful for likelihood ratio tests or 
+AIC).
+
+Distributions
+-------------
+- 'logser_pmf' -- Fisher's log series (Fisher et al. 1943)
+- 'neg_binom' -- Negative Binomial
+- 'plognorm_pmf' -- Poisson lognormal (Bulmer 1974)
+- 'mete_logser_pmf' -- METE log series (Harte 2011)
+- 'mete_logser_approx_pmf' -- METE log series using approximation (Harte 2011)
+
+
 References
 ----------
+
+Bulmer, M. G. 1974. On fitting the poisson lognormal distribution to species
+abundance data. Biometrics, 30:101-110.
 
 Fisher, R. A., Corbet, A. S., and C. B. Williams. 1943. The relation between
 The number of species and the number of individuals in a random sample
@@ -14,19 +32,18 @@ of an animal populatin. Journal of Animal Ecology, 12:42-58.
 Harte, J. 2011. Maximum Entropy and Ecology: A Theory of Abundance,
 Distribution, and Energetics. Oxford University Press.
 
-Hubbels, S. P. 2001. The unified theory of biodiversity and biogeography. 
-Monographs in Population Biology, 32,1:375
+Hubbell, S. P. 2001. The unified theory of biodiversity and biogeography. 
+Monographs in Population Biology, 32,1:375.
 
 '''
 
 import numpy as np
-import scipy as sp
 import scipy.stats as stats
 import scipy.optimize 
 import scipy.special
 import math as m
-import exceptions
 import scipy.integrate as integrate
+import sys
 
 
 
@@ -67,7 +84,8 @@ def lgser_pmf(S, N, summary=False):
     '''
     assert S < N, "S must be less than N"
     assert S > 1, "S must be greater than 1"
-    assert N > 0, "S must be greater than 0"
+    assert N > 0, "N must be greater than 0"
+
     start = -2
     stop = 1 - 1e-10
     
@@ -81,44 +99,96 @@ def lgser_pmf(S, N, summary=False):
     if summary: return -sum(np.log(pmf))
     else:       return pmf
 
+def neg_binom(S, N, k, summary=False):
+    '''
+    neg_binom(S, N, k, summary=False)
+
+    Negative binomial distribution 
+    
+    Parameters
+    ----------
+    S : int
+        Total number of species in landscape
+    N : int
+        Total number of individuals in landscape
+    k : int
+        Aggregation parameter
+    summary: bool (optional)
+        see Returns
+
+    Returns
+    -------
+    : ndarray (1D)
+        If summary is False, returns array with pmf. If summary is True, 
+        returns the summed log likelihood of all values in n.
+
+    '''
+
+    mu = float(N) / S
+    p = float(k) / (mu + k)
+    n = np.arange(1, N + 1)
+    pmf = stats.nbinom.pmf(n, k, p)
+
+    if summary: return -sum(np.log(pmf))
+    else:       return pmf
+
+
 def plognorm_pmf(abundances, summary=False):
     '''
-    Generates a lognormal distribution given a species abundance
-    distribution. 
+    plognorm_pmf(abundance, summary=False)
 
-    abundances -- 1D np.array of abundances
+    Poisson log-normal pmf (Bulmer 1974)
 
-    TODO: Need error checking and unit testing on this function
-    Large values of N are problematic
-    In progress...
+    Parameters
+    ----------
+    abundances : A list, np.array, or tuple of the abundance fo each
+                 species in the plot.  len(abundance) should equal 
+                 the total number of species in the plot and sum(abundances)
+                 should equal the total number of individuals in the plot
+
+     Returns
+    -------
+    : ndarray (1D)
+        If summary is False, returns array with pmf. If summary is True,
+        returns the summed log likelihood of all values in n.
+
+    Notes
+    -----
+    Multiplying pmf by len(abundances) gives predicted number of species
+    at each n.
 
     '''
+    assert type(abundances) == list or type(abundances) == tuple \
+           or type(abundances) == np.ndarray, "Invalid parameter type"
+    assert len(np.unique(np.array(abundances))) > 1, "Error: variance is zero"
 
+    abundances = np.array(abundances)
     N = int(np.sum(abundances))
-    S = int(len(abundances))
     log_abund = np.log(abundances)
     mean = np.mean(log_abund)
-    var = np.var(log_abund)
+    var = np.var(log_abund, ddof=1)
     sd = var**0.5
 
-    pmf = np.empty(N)
     eq = lambda t, x: np.exp(t * x - np.exp(t) - 0.5*((t - mean) / sd)**2)
+    pmf = np.empty(N)
     for i in xrange(1, N + 1):
-        integral = integrate.quad(eq, -np.inf, np.inf, args=(i))
-        norm = m.exp((-0.5 * m.log(2 * m.pi * var) - m.lgamma(i + 1)))
-        pmf[i - 1] = norm * integral[0]
+        if i <= 170:
+            integral = integrate.quad(eq, -np.inf, np.inf, args=(i))[0]
+            norm = np.exp((-0.5 * m.log(2 * m.pi * var) - m.lgamma(i + 1)))
+            pmf[i - 1] = norm * integral
+        else:
+            z = (m.log(i) - mean) / sd
+            pmf[i - 1] = (1 + (z**2 + m.log(i) - mean - 1) / (2 * i * sd**2)) *\
+                         np.exp(-0.5 * z**2) / (m.sqrt(2 * m.pi) * sd * i)   
         
     
     if summary: return -sum(np.log(pmf))
     else:       return pmf
 
         
-
-
-
 def mete_lgsr_pmf(S, N, summary=False):
     '''
-    mete_logsr_pmf(S, N, summary=False)
+    mete_lgsr_pmf(S, N, summary=False)
 
     Truncated log series pmf (Harte 2011)
 
@@ -143,10 +213,10 @@ def mete_lgsr_pmf(S, N, summary=False):
     eq (7.32).  The equation used in this function to solve for the Lagrange 
     multiplier is equation (7.27) as described in Harte 2011. 
     
-    Also note that realistic values of x where x = e^-(beta) (see Harte 2011) are
+    Also note that realistic values of x where x = e**-(beta) (see Harte 2011) are
     in the range (1/e, 1) (exclusive). Therefore, the start and stop parameters 
     for the brentq procedure are close to these values. However, x can
-    occasionally be greater than one so the stop value of the brentq optimizer
+    occasionally be greater than one so the maximum stop value of the brentq optimizer
     is 2.
 
     '''
@@ -156,13 +226,12 @@ def mete_lgsr_pmf(S, N, summary=False):
     start = 0.3
     stop = 2
     
+       
     #NOTE:  The bound is not N + S - 1
     n = np.linspace(1, N, num=N)
-
-    eq = lambda x, S, N: (sum(x ** n) / sum((x ** n) / n)) - (float(N)/S)
-    x = scipy.optimize.brentq(eq, start, stop, args=(S,N), disp=True)
-    print x
-    print -m.log(x)
+    eq = lambda x: sum(x ** n / float(N) * S) -  sum((x ** n) / n)
+    x = scipy.optimize.brentq(eq, start, min((sys.float_info[0] / S)**(1/float(N)),\
+                              stop), disp=True)
     #Taken from Ethan White's trun_logser_pmf
     nvals = np.linspace(1, N, num=N)
     norm = sum(x ** nvals / nvals)        
@@ -210,7 +279,7 @@ def mete_logsr_approx_pmf(S, N, summary=False, root=2):
 
     #NOTE:  Ethan White has a way to do this as well, but his does not
     #take into account the fact that there can be multiple roots. Based on the
-    # way that he implements this the approx method that is not actually
+    # way that he implements this approx method that is not actually
     # a major problem.  However, he does not account for the fact that there are
     # S and N values such that there is no solution to the constraint.  This 
     # method does. 
@@ -220,28 +289,26 @@ def mete_logsr_approx_pmf(S, N, summary=False, root=2):
     start = 0.3
     stop = 1 - 1e-10
     
-    eq = lambda x, S, N: ((-m.log(x))*(m.log(-1/(m.log(x))))) - (float(S)/N)
+    eq = lambda x: ((-m.log(x))*(m.log(-1/(m.log(x))))) - (float(S)/N)
     try:
-        x = scipy.optimize.brentq(eq, start, stop, args = (S, N), disp=True)
+        x = scipy.optimize.brentq(eq, start, stop, disp=True)
     except ValueError:
         values = np.linspace(start, stop, num=1000)
         solns = []
         for i in values:
-            solns.append(eq(i, S, N))
+            solns.append(eq(i))
         ymax = np.max(np.array(solns))
         xmax = values[solns.index(ymax)]
         if ymax > 0:
             print "Warning: More than one solution."
             if root == 1:
-                x = scipy.optimize.brentq(eq, start, xmax, args=(S,N), disp=True)
+                x = scipy.optimize.brentq(eq, start, xmax, disp=True)
             if root == 2:
-                x = scipy.optimize.brentq(eq, xmax, stop, args=(S,N), disp=True)
+                x = scipy.optimize.brentq(eq, xmax, stop, disp=True)
                        
         if ymax < 0:
             raise RootError('No solution to constraint equation with given ' + \
                             'values of S and N') 
-    print x
-    print -m.log(x)
     k = np.linspace(1, N - S + 1, num = N - S + 1)
     g = -1/m.log(x)
     pmf = (1/m.log(g)) * ((x**k)/k) 

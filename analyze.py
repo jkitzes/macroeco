@@ -75,10 +75,11 @@ class Chooser:
     def call_script(self):
         '''Runs the chosen data,analysis,output triple.
 
-        There can be more than one dataset; they will be run in sequence with the same analysis.
+        There can be more than one dataset and more than one analysis.
+        All pairs will be run.
 
         Note that the GUI stays open: user can choose another triple to run.'''
-        METEbase = os.path.dirname(os.path.abspath(__file__))
+        METEbase = os.path.dirname(os.path.abspath(__file__)) #Using METE file structure
         for dfile in self.dlist.curselection():
             for afile in self.alist.curselection():
                 data = self.dlist.realcontent[int(dfile)]

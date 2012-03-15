@@ -1,6 +1,6 @@
-import params
+import macroeco.params as params
 
-pa = params.Parameters('Unnamed', {'size':'number', 'species':'foo','layers':'list of integers'})
+pa = params.Parameters('callparams', {'size':'number', 'species':'foo','layers':'list of integers'})
 print pa.params
 print pa.interactive
 onerun = pa.params['autoname0']
