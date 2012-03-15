@@ -43,7 +43,6 @@ def get_files(filetype, num, direct):
     '''
 
     #NOTE:This function is vulnerable to break! More checking needed
-    #NOTE: Need to remove the slashes! 
     assert direct.find('/') == -1, "%s should not contain a '/'" % (direct)
     cwd = gcwd();
     filedir = jp(pd(pd(gcwd())), 'archival', direct)
