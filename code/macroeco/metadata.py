@@ -7,8 +7,6 @@
 import sys
 import os
 from xml.etree.ElementTree import ElementTree
-#from xml.dom.ext.reader import PyExpat
-#from xml.xpath          import Evaluate
 
 __author__ = "Chloe Lewis"
 __copyright__ = "Copyright 2012, Regents of the University of California"
@@ -30,7 +28,6 @@ datapath is expected to be relative (from cwd).'''#TODO: handle absolute.
         
         dPath, dExtension = os.path.splitext(datapath)
 	xmlpath = os.path.abspath(os.path.join(dPath + '.xml'))
-	print xmlpath
 	try:
             xmlfile = open(xmlpath)
         except IOError:
@@ -75,6 +72,18 @@ datapath is expected to be relative (from cwd).'''#TODO: handle absolute.
 	'''Returns the value of the subatt of the given att'''
 	return att.find('.//%s'%subatt).text
 
+    def get_coverage_region(self):
+	'''Returns a tuple of the limits of the physical area of the dataset:  NESW.'''
+        coords = self.root.find('.//coverage/geographicCoverage/boundingCoordinates')
+	bounds = []
+	for d in ('north','east','south','west'):
+	    bounds.append(float(coords.find('%sBoundingCoordinate'%d).text))
+	return bounds
+
+    def get_title(self):
+        '''Extracts the title of the dataset'''
+	return self.root.find('.//dataset/title').text
+        
 
 	
 

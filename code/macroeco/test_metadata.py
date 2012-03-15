@@ -20,6 +20,9 @@ class MorphoMetadata(unittest.TestCase):
         for ask in asklist:
             assert self.meta.TableDescr[ask] == expect[ask]
 
+    def test_region(self):
+        edges = self.meta.get_coverage_region()
+        assert edges == [9.15,-79.85,9.15,-79.85]
 
 
 if __name__=="__main__":
