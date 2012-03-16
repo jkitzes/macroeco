@@ -1,7 +1,5 @@
 #!/usr/bin/python
 
-
-
 '''
 Calculate pmf and likelihood of spatial-abundance distributions.
 
@@ -12,16 +10,18 @@ AIC).
 
 Distributions
 -------------
-- 'logser_pmf' -- Fisher's log series (Fisher et al. 1943)
-- 'neg_binom' -- Negative Binomial
-- 'plognorm_pmf' -- Poisson lognormal (Bulmer 1974)
-- 'mete_logser_pmf' -- METE log series (Harte 2011)
-- 'mete_logser_approx_pmf' -- METE log series using approximation (Harte 2011)
+- `logser_pmf` -- Fisher's log series (Fisher et al. 1943)
+- `neg_binom` -- Negative Binomial
+- `plognorm_pmf` -- Poisson lognormal (Bulmer 1974)
+- `mete_logser_pmf` -- METE log series (Harte 2011)
+- `mete_logser_approx_pmf` -- METE log series using approximation (Harte 2011)
 
+Misc Functions
+--------------
+- `make_rank_abund` -- convert any SAD pmf into a rank abundance curve
 
 References
 ----------
-
 Bulmer, M. G. 1974. On fitting the poisson lognormal distribution to species
 abundance data. Biometrics, 30:101-110.
 
@@ -34,9 +34,9 @@ Distribution, and Energetics. Oxford University Press.
 
 Hubbell, S. P. 2001. The unified theory of biodiversity and biogeography. 
 Monographs in Population Biology, 32,1:375.
-
 '''
 
+from __future__ import division
 import numpy as np
 import scipy.stats as stats
 import scipy.optimize 
@@ -59,8 +59,6 @@ class RootError(Exception):
 
 def lgser_pmf(S, N, summary=False):
     '''
-    lgser_pmf(S, N, summary=False)
-    
     Fisher's log series pmf (Fisher et al. 1943, Hubbel 2001)
 
     Parameters
@@ -79,8 +77,7 @@ def lgser_pmf(S, N, summary=False):
     Notes
     -----
     Multiplying the pmf by S yields the predicted number of species
-    with a given abundance
-
+    with a given abundance.
     '''
     assert S < N, "S must be less than N"
     assert S > 1, "S must be greater than 1"
@@ -99,10 +96,9 @@ def lgser_pmf(S, N, summary=False):
     if summary: return -sum(np.log(pmf))
     else:       return pmf
 
+
 def neg_binom(S, N, k, summary=False):
     '''
-    neg_binom(S, N, k, summary=False)
-
     Negative binomial distribution 
     
     Parameters
@@ -135,8 +131,6 @@ def neg_binom(S, N, k, summary=False):
 
 def plognorm_pmf(abundances, summary=False):
     '''
-    plognorm_pmf(abundance, summary=False)
-
     Poisson log-normal pmf (Bulmer 1974)
 
     Parameters
@@ -188,8 +182,6 @@ def plognorm_pmf(abundances, summary=False):
         
 def mete_lgsr_pmf(S, N, summary=False):
     '''
-    mete_lgsr_pmf(S, N, summary=False)
-
     Truncated log series pmf (Harte 2011)
 
     Parameters:
@@ -218,7 +210,6 @@ def mete_lgsr_pmf(S, N, summary=False):
     for the brentq procedure are close to these values. However, x can
     occasionally be greater than one so the maximum stop value of the brentq optimizer
     is 2.
-
     '''
     assert S < N, "S must be less than N"
     assert S > 1, "S must be greater than 1"
@@ -272,9 +263,7 @@ def mete_logsr_approx_pmf(S, N, summary=False, root=2):
        
     Also note that realistic values of x where x = e^-(beta) (see Harte 2011) are
     in the range (1/e, 1) (exclusive). Therefore, the start and stop parameters
-    for the brentq optimizer have been chosen near these values
-
-    
+    for the brentq optimizer have been chosen near these values.
     '''
 
     #NOTE:  Ethan White has a way to do this as well, but his does not
@@ -317,14 +306,41 @@ def mete_logsr_approx_pmf(S, N, summary=False, root=2):
     else:       return pmf
 
 
+def make_rank_abund(sad_pmf, S):
+    '''
+    Convert any SAD pmf into a rank abundance curve for S species using 
+    cumulative distribution function.
 
+    Parameters
+    ----------
+    sad_pmf : ndarray
+        Probability of observing a species from 1 to length sad_pmf individs
+    S : int
+        Total number of species in landscape
 
+    Returns
+    -------
+    : ndarray (1D)
+        If summary is False, returns array with pmf. If summary is True,
+        returns the summed log likelihood of all values in n.
 
+    Notes
+    -----
+    Function actually implements (philosophically) a step quantile function. 
+    Species indexes currently run from 0 to 1 - 1/S - this might be better 
+    running from 1/2S to 1 - 1/2S.
+    '''
 
-
-
-
+    S_points = np.arange(0, 1, 1/S)
+    S_abunds = np.zeros(S_points.shape[0])
+    sad_pmf_w_zero = np.array([0] + list(sad_pmf)) # Add 0 to start of pmf
+    cum_sad_pmf_w_zero = np.cumsum(sad_pmf_w_zero)
     
+    for cutoff in cum_sad_pmf_w_zero:
+        greater_thans = (S_points >= cutoff)
+        S_abunds[greater_thans] += 1
+
+        if not greater_thans.any():  # If no greater thans, ie done with all S
+            break
     
-
-
+    return S_abunds
