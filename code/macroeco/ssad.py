@@ -167,15 +167,12 @@ def fnbd(n, N, a, k, summary = False):
 
     pmf = np.zeros(np.size(n))
     for i in xrange(0,np.size(n)):
-        pmf[i] = np.exp(ln_L(n[i], N, a, k))
+        pmf[i] = ln_L(n[i], N, a, k) # NOTE: This is already log
 
     if summary:
-        if (pmf == 0).any():
-            return np.nan
-        else:
-            return -sum(np.log(pmf))
+        return -sum(pmf)
     else:
-        return pmf
+        return np.exp(pmf)
 
 
 def cnbd(n, N, a, k, summary = False):
