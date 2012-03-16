@@ -79,6 +79,7 @@ def make_spec_dict(spp_array):
         2D structured np.array
 
     '''
+    assert len(spp_array) > 0, "Species array cannot be empty"
     unq_specs = np.unique(spp_array)
     unq_ints = np.linspace(0, len(unq_specs) - 1, num=len(unq_specs)) 
     spec_dict = np.empty(len(unq_ints), dtype=[('spp_code', np.int), \
@@ -143,7 +144,7 @@ def create_intcodes(speclist, unq_specs, unq_ints):
     '''This function converts each species code into 
     its corresponding integer value.
     
-    speclist -- a 1D np.array which contains the occurences 
+    speclist -- a 1D np.array which contains the occurrences 
     of the species within the plot
         
     unq_specs -- a 1D np.array of the unique species codes 
@@ -157,7 +158,7 @@ def create_intcodes(speclist, unq_specs, unq_ints):
         speclist
         
     '''
-    
+    assert len(speclist) > 0, "Species array cannot be empty"
     tot_int = np.empty(len(speclist))
     for s in xrange(len(unq_specs)):
         check = (unq_specs[s] == speclist)
@@ -218,7 +219,7 @@ def make_dense_spec_dict(datayears):
     datayears -- list of rec arrays containing data
 
     returns:
-        A 1D array of tuples
+        A 1D array of tuples AKA a structured array
 
     '''
     
