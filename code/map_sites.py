@@ -27,17 +27,18 @@ m = Basemap(projection='cyl', lat_0=50, lon_0=-100,
             urcrnrlon=max(lons)+5, urcrnrlat=max(lats)+5,
             resolution='l')
 
+m.bluemarble()
 m.drawcoastlines()
 m.drawcountries()
-m.fillcontinents(color='beige')
+#m.fillcontinents(color='beige') #Not with bluemarble
 m.drawmapboundary()
 
 x, y = m(lons, lats)
-m.plot(x, y, 'bo')
+m.plot(x, y, 'wo')
 for n, xpt, ypt in zip(names,x,y):
     if n == 'BCIS': ypt += 1 #Cleanup for crowded areas 
     if n == 'SHER': ypt += 2
-    plt.text(xpt+.5,ypt+.5,n)
+    plt.text(xpt+.5,ypt+.5,n,color='white')
 plt.title('Field sites of testable data')
 plt.savefig('sites_map.png')
 plt.show()
