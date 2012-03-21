@@ -7,6 +7,7 @@ import numpy as np
 import csv
 import matplotlib.mlab as plt
 import glob
+from metadata import *
 
 gcwd = os.getcwd #get current directory
 pd = os.path.dirname #get parent directory
@@ -23,6 +24,26 @@ __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
 #Formatting functions
+def get_metadata(asklist, folder_name, dataname):
+    '''This function takes in a list of tuples and returns the appropriate
+    metadata in a dictionary
+
+    asklist -- A list of tuples e.g. [('x', 'precision'), ('y', 'maximum')]
+
+    folder_name -- name of the archival folder where data is e.g. BCIS
+
+    dataname -- name of the metadata e.g. BCIS_1984.xml (string)
+
+    
+    '''
+
+    cwd = gcwd()
+    chdir(jp(pd(pd(gcwd())), 'archival', folder_name))
+    meta = Metadata(dataname)
+    meta.get_dataTable_values(asklist)
+    chdir(cwd)
+    return meta.TableDescr
+
 
 def get_files(filetype, num, direct):
     '''This functoin gets the .txt files from the 

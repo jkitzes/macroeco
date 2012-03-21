@@ -182,6 +182,8 @@ def plognorm_pmf(abundances, summary=False):
         
 def mete_lgsr_pmf(S, N, summary=False):
     '''
+    mete_logsr_pmf(S, N, summary=False)
+
     Truncated log series pmf (Harte 2011)
 
     Parameters:
@@ -232,9 +234,9 @@ def mete_lgsr_pmf(S, N, summary=False):
     else:       return pmf
 
 
-def mete_logsr_approx_pmf(S, N, summary=False, root=2):
+def mete_lgsr_approx_pmf(S, N, summary=False, root=2):
     '''
-    tflogsApprox(S, N, start=0.30, stop=0.999999, summary=False, root=2)
+    mete_lgsr_approx_pmf(S, N, summary=False, root=2)
 
     Truncated log series using approximation (7.30) and (7.32) in Harte 2011
 
