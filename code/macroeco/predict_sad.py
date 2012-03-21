@@ -268,12 +268,6 @@ def mete_lgsr_approx_pmf(S, N, summary=False, root=2):
     for the brentq optimizer have been chosen near these values.
     '''
 
-    #NOTE:  Ethan White has a way to do this as well, but his does not
-    #take into account the fact that there can be multiple roots. Based on the
-    # way that he implements this approx method that is not actually
-    # a major problem.  However, he does not account for the fact that there are
-    # S and N values such that there is no solution to the constraint.  This 
-    # method does. 
     assert S < N, "S must be less than N"
     assert S > 1, "S must be greater than 1"
     assert N > 0, "S must be greater than 0"

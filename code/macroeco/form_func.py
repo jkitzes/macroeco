@@ -76,7 +76,7 @@ def get_files(filetype, num, direct):
     return datafiles
 
 
-def open_data(filename, delim):
+def open_data(filename, delim, names=None):
     '''This functions takes in the data and returns a rec array.
 
     filename -- name of the file, a string
@@ -85,7 +85,7 @@ def open_data(filename, delim):
 
     '''
 
-    data = plt.csv2rec(filename, delimiter=delim)
+    data = plt.csv2rec(filename, delimiter=delim, names=names)
     return data
 
 def make_spec_dict(spp_array):
@@ -104,18 +104,23 @@ def make_spec_dict(spp_array):
     unq_specs = np.unique(spp_array)
     unq_ints = np.linspace(0, len(unq_specs) - 1, num=len(unq_specs)) 
     spec_dict = np.empty(len(unq_ints), dtype=[('spp_code', np.int), \
-                        ('spp', 'S6')])
+                        ('spp', 'S10')])
     spec_dict['spp'] = unq_specs
     spec_dict['spp_code'] = unq_ints
     return spec_dict
 
-def format_by_year(tot_int, data):
+def format_by_year(tot_int, data, col_name='recr', years=3):
     '''This function breaks data up by year, 
         removes dead trees, and flips y values.
         
         tot_int -- 1D np.array of integer codes for each species location
         
         data -- 2D np.array formatted like COCO or SHER
+
+        col_name -- string, a column name in the data to use for formatting
+        
+        years -- an int specifying how many years of data are held in the
+                 parameter data. col_name allows you to extract these years.
 
         returns:
             A list of formatted 2D np.arrays
@@ -125,12 +130,12 @@ def format_by_year(tot_int, data):
     datalist = []
     #Eliminating all trees that aren't marked as alive
     #xrange(3) is 3 because this function only looks at 3 years
-    for i in xrange(3):
-        datalist.append(rm_trees_reduce(tot_int, data, i + 1))
+    for i in xrange(years):
+        datalist.append(rm_trees_reduce(tot_int, data, i + 1, col_name))
       
     return datalist
 
-def rm_trees_reduce(tot_int, data, year):
+def rm_trees_reduce(tot_int, data, year, col_name):
     '''This function removes all trees that are not
     marked as alive in the SHER_t data set and returns
     the reduced data for a given year.
@@ -139,14 +144,17 @@ def rm_trees_reduce(tot_int, data, year):
         
     data -- 2D np.array of COCO or SHER data
         
-    year -- 1 = 1996, 2 = 1998, 3 = 1999 (int)
-        
+    year -- int
+
     returns:
         A rec array containing the data for a given year
         
-        '''
-    include = np.bitwise_or((data['recr' + str(year)] == 'A'),\
-                          (data['recr' + str(year)] == 'P'))
+    '''
+    if col_name == 'recr':
+        include = np.bitwise_or((data['recr' + str(year)] == 'A'),\
+                                (data['recr' + str(year)] == 'P'))
+    if col_name == 'dbh':
+        include = (data['dbh' + str(year)] >= 1)
                             
     alive = data[include]
     tot_int_alive = tot_int[include]
