@@ -26,23 +26,42 @@ __status__ = "Development"
 class Chooser:
     '''GUI to choose the data, analysis script, and output directory.'''
     def __init__(self, master):
-        self.structure={'data':"data/*", 'code':"code/*.py",
+        self.structure={'data':"data/formatted/*/*.csv", 'code':"code/*.py",
                         'output':os.path.abspath("projects")}
         self.master = master
-        Label(master,text="Datafile:").grid(row=0,column=0,padx=2)
-        Label(master,text="Analysis:").grid(row=0,column=2,padx=2)
+        
+        Label(master,text="Datafile:").grid(row=0,column=1,padx=2)
+        Label(master,text="Analysis:").grid(row=0,column=3,padx=2)
         Label(master,text="Results saved to:").grid(row=12,column=0,padx=2)
         self.output = StringVar()
         self.output.set(self.structure['output'])
         Label(master, textvariable=self.output).grid(row=13,column=0,columnspan=4,padx=2)
-        self.dlist = Listbox(master,exportselection=0,selectmode=MULTIPLE)
+
+
+
+        
+        self.dlist = Listbox(master,exportselection=0,selectmode=MULTIPLE,
+                             width=25, height=10)
         self.dlist.grid(row=1,column=0,rowspan=10,columnspan=2,padx=2)
-        self.alist = Listbox(master,exportselection=0,selectmode=MULTIPLE)
-        self.alist.grid(row=1,column=2,columnspan=2,rowspan=10,padx=2)
-
-        self.fill_list('data',['data/archival','data/formatted'],self.dlist)
+        self.dscroll = Scrollbar(command=self.dlist.yview, orient=VERTICAL,
+                                 width=15)
+        self.dlist.configure(yscrollcommand=self.dscroll.set)
+        self.dscroll.config(command=self.dlist.yview)
+        self.dscroll.grid(row=1, column=1, rowspan=10, sticky=N+S)
+        
+        
+        self.alist = Listbox(master,exportselection=0,selectmode=MULTIPLE,
+                             width=25, height=10)
+        self.alist.grid(row=1,column=3,rowspan=10,columnspan=2,padx=2)
+        self.ascroll = Scrollbar(command=self.alist.yview, orient=VERTICAL,
+                                 width=15)
+        self.alist.configure(yscrollcommand=self.dscroll.set)
+        self.ascroll.config(command=self.alist.yview)
+        self.ascroll.grid(row=1,column=4,rowspan=10,sticky=N+S)
+        
         self.fill_list('code',[],self.alist)
-
+        self.fill_list('data',[],self.dlist)
+        
         self.projectbutton = Button(master, text="Change output directory",
                                     command=self.change_project).grid(row=14, column=0)
         self.quitbutton = Button(master, text="Exit", fg="red",
@@ -51,8 +70,9 @@ class Chooser:
                                 command=self.call_script).grid(row=14,column=3)
 
         self.dlist.selection_set(0)
-        self.alist.selection_set(0) 
-        
+        self.alist.selection_set(0)
+
+ 
     def change_project(self):
         '''Change the directory in which output will be saved.'''
 
@@ -61,14 +81,17 @@ class Chooser:
         self.output.set(path)
 
     def fill_list(self,target,hide,list):
-        '''Fills the GUI. Assumes that data, code, projects are all siblings.'''
+        '''Fills the GUI. Assumes that data, code, projects are all siblings,
+        and that data-files have unique names even without the directory showing.'''
         files = glob.glob(self.structure[target])
         for h in hide:
             hi = files.index(h)
             files = files[:hi] + files[hi+1:]
+        # Don't display the directory paths (depends on unique data file names)
         strip = self.structure[target].find('/',2)
         for item in files:
-            list.insert(END, item[strip+1:].rstrip('/'))
+            list.insert(END, os.path.split(item)[-1])
+            #list.insert(END, item[strip+1:].rstrip('/'))
         list.realcontent = files
         
         
