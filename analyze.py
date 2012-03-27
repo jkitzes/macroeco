@@ -99,26 +99,29 @@ class Chooser:
         '''Runs the chosen data,analysis,output triple.
 
         There can be more than one dataset and more than one analysis.
-        All pairs will be run.
+        All analyses will be run with all datasets.
 
         Note that the GUI stays open: user can choose another triple to run.'''
         METEbase = os.path.dirname(os.path.abspath(__file__)) #Using METE file structure
-        for dfile in self.dlist.curselection():
-            for afile in self.alist.curselection():
+        for afile in self.alist.curselection():
+            script = self.alist.realcontent[int(afile)]
+            spath = os.path.join(METEbase,script)
+
+            output = self.structure['output']
+
+            dfiles = []
+            for dfile in self.dlist.curselection():
                 data = self.dlist.realcontent[int(dfile)]
                 dpath = os.path.join(METEbase, data)
-                script = self.alist.realcontent[int(afile)]
-                spath = os.path.join(METEbase,script)
-                print METEbase, data, script
-                dt = datetime.utcnow()
-                with open("logfile.txt","a") as log:
-                    log.write( dt.strftime("%Y %I:%M%p UTC")+" :\t"
-                               + dpath + "\t" + spath+'\n')
-                output = self.structure['output']
-                outputID = self.output_name([script, data])
-                print outputID
-                subprocess.Popen(["python", spath, dpath, outputID], cwd=output,
-                                 shell=False,stdin=None,stdout=None,close_fds=True)
+                dfiles.append(dpath)
+
+            dt = datetime.utcnow()
+            with open("logfile.txt","a") as log:
+                log.write( dt.strftime("%Y %I:%M%p UTC")+" :\t"
+                           + spath + "\t" + str(dfiles) +'\n')
+
+            subprocess.Popen(["python", spath] + dfiles, cwd=output,
+                             shell=False,stdin=None,stdout=None,close_fds=True)
 
     def output_name(self,textlist):
         '''Pretties up the identifier for each output in the project directory.'''
