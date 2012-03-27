@@ -14,6 +14,7 @@ Functions
 
 from __future__ import division
 import numpy as np
+import warnings
 
 
 class XYTable():
@@ -111,7 +112,7 @@ class XYTable():
         try:
             np.loadtxt('not_implemented')  # TODO: Add reader implementation
         except IOError:
-            print('No metadata file found, meta filled with 0s.')
+            warnings.warn('No metadata file found, metadata filled with 0s.')
             meta = {'precision': 0, 'xrange': (0, 0), \
                     'yrange': (0, 0)}
             
