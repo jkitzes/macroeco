@@ -11,6 +11,7 @@ AIC).
 Distributions
 -------------
 - `bin` -- binomial
+- `pois` -- poisson
 - `nbd` -- negative binomial (Zillio and He 2010)
 - `fnbd` -- finite negative binomial (Zillio and He 2010)
 - `cnbd` -- conditioned negative binomial (Conlisk et al 2007b)
@@ -40,6 +41,7 @@ Zillio T, He F (2010) Modeling spatial aggregation of finite populations.
 Ecology 91:3698-3706.
 '''
 
+from __future__ import division
 import numpy as np
 import scipy
 import scipy.special
@@ -66,22 +68,20 @@ __status__ = "Development"
 
 def bin(n, N, a, summary = False):
     '''
-    bin(n, N, a, summmary = False)
-    
     Binomial pmf (ie, random placement model).
 
     Parameters
     ----------
-    n : ndarray (1D)
+    n : ndarray or int
         Values of n for which to calculate pmf or likelihood
-    N : int
+    N : ndarray or int
         Total number of individuals in landscape
-    a : int
+    a : ndarray or int
         Ratio of cell size to area of whole landscape
 
     Returns
     -------
-    : ndarray (1D)
+    : ndarray or float
         If summary is False, returns array with pmf. If summary is True, 
         returns the summed log likelihood of all values in n.
     '''
@@ -90,32 +90,56 @@ def bin(n, N, a, summary = False):
     else:       return scipy.stats.binom.pmf(n, N, a)
 
 
+def pois(n, N, a, summary = False):
+    '''
+    Poisson pmf.
+
+    Parameters
+    ----------
+    n : ndarray or int
+        Values of n for which to calculate pmf or likelihood
+    N : ndarray or int
+        Total number of individuals in landscape
+    a : ndarray or int
+        Ratio of cell size to area of whole landscape
+
+    Returns
+    -------
+    : ndarray or float
+        If summary is False, returns array with pmf. If summary is True, 
+        returns the summed log likelihood of all values in n.
+    '''
+    
+    mu = N * a
+
+    if summary: return -sum(np.log(scipy.stats.poisson.pmf(n, mu)))
+    else:       return scipy.stats.poisson.pmf(n, mu)
+
+
 def nbd(n, N, a, k, summary = False):
     '''
-    nbd(n, N, a, k, summmary = False)
-    
     Negative binomial pmf.
 
     Parameters
     ----------
-    n : ndarray (1D)
+    n : ndarray or int
         Values of n for which to calculate pmf or likelihood
-    N : int
+    N : ndarray or int
         Total number of individuals in landscape
-    a : int
+    a : ndarray or int
         Ratio of cell size to area of whole landscape
     k : int
         Aggregation parameter
 
     Returns
     -------
-    : ndarray (1D)
+    : ndarray or float
         If summary is False, returns array with pmf. If summary is True, 
         returns the summed log likelihood of all values in n.
     '''
 
     mu = N * a
-    p = float(1) / (mu / float(k) + 1)  # See Bolker book Chapt 4
+    p = 1 / (mu / k + 1)  # See Bolker book Chapt 4
     pmf = scipy.stats.nbinom.pmf(n, k, p)
     
     if summary:
@@ -129,45 +153,44 @@ def nbd(n, N, a, k, summary = False):
 
 def fnbd(n, N, a, k, summary = False):
     '''
-    fnbd(n, N, a, summmary = False)
-    
     Finite negative binomial pmf (Zillio and He 2010).
 
     Parameters
     ----------
-    n : ndarray (1D)
+    n : ndarray or int
         Values of n for which to calculate pmf or likelihood
-    N : int
+    N : ndarray or int
         Total number of individuals in landscape
-    a : int
+    a : ndarray or int
         Ratio of cell size to area of whole landscape
-    k : int
+    k : ndarray or int
         Aggregation parameter
 
     Returns
     -------
-    : ndarray (1D)
+    : ndarray or float
         If summary is False, returns array with pmf. If summary is True, 
         returns the summed log likelihood of all values in n.
 
     Notes
     -----
+    If any arg other than n is iterable, all args must be iterable of same 
+    length.
+
     The fnbd with k = 1 is not a true geometric distribution - calculate a pmf 
     z and run z[1:]/z[0:-1], noting that the ratio is not constant.
     '''
-    # TODO: Fix inability to index n = 1 length array
     
-    if not (n <= N).all():
-        raise Exception, "All values of n must be <= N."
-    elif (a <= 0) or (a >= 1):
-        raise Exception, "a must be between 0 and 1"
+# TODO: Fix to work if n and N are one value
+#    if not (n <= N).all():
+#        raise Exception, "All values of n must be <= N."
+#    elif (a <= 0) or (a >= 1):
+#        raise Exception, "a must be between 0 and 1"
 
     ln_L = lambda n_i,N,a,k: _ln_choose(n_i+k-1,n_i) + \
         _ln_choose(N-n_i+(k/a)-k-1,N-n_i) - _ln_choose(N +(k/a)-1,N)
 
-    pmf = np.zeros(np.size(n))
-    for i in xrange(0,np.size(n)):
-        pmf[i] = ln_L(n[i], N, a, k) # NOTE: This is already log
+    pmf = ln_L(n, N, a, k)  # Already log
 
     if summary:
         return -sum(pmf)
@@ -177,8 +200,6 @@ def fnbd(n, N, a, k, summary = False):
 
 def cnbd(n, N, a, k, summary = False):
     '''
-    cnbd(n, N, a, summmary = False)
-
     Conditioned negative binomial pmf (Conlisk et al 2007b)
     
     Notation modified to match Zillio and He 2010 - especially note that all 
@@ -210,8 +231,6 @@ def cnbd(n, N, a, k, summary = False):
 
 def geo(n, N, a, summary = False):
     '''
-    fgeo(n, N, a, summary = False)
-    
     Geometric pmf (Zillio and He 2010). Wrapper for nbd with k = 1, see 
     docstring there.
     '''
@@ -221,8 +240,6 @@ def geo(n, N, a, summary = False):
 
 def fgeo(n, N, a, summary = False):
     '''
-    fgeo(n, N, a, summary = False)
-    
     Finite geometric pmf (Zillio and He 2010). Wrapper for fnbd with k = 1, see 
     docstring there.
 
@@ -237,17 +254,15 @@ def fgeo(n, N, a, summary = False):
 
 def tgeo(n, N, a, summary = False):
     '''
-    tgeo(n, N, a, summmary = False)
-    
     Truncated geometric pmf (Harte et al 2008).
 
     Parameters
     ----------
-    n : ndarray (1D)
+    n : ndarray or int
         Values of n for which to calculate pmf or likelihood
-    N : int
+    N : ndarray or int
         Total number of individuals in landscape
-    a : int
+    a : ndarray or int
         Ratio of cell size to area of whole landscape
     k : int
         Aggregation parameter
@@ -260,6 +275,8 @@ def tgeo(n, N, a, summary = False):
 
     Notes
     -----
+    N and a must be the same length.
+
     This is a true geometric distribution in which p = exp(-lambda). Confirmed 
     with z[1:]/z[0:-1].
 
@@ -272,20 +289,37 @@ def tgeo(n, N, a, summary = False):
     answer for p.
     '''
 
-    if not (n <= N).all():
-        raise Exception, "All values of n must be <= N."
-    elif (a <= 0) or (a >= 1):
-        raise Exception, "a must be between 0 and 1"
+# TODO: Fix to work if n and N are one value
+#    if not (n <= N).all():
+#        raise Exception, "All values of n must be <= N."
+#    elif (a <= 0) or (a >= 1):
+#        raise Exception, "a must be between 0 and 1"
 
+    tol = 1e-16
+    N = np.round(N)  # N must be integer, brentq seems to fail if not
 
     eq = lambda p,N,a: (p / (1-p)) - (N+1)*(p**(N+1)) / (1 - (p**(N+1))) - N*a
     eq2 = lambda p,N,a: (1/(1-p**(N+1))) * ( (p/(1-p)) - p**(N+1) * \
             (N + (1/(1-p))) ) - N*a
 
-    p = scipy.optimize.brentq(eq, 0, 2, args = (N, a), disp = True)
-    Z = (1 - p**(N+1)) / (1 - p)
+    if type(N) != int and N.shape[0] > 1:  # If N is array
 
-    pmf = p**n / Z
+        if type(n) == int or n.shape[0] == 1:  # If n is an int
+            n_array = np.repeat(n, N.shape[0])
+        else:
+            n_array = n
+
+        pmf = np.zeros(N.shape[0])
+        for i in xrange(0, N.shape[0]):
+            p_i = scipy.optimize.brentq(eq, tol, 1 - tol, args = (N[i], a[i]), 
+                                        disp = True)
+            Z_i = (1 - p_i**(N[i]+1)) / (1 - p_i)
+            pmf[i] = p_i**n_array[i] / Z_i
+
+    else:
+        p = scipy.optimize.brentq(eq, tol, 1 - tol, args = (N, a), disp = True)
+        Z = (1 - p**(N+1)) / (1 - p)
+        pmf = p**n / Z
 
     if summary: return -sum(np.log(pmf))
     else:       return pmf
@@ -297,10 +331,8 @@ def tgeo(n, N, a, summary = False):
 
 def _ln_choose(n, k):
     '''
-    Log binomial coefficient with extended gamma factorials.
-
-    Either n or k, but not both, may be an array, in which case array is 
-    returned.
+    Log binomial coefficient with extended gamma factorials. n and k may be int 
+    or array - if both array, must be the same length.
     '''
     gammaln = scipy.special.gammaln
     return gammaln(n + 1) - (gammaln(k + 1) + gammaln(n - k + 1))
