@@ -10,7 +10,7 @@ AIC).
 
 Distributions
 -------------
-- `logser_pmf` -- Fisher's log series (Fisher et al. 1943)
+- `lgsr_pmf` -- Fisher's log series (Fisher et al. 1943)
 - `neg_binom` -- Negative Binomial
 - `plognorm_pmf` -- Poisson lognormal (Bulmer 1974)
 - `mete_logser_pmf` -- METE log series (Harte 2011)
@@ -57,7 +57,7 @@ class RootError(Exception):
     def __str__(self):
         return '%s' % self.value
 
-def lgser_pmf(S, N, summary=False):
+def lgsr_pmf(S, N, summary=False):
     '''
     Fisher's log series pmf (Fisher et al. 1943, Hubbel 2001)
 
