@@ -25,6 +25,12 @@ def single_patch(data, outputID):
     fig= plt.figure()
     ax = fig.add_subplot(111)
 
+    # Column headers are accessible along with the data
+    x = data.dtype.names[1]
+    y = data.dtype.names[2]
+    phenom = data.dtype.names[0]
+
+
     # Here we use the names of our data columns, and a parameter
     ax.scatter(data[x], data[y], s=data[phenom]*10, c = thisrun['color'])
     ax.set_xlabel(x)
@@ -34,10 +40,53 @@ def single_patch(data, outputID):
     # Save results so the user doesn't need to remember to do so
     fig.savefig(outputID + '_' + runID + '.png')
 
-def multi_patch(data, outputID):
+    # Parameters keeps track if we're running interactively or automatically;
+    #    don't use show() if this is expected to run overnight, etc.
+    if parameter_cases.interactive == 'F':
+        plt.show()
+    else:
+        print 'Non-interactive run, suppressing plot.show()'
+
+
+def multiple_patch(data, outputID):
     '''Dummied-up activity on multiple datasets'''
-    pass
-     
+    fig = plt.figure()
+    rangeX = fig.add_subplot(121)
+    rangeY = fig.add_subplot(122)
+    N = range(len(data.keys()))
+    xmins = []
+    xmaxs = []
+    ymins = []
+    ymaxs = []
+    for dname in data.keys():
+        x = data[dname].dtype.names[1]
+        y = data[dname].dtype.names[2]
+        xmins.append(min(data[dname][x]))
+        xmaxs.append(max(data[dname][x]))
+        ymins.append(min(data[dname][y]))
+        ymaxs.append(max(data[dname][y]))
+    #    don't use show() if this is expected to run overnight, etc.
+
+    rangeX.hlines(N, xmins, xmaxs, linewidth = 20, colors=thisrun['color'])
+    rangeX.set_yticks([])
+    rangeY.vlines(N, ymins, ymaxs, linewidth = 20, colors=thisrun['color'])
+    rangeY.set_xticks([])
+
+    rangeX.set_title('X-extents of datasets')
+    rangeY.set_title('Y-extents of datasets')
+    
+    # Save results so the user doesn't need to remember to do so
+    fig.savefig(outputID + '_' + runID + '.png')
+
+    # Parameters keeps track if we're running interactively or automatically;
+    #    don't use show() if this is expected to run overnight, etc.
+    if parameter_cases.interactive == 'F':
+        plt.show()
+    else:
+        print 'Non-interactive run, suppressing plot.show()'
+
+# The rest of this is the workflow organization of the script. Should be packaged into a class
+# (github issue 76) TODO
 
 if len(sys.argv) < 2:
     print 'Error: need a path to data.'
@@ -70,24 +119,23 @@ parameter_cases = Parameters(script, {'color':'color of plotted points'})
 # If there is more than one set of parameters stored, run them all: 
 for runID in parameter_cases.params.keys():
     thisrun = parameter_cases.params[runID]
-    print 'Running %s with parameters %s'%(script, runID)
+    print 'Running %s as a single-dataset analysis with parameters %s'%(script, runID)
 
     for dataset in data.keys():
-        # Column headers are accessible along with the data
-        x = data[dataset].dtype.names[1]
-        y = data[dataset].dtype.names[2]
-        phenom = data[dataset].dtype.names[0]
-
         # Concatenate the arguments into a unique-enough identifier for this analysis.
         outputID = '_'.join([script, dataset])
         single_patch(data[dataset], outputID)
                      
-    # Parameters keeps track if we're running interactively or automatically;
-    #    don't use show() if this is expected to run overnight, etc.
-    if parameter_cases.interactive == 'F':
-        plt.show()
-    else:
-        print 'Non-interactive run, suppressing plot.show()'
+
+    if len(sys.argv) > 2:
+        print 'Running %s as a multiple-dataset analysis with parameters %s'%(script, runID)
+
+        outputID = '_'.join([script] + data.keys())
+        multiple_patch(data, outputID)
+
+        
+            
+    
 
 
 
