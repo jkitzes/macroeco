@@ -46,17 +46,15 @@ def get_metadata(asklist, folder_name, dataname):
 
 
 def get_files(filetype, num, direct):
-    '''This functoin gets the .txt files from the 
-    data directory /archival/BCIS and returns the 
-    names of the .txt files in the directory.  It is
-    assumed that the .txt files are BCIS data.
-
+    '''This function gets the filetype files from the 
+    data directory /archival/direct and returns the 
+    names of the filetype files in the directory.  
     filetype -- a string specifying the type of the file, i.e. 'csv' or 'txt'
 
     num -- expected number of files of type 'direct_????.filetype'
 
     direct -- the directory within /data/archival/ where the files are.
-              example 'BCIS' of 'COCO'
+              example 'BCIS' or 'COCO'
     
     returns:
         A list of strings
@@ -188,6 +186,7 @@ def create_intcodes(speclist, unq_specs, unq_ints):
         
     '''
     assert len(speclist) > 0, "Species array cannot be empty"
+    speclist = speclist.astype(unq_specs.dtype)
     tot_int = np.empty(len(speclist))
     for s in xrange(len(unq_specs)):
         check = (unq_specs[s] == speclist)
