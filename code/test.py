@@ -42,7 +42,7 @@ def single_patch(data, outputID):
 
     # Parameters keeps track if we're running interactively or automatically;
     #    don't use show() if this is expected to run overnight, etc.
-    if parameter_cases.interactive == 'F':
+    if parameter_cases.interactive:
         plt.show()
     else:
         print 'Non-interactive run, suppressing plot.show()'
@@ -80,7 +80,7 @@ def multiple_patch(data, outputID):
 
     # Parameters keeps track if we're running interactively or automatically;
     #    don't use show() if this is expected to run overnight, etc.
-    if parameter_cases.interactive == 'F':
+    if parameter_cases.interactive:
         plt.show()
     else:
         print 'Non-interactive run, suppressing plot.show()'
