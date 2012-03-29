@@ -1,14 +1,15 @@
 <?xml version='1.0'?>
 <METE>
-  <analysis scriptname='test' version='0.5'>
+  <analysis scriptname='test' version='0.5' interactive='T'>
     <run name='red'>
-      <interactive>F</interactive>
         <param name='color' value='red' />
     </run>
+    <run name='black'>
+        <param name='color' value='black' />
+    </run>
   </analysis>
-  <analysis scriptname='callparams' version='0.5'>
+  <analysis scriptname='callparams' version='0.5' interactive='F'>
     <run name='autoname0'>
-      <interactive>F</interactive>
       <param name='size' value='4' />
       <param name='species' value='foo' />
       <param name='layers' value='[1, 5, 13]' />
