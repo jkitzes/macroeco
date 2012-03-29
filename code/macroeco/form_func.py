@@ -102,7 +102,7 @@ def make_spec_dict(spp_array):
     unq_specs = np.unique(spp_array)
     unq_ints = np.linspace(0, len(unq_specs) - 1, num=len(unq_specs)) 
     spec_dict = np.empty(len(unq_ints), dtype=[('spp_code', np.int), \
-                        ('spp', 'S10')])
+                        ('spp', 'S29')])
     spec_dict['spp'] = unq_specs
     spec_dict['spp_code'] = unq_ints
     return spec_dict
