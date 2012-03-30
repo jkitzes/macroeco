@@ -8,7 +8,7 @@ This is also the setup expected by the GUI.'''
 import sys, os
 from matplotlib.mlab import csv2rec
 import matplotlib.pyplot as plt
-from macroeco.params import Parameters
+from macroeco.workflow import Workflow
 
  
 __author__ = "Chloe Lewis"
@@ -42,10 +42,11 @@ def single_patch(data, outputID):
 
     # Parameters keeps track if we're running interactively or automatically;
     #    don't use show() if this is expected to run overnight, etc.
-    if parameter_cases.interactive:
+    if wf.runs.interactive:
         plt.show()
     else:
-        print 'Non-interactive run, suppressing plot.show()'
+        wf.logger.debug('%s: Non-interactive run, suppressing plot.show()'%outputID)
+
 
 
 def multiple_patch(data, outputID):
@@ -69,6 +70,7 @@ def multiple_patch(data, outputID):
 
     rangeX.hlines(N, xmins, xmaxs, linewidth = 20, colors=thisrun['color'])
     rangeX.set_yticks([])
+    
     rangeY.vlines(N, ymins, ymaxs, linewidth = 20, colors=thisrun['color'])
     rangeY.set_xticks([])
 
@@ -80,58 +82,33 @@ def multiple_patch(data, outputID):
 
     # Parameters keeps track if we're running interactively or automatically;
     #    don't use show() if this is expected to run overnight, etc.
-    if parameter_cases.interactive:
+    if wf.runs.interactive:
         plt.show()
     else:
-        print 'Non-interactive run, suppressing plot.show()'
+        wf.logger.debug('%s: Non-interactive run, suppressing plot.show()'%outputID)
 
 # The rest of this is the workflow organization of the script. Should be packaged into a class
 # (github issue 76) TODO
 
-if len(sys.argv) < 2:
-    print 'Error: need a path to data.'
-    sys.exit()
+wf = Workflow({'color':'Plotting color'})
 
-# 0th argument to script is the analysis name as running, tidy up:
-sPath, sExt = os.path.splitext(sys.argv[0])
-script = os.path.split(sPath)[-1]
-
-
-# The rest of the arguments are the data files to analyze.
-# Read them in to a data structure:
-data = {}
-for dfile in sys.argv[1:]:
-    print dfile
-    dname, dext = os.path.splitext(os.path.split(dfile)[-1])
-    data[dname] = csv2rec(dfile,names=None)
- 
-
-
-# Do not set defaults for analytical parameters that could affect
-#     the results. Instead, give each set of parameters a name,
-#     and store it to keep track of what generated the exploratory results.
-# The Parameters object stores sets of parameters with distinct run-names for each script.
-#     Specify a dictionary:
-#     parameter_name: explanatory_string. Will be stored in parameters.xml,
-#     with other parameter sets run in this directory.
-parameter_cases = Parameters(script, {'color':'color of plotted points'})
 
 # If there is more than one set of parameters stored, run them all: 
-for runID in parameter_cases.params.keys():
-    thisrun = parameter_cases.params[runID]
-    print 'Running %s as a single-dataset analysis with parameters %s'%(script, runID)
+for runID in wf.runs.params.keys():
+    thisrun = wf.runs.params[runID]
+    wf.logger.info('Running %s as a single-dataset analysis with parameters %s'%(wf.script, runID))
 
-    for dataset in data.keys():
+    for dataset in wf.data.keys():
         # Concatenate the arguments into a unique-enough identifier for this analysis.
-        outputID = '_'.join([script, dataset])
-        single_patch(data[dataset], outputID)
+        outputID = '_'.join([wf.script, dataset])
+        single_patch(wf.data[dataset], outputID)
                      
 
     if len(sys.argv) > 2:
-        print 'Running %s as a multiple-dataset analysis with parameters %s'%(script, runID)
+        wf.logger.info('Running %s as a multiple-dataset analysis with parameters %s'%(wf.script, runID))
 
-        outputID = '_'.join([script] + data.keys())
-        multiple_patch(data, outputID)
+        outputID = '_'.join([wf.script] + wf.data.keys())
+        multiple_patch(wf.data, outputID)
 
         
             

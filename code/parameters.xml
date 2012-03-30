@@ -1,6 +1,6 @@
 <?xml version='1.0'?>
 <METE>
-  <analysis scriptname='test' version='0.5' interactive='T'>
+  <analysis scriptname='test' version='0.5' interactive='F'>
     <run name='red'>
         <param name='color' value='red' />
     </run>
