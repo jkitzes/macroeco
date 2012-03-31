@@ -1,18 +1,17 @@
 #!/usr/bin/python
 
-'''Workflow object manages the details of a reproducible workflow within the METE system.
+'''
+Workflow manages the details of a reproducible workflow within the METE system.
 
-   The parts are:
-       Workflow: to create at the beginning of each script; it uses
-       Parameters: Find, or ask for, and store the run names and parameters asked for by an analysis.
-       Logging: using the standard Python library
-       
+Classes
+-------
+- Workflow: tracks the analysis & data requested, and any parameters needed.
+- Parameters: Find, or ask for, and store the run names and parameters asked for by an analysis.
 
 '''
 import xml.etree.ElementTree as etree
 import sys, os, logging
 from matplotlib.mlab import csv2rec
-
 
 __author__ = "Chloe Lewis"
 __copyright__ = "Copyright 2012, Regents of the University of California"
@@ -24,35 +23,50 @@ __email__ = "chlewis@berkeley.edu"
 __status__ = "Development"
 
 paramfile = "parameters.xml"
-logfile   = "macroeco.log"
+logfile   = "logfile.txt"
 loggername = "macroeco"
 
 
 
 class Workflow:
-    '''Manages the details of a reproducible workflow within the METE system.'''
-    def __init__(self, asklist):
-        ''' Set up logging, data-paths, output IDs, parameters.'''
+    '''
+    Manages the details of a reproducible workflow with macroeco scripts.
+    Tracks which data set(s) are analyzed with which set(s) of parameters.
 
-        if len(sys.argv) < 2:
-            print 'Error: need a path to data.'
-            sys.exit()
+    Parameters
+    ----------
+    asklist : dictionary
+              'parameter_name':'hint' describes the parameters needed.
+              If not given, only parameters in %s will be available.
 
-        # 0th argument to script is the analysis name as running, tidy up:
+    Members
+    -------
+    script : string
+             Name of script originating the workflow
+    logger : logging.logger
+             Available to any module through logging.getLogger(%s)
+    interactive : bool
+             Whether the script can depend on user interaction
+    runs   : dict
+             If parameters are needed, all parameter sets are organized as runs
+    '''%(paramfile, loggername)
+
+    def __init__(self, asklist={}):
+        # Track output with the analysis name as running. Tidy up:
         sPath, sExt = os.path.splitext(sys.argv[0])
         self.script = os.path.split(sPath)[-1]
 
 
         # The rest of the arguments are the data files to analyze.
-        # Read them in to a data structure:
+        self.datafiles = sys.argv[1:]
+    
         self.data = {}
         for dfile in sys.argv[1:]:
-            print dfile
             dname, dext = os.path.splitext(os.path.split(dfile)[-1])
-            self.data[dname] = csv2rec(dfile,names=None)
+            self.data[dname] = csv2rec(dfile)
 
 
-        # Log everything tersely to console, INFO w/date to file.
+        # Log everything to console; log dated INFO+ to file.
         logging.basicConfig(level=logging.DEBUG,
                             format='%(asctime)s | %(levelname)s | %(filename)s:%(lineno)d | %(message)s', datefmt='%H:%M:%S')
         self.logger = logging.getLogger(loggername)
@@ -62,16 +76,72 @@ class Workflow:
         fh.setFormatter(formatter)
         self.logger.addHandler(fh)
 
+
+        if len(sys.argv) < 2:
+            self.logger.critical('Need a path to data.')
+            sys.exit()
+
         #may need parameters, which may be in multiple runs
-        self.runs = Parameters(self.script, asklist) #The asking stuff happens post-beta.
+        if len(asklist) > 0:
+            self.runs = Parameters(self.script, asklist) #The asking stuff happens post-beta.
+        else:
+            self.runs.interactive = False
+            self.runs.params = {}
+
+            
         
-    def single_dataset_ID(self):
-        #make an outputID
-        #when do we know if we run a single dataset????
-        pass
+    def single_datasets(self):
+        '''
+        Generator. For each dataset being analyzed:
+
+        Yields
+        ------
+        datasetpath, outputID
+
+        datasetpath : string
+                      Full path to data to analyze
+        outputID : string
+                   Concatenates script and dataset identifiers
+        '''
+        if len(self.runs.params) == 0:
+            for df in self.datafiles:
+                self.logger.debug(df)
+                ID = '_'.join([self.script, _clean_name(df)])
+                yield  df, ID
+        else:
+            for run in self.runs.params.keys():
+                for df in self.datafiles:
+                    ID = '_'.join([self.script, _clean_name(df), run])
+                    yield  df, ID, self.runs.params[run]
+                
     
-    def all_datasets_ID(self):
-        pass     
+    def all_datasets(self):
+        '''
+        Returns
+        -------
+        datasetpaths, outputID
+        
+        datasetpaths : list
+                       List of complete paths to all datasets.
+
+        outputID : string
+                   Concatenates script and all dataset identifiers.
+        '''
+        datanames = map(_clean_name, self.datafiles)
+        outputID = '_'.join([self.script]+datanames)
+        if len(self.runs.params) == 0:
+            self.logger.debug('No params')
+            yield self.datafiles, outputID
+        else:
+            self.logger.debug('Multiple params')
+            for run in self.runs.params.keys():
+                outputID = '_'.join([self.script]+datanames + [run])
+                yield self.datafiles, outputID, self.runs.params[run]
+
+        
+
+    def make_map(self):
+        pass
 
         
 class AllEntities:
@@ -117,9 +187,13 @@ class Parameters:
         if len(asklist) == 0:
             return
 
-        self.read_from_xml(asklist) 
-        if self.is_asklist_fulfilled:
-            return
+        self.read_from_xml(asklist)
+        self.logger.debug('read parameters: %s'%str(self.params))
+        if not self.is_asklist_fulfilled:
+            self.logger.critical('Parameters missing from %s'%paramfile)
+        return
+        
+        
 
         later='''        self.get_from_dialog(asklist)
         if self.is_asklist_fulfilled:
@@ -179,6 +253,14 @@ class Parameters:
         # on dialog OK, write out  -- replace run with same name (tricky!)
 
     def is_asklist_fulfilled(self):
-        return set(self.params.keys()).issubset(set.self.asklist.keys())
+        if not set(self.params.keys()).issubset(set.self.asklist.keys()):
+            #some are missing
+            self.missing = ['Later','gator']
+            return False
+        else:
+            return True
             
+def _clean_name(fp):
+        return os.path.splitext(os.path.split(fp)[-1])[0]
+
 
