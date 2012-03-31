@@ -19,10 +19,9 @@ __email__ = "chlewis@berkeley.edu"
 __status__ = "Development"
 
 # The workflow object takes care of logging, parameters, multiple runs, interactivity
-# It needs to know what parameters this script will need TODO: that's inelegant; try to run
-# with what we have?
+# Parameters are found in parameters.xml in the current working directory of the script
 
-wf = Workflow({'color':'Plotting color'})
+wf = Workflow()
 
 
 # If the analysis happens file-by-file:

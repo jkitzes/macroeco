@@ -37,18 +37,19 @@ class Workflow:
     ----------
     asklist : dictionary
               'parameter_name':'hint' describes the parameters needed.
-              If not given, only parameters in %s will be available.
+              If not given, all parameters recorded in %s
+              for the current scriptname will be available.
 
     Members
     -------
     script : string
              Name of script originating the workflow
     logger : logging.logger
-             Available to any module through logging.getLogger(%s)
+             Also shareable with any module as logging.getLogger(%s)
     interactive : bool
-             Whether the script can depend on user interaction
+             Whether the script can pause for user interaction
     runs   : dict
-             If parameters are needed, all parameter sets are organized as runs
+             If parameters are needed, sets of parameter values are named runs
     '''%(paramfile, loggername)
 
     def __init__(self, asklist={}):
@@ -82,11 +83,12 @@ class Workflow:
             sys.exit()
 
         #may need parameters, which may be in multiple runs
-        if len(asklist) > 0:
+        try:
             self.runs = Parameters(self.script, asklist) #The asking stuff happens post-beta.
-        else:
-            self.runs.interactive = False
-            self.runs.params = {}
+            self.interactive = self.runs.interactive
+        except:
+            self.interactive = False
+            self.runs = None
 
             
         
@@ -103,7 +105,7 @@ class Workflow:
         outputID : string
                    Concatenates script and dataset identifiers
         '''
-        if len(self.runs.params) == 0:
+        if type(self.runs) == type(None):
             for df in self.datafiles:
                 self.logger.debug(df)
                 ID = '_'.join([self.script, _clean_name(df)])
@@ -129,7 +131,7 @@ class Workflow:
         '''
         datanames = map(_clean_name, self.datafiles)
         outputID = '_'.join([self.script]+datanames)
-        if len(self.runs.params) == 0:
+        if type(self.runs) == type(None):
             self.logger.debug('No params')
             yield self.datafiles, outputID
         else:
@@ -184,8 +186,6 @@ class Parameters:
         self.params = {}
         self.logger = logging.getLogger(loggername)
         
-        if len(asklist) == 0:
-            return
 
         self.read_from_xml(asklist)
         self.logger.debug('read parameters: %s'%str(self.params))
@@ -209,7 +209,8 @@ class Parameters:
             pf = open(paramfile,'r')
             pf.close()
         except IOError:
-            self.logger.error('Could not open %s'%paramfile) #Note; can't write is also an IOError 
+            self.logger.error('Could not open %s'%paramfile) #Note; can't write is also an IOError
+            raise
 
         parser = etree.XMLParser() # Without this, parsing works in iPython, console, not script. ??
         parser.parser.UseForeignDTD(True)
