@@ -21,10 +21,11 @@ Harte, J. 2011. Maximum Entropy and Ecology: A Theory of Abundance, Distribution
 and Energetics. Oxford University Press. 
 
 '''
-
+from __future__ import division
 import numpy as np
 import scipy.optimize 
 import scipy.special
+import scipy.integrate as integrate
 import math as m
 import sys
 
@@ -73,6 +74,79 @@ def mete_energy_theta_pdf(S, N, E, n, summary=False):
 def mete_energy_theta_cdf():
     pass
 
+def mete_energy_nu_pdf(S, N, E, summary=False):
+    '''
+
+    mete_energy_nu_pdf(S, N, E, summary=False)
+
+    Parameters
+    ----------
+    S : int
+        Total number of species in landscape
+    N : int
+        Total number of individuals in landscape
+    E : float
+        Total energy ouput of community
+
+    Returns
+    -------
+    : ndarray (1D)
+        If summary is False, returns array with pmf. If summary is True,
+        returns the summed log likelihood of all values in n.
+    
+    Notes
+    -----
+    This function uses the nu energy equation found in in Table 7.3 of 
+    Harte (2011). Nu is defined as the 'distribution of metabolic rates
+    averaged over individuals within species' (Harte 2011). 
+
+    '''
+
+    assert S < N, "S must be less than N"
+    assert S > 1, "S must be greater than 1"
+    assert N > 0, "N must be greater than 0"
+    assert N < E, "N must be less than E"
+
+    
+    #Start and stop for root finders
+    start = 0.3
+    stop = 2
+
+    #Getting beta
+    k = np.linspace(1, N, num=N)
+    eq = lambda x: sum(x ** k / float(N) * S) -  sum((x ** k) / k)
+    x = scipy.optimize.brentq(eq, start, min((sys.float_info[0] / S)**(1/float(N)),\
+                              stop), disp=True)
+    beta = -m.log(x)
+    lambda2 = float(S) / (E - N) #Harte (2011) 7.26
+    eta = np.linspace(1 + 1e-10, E, num=E*10)#Not properly normalized
+    pdf = (1 / np.log(1 / beta)) * ((np.exp(-(beta / (lambda2 * (eta - 1)))) / \
+                                    (eta - 1)))
+    
+    if summary: return -sum(np.log(pdf))
+    else:       return pdf
+
+def rank_abund_nu(S, N, E, n):
+    '''
+    n -- a list-like object with SAD
+    '''
+
+    assert S < N, "S must be less than N"
+    assert S > 1, "S must be greater than 1"
+    assert N > 0, "N must be greater than 0"
+    assert N < E, "N must be less than E"
+    assert type(n) == list or type(n) == tuple \
+           or type(n) == np.ndarray, "Invalid parameter type"
+    n = np.array(n)
+    assert len(n) == S, "S must equal length of n"
+    assert np.sum(n) == N, "Sum of n must equal N"
+   
+    lambda2 = float(S) / (E - N) #Harte (2011) 7.26
+    eta_array = 1 + (1 / (n * lambda2)) #Harte (2011) table 7.3
+
+    return eta_array
+
+
 def mete_energy_psi_pdf(S, N, E, summary=False):
     '''
     mete_energy_psi_pdf(S, N, E, summary=False)
@@ -97,6 +171,7 @@ def mete_energy_psi_pdf(S, N, E, summary=False):
 
     Notes
     -----
+    This is the psi distribution found in Table 7.3 of Harte (2011)
 
     '''
 
