@@ -57,6 +57,15 @@ class XYTable():
         self.spp_codes = np.unique(self.table[:, self.col_spp_code])
         self.max_spp_code = max(self.spp_codes)
 
+    def get_col_biomass(self):
+        '''
+        Trys to get biomass column. Throws error if it does not exist
+        '''
+        try:
+            self.col_biomass = self.head.index('biomass')
+        except ValueError:
+            raise ValueError("Column 'biomass' does not exist")
+
 
     def xytable_load(self, datapath, compress):
         '''

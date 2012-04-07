@@ -74,10 +74,10 @@ def mete_energy_theta_pdf(S, N, E, n, summary=False):
 def mete_energy_theta_cdf():
     pass
 
-def mete_energy_nu_pdf(S, N, E, summary=False):
+def mete_energy_nu_pdf(S, N, E, nmin, nmax, summary=False):
     '''
 
-    mete_energy_nu_pdf(S, N, E, summary=False)
+    mete_energy_nu_pdf(S, N, E, nmin, nmax summary=False)
 
     Parameters
     ----------
@@ -87,6 +87,10 @@ def mete_energy_nu_pdf(S, N, E, summary=False):
         Total number of individuals in landscape
     E : float
         Total energy ouput of community
+    nmin : int
+        Lowest species abundance
+    nmax : int
+        Highest species abundance
 
     Returns
     -------
@@ -119,7 +123,10 @@ def mete_energy_nu_pdf(S, N, E, summary=False):
                               stop), disp=True)
     beta = -m.log(x)
     lambda2 = float(S) / (E - N) #Harte (2011) 7.26
-    eta = np.linspace(1 + 1e-10, E, num=E*10)#Not properly normalized
+    etamax = 1 + (1 / (nmin * lambda2))#Yes, nmin = etamax
+    etamin = 1 + (1 / (nmax * lambda2))#From Harte (2011) Table 7.3
+
+    eta = np.linspace(etamin, etamax, num=1000)
     pdf = (1 / np.log(1 / beta)) * ((np.exp(-(beta / (lambda2 * (eta - 1)))) / \
                                     (eta - 1)))
     

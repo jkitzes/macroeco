@@ -114,7 +114,7 @@ class Patch:
         div_list : list of tuples
             Number of divisions of patch along (x, y) axes to use for grid.
             Tuple (2, 1), for example, splits the patch with a vertical cut.
-        summary : string equal to '', 'SAR', or 'EAR'
+        summary : string equal to '', 'SAR', 'EAR', or 'biomass'
             Chooses to summarize results as full SAD, SAR, or EAR. See Returns.
 
         Returns
@@ -301,6 +301,10 @@ class Patch:
         sub_table = self.xy.get_sub_table(x_st, x_en, y_st, y_en)
         sub_abund = self.get_sub_abund(sub_table)
 
+        if summary is 'biomass':
+            sub_table = self.xy.get_sub_table(x_st, x_en, y_st, y_en)
+            sub_biomass = self.get_sub_biomass(sub_table)
+            return sub_biomass
         if summary is 'SAR': 
             return sum(sub_abund > 0)
         elif summary is 'EAR':  # Don't count if self.total_abund = 0
@@ -321,6 +325,16 @@ class Patch:
         for row in table:
             abund[row[self.xy.col_spp_code]] += row[self.xy.col_count]
         return abund
+
+    def get_sub_biomass(self, table):
+        '''
+        Calculate total biomass of each species in xytable.
+        '''
+        biomass = np.zeros(self.xy.max_spp_code + 1)
+        self.xy.get_col_biomass()
+        for row in table:
+            biomass[row[self.xy.col_spp_code]] += row[self.xy.col_biomass]
+        return biomass
 
 
     def get_sp_centers(self, div_list):
