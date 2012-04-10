@@ -19,7 +19,8 @@ for f in files:
     lats.append(bounds[0])
     lons.append(bounds[1])
     #    names.append(meta.get_title()) #Too long.
-    names.append(f[-13:-9])
+    fname, fext = os.path.splitext(os.path.split(f)[-1])
+    names.append(fname)
 
 
 m = Basemap(projection='cyl', lat_0=50, lon_0=-100,
