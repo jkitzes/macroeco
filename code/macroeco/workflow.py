@@ -265,7 +265,7 @@ class Parameters:
 def _clean_name(fp):
         return os.path.splitext(os.path.split(fp)[-1])[0]
 
-def make_map(datalist):
+def make_map(datalist, mapname = None):
     '''
     Ensures that a map of all the datasites being analyzed exists.
 
@@ -273,6 +273,8 @@ def make_map(datalist):
     ---------
     datalist:  list of absolute paths to data files *.csv;
                data location will be extracted from corresponding *.xml
+
+    mapname:  optional filename of the map (do not include extension)
 
     Returns
     -------
@@ -289,7 +291,9 @@ def make_map(datalist):
         
     # Normalize so we can check for an existing file
     names.sort()
-    mapname = 'map_' + '_'.join(names) + '.png'
+    if not mapname:
+        mapname = 'map_' + '_'.join(names)
+    mapname = mapname + '.png'
     if os.path.isfile(mapname):
         return False
     
