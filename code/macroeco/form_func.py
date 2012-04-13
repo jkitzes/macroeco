@@ -303,4 +303,55 @@ def format_dense(datayears, spec_dict):
 
     return data_formatted
 
+def open_nan_data(filenames, missing_value, site, delim, xy_labels=('gx', 'gy')):
+    '''This function takes in the filenames with nans data file, removes any
+    NaN values for the x and y coordinates and returns a rec array.
+    
+    filename -- list of filenames on data with nans (list)
+
+    missing_value -- How a missing value is labeled in the data (string)
+
+    site -- Site name (string)
+
+    delim -- delimiter for the files (string)
+
+    xylabels -- tuple with x and y column labels, i.e. ('gx', 'gy') or ('x', 'y')
+    
+    returns:
+        a rec array
+
+    '''
+    #NOTE: Might need to get rid of some more NA fields
+    datadir = jp(pd(pd(gcwd())), 'archival', site)
+    datayears = []
+    for name in filenames:
+        data = plt.csv2rec(jp(datadir, name), delimiter=delim, missing=missing_value)
+        xnotNaN = (False == np.isnan(data[xy_labels[0]]))
+        data_out = data[xnotNaN]
+        ynotNaN = (False == np.isnan(data_out[xy_labels[1]]))
+        data_out = data_out[ynotNaN]
+        datayears.append(data_out)
+
+    return datayears
+
+def make_multiyear_spec_dict(datayears, sp_field):
+    '''This functions makes and returns a global species dictionary across 
+    all years of a multi year data set.  It assigns each species that occurs
+    over the years of data a unique integer code.
+
+    datayears -- list of recarrays containing data (list)
+
+    sp_field -- field name in rec array for species column (string)
+
+    returns:
+        A structured array with field names 'spp' and 'spp_code'
+    '''
+
+    spp_array = np.empty(0)
+    for data in datayears:
+        spp_array = np.concatenate((spp_array, data[sp_field]))
+    spec_dict = make_spec_dict(spp_array)
+    return spec_dict
+
+
 

@@ -302,11 +302,38 @@ def mete_lgsr_approx_pmf(S, N, summary=False, root=2):
     else:       return pmf
 
 
+def mete_lgsr_cdf(S, N):
+    '''
+    mete_lgr_cdf(S, N)
+    
+    CDF for METE logseries distribution
+
+    Parameters
+    ----------
+    S : int
+        Total number of species in landscape
+    N : int
+        Total number of individuals in landscape
+
+    Returns:
+    : 1D structured array
+        Field names in the structured array are 'n' (number of individuals) and 'cdf'
+
+
+    '''
+    pmf = mete_lgsr_pmf(S, N)
+    cdf = np.cumsum(pmf)
+    cdf_struct = np.empty(len(cdf), dtype=[('cdf', np.float), ('n', np.int)])
+    cdf_struct['cdf'] = cdf
+    cdf_struct['n'] = np.arange(1, N + 1)
+    return cdf_struct
+
+
 def make_rank_abund(sad_pmf, S):
     '''
     Convert any SAD pmf into a rank abundance curve for S species using 
     cumulative distribution function.
-
+ 
     Parameters
     ----------
     sad_pmf : ndarray
@@ -327,7 +354,7 @@ def make_rank_abund(sad_pmf, S):
     running from 1/2S to 1 - 1/2S.
     '''
 
-    S_points = np.arange(0, 1, 1/S)
+    S_points = np.arange(1/(2*S), 1 + 1/(2*S), 1/S)
     S_abunds = np.zeros(S_points.shape[0])
     sad_pmf_w_zero = np.array([0] + list(sad_pmf)) # Add 0 to start of pmf
     cum_sad_pmf_w_zero = np.cumsum(sad_pmf_w_zero)

@@ -14,6 +14,9 @@ Distributions
                             (Harte 2011)
 - 'mete_energy_psi_pdf' -- The METE community energy distribution
 
+- 'mete_energy_nu_pdf/cdf' -- The METE mean energy per species distribution
+
+
 References
 ----------
 
@@ -74,7 +77,7 @@ def mete_energy_theta_pdf(S, N, E, n, summary=False):
 def mete_energy_theta_cdf():
     pass
 
-def mete_energy_nu_pdf(S, N, E, nmin, nmax, summary=False):
+def mete_energy_nu_pdf(S, N, E, summary=False):
     '''
 
     mete_energy_nu_pdf(S, N, E, nmin, nmax summary=False)
@@ -87,10 +90,6 @@ def mete_energy_nu_pdf(S, N, E, nmin, nmax, summary=False):
         Total number of individuals in landscape
     E : float
         Total energy ouput of community
-    nmin : int
-        Lowest species abundance
-    nmax : int
-        Highest species abundance
 
     Returns
     -------
@@ -123,17 +122,15 @@ def mete_energy_nu_pdf(S, N, E, nmin, nmax, summary=False):
                               stop), disp=True)
     beta = -m.log(x)
     lambda2 = float(S) / (E - N) #Harte (2011) 7.26
-    etamax = 1 + (1 / (nmin * lambda2))#Yes, nmin = etamax
-    etamin = 1 + (1 / (nmax * lambda2))#From Harte (2011) Table 7.3
 
-    eta = np.linspace(etamin, etamax, num=1000)
+    eta = np.linspace(1 + 1e-10, E, num=1000)
     pdf = (1 / np.log(1 / beta)) * ((np.exp(-(beta / (lambda2 * (eta - 1)))) / \
                                     (eta - 1)))
     
     if summary: return -sum(np.log(pdf))
     else:       return pdf
 
-def mete_energy_nu_cdf(S, N, E, emin=-1, emax=-1, num_samples=100):
+def mete_energy_nu_cdf(S, N, E, num_samples=100):
     '''
     mete_energy_nu_cdf(S, N, E, emin, emax, num_samples=100)
 
@@ -162,14 +159,9 @@ def mete_energy_nu_cdf(S, N, E, emin=-1, emax=-1, num_samples=100):
 
     Notes:
     ------
-    At the moment, this function requires that the user passes in emin and emax values
-    obtained from the data. However, one could use equation 7.42 in Harte (2011) to
-    calculate emin and emax if the data are not available. 
-
-    Also note that the value of 1 is substracted from emin and emax because in METE 
-    energy is constrained between 1 - emax. Subtracting 1 makes in easier to plot the
-    output as a cdf.
-
+    This function uses the equation in Harte (2011) Table 7.3 to calculate
+    emin and emax.  Note that because this equation is an approximation
+    the integral of the pdf from emin to max will often be less than one.
 
     '''
 
@@ -178,8 +170,6 @@ def mete_energy_nu_cdf(S, N, E, emin=-1, emax=-1, num_samples=100):
     assert S > 1, "S must be greater than 1"
     assert N > 0, "N must be greater than 0"
     assert N < E, "N must be less than E"
-    #emin -= 1 #Minus one to put in cdf format
-    #emax -= 1
 
     start = 0.3
     stop = 2
@@ -191,39 +181,16 @@ def mete_energy_nu_cdf(S, N, E, emin=-1, emax=-1, num_samples=100):
                               stop), disp=True)
     beta = -m.log(x)
     lambda2 = float(S) / (E - N) #Harte (2011) 7.26
-    if(emin == -1 and emax == -1):
-        emax = 1 + (1 / (1 * lambda2))#Yes, nmin = etamax
-        emin = 1 + (1 / (N * lambda2))#From Harte (2011) Table 7.3'''
 
     pdf = lambda eta: (1 / np.log(1 / beta)) * ((np.exp(-(beta / (lambda2 * (eta - 1)))) / \
                                     (eta - 1)))
     cdf = []
+    emin = 1 + (1 / (1 * lambda2))#Harte (2011), Table 7.3
+    emax = 1 + (1 / (N * lambda2))
     for eta in np.linspace(emin, emax, num=num_samples):
         cdf.append((integrate.quad(pdf, emin, eta)[0], eta))
 
     return np.array(cdf, dtype=[('cdf', np.float), ('energy', np.float)])
-
-
-
-def rank_abund_nu(S, N, E, n):
-    '''
-    n -- a list-like object with SAD
-    '''
-
-    assert S < N, "S must be less than N"
-    assert S > 1, "S must be greater than 1"
-    assert N > 0, "N must be greater than 0"
-    assert N < E, "N must be less than E"
-    assert type(n) == list or type(n) == tuple \
-           or type(n) == np.ndarray, "Invalid parameter type"
-    n = np.array(n)
-    assert len(n) == S, "S must equal length of n"
-    assert np.sum(n) == N, "Sum of n must equal N"
-   
-    lambda2 = float(S) / (E - N) #Harte (2011) 7.26
-    eta_array = 1 + (1 / (n * lambda2)) #Harte (2011) table 7.3
-
-    return eta_array
 
 
 def mete_energy_psi_pdf(S, N, E, summary=False):
