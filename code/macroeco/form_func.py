@@ -46,7 +46,7 @@ def get_metadata(asklist, folder_name, dataname):
     return meta.TableDescr
 
 
-def get_files(filetype, num, direct):
+def get_files(filetype, num, direct, globber='_????.'):
     '''This function gets the filetype files from the 
     data directory /archival/direct and returns the 
     names of the filetype files in the directory.  
@@ -56,6 +56,8 @@ def get_files(filetype, num, direct):
 
     direct -- the directory within /data/archival/ where the files are.
               example 'BCIS' or 'COCO'
+
+    globber -- String of what pattern is to be globbed (string)
     
     returns:
         A list of strings
@@ -67,7 +69,7 @@ def get_files(filetype, num, direct):
     cwd = gcwd();
     filedir = jp(pd(pd(gcwd())), 'archival', direct)
     chdir(filedir)
-    datafiles = glob.glob(direct + '_????.' + filetype)
+    datafiles = glob.glob(direct + globber + filetype)
     chdir(cwd)
     if not(len(datafiles) == num):
         raise Exception("Must be exactly {0} {1}_*.{2} file in /archival/{1}"\
@@ -103,7 +105,7 @@ def make_spec_dict(spp_array):
     unq_specs = np.unique(spp_array)
     unq_ints = np.linspace(0, len(unq_specs) - 1, num=len(unq_specs)) 
     spec_dict = np.empty(len(unq_ints), dtype=[('spp_code', np.int), \
-                        ('spp', 'S29')])
+                        ('spp', 'S40')])
     spec_dict['spp'] = unq_specs
     spec_dict['spp_code'] = unq_ints
     return spec_dict
