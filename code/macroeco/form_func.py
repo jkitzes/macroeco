@@ -288,8 +288,8 @@ def format_dense(datayears, spec_dict):
     for data in datayears:
         ls = len(data.dtype.names[3:])
         data_out = np.empty(ls * len(data), \
-                        dtype=[('spp_code', np.int), ('x', np.int),
-                               ('y', np.int), ('count', np.int)])
+                        dtype=[('spp_code', np.int), ('x', np.float),
+                               ('y', np.float), ('count', np.int)])
 
         tot_int = create_intcodes(np.array(data.dtype.names[3:]), \
                                    spec_dict['spp'], spec_dict['spp_code'])
@@ -354,6 +354,44 @@ def make_multiyear_spec_dict(datayears, sp_field):
         spp_array = np.concatenate((spp_array, data[sp_field]))
     spec_dict = make_spec_dict(spp_array)
     return spec_dict
+
+def fractionate(datayears, wid_len, step):
+    '''This function takes in a list of formatted data years
+    and converts the grid numbers into meter measurements. For
+    example, LBRI is a 16x16 grid and each cell is labeled with
+    integers.  However, the length (and width) of a cell is 0.5m.
+    This function converts each integer cell number to the appropriate
+    integer (i.e. for LBRI cell (2,2) becomes cell (0.5, 0.5)). 
+    
+    NOTE: This function should be used on formatted data.
+
+    datayears -- a list of formatted structured arrays
+
+    wid_len -- a tuple containing the width (x) in meters and length (y)
+               in meters of the entire plot.
+
+    step -- the step (or stride length) of the cell width and
+                    length (tuple: (x_step, y_step)). It should
+                    be given in terms of meters.
+
+    returns:
+        a list of converted structured arrays
+
+    '''
+    
+    for data in datayears:
+        assert set(data.dtype.names[1:3]) == set(['x', 'y']), "Data must be\
+                                            properly formatted"
+
+    for data in datayears:
+        x_nums = np.unique(data['x'])
+        y_nums = np.unique(data['y'])
+        x_frac = np.arange(0, wid_len[0], step=step[0])
+        y_frac = np.arange(0, wid_len[1], step=step[1])
+        data['x'] = create_intcodes(data['x'], x_nums, x_frac)
+        data['y'] = create_intcodes(data['y'], y_nums, y_frac)
+    return datayears
+
 
 
 
