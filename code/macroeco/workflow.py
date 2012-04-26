@@ -6,12 +6,16 @@ Workflow manages the details of a reproducible workflow within the METE system.
 Classes
 -------
 - Workflow: tracks the analysis & data requested, and any parameters needed.
+            Generates a map of data sites.
 - Parameters: Find, or ask for, and store the run names and parameters asked for by an analysis.
 
 '''
 import xml.etree.ElementTree as etree
 import sys, os, logging
 from matplotlib.mlab import csv2rec
+from mpl_toolkits.basemap import Basemap
+import matplotlib.pyplot as plt
+import metadata as metadata
 
 __author__ = "Chloe Lewis"
 __copyright__ = "Copyright 2012, Regents of the University of California"
@@ -66,7 +70,6 @@ class Workflow:
             dname, dext = os.path.splitext(os.path.split(dfile)[-1])
             self.data[dname] = csv2rec(dfile)
 
-
         # Log everything to console; log dated INFO+ to file.
         logging.basicConfig(level=logging.DEBUG,
                             format='%(asctime)s | %(levelname)s | %(filename)s:%(lineno)d | %(message)s', datefmt='%H:%M:%S')
@@ -82,6 +85,9 @@ class Workflow:
             self.logger.critical('Need a path to data.')
             sys.exit()
 
+        # Map the sites.
+        make_map(sys.argv[1:])
+        
         #may need parameters, which may be in multiple runs
         try:
             self.runs = Parameters(self.script, asklist) #The asking stuff happens post-beta.
@@ -139,11 +145,6 @@ class Workflow:
             for run in self.runs.params.keys():
                 outputID = '_'.join([self.script]+datanames + [run])
                 yield self.datafiles, outputID, self.runs.params[run]
-
-        
-
-    def make_map(self):
-        pass
 
         
 class AllEntities:
@@ -264,4 +265,68 @@ class Parameters:
 def _clean_name(fp):
         return os.path.splitext(os.path.split(fp)[-1])[0]
 
+def make_map(datalist, mapname = None):
+    '''
+    Ensures that a map of all the datasites being analyzed exists.
 
+    Parameter
+    ---------
+    datalist:  list of absolute paths to data files *.csv;
+               data location will be extracted from corresponding *.xml
+
+    mapname:  optional filename of the map (do not include extension)
+
+    Returns
+    -------
+    True if no file with the names of all these datasets exists and one was created
+    False if a file already existed
+    '''
+    lats = []
+    lons = []
+    names = []
+    for f in datalist:
+        x = f[:-3]+'xml'
+        fname, fext = os.path.splitext(os.path.split(f)[-1])
+        names.append(fname)
+        
+    # Normalize so we can check for an existing file
+    names.sort()
+    if not mapname:
+        mapname = 'map_' + '_'.join(names)
+    mapname = mapname + '.png'
+    if os.path.isfile(mapname):
+        return False
+    
+    for f in datalist:
+        x = f[:-3]+'xml'
+        meta = metadata.Metadata(x)
+        bounds = meta.get_coverage_region()
+
+        lats.append(bounds[0])
+        lons.append(bounds[1])
+
+    print('Making map projection...')
+    m = Basemap(projection='cyl', lat_0=50, lon_0=-100,
+            llcrnrlon=min(lons)-5, llcrnrlat=min(lats)-5,
+            urcrnrlon=max(lons)+5, urcrnrlat=max(lats)+5,
+            resolution='l')
+
+    print('Drawing blue-marble background...')
+    m.bluemarble()
+    m.drawcoastlines()
+    m.drawcountries()
+    #m.fillcontinents(color='beige') #Not with bluemarble
+    m.drawmapboundary()
+
+    print('Plotting research sites...')
+    x, y = m(lons, lats)
+    m.plot(x, y, 'wo')
+    for n, xpt, ypt in zip(names,x,y):
+        if n == 'BCIS': ypt += 1 #Cleanup for crowded areas 
+        if n == 'SHER': ypt += 2
+        plt.text(xpt+.5,ypt+.5,n,color='white')
+    plt.title('Field sites')
+    plt.savefig(mapname)
+    plt.close()
+    #plt.show()
+    return True

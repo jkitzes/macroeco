@@ -1,5 +1,6 @@
 #!/usr/bin/python
 '''This module contains the functions for formatting data files'''
+'''TESTING git'''
 
 
 import os
@@ -45,7 +46,7 @@ def get_metadata(asklist, folder_name, dataname):
     return meta.TableDescr
 
 
-def get_files(filetype, num, direct):
+def get_files(filetype, num, direct, globber='_????.'):
     '''This function gets the filetype files from the 
     data directory /archival/direct and returns the 
     names of the filetype files in the directory.  
@@ -55,6 +56,8 @@ def get_files(filetype, num, direct):
 
     direct -- the directory within /data/archival/ where the files are.
               example 'BCIS' or 'COCO'
+
+    globber -- String of what pattern is to be globbed (string)
     
     returns:
         A list of strings
@@ -66,7 +69,7 @@ def get_files(filetype, num, direct):
     cwd = gcwd();
     filedir = jp(pd(pd(gcwd())), 'archival', direct)
     chdir(filedir)
-    datafiles = glob.glob(direct + '_????.' + filetype)
+    datafiles = glob.glob(direct + globber + filetype)
     chdir(cwd)
     if not(len(datafiles) == num):
         raise Exception("Must be exactly {0} {1}_*.{2} file in /archival/{1}"\
@@ -102,7 +105,7 @@ def make_spec_dict(spp_array):
     unq_specs = np.unique(spp_array)
     unq_ints = np.linspace(0, len(unq_specs) - 1, num=len(unq_specs)) 
     spec_dict = np.empty(len(unq_ints), dtype=[('spp_code', np.int), \
-                        ('spp', 'S29')])
+                        ('spp', 'S40')])
     spec_dict['spp'] = unq_specs
     spec_dict['spp_code'] = unq_ints
     return spec_dict
@@ -285,8 +288,8 @@ def format_dense(datayears, spec_dict):
     for data in datayears:
         ls = len(data.dtype.names[3:])
         data_out = np.empty(ls * len(data), \
-                        dtype=[('spp_code', np.int), ('x', np.int),
-                               ('y', np.int), ('count', np.int)])
+                        dtype=[('spp_code', np.int), ('x', np.float),
+                               ('y', np.float), ('count', np.int)])
 
         tot_int = create_intcodes(np.array(data.dtype.names[3:]), \
                                    spec_dict['spp'], spec_dict['spp_code'])
@@ -301,5 +304,94 @@ def format_dense(datayears, spec_dict):
         data_formatted.append(data_out)
 
     return data_formatted
+
+def open_nan_data(filenames, missing_value, site, delim, xy_labels=('gx', 'gy')):
+    '''This function takes in the filenames with nans data file, removes any
+    NaN values for the x and y coordinates and returns a rec array.
+    
+    filename -- list of filenames on data with nans (list)
+
+    missing_value -- How a missing value is labeled in the data (string)
+
+    site -- Site name (string)
+
+    delim -- delimiter for the files (string)
+
+    xylabels -- tuple with x and y column labels, i.e. ('gx', 'gy') or ('x', 'y')
+    
+    returns:
+        a rec array
+
+    '''
+    #NOTE: Might need to get rid of some more NA fields
+    datadir = jp(pd(pd(gcwd())), 'archival', site)
+    datayears = []
+    for name in filenames:
+        data = plt.csv2rec(jp(datadir, name), delimiter=delim, missing=missing_value)
+        xnotNaN = (False == np.isnan(data[xy_labels[0]]))
+        data_out = data[xnotNaN]
+        ynotNaN = (False == np.isnan(data_out[xy_labels[1]]))
+        data_out = data_out[ynotNaN]
+        datayears.append(data_out)
+
+    return datayears
+
+def make_multiyear_spec_dict(datayears, sp_field):
+    '''This functions makes and returns a global species dictionary across 
+    all years of a multi year data set.  It assigns each species that occurs
+    over the years of data a unique integer code.
+
+    datayears -- list of recarrays containing data (list)
+
+    sp_field -- field name in rec array for species column (string)
+
+    returns:
+        A structured array with field names 'spp' and 'spp_code'
+    '''
+
+    spp_array = np.empty(0)
+    for data in datayears:
+        spp_array = np.concatenate((spp_array, data[sp_field]))
+    spec_dict = make_spec_dict(spp_array)
+    return spec_dict
+
+def fractionate(datayears, wid_len, step):
+    '''This function takes in a list of formatted data years
+    and converts the grid numbers into meter measurements. For
+    example, LBRI is a 16x16 grid and each cell is labeled with
+    integers.  However, the length (and width) of a cell is 0.5m.
+    This function converts each integer cell number to the appropriate
+    integer (i.e. for LBRI cell (2,2) becomes cell (0.5, 0.5)). 
+    
+    NOTE: This function should be used on formatted data.
+
+    datayears -- a list of formatted structured arrays
+
+    wid_len -- a tuple containing the width (x) in meters and length (y)
+               in meters of the entire plot.
+
+    step -- the step (or stride length) of the cell width and
+                    length (tuple: (x_step, y_step)). It should
+                    be given in terms of meters.
+
+    returns:
+        a list of converted structured arrays
+
+    '''
+    
+    for data in datayears:
+        assert set(data.dtype.names[1:3]) == set(['x', 'y']), "Data must be\
+                                            properly formatted"
+
+    for data in datayears:
+        x_nums = np.unique(data['x'])
+        y_nums = np.unique(data['y'])
+        x_frac = np.arange(0, wid_len[0], step=step[0])
+        y_frac = np.arange(0, wid_len[1], step=step[1])
+        data['x'] = create_intcodes(data['x'], x_nums, x_frac)
+        data['y'] = create_intcodes(data['y'], y_nums, y_frac)
+    return datayears
+
+
 
 

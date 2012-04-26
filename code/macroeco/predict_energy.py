@@ -14,6 +14,9 @@ Distributions
                             (Harte 2011)
 - 'mete_energy_psi_pdf' -- The METE community energy distribution
 
+- 'mete_energy_nu_pdf/cdf' -- The METE mean energy per species distribution
+
+
 References
 ----------
 
@@ -21,10 +24,11 @@ Harte, J. 2011. Maximum Entropy and Ecology: A Theory of Abundance, Distribution
 and Energetics. Oxford University Press. 
 
 '''
-
+from __future__ import division
 import numpy as np
 import scipy.optimize 
 import scipy.special
+import scipy.integrate as integrate
 import math as m
 import sys
 
@@ -73,6 +77,122 @@ def mete_energy_theta_pdf(S, N, E, n, summary=False):
 def mete_energy_theta_cdf():
     pass
 
+def mete_energy_nu_pdf(S, N, E, summary=False):
+    '''
+
+    mete_energy_nu_pdf(S, N, E, nmin, nmax summary=False)
+
+    Parameters
+    ----------
+    S : int
+        Total number of species in landscape
+    N : int
+        Total number of individuals in landscape
+    E : float
+        Total energy ouput of community
+
+    Returns
+    -------
+    : ndarray (1D)
+        If summary is False, returns array with pmf. If summary is True,
+        returns the summed log likelihood of all values in n.
+    
+    Notes
+    -----
+    This function uses the nu energy equation found in in Table 7.3 of 
+    Harte (2011). Nu is defined as the 'distribution of metabolic rates
+    averaged over individuals within species' (Harte 2011). 
+
+    '''
+
+    assert S < N, "S must be less than N"
+    assert S > 1, "S must be greater than 1"
+    assert N > 0, "N must be greater than 0"
+    assert N < E, "N must be less than E"
+
+    
+    #Start and stop for root finders
+    start = 0.3
+    stop = 2
+
+    #Getting beta
+    k = np.linspace(1, N, num=N)
+    eq = lambda x: sum(x ** k / float(N) * S) -  sum((x ** k) / k)
+    x = scipy.optimize.brentq(eq, start, min((sys.float_info[0] / S)**(1/float(N)),\
+                              stop), disp=True)
+    beta = -m.log(x)
+    lambda2 = float(S) / (E - N) #Harte (2011) 7.26
+
+    eta = np.linspace(1 + 1e-10, E, num=1000)
+    pdf = (1 / np.log(1 / beta)) * ((np.exp(-(beta / (lambda2 * (eta - 1)))) / \
+                                    (eta - 1)))
+    
+    if summary: return -sum(np.log(pdf))
+    else:       return pdf
+
+def mete_energy_nu_cdf(S, N, E, num_samples=100):
+    '''
+    mete_energy_nu_cdf(S, N, E, emin, emax, num_samples=100)
+
+    CDF for mete_energy_nu_pdf
+
+    Parameters
+    ----------
+    S : int
+        Total number of species in landscape
+    N : int
+        Total number of individuals in landscape
+    E : float
+        Total energy ouput of community
+    emin : float
+        The minumum average energy output of a species
+    emax : float
+        The maximum average energy output of a species
+    num_samples : int (default)
+        The number of integrals computed within the interval [emin,emax]
+
+    Returns
+    -------
+    : structured ndarray (1D)
+        Structured array contains fields 'cdf' and 'energy'. The field 'cdf' represents
+        the cdf value at a given energy level (Prob (emin <= energy <= upppere)
+
+    Notes:
+    ------
+    This function uses the equation in Harte (2011) Table 7.3 to calculate
+    emin and emax.  Note that because this equation is an approximation
+    the integral of the pdf from emin to max will often be less than one.
+
+    '''
+
+    #Start and stop for root finders
+    assert S < N, "S must be less than N"
+    assert S > 1, "S must be greater than 1"
+    assert N > 0, "N must be greater than 0"
+    assert N < E, "N must be less than E"
+
+    start = 0.3
+    stop = 2
+
+    #Getting beta
+    k = np.linspace(1, N, num=N)
+    eq = lambda x: sum(x ** k / float(N) * S) -  sum((x ** k) / k)
+    x = scipy.optimize.brentq(eq, start, min((sys.float_info[0] / S)**(1/float(N)),\
+                              stop), disp=True)
+    beta = -m.log(x)
+    lambda2 = float(S) / (E - N) #Harte (2011) 7.26
+
+    pdf = lambda eta: (1 / np.log(1 / beta)) * ((np.exp(-(beta / (lambda2 * (eta - 1)))) / \
+                                    (eta - 1)))
+    cdf = []
+    emin = 1 + (1 / (1 * lambda2))#Harte (2011), Table 7.3
+    emax = 1 + (1 / (N * lambda2))
+    for eta in np.linspace(emin, emax, num=num_samples):
+        cdf.append((integrate.quad(pdf, emin, eta)[0], eta))
+
+    return np.array(cdf, dtype=[('cdf', np.float), ('energy', np.float)])
+
+
 def mete_energy_psi_pdf(S, N, E, summary=False):
     '''
     mete_energy_psi_pdf(S, N, E, summary=False)
@@ -97,6 +217,7 @@ def mete_energy_psi_pdf(S, N, E, summary=False):
 
     Notes
     -----
+    This is the psi distribution found in Table 7.3 of Harte (2011)
 
     '''
 
