@@ -21,18 +21,25 @@ for f in files:
     #    names.append(meta.get_title()) #Too long.
     names.append(f[-13:-9])
 
+print('Corners of coords found:')
+print(min(lons),max(lons),min(lats),max(lats))
+
+print(names)
+print('Making map projection:')
 
 m = Basemap(projection='cyl', lat_0=50, lon_0=-100,
             llcrnrlon=min(lons)-5, llcrnrlat=min(lats)-5,
             urcrnrlon=max(lons)+5, urcrnrlat=max(lats)+5,
             resolution='l')
 
+print('Setting up bluemarble background:')
 m.bluemarble()
 m.drawcoastlines()
 m.drawcountries()
 #m.fillcontinents(color='beige') #Not with bluemarble
 m.drawmapboundary()
 
+print('Add research sites:')
 x, y = m(lons, lats)
 m.plot(x, y, 'wo')
 for n, xpt, ypt in zip(names,x,y):
