@@ -268,8 +268,8 @@ class Patch:
 
         # SAD and sp_cent have the same number of list elements and row
         # structure within arrays
-        SAD = self.SAD_grid(div_list, summary = '')
-        sp_cent = self._get_sp_centers(div_list)
+        SAD = self.sad_grid(div_list, summary = '')
+        sp_cent = self.get_sp_centers(div_list)
 
         for ind_div, div in enumerate(div_list):
             div_result = []
