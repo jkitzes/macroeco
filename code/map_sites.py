@@ -10,4 +10,4 @@ format_root = os.path.join(os.path.split(os.path.split(os.path.abspath(__file__)
                            'data/formatted/*/*.xml')
 files = glob.glob(format_root)
 
-make_map(files, 'sites_map')
+make_map(files, 'sites_map', True)

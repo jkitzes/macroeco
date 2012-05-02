@@ -265,7 +265,7 @@ class Parameters:
 def _clean_name(fp):
         return os.path.splitext(os.path.split(fp)[-1])[0]
 
-def make_map(datalist, mapname = None):
+def make_map(datalist, mapname = None, whole_globe = False):
     '''
     Ensures that a map of all the datasites being analyzed exists.
 
@@ -287,7 +287,7 @@ def make_map(datalist, mapname = None):
     for f in datalist:
         x = f[:-3]+'xml'
         fname, fext = os.path.splitext(os.path.split(f)[-1])
-        names.append(fname)
+        names.append(fname[:4])
         
     # Normalize so we can check for an existing file
     names.sort()
@@ -306,23 +306,34 @@ def make_map(datalist, mapname = None):
         lons.append(bounds[1])
 
 
-    m = Basemap(projection='cyl', lat_0=50, lon_0=-100,
-            llcrnrlon=min(lons)-5, llcrnrlat=min(lats)-5,
-            urcrnrlon=max(lons)+5, urcrnrlat=max(lats)+5,
+
+
+    print('Making map projection...')
+    if whole_globe:
+        m = Basemap(projection='cyl',
+                    resolution='i')
+                    
+    else:
+        print('Min and max coords found:\n'+str((min(lats),min(lons),max(lats),max(lons))))
+        m = Basemap(projection='cyl', lat_0=50, lon_0=-100,
+            llcrnrlon=min(lons)-10, llcrnrlat=min(lats)-10,
+            urcrnrlon=max(lons)+10, urcrnrlat=max(lats)+10,
             resolution='l')
 
+    print('Drawing blue-marble background...')
     m.bluemarble()
     m.drawcoastlines()
     m.drawcountries()
     #m.fillcontinents(color='beige') #Not with bluemarble
     m.drawmapboundary()
 
+    print('Plotting research sites...')
     x, y = m(lons, lats)
-    m.plot(x, y, 'wo')
+    m.plot(x, y, 'yo')
     for n, xpt, ypt in zip(names,x,y):
         if n == 'BCIS': ypt += 1 #Cleanup for crowded areas 
         if n == 'SHER': ypt += 2
-        plt.text(xpt+.5,ypt+.5,n,color='white')
+        plt.text(xpt+.5,ypt+.5,n,color='yellow')
     plt.title('Field sites')
     plt.savefig(mapname)
     plt.close()
