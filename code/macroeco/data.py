@@ -15,6 +15,7 @@ Functions
 from __future__ import division
 import numpy as np
 import warnings
+from metadata import *
 
 
 class XYTable():
@@ -117,9 +118,11 @@ class XYTable():
 
         # Load metadata from file, printing warning and returning None if file 
         # does not exist.
-        metapath = datapath[:-3] + '.xml'
         try:
-            np.loadtxt('not_implemented')  # TODO: Add reader implementation
+            asklist = [('x', 'minimum'), ('x', 'maximum'), ('x', 'precision'),\
+                       ('y', 'minimum'), ('y', 'maximum'), ('y', 'precision')]
+            meta = self.fill_metadata(asklist, datapath)
+
         except IOError:
             warnings.warn('No metadata file found, metadata filled with 0s.')
             meta = {'precision': 0, 'xrange': (0, 0), \
@@ -191,3 +194,24 @@ class XYTable():
                          < y_en], axis = 0)
         sub_table = self.table[in_sub]
         return sub_table
+
+    def fill_metadata(self, asklist, datapath):
+        '''
+        Gets the relavent metadata from metadata file
+
+        asklist -- A list of tuples e.g. [('x', 'precision'), ('y', 'maximum')]
+
+        datapath -- The path to the data file
+
+        '''
+        metadata_path = datapath[:-3] + 'xml'
+        meta = Metadata(metadata_path)
+        meta.get_dataTable_values(asklist)
+        meta_dict = meta.TableDescr
+        meta = {'precision' : float(meta_dict[('x', 'precision')]), \
+                    'xrange' : (float(meta_dict[('x', 'minimum')]), \
+                                float(meta_dict[('x', 'maximum')])), \
+                    'yrange' : (float(meta_dict[('y', 'minimum')]), \
+                                float(meta_dict[('y', 'maximum')]))}
+        return meta
+

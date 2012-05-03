@@ -22,8 +22,6 @@ __status__ = "Development"
 # Parameters are found in parameters.xml in the current working directory of the script
 
 wf = Workflow()
-
-
 # If the analysis happens file-by-file:
 for datafile, outputID, params in wf.single_datasets():
     test.single_patch(datafile, outputID, params, wf.runs.interactive)

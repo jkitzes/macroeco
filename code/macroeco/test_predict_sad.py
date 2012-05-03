@@ -45,16 +45,6 @@ class TestPredictSAD(unittest.TestCase):
             diff1 = np.round(rdpolono - pmf, decimals=5)
             self.assertTrue(np.sum(diff1) == 0)
 
-    def test_trun_plognorm_pmf(self):
-        for sad in self.abund_list:
-            mean = np.mean(np.log(sad))
-            var = np.var(np.log(sad), ddof=1)
-            trunll = -sum(np.log(trun_plognorm_pmf(mean, var, sad)))
-            ew = -1 * float(pln_ll(mean, var**0.5, sad))
-            import pdb; pdb.set_trace()
-            self.assertTrue(round(trunll, ndigits=5) == round(ew, ndigits=5))
-
-            
 
     def test_mete_lgsr_pmf(self):
         self.assertRaises(AssertionError, mete_lgsr_pmf, 45, 45)

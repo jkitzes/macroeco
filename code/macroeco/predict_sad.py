@@ -13,14 +13,16 @@ Distributions
 - `lgsr_pmf` -- Fisher's log series (Fisher et al. 1943)
 - `neg_binom_pmf` -- Negative Binomial
 - `plognorm_pmf` -- Poisson lognormal (Bulmer 1974)
-- 'trun_plognorm_pmf -- Truncated poisson log-normal (Bulmer 1974)
+- `trun_plognorm_pmf` -- Truncated poisson log-normal (Bulmer 1974)
 - `mete_logser_pmf` -- METE log series (Harte 2011)
 - `mete_logser_approx_pmf` -- METE log series using approximation (Harte 2011)
 
 Misc Functions
 --------------
 - `make_rank_abund` -- convert any SAD pmf into a rank abundance curve
+- `plognorm_MLE` -- Get MLE estimates for poisson lognormal
 
+- 
 References
 ----------
 Bulmer, M. G. 1974. On fitting the poisson lognormal distribution to species
@@ -212,6 +214,7 @@ def plognorm_pmf(mean, var, abundances, pmf_ret=False):
            or type(abundances) == np.ndarray, "Invalid parameter type"
 
     assert len(abundances) >= 1, "Abundance vector cannot be empty"
+    assert sum(abundances) >= 1, "Sum of abundances must be >= 1"
     
     abundances = np.array(abundances)
     if pmf_ret == True:
