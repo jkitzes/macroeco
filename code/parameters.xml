@@ -15,4 +15,9 @@
       <param name='layers' value='[1, 5, 13]' />
     </run>
   </analysis>
+  <analysis scriptname='make_my_sad' version='0.5' interactive='F'>
+    <run name='ANBO_sad'>
+        <param name='grid' value='[(1, 1)]'/>
+    </run>
+  </analysis>
 </METE>
