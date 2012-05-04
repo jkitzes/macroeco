@@ -177,7 +177,7 @@ def fit_neg_binom_pmf(sad, guess_for_k=1):
     #NOTE: Need to check for convergence
     def nll_nb(k, sad):
         return -sum(np.log(neg_binom_pmf(len(sad), np.sum(sad), k, abundances=sad)))
-    mlek = scipy.optimize.fmin(nll_nb, np.array([guess_for_k]), args=(sad,))[0]
+    mlek = scipy.optimize.fmin(nll_nb, np.array([guess_for_k]), args=(sad,), disp=0)[0]
     return mlek
         
 
@@ -210,17 +210,16 @@ def plognorm_pmf(mean, var, abundances, pmf_ret=False):
     Wilber. The VGAM R package was adopted directly from Bulmer (1974).
 
     '''
+    
     assert type(abundances) == list or type(abundances) == tuple \
            or type(abundances) == np.ndarray, "Invalid parameter type"
 
-    assert len(abundances) >= 1, "Abundance vector cannot be empty"
-    assert sum(abundances) >= 1, "Sum of abundances must be >= 1"
     
     abundances = np.array(abundances)
     if pmf_ret == True:
         n_array = np.arange(1, int(np.sum(abundances) + 1))
     if pmf_ret == False:
-        n_array = abundances
+        n_array = np.copy(abundances)
         
 
     if var <= 0 or mean <= 0: #Parameters can be negative when optimizer is running
@@ -303,7 +302,6 @@ def plognorm_MLE(abundances, trun=True):
            or type(abundances) == np.ndarray, "Invalid parameter type"
 
     assert len(abundances) >= 1, "len(abundances) must be greater than or equal to 1"
-
     abundances = np.array(abundances)
     mu0 = np.mean(np.log(abundances))
     var0 = np.var(np.log(abundances), ddof=1)
@@ -581,10 +579,10 @@ def mete_lgsr_approx_pmf(S, N, abundances=[], pmf_ret=False, root=2):
     return pmf
 
 
-def mete_lgsr_cdf(S, N):
+def get_sad_cdf(S, N, distribution, sad=[]):
     '''
-    mete_lgr_cdf(S, N)
-    
+    Gets predicted cdf for a given distribution based on the sad
+
     CDF for METE logseries distribution
 
     Parameters
@@ -593,6 +591,18 @@ def mete_lgsr_cdf(S, N):
         Total number of species in landscape
     N : int
         Total number of individuals in landscape
+    distribution : string
+        The predicted distribution:
+        'mete' - METE
+        'mete_approx' - METE with approximation
+        'plognorm' - Poisson lognormal
+        'trun_plognorm' - Truncated poisson lognormal
+        'neg_binom' - Negative binomial
+        'lgsr' - Fisher's log series
+
+        
+    sad : array like object
+        SAD can be empty if distribution is not plognorm or trun_plognorm
 
     Returns:
     : 1D structured array
@@ -600,7 +610,38 @@ def mete_lgsr_cdf(S, N):
 
 
     '''
-    pmf = mete_lgsr_pmf(S, N, pmf_ret=True)
+    assert distribution == 'mete' or\
+           distribution == 'mete_approx' or\
+           distribution == 'neg_binom' or\
+           distribution == 'lgsr' or\
+           distribution == 'trun_plognorm' or\
+           distribution == 'plognorm', "Do not recognize %s distribution" % (distribution)
+
+    #These three distributions require the full sad.
+    if distribution == 'plognorm' or\
+       distribution == 'trun_plognorm' or\
+       distribution == 'neg_binom':
+        assert len(sad) == S, "Length of SAD must equal S"
+        assert np.sum(sad) == N, "Sum of SAD must equal N"
+    sad = np.array(sad)
+
+    
+    if distribution == 'mete':
+        pmf = mete_lgsr_pmf(S, N, abundances=sad, pmf_ret=True)
+    if distribution == 'mete_approx':
+        pmf = mete_lgsr_approx_pmf(S, N, abundances=sad, pmf_ret=True)
+    if distribution == 'neg_binom':
+        mlek = fit_neg_binom_pmf(sad)
+        pmf = neg_binom_pmf(S, N, mlek, abundances=sad, pmf_ret=True)
+    if distribution == 'trun_plognorm':
+        mu, var = plognorm_MLE(sad, trun=True)
+        pmf = trun_plognorm_pmf(mu, var, sad, pmf_ret=True)
+    if distribution == 'plognorm':
+        mu, var = plognorm_MLE(sad, trun=False)
+        pmf = plognorm_pmf(mu, var, sad, pmf_ret=True)
+    if distribution == 'lgsr':
+        pmf = lgsr_pmf(S, N, abundances=sad, pmf_ret=True)
+
     cdf = np.cumsum(pmf)
     cdf_struct = np.empty(len(cdf), dtype=[('cdf', np.float), ('n', np.int)])
     cdf_struct['cdf'] = cdf
@@ -672,9 +713,12 @@ def nll(sad, distribution):
 
     '''
 
-    assert distribution is 'mete' or 'mete_approx' or 'neg_binom'\
-            or 'lgsr' or 'trun_plognorm' or 'plognorm',\
-           "Do not recognize %s distribution" % (distribution)
+    assert distribution == 'mete' or\
+           distribution == 'mete_approx' or\
+           distribution == 'neg_binom' or\
+           distribution == 'lgsr' or\
+           distribution == 'trun_plognorm' or\
+           distribution == 'plognorm', "Do not recognize %s distribution" % (distribution)
 
     if distribution == 'mete':
         pmf = mete_lgsr_pmf(len(sad), sum(sad), abundances=sad)

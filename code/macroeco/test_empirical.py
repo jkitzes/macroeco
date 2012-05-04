@@ -2,9 +2,11 @@
 Unit tests for empirical.py
 '''
 
+from __future__ import division
 import unittest
 import os
 from empirical import *
+import numpy as np
 
 
 class TestPatch(unittest.TestCase):
@@ -24,9 +26,63 @@ class TestPatch(unittest.TestCase):
         self.pat.xy.meta = self.xymeta5  # TODO: Replace with reader 
         self.pat.set_attributes()
 
+        self.xyfile6 = open('xyfile6.csv', 'w')
+        self.xyfile6.write('''spp_code, x, y, count
+                        0, 0, 0, 1
+                        1, 0, 0, 1
+                        2, 0, 0, 0
+                        3, 0, 0, 3
+                        0, 0, 1, 0
+                        1, 0, 1, 4
+                        2, 0, 1, 0
+                        3, 0, 1, 1
+                        0, 1, 0, 1
+                        1, 1, 0, 0
+                        2, 1, 0, 3
+                        3, 1, 0, 1
+                        0, 1, 1, 0
+                        1, 1, 1, 1
+                        2, 1, 1, 3
+                        3, 1, 1, 1''')
+        self.xyfile6.close()
+        self.xymeta6 = {'precision': 1, 'xrange':(0,1), 'yrange':(0,1)}
+        self.gridtest = Patch('xyfile6.csv')
+        self.gridtest.xy.meta = self.xymeta6
+        self.gridtest.set_attributes()
+
+        self.xyfile7 = open('xyfile7.csv', 'w')
+        self.xyfile7.write('''spp_code, x, y, count
+                        0, 1, 1, 1
+                        1, 1, 1, 1
+                        2, 1, 1, 0
+                        3, 1, 1, 3
+                        0, 1, 2, 0
+                        1, 1, 2, 4
+                        2, 1, 2, 0
+                        3, 1, 2, 1
+                        0, 2, 1, 1
+                        1, 2, 1, 0
+                        2, 2, 1, 3
+                        3, 2, 1, 1
+                        0, 2, 2, 0
+                        1, 2, 2, 1
+                        2, 2, 2, 3
+                        3, 2, 2, 1''')
+        self.xyfile7.close()
+        self.xymeta7 = {'precision': 1, 'xrange':(1,2), 'yrange':(1,2)}
+        self.gridtest2 = Patch('xyfile7.csv')
+        self.gridtest2.xy.meta = self.xymeta7
+        self.gridtest2.set_attributes()
+
+
+
+
+
 
     def tearDown(self):
-        #os.remove('xyfile5.csv')
+        os.remove('xyfile5.csv')
+        os.remove('xyfile6.csv')
+        os.remove('xyfile7.csv')
         pass
 
     #
@@ -142,6 +198,30 @@ class TestPatch(unittest.TestCase):
     def test_rnd(self):
         self.assertEquals(rnd(.3), .3)
         self.assertEquals(rnd(.2 + .1), .3)  # .2 + .1 != .3 without round
+
+    def test_QS_grid(self):
+        common = self.gridtest.QS_grid([(1,1)])
+        self.assertTrue(type(common) == type([]))
+        self.assertTrue(len(common) == 1)
+        self.assertTrue(len(common[0]) == 0)
+        common = self.gridtest.QS_grid([(2,2)])
+        self.assertTrue(len(common) == 1)
+        self.assertTrue(len(common[0]) == 6)
+        chi = np.array([4/5, 2/3, 2/3, 2/5, 4/5, 2/3])
+        self.assertTrue(np.array_equal(chi, common[0][:,3]))
+        self.assertRaises(IndexError, self.gridtest.QS_grid, [(6,6)])
+        self.assertRaises(IndexError, self.gridtest.QS_grid, [(6,0)])
+        common = self.gridtest.QS_grid([(1,1),(1,2), (2,1), (2,2)])
+        self.assertTrue(len(common) == 4)
+        self.assertTrue(np.array_equal(chi, common[3][:,3]))
+        self.assertTrue((float(common[1][:,3]) == 6/7) and (float(common[2][:,3]) == 6/7))
+        common = self.gridtest2.QS_grid([(1,1),(1,2), (2,1), (2,2)])
+        self.assertTrue(len(common) == 4)
+        self.assertTrue(np.array_equal(chi, common[3][:,3]))
+        self.assertTrue((float(common[1][:,3]) == 6/7) and (float(common[2][:,3]) == 6/7))
+
+
+
 
 
 if __name__ == '__main__':

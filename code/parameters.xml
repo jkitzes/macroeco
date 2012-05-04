@@ -15,9 +15,14 @@
       <param name='layers' value='[1, 5, 13]' />
     </run>
   </analysis>
-  <analysis scriptname='make_my_sad' version='0.5' interactive='F'>
-    <run name='ANBO_sad'>
-        <param name='grid' value='[(1, 1)]'/>
+  <analysis scriptname='analyze_my_sad' version='0.5' interactive='F'>
+    <run name='obs_pred_plot_mete'>
+        <param name='distr' value='mete'/>
+        <param name='title' value='Observed vs. Predicted cdf (METE)'/>
+    </run>
+    <run name='obs_pred_plot_plognormal'>
+        <param name='distr' value='trun_plognorm'/>
+        <param name='title' value='Observed vs. Predicted cdf (trunc. plognorm'/>
     </run>
   </analysis>
 </METE>

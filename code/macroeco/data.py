@@ -16,6 +16,7 @@ from __future__ import division
 import numpy as np
 import warnings
 from metadata import *
+import os
 
 
 class XYTable():
@@ -119,10 +120,13 @@ class XYTable():
         # Load metadata from file, printing warning and returning None if file 
         # does not exist.
         try:
-            asklist = [('x', 'minimum'), ('x', 'maximum'), ('x', 'precision'),\
-                       ('y', 'minimum'), ('y', 'maximum'), ('y', 'precision')]
-            meta = self.fill_metadata(asklist, datapath)
-
+            metadata = datapath[:-3] + 'xml'
+            if os.path.isfile(metadata):
+                asklist = [('x', 'minimum'), ('x', 'maximum'), ('x', 'precision'),\
+                           ('y', 'minimum'), ('y', 'maximum'), ('y', 'precision')]
+                meta = self.fill_metadata(asklist, datapath)
+            else:
+                raise IOError()
         except IOError:
             warnings.warn('No metadata file found, metadata filled with 0s.')
             meta = {'precision': 0, 'xrange': (0, 0), \

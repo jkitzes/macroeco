@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import logging
 from macroeco.workflow import Workflow, loggername
-from macroeco import predict_sad
+from macroeco import sad_analysis
 
 __author__ = "Mark Wilber"
 __copyright__ = "Copyright 2012, Regents of the University of California"
@@ -18,30 +18,85 @@ __status__ = "Development"
 
 module_logger = logging.getLogger(loggername)
 
-def make_obs_vs_pred_cum_plot(sad, outputID, params):
+def sad_cdf_obs_pred_plot(sad, outputID, params={}, interactive=False):
+    '''Makes a plot of observed vs predicted (METE) cdf values
+    based on the given sad
 
-    cdf = get_obs_vs_pred_cdf(sad)
-    jitt_x, jitt_y = jitter(cdf['pred'], cdf['obs'], jitter_scale=0.007)
+    Parameters
+    ----------
+    sad : ndarray
+        SAD
+    outputID : string
+        The name of the saved plot
+    params : dict
+        If empty uses default values, if not incorporates given params
+        into params into dict
+    interactive : bool
+        If True, figure is shown in interactive window.  
+        If false, no figure is shown.
+
+    Notes
+    -----
+    Saves plot to current working directory
+
+    '''
+    prm = {'clr_jit':'grey', 'clr_sct':'black', 'ln_clr':'grey', 'jit_scl':0.007,\
+          'ylbl':'Observed cdf', 'xlbl':'Predicted cdf',\
+          'title': 'Observed vs. predicted values of SAD cdf', 'distr':'mete'}
+    if len(params) != 0:
+        inter = set(params.viewkeys()).intersection(set(prm.viewkeys()))
+        if len(inter) != 0:
+            module_logger.debug('Setting parameters ' + str(inter))
+            for key in inter:
+                prm[key] = params[key]
+          
+    cdf = sad_analysis.get_obs_vs_pred_cdf(sad, prm['distr'])
+    jitt_x, jitt_y = jitter(cdf['pred'], cdf['obs'], jitter_scale=prm['jit_scl'])
     plt.plot([0] + list(cdf['obs']),[0] +  list(cdf['obs']),\
-                                            color='gray', linestyle='--')
+                                            color=prm['ln_clr'], linestyle='--')
         
-    plt.scatter(jitt_x, jitt_y, color='grey') 
-    plt.scatter(cdf['pred'], cdf['obs'], color='black')
-    for s in xrange(len(cdf)):
+    plt.scatter(jitt_x, jitt_y, color=prm['clr_jit']) 
+    plt.scatter(cdf['pred'], cdf['obs'], color=prm['clr_sct'])
+    '''for s in xrange(len(cdf)):
         plt.text(cdf['pred'][s], cdf['obs'][s] + 0.01, "n=" + str(cdf['n'][s]),\
-                                fontsize=7)
-    plt.ylabel('Observed cdf')
-    plt.xlabel('Predicted (METE) cdf')
-    plt.title('Observed vs. predicted values of the cdf')
+                                fontsize=7)'''
+    plt.ylabel(prm['ylbl'])
+    plt.xlabel(prm['xlbl'])
+    plt.title(prm['title'])
     plt.xlim(-0.1,1.1)
     plt.ylim(-0.1,1.1)
     plt.legend(('Slope 1', 'All species cum.\nprob. (jittered)',\
                     'Cum. prob.\nfor given n'),loc='best', prop={'size':12})
     plt.savefig(outputID)
-    plt.clf()
+
+    if interactive:
+        plt.show()
+    else:
+        plt.clf()
 
 def jitter(x, y, jitter_scale=0.001):
-    '''Jitter the points'''
+    '''Function takes in x and y values and jitters
+    the identical points (x,y) in the x direction
+    
+    Parameters
+    ----------
+    x : ndarray
+      x points
+    y : ndarray
+      y points
+    jitter_scale : float
+        The distance a point is jittered in the x direction
+
+    Returns
+    -------
+    : ndarrays
+        returns jittered x and y as separate ndarrays
+
+
+
+    '''
+
+    #TODO: Add option to jitter in y direction
     assert len(x) == len(y), "x and y must be the same length"
     jitt_x = np.copy(x)
     jitt_y = np.copy(y)
@@ -59,61 +114,5 @@ def jitter(x, y, jitter_scale=0.001):
                     jitt_x[indices[ind]] += (jitter_scale * ind)
     return jitt_x, jitt_y
 
-def get_obs_cdf_values(sad):
-    '''Generates predicted cdf values from an observed
-    SAD.
-    
-    Parameters
-    ----------
-    sad : 1D np.array
-        array containing an SAD
-
-    Returns
-    -------
-    : 1D np.array
-        an array comtaining the cdf for the observed sad
-    '''
-    unq_sad = np.unique(sad)
-    S = len(sad)
-    cdf = []
-    count = 0
-    for i in unq_sad:
-        tot_in = sum((i == sad))
-        count += tot_in
-        #Removing or adding (1/(2*S)) can change the graphs
-        for s in xrange(tot_in):
-            cdf.append((count / S))# - (1/(2*S)))
-    assert len(cdf) == len(sad), "Lengths don't match"
-    return np.array(cdf)
-
-def get_obs_vs_pred_cdf(sad):
-    '''Generates a structured array with n, observed cdf, and predicted cdf
-    from the observed sad
-
-     Parameters
-    ----------
-    sad : 1D np.array
-        an array containing an SAD
-
-    Returns
-    -------
-    : Structured np.array, dtype=[('n', np.int), ('obs', np.float),
-    ('pred', np.float)]
-        Length of the returned structured array is the same as sad
-
-    '''
 
 
-    obs_cdf = get_obs_cdf_values(sad)
-    sad_sorted = np.sort(sad)
-    pred_cdf = predict_sad.mete_lgsr_cdf(len(sad), np.sum(sad))
-    cpred_cdf = []
-    for n in sad_sorted:
-        cpred_cdf.append(pred_cdf['cdf'][n - 1])
-    cpred_cdf = np.array(cpred_cdf)
-    obs_vs_pred = np.empty(len(sad_sorted), dtype=[('n', np.int), ('obs', np.float),\
-                                               ('pred', np.float)])
-    obs_vs_pred['n'] = sad_sorted
-    obs_vs_pred['obs'] = obs_cdf
-    obs_vs_pred['pred'] = cpred_cdf
-    return obs_vs_pred

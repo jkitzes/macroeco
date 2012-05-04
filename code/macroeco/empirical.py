@@ -89,6 +89,7 @@ class Patch:
         self.x_max = rnd(xr[1] + pr)
         self.y_min = yr[0]
         self.y_max = rnd(yr[1] + pr)
+        self.precision = pr
 
         self.width = rnd(xr[1] - xr[0] + pr)
         self.height = rnd(yr[1] - yr[0] + pr)
@@ -248,7 +249,7 @@ class Patch:
         -------
         result : list of ndarrays
             List of same length as div_list, with each element corresponding to 
-            an division tuple from div_list. Elements are a 2D ndarray with the 
+            a division tuple from div_list. Elements are a 2D ndarray with the 
             index of the pair of subpatches (counting row wise from the top 
             left) in the first 2 cols, the distance between the center of the 
             subpatches in the 3rd col, and the commonality in the 4th col.
@@ -256,7 +257,7 @@ class Patch:
         Notes
         -----
         The values of x and y in the tuples of div_list must be factors of 
-        p_width and p_height, respectively, so that every subpatch will have an 
+        width and height, respectively, so that every subpatch will have an 
         identical number of survey points.
         '''
         # TODO: Make sure that divs divide plot evenly and that divs are of
@@ -345,8 +346,8 @@ class Patch:
         # TODO: Did not confirm that this works for x_min and y_min > 0
         sp_centers = []
         for div in div_list:
-            sp_width = self.p_width / float(div[0])
-            sp_height = self.p_height / float(div[1])
+            sp_width = self.width / float(div[0])
+            sp_height = self.height / float(div[1])
 
             div_sp_cent = []
             for sp_x in xrange(0, div[0]):  # Same sp order as SAD_grid
