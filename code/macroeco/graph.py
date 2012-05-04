@@ -37,9 +37,13 @@ def sad_cdf_obs_pred_plot(sad, outputID, params={}, interactive=False):
 
     Notes
     -----
-    Saves plot to current working directory
+    Saves plot to current working directory. Default distribution to graph
+    is METE. Need top specify in parameters.xml if another distribution is
+    desired.
 
     '''
+
+    #Allowing the user to set parameters if they pass some in
     prm = {'clr_jit':'grey', 'clr_sct':'black', 'ln_clr':'grey', 'jit_scl':0.007,\
           'ylbl':'Observed cdf', 'xlbl':'Predicted cdf',\
           'title': 'Observed vs. predicted values of SAD cdf', 'distr':'mete'}
@@ -48,7 +52,10 @@ def sad_cdf_obs_pred_plot(sad, outputID, params={}, interactive=False):
         if len(inter) != 0:
             module_logger.debug('Setting parameters ' + str(inter))
             for key in inter:
-                prm[key] = params[key]
+                if key is 'jit_scl':
+                    prm[key] = eval(params[key])
+                else:
+                    prm[key] = params[key]
           
     cdf = sad_analysis.get_obs_vs_pred_cdf(sad, prm['distr'])
     jitt_x, jitt_y = jitter(cdf['pred'], cdf['obs'], jitter_scale=prm['jit_scl'])
@@ -73,6 +80,106 @@ def sad_cdf_obs_pred_plot(sad, outputID, params={}, interactive=False):
         plt.show()
     else:
         plt.clf()
+
+def obs_pred_rarity(sad, outputID, params={}, interactive=False):
+    '''Makes a bar graph of observed and predicted rarity
+
+     Parameters
+    ----------
+    sad : ndarray
+        SAD
+    outputID : string
+        The name of the saved plot
+    params : dict
+        If empty uses default values, if not incorporates given params
+        into params into dict
+    interactive : bool
+        If True, figure is shown in interactive window.  
+        If False, no figure is shown.
+
+    Notes
+    -----
+    Saves plot to current working directory. Default distribution to graph
+    is METE. Need top specify in parameters.xml if another distribution is
+    desired.
+
+    '''
+    prm = {'distr':'mete', 'rarity':10}
+    if len(params) != 0:
+        inter = set(params.viewkeys()).intersection(set(prm.viewkeys()))
+        if len(inter) != 0:
+            module_logger.debug('Setting parameters ' + str(inter))
+            for key in inter:
+                if key is 'rarity':
+                    prm[key] = eval(params[key])
+                else:
+                    prm[key] = params[key]
+    #TODO: remove ticks from plots!
+    obs_pred = sad_analysis.get_obs_and_pred_rarity(sad, prm['distr'], n=prm['rarity'])
+    x = np.array([0.5,1.5])
+    plt.bar(x, list(obs_pred), width=0.5, color='gray')
+    plt.xticks(x + 0.25, ('Obs', 'Pred'))
+    plt.ylabel('Number of species less than ' + str(prm['rarity']))
+    plt.ylim(0, max(obs_pred) + .25*(max(obs_pred)))
+    plt.text(.75 - .05, obs_pred[0] + 0.5, "n = " + str(obs_pred[0]))
+    plt.text(1.75 - .05, obs_pred[1] + 0.5, "n = " + str(obs_pred[1]))
+    plt.title("Observed vs. predicted rarity")
+    plt.savefig(outputID + '_rarity')
+    
+    if interactive:
+        plt.show()
+    else:
+        plt.clf()
+
+def obs_pred_Nmax(sad, outputID, params={}, interactive=False):
+    '''Makes a bar graph of obeserved and predicted N max
+
+     Parameters
+    ----------
+    sad : ndarray
+        SAD
+    outputID : string
+        The name of the saved plot
+    params : dict
+        If empty uses default values, if not incorporates given params
+        into params into dict
+    interactive : bool
+        If True, figure is shown in interactive window.  
+        If False, no figure is shown.
+
+    Notes
+    -----
+    Saves plot to current working directory. Default distribution to graph
+    is METE. Need top specify in parameters.xml if another distribution is
+    desired.
+
+    '''
+    prm = {'distr':'mete'}
+    if len(params) != 0:
+        inter = set(params.viewkeys()).intersection(set(prm.viewkeys()))
+        if len(inter) != 0:
+            module_logger.debug('Setting parameters ' + str(inter))
+            for key in inter:
+                prm[key] = params[key]
+
+    #TODO: remove ticks from plots! Add param manipulations
+    obs_pred = sad_analysis.get_obs_and_pred_Nmax(sad, prm['distr'])
+    x = np.array([0.5,1.5])
+    plt.bar(x, list(obs_pred), width=0.5, color='gray')
+    plt.xticks(x + 0.25, ('Obs', 'Pred'))
+    plt.ylabel('Nmax of SAD')
+    plt.ylim(0, max(obs_pred) + .25 * (max(obs_pred)))
+    plt.text(.75 - .05, obs_pred[0] + 0.5, "n = " + str(obs_pred[0]))
+    plt.text(1.75 - .05, obs_pred[1] + 0.5, "n = " + str(obs_pred[1]))
+    plt.title("Observed vs. predicted N max")
+    plt.savefig(outputID + '_Nmax')
+    
+    if interactive:
+        plt.show()
+    else:
+        plt.clf()
+
+
 
 def jitter(x, y, jitter_scale=0.001):
     '''Function takes in x and y values and jitters

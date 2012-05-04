@@ -116,16 +116,79 @@ def get_gridded_sad_list(datapath, grid, clean=False):
 
     if clean:
         sad_clean = []
-        cuts = []
         for cut in sad:
+            cuts = []
             for cell in cut:
-                cell = cell[cell != 0]
-                cuts.append(cell)
+                clean_cell = cell[cell != 0]
+                cuts.append(clean_cell)
             sad_clean.append(cuts)
         return sad_clean
 
     else:
         return sad
+
+def get_obs_and_pred_rarity(sad, distr, n=10):
+    '''Generates the number of observed and predicted rare species.
+    Rarity is defined as the number of species with abundance less than n.
+
+    Parameters
+    ----------
+    sad : 1D np.array
+        an array containing an SAD
+
+    distr : string
+        The predicted SAD distribution:
+        'mete' - METE
+        'mete_approx' - METE with approximation
+        'plognorm' - Poisson lognormal
+        'trun_plognorm' - Truncated poisson lognormal
+        'neg_binom' - Negative binomial
+        'lgsr' - Fisher's log series
+
+    n : int
+        species are considered rare if they have abundances less than n
+
+    Returns
+    -------
+    : tuple
+    Tuple of (observed, predicted) rare species
+
+    '''
+    obs_rare = np.sum(sad < n)
+    pred_abund = predict_sad.make_rank_abund(predict_sad.macroeco_pmf(len(sad),\
+                                        np.sum(sad), distr, sad=sad), len(sad))
+    pred_rare = np.sum(pred_abund < 10)
+    return (obs_rare, pred_rare)
+
+def get_obs_and_pred_Nmax(sad, distr):
+    '''Gets the Nmax for observed and predicted sads.  Predicted sads are 
+    METE. 
+
+    Parameters
+    ----------
+    sad : 1D np.array
+        an array containing an SAD
+    distr : string
+        The predicted SAD distribution:
+        'mete' - METE
+        'mete_approx' - METE with approximation
+        'plognorm' - Poisson lognormal
+        'trun_plognorm' - Truncated poisson lognormal
+        'neg_binom' - Negative binomial
+        'lgsr' - Fisher's log series
+
+    Returns
+    -------
+    : tuple
+    Tuple of (observed, predicted) Nmax
+
+    '''
+    obs_Nmax = np.max(sad)
+    pred_abund = predict_sad.make_rank_abund(predict_sad.macroeco_pmf(len(sad),\
+                                        np.sum(sad), distr, sad=sad), len(sad))
+    pred_Nmax = np.max(pred_abund)
+    return (obs_Nmax, pred_Nmax)
+
 
 def aic(neg_L, k, n, corrected=True):
     '''

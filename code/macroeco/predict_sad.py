@@ -602,7 +602,8 @@ def get_sad_cdf(S, N, distribution, sad=[]):
 
         
     sad : array like object
-        SAD can be empty if distribution is not plognorm or trun_plognorm
+        SAD can be empty if distribution is not plognorm, trun_plognorm
+        or neg binom
 
     Returns:
     : 1D structured array
@@ -737,6 +738,72 @@ def nll(sad, distribution):
         pmf = lgsr_pmf(len(sad), sum(sad), abundances=sad)
 
     return -sum(np.log(pmf))
+
+def macroeco_pmf(S, N, distribution, sad=[]):
+    '''
+    This function returns a the full pmf described by distribution
+
+    Parameters
+    ----------
+    S : int
+        Total number of species in landscape
+    N : int
+        Total number of individuals in landscape
+    distribution : string
+        The predicted distribution:
+        'mete' - METE
+        'mete_approx' - METE with approximation
+        'plognorm' - Poisson lognormal
+        'trun_plognorm' - Truncated poisson lognormal
+        'neg_binom' - Negative binomial
+        'lgsr' - Fisher's log series
+
+        
+    sad : array like object
+        SAD can be empty if distribution is not plognorm or trun_plognorm
+
+    Returns
+    -------
+    :ndarray
+        The full pmf/pdf with support [1,N]
+
+
+
+    '''
+    assert distribution == 'mete' or\
+           distribution == 'mete_approx' or\
+           distribution == 'neg_binom' or\
+           distribution == 'lgsr' or\
+           distribution == 'trun_plognorm' or\
+           distribution == 'plognorm', "Do not recognize %s distribution" % (distribution)
+
+    #These three distributions require the full sad.
+    if distribution == 'plognorm' or\
+       distribution == 'trun_plognorm' or\
+       distribution == 'neg_binom':
+        assert len(sad) == S, "Length of SAD must equal S"
+        assert np.sum(sad) == N, "Sum of SAD must equal N"
+    sad = np.array(sad)
+
+    
+    if distribution == 'mete':
+        pmf = mete_lgsr_pmf(S, N, abundances=sad, pmf_ret=True)
+    if distribution == 'mete_approx':
+        pmf = mete_lgsr_approx_pmf(S, N, abundances=sad, pmf_ret=True)
+    if distribution == 'neg_binom':
+        mlek = fit_neg_binom_pmf(sad)
+        pmf = neg_binom_pmf(S, N, mlek, abundances=sad, pmf_ret=True)
+    if distribution == 'trun_plognorm':
+        mu, var = plognorm_MLE(sad, trun=True)
+        pmf = trun_plognorm_pmf(mu, var, sad, pmf_ret=True)
+    if distribution == 'plognorm':
+        mu, var = plognorm_MLE(sad, trun=False)
+        pmf = plognorm_pmf(mu, var, sad, pmf_ret=True)
+    if distribution == 'lgsr':
+        pmf = lgsr_pmf(S, N, abundances=sad, pmf_ret=True)
+
+    return pmf
+
     
 
         

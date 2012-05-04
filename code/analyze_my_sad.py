@@ -22,12 +22,17 @@ __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
 wf = Workflow()
-wf.logger.debug('Only analyzing the SAD from the entire plot. Grid is fixed at [(1,1)]')
+wf.logger.debug('Analyzing SAD(s)')
 
 
 for datafile, outputID, params in wf.single_datasets():
-    sad = sad_analysis.get_gridded_sad_list(datafile, [(1,1)], clean=True)[0][0]
-    graph.sad_cdf_obs_pred_plot(sad, outputID, params, interactive=wf.runs.interactive)
+    sad = sad_analysis.get_gridded_sad_list(datafile, eval(params['grid']), clean=True)
+    for i in xrange(len(sad)):
+        for m in xrange(len(sad[i])):
+            ID = outputID + '_grid_[' + str(i) + '][' + str(m) + ']'
+            graph.sad_cdf_obs_pred_plot(sad[i][m], ID, params, interactive=wf.runs.interactive)
+            graph.obs_pred_rarity(sad[i][m], ID, params, interactive=wf.runs.interactive)
+            graph.obs_pred_Nmax(sad[i][m], ID, params, interactive=wf.runs.interactive)
 
     
 
