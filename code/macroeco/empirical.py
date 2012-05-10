@@ -202,6 +202,9 @@ class Patch:
         result = []
 
         for wh in wh_list:  # Loop each width-height tuple
+            if wh[0] > self.width or wh[1] > self.height:
+                raise ValueError("Width and height of sample patch must be less\
+                                than width and height of full patch") 
             
             # Calculate result for this width height
             pr = self.xy.meta['precision']
@@ -271,6 +274,7 @@ class Patch:
         # structure within arrays
         SAD = self.sad_grid(div_list, summary = '')
         sp_cent = self.get_sp_centers(div_list)
+        import pdb; pdb.set_trace()
 
         for ind_div, div in enumerate(div_list):
             div_result = []
@@ -362,6 +366,30 @@ class Patch:
             sp_centers.append(np.array(div_sp_cent))
 
         return sp_centers
+
+    def get_div_areas(self, div_list):
+        '''
+        Get the areas of the cells made by the given div_list
+        '''
+
+        area_list = []
+        for div in div_list:
+            if divisible(self.width, self.xy.meta['precision'], div[0])\
+                and divisible(self.height, self.xy.meta['precision'], div[1]):
+                
+                width = self.width / div[0]
+                height = self.height / div[1]
+                area = width * height
+                area_list.append(area)
+
+            else:
+                raise IndexError('Patch not evenly divisible by div.')
+        return area_list
+
+
+
+
+
 
 
 

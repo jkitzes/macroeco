@@ -219,7 +219,7 @@ def plognorm_pmf(mean, var, abundances, pmf_ret=False):
     if pmf_ret == True:
         n_array = np.arange(1, int(np.sum(abundances) + 1))
     if pmf_ret == False:
-        n_array = np.copy(abundances)
+        n_array = np.unique(abundances)
         
 
     if var <= 0 or mean <= 0: #Parameters can be negative when optimizer is running
@@ -236,8 +236,17 @@ def plognorm_pmf(mean, var, abundances, pmf_ret=False):
             else:
                 z = (m.log(n) - mean) / sd
                 pmf[i] = (1 + (z**2 + m.log(n) - mean - 1) / (2 * n * sd**2)) *\
-                         np.exp(-0.5 * z**2) / (m.sqrt(2 * m.pi) * sd * n)   
-        
+                         np.exp(-0.5 * z**2) / (m.sqrt(2 * m.pi) * sd * n
+                         )   
+    #Only calculated unique abundances to save computational time.
+    #Get full pmf again
+    if pmf_ret == False:
+        pmf_full = np.empty(len(abundances))
+        for i, n in enumerate(abundances):
+            index = np.where(n_array == n)[0][0]
+            pmf_full[i] = pmf[index]
+        pmf = pmf_full
+            
     return pmf
 
 

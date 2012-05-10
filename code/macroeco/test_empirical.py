@@ -5,8 +5,13 @@ Unit tests for empirical.py
 from __future__ import division
 import unittest
 import os
+gcwd = os.getcwd
+pd = os.path.dirname
+jp = os.path.join
 from empirical import *
+from cmn_analysis import *
 import numpy as np
+import random
 
 
 class TestPatch(unittest.TestCase):
@@ -73,7 +78,12 @@ class TestPatch(unittest.TestCase):
         self.gridtest2 = Patch('xyfile7.csv')
         self.gridtest2.xy.meta = self.xymeta7
         self.gridtest2.set_attributes()
-
+        datadir = jp(pd(pd(gcwd())), 'data', 'formatted', 'LBRI', 'LBRI_1998.csv')
+        self.datapres = True
+        try:
+           self.LBRI = Patch(datadir)
+        except:
+            self.datapres = False
 
 
 
@@ -220,7 +230,38 @@ class TestPatch(unittest.TestCase):
         self.assertTrue(np.array_equal(chi, common[3][:,3]))
         self.assertTrue((float(common[1][:,3]) == 6/7) and (float(common[2][:,3]) == 6/7))
 
+    def test_cmn_analysis(self):
+        common_arrays = get_common_arrays(self.gridtest, [(2,2)])
+        common = self.gridtest.QS_grid([(2,2)])
+        self.assertTrue(np.array_equal(common_arrays[0]['dist'], np.unique(common[0][:,2])))
+        self.assertTrue(np.array_equal(common_arrays[0]['cmn'], np.array([11/15, 8/15])))
 
+    def test_sad_sample(self):
+        full_sad = self.gridtest.sad_grid([(1,1)])
+        samp = self.gridtest.sad_sample([(int(self.gridtest.width), int(self.gridtest.height))], 2) 
+        self.assertTrue(np.array_equal(samp[0][0], samp[0][1]))
+        self.assertTrue(np.array_equal(full_sad[0][0], samp[0][0]))
+        random.seed(5)
+        samp1 = self.gridtest.sad_sample([(1,1)], 1)
+        random.seed(5)
+        samp2 = self.gridtest.sad_sample([(1,1)], 1)
+        self.assertTrue(np.array_equal(samp1[0][0], samp2[0][0]))
+        random.seed(5)
+        samp = self.gridtest.sad_sample([(1,1)], 1)
+        grd = self.gridtest.sad_grid([(2,2)])
+        self.assertTrue(np.array_equal(samp[0][0], grd[0][0]) or\
+                        np.array_equal(samp[0][0], grd[0][1]) or\
+                        np.array_equal(samp[0][0], grd[0][2]) or\
+                        np.array_equal(samp[0][0], grd[0][3]))
+        if self.datapres:
+            random.seed(5)
+            grd = self.LBRI.sad_grid([(16, 16)])
+            samp = self.LBRI.sad_sample([(self.LBRI.xy.meta['precision'],\
+                                          self.LBRI.xy.meta['precision'])], 1)
+            bool_list = []
+            for i in xrange(len(grd[0])):
+                bool_list.append(np.array_equal(samp[0][0], grd[0][i]))
+            self.assertTrue(np.any(np.array(bool_list)))
 
 
 

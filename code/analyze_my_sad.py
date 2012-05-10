@@ -3,8 +3,7 @@
 '''Script that uses reproducible workflow to make and save graphs
 of SADs of data sets given in the command line
 
-This analysis does not grid the SAD, it just returns the full SAD
-from the plot and tests it against the METE SAD'''
+'''
 
 import sys, os
 from macroeco.workflow import Workflow
@@ -31,6 +30,7 @@ for datafile, outputID, params in wf.single_datasets():
         for m in xrange(len(sad[i])):
             ID = outputID + '_grid_[' + str(i) + '][' + str(m) + ']'
             graph.sad_cdf_obs_pred_plot(sad[i][m], ID, params, interactive=wf.runs.interactive)
+            graph.sad_rank_abund_plot(sad[i][m], ID, params, interactive=wf.runs.interactive)
             graph.obs_pred_rarity(sad[i][m], ID, params, interactive=wf.runs.interactive)
             graph.obs_pred_Nmax(sad[i][m], ID, params, interactive=wf.runs.interactive)
 

@@ -16,10 +16,20 @@
     </run>
   </analysis>
   <analysis scriptname='analyze_my_sad' version='0.5' interactive='F'>
-    <run name='obs_pred_plot_mete'>
+    <run name='METE_anal'>
         <param name='grid' value='[(1,1)]'/>
         <param name='distr' value='mete'/>
         <param name='title' value='Observed vs. Predicted cdf (METE)'/>
+    </run>
+    <run name='Lognormal_anal'>
+        <param name='grid' value='[(1,1)]'/>
+        <param name='distr' value='trun_plognorm'/>
+        <param name='title' value='Observed vs. Predicted cdf (trun_lognormal)'/>
+    </run>
+  </analysis>
+  <analysis scriptname='analyze_commonality' version='0.5' interactive='T'>
+    <run name='commonality'>
+        <param name='grid' value='[(10,10)]'/>
     </run>
   </analysis>
 </METE>

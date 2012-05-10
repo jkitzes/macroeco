@@ -7,6 +7,9 @@ import numpy as np
 import logging
 from macroeco.workflow import Workflow, loggername
 from macroeco import sad_analysis
+from macroeco import form_func
+from macroeco import predict_sad
+from scipy.interpolate import UnivariateSpline
 
 __author__ = "Mark Wilber"
 __copyright__ = "Copyright 2012, Regents of the University of California"
@@ -19,7 +22,7 @@ __status__ = "Development"
 module_logger = logging.getLogger(loggername)
 
 def sad_cdf_obs_pred_plot(sad, outputID, params={}, interactive=False):
-    '''Makes a plot of observed vs predicted (METE) cdf values
+    '''Makes a plot of observed vs predicted cdf values
     based on the given sad
 
     Parameters
@@ -74,12 +77,74 @@ def sad_cdf_obs_pred_plot(sad, outputID, params={}, interactive=False):
     plt.ylim(-0.1,1.1)
     plt.legend(('Slope 1', 'All species cum.\nprob. (jittered)',\
                     'Cum. prob.\nfor given n'),loc='best', prop={'size':12})
-    plt.savefig(outputID)
+    plt.savefig(outputID + '_cdf')
+    form_func.output_form(cdf, outputID + '_cdf.csv')
+    module_logger.debug('Plot and csv saved to cwd')
 
     if interactive:
         plt.show()
     else:
         plt.clf()
+
+def sad_rank_abund_plot(sad, outputID, params={}, interactive=False):
+    '''Makes a plot of observed vs predicted rank abundance curves based
+    on given sad
+
+    Parameters
+    ----------
+    sad : ndarray
+        SAD
+    outputID : string
+        The name of the saved plot
+    params : dict
+        If empty uses default values, if not incorporates given params
+        into params into dict
+    interactive : bool
+        If True, figure is shown in interactive window.  
+        If false, no figure is shown.
+
+    Notes
+    -----
+    Saves plot to current working directory. Default distribution to graph
+    is METE. Need top specify in parameters.xml if another distribution is
+    desired.
+
+
+    '''
+    prm = {'distr':'mete', 'logx':False, 'logy':True}
+    if len(params) != 0:
+        inter = set(params.viewkeys()).intersection(set(prm.viewkeys()))
+        if len(inter) != 0:
+            module_logger.debug('Setting parameters ' + str(inter))
+            for key in inter:
+                if key is 'logx' or key is 'logy':
+                    prm[key] = eval(params[key])
+                else:
+                    prm[key] = params[key]
+    #With support [1,N]
+    obs_pred_abund = sad_analysis.get_obs_pred_abund(sad, prm['distr'])
+    rank = np.arange(1, len(sad) + 1)
+    plt.plot(rank, obs_pred_abund['predicted'][::-1], 'o-', color='gray')
+    plt.plot(rank, obs_pred_abund['observed'][::-1], 'o-', color='black')
+    plt.title('Observed and predicted rank abundance plot')
+    plt.xlabel('Rank')
+    plt.ylabel('Abundance')
+    plt.legend(('Predicted', 'Observed'), loc='best')
+    if prm['logx']:
+        plt.semilogx()
+        plt.xlabel('log(Rank)')
+    if prm['logy']:
+        plt.semilogy()
+        plt.ylabel('log(Abundance)')
+    plt.savefig(outputID + '_rank_abund')
+    form_func.output_form(obs_pred_abund, outputID + '_rank_abund.csv')
+    module_logger.debug('Plot and csv saved to cwd')
+
+    if interactive:
+        plt.show()
+    else:
+        plt.clf()
+
 
 def obs_pred_rarity(sad, outputID, params={}, interactive=False):
     '''Makes a bar graph of observed and predicted rarity
@@ -178,6 +243,92 @@ def obs_pred_Nmax(sad, outputID, params={}, interactive=False):
         plt.show()
     else:
         plt.clf()
+
+def common_plot(cmn_arrays, outputID, params={}, interactive=False):
+    '''To be used directly with get_common_arrays() in cmn_analysis
+    This function creates a plot of chi-squared as a function of
+    A/D**2.
+
+    Parameters
+    ----------
+    cmn_arrays : list
+        list of structured arrays as outputed by get_common_arrays()
+    outputID : string
+        The name of the saved plot
+    params : dict
+        If empty uses default values, if not incorporates given params
+        into params into dict
+    interactive : bool
+        If True, figure is shown in interactive window.  
+        If False, no figure is shown.
+
+
+
+
+    '''
+    areas = []
+
+    for data in cmn_arrays:
+        x = data['dist']
+        y = data['cmn']
+        s = UnivariateSpline(x, y)
+        xs = np.linspace(np.min(x), np.max(x), num=100*len(x))
+        ys = s(xs)
+        plt.plot(xs**2, ys)
+        plt.plot(x**2, y)
+        areas.append("Area = " + str(data['area'][0]) + " (spline)")
+        areas.append("Area = " + str(data['area'][0]) + " (raw)")
+
+    plt.xlabel('Distance')
+    plt.ylabel('Commonality')
+    plt.legend(tuple(areas), loc='best', prop={'size':9})
+    plt.title('Commonality and distance')
+    plt.savefig(outputID + "_commonality")
+    for i, data in enumerate(cmn_arrays):
+        form_func.output_form(data, outputID + '_ ' + str(eval(params['grid'])[i]))
+    module_logger.debug('Commonality plot and csv files saved')
+    
+    if interactive:
+        plt.show()
+    else:
+        plt.clf()
+
+def common_ADsquared_plot(a_d, outputID, params={}, interactive=False):
+    '''Generates a plot of commonality as a function of Area over Distance squared
+
+
+    '''
+    #Less than 0.0.5 because D**2 >> A
+    scale = 0.05
+    ind = (a_d['A/D**2'] < scale)
+    x = a_d['A/D**2'][ind]
+    y = a_d['cmn'][ind]
+    bins = np.linspace(0, scale, num=11)
+    xdig = np.digitize(x, bins)
+    unq_xdig = np.unique(xdig)
+    y_smooth = []
+    x_smooth = []
+    for i in unq_xdig:
+        ind = (i == xdig)
+        y_smooth.append(sum(y[ind]) / sum(ind))
+        x_smooth.append((bins[i] + bins[i - 1]) / 2)
+    plt.scatter(x,y)
+    plt.plot(x_smooth, y_smooth, '-o', color='red')
+    plt.xlabel("Area / Distance ^ 2")
+    plt.ylabel("Commonality")
+    plt.title("Commonality plotted as a function of area over distance^2")
+    plt.legend(("Binned data points", "All data points"))
+    plt.savefig(outputID + "_ADsquared")
+    form_func.output_form(a_d, outputID + "_ADsquared.csv")
+    module_logger.debug("Plot and csv saved")
+
+    if interactive:
+        plt.show()
+    else:
+        plt.clf()
+
+
+    
 
 
 
