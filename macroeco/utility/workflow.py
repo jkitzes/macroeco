@@ -214,6 +214,14 @@ class Parameters:
             raise Error #user wasn't helpful... TODO error type'''
          
     def read_from_xml(self, asklist):
+    '''
+    Reads parameter values for run or runs from local %s.
+    Depends on standard parameter file structure. 
+
+    Returns
+    -------
+    Fills Parameters.params with name:value pairs.
+    '''%paramfile
 
         try:
             pf = open(paramfile,'r')
