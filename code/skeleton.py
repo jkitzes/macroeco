@@ -18,7 +18,9 @@ __maintainer__ = "Chloe Lewis"
 __email__ = "chlewis@berkeley.edu"
 __status__ = "Development"
 
+
 # The workflow object takes care of logging, parameters, multiple runs, interactivity
+# Filenames are read from  the arguments used when this code was called (e.g., at the terminal)
 # Parameters are found in parameters.xml in the current working directory of the script
 
 wf = Workflow()
