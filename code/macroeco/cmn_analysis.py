@@ -45,7 +45,7 @@ def get_common_arrays(patch, grids):
     struc_list = []
 
     for i in xrange(len(common)):
-        dist = common[i][:,2]
+        dist = np.round(common[i][:,2], decimals=7)#To account for rounding issues
         cmn = common[i][:,3]
         unq_dist = np.unique(dist)
         cmn_average = []
@@ -65,8 +65,23 @@ def get_common_arrays(patch, grids):
 
 def merge_common_arrays(patch, grids):
     '''Takes in patch object and a a list of tuples and merges the 
-    calculates the average commonality for all unique values of 
-    A/D**2
+    average commonality for all unique values of A/D**2
+
+    
+    Parameters
+    ----------
+    patch : Patch object from empirical.py
+    
+    grids : list
+        A list of tuples containing desired divisions
+
+    Returns
+    -------
+    : structured array
+        A structured array with dtype = [('A/D**2', np.float), ('cmn', np.float)]
+        where the field A/D**2 is Area / Distance squared and the field 'cmn'
+        is the commonality of the given Area / Distance squared
+
 
     '''
 

@@ -750,7 +750,7 @@ def nll(sad, distribution):
 
 def macroeco_pmf(S, N, distribution, sad=[]):
     '''
-    This function returns a the full pmf described by distribution
+    This function returns a the full pmf described by a distribution
 
     Parameters
     ----------

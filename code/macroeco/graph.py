@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-'''This module provides functions for graphing results'''
+'''This module provides functions for graphing results of macroeco analyses'''
 from __future__ import division
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,6 +10,7 @@ from macroeco import sad_analysis
 from macroeco import form_func
 from macroeco import predict_sad
 from scipy.interpolate import UnivariateSpline
+import os
 
 __author__ = "Mark Wilber"
 __copyright__ = "Copyright 2012, Regents of the University of California"
@@ -252,7 +253,8 @@ def common_plot(cmn_arrays, outputID, params={}, interactive=False):
     Parameters
     ----------
     cmn_arrays : list
-        list of structured arrays as outputed by get_common_arrays()
+        list of structured arrays as outputed by get_common_arrays() in 
+        cmn_analysis.py
     outputID : string
         The name of the saved plot
     params : dict
@@ -293,17 +295,60 @@ def common_plot(cmn_arrays, outputID, params={}, interactive=False):
     else:
         plt.clf()
 
-def common_ADsquared_plot(a_d, outputID, params={}, interactive=False):
+def common_ADsquared_plot(cmn, outputID, params={}, areas=[], interactive=False):
     '''Generates a plot of commonality as a function of Area over Distance squared
 
 
     '''
-    #Less than 0.0.5 because D**2 >> A
+    #Getting different symbols for scatter plot
+    def_col = ['red','green', 'blue', 'orange', 'yellow', 'black', 'grey']
+    color = []
+    for i in xrange(len(cmn)):
+        col = np.random.random_sample(3)
+        color.append(col)
+
+    areas = []
+    for i, strc in enumerate(cmn): #iterating through each area
+        scale = 20 #scale for truncation
+        ind = ((strc['dist'] ** 2 / strc['area']) > scale)
+        trun_s = strc[ind]
+        if i < len(def_col):
+            plt.scatter((trun_s['dist'] ** 2 / trun_s['area']), trun_s['cmn'],\
+                                color=def_col[i])
+        else:
+            plt.scatter((trun_s['dist'] ** 2 / trun_s['area']), trun_s['cmn'],\
+                                color=color[i])
+        areas.append('Area = ' + str(trun_s['area'][0]))
+        form_func.output_form(strc, outputID + '_unique_area_' + str(i))
+    plt.xlabel("Distance ^ 2 / Area")
+    plt.ylabel("Commonality")
+    plt.title("Commonality plotted as a function of distance^2 over area (m^2)")
+    plt.legend(tuple(areas), loc='best', prop={'size':9})
+    plt.savefig(outputID + '_DAsq_linear')
+    plt.xlabel("log(Distance ^ 2 / Area)")
+    plt.semilogx()
+    plt.savefig(outputID + '_DAsq_linearlog')
+    module_logger.debug("Plots and csv's saved to " + os.getcwd())
+    if interactive:
+        plt.show()
+    else:
+        plt.clf()
+
+
+
+
+
+
+
+
+
+    '''#Less than 0.5 because D**2 >> A
     scale = 0.05
     ind = (a_d['A/D**2'] < scale)
-    x = a_d['A/D**2'][ind]
+    x = 1 / a_d['A/D**2'][ind] #invert to see what happens as D increases
     y = a_d['cmn'][ind]
-    bins = np.linspace(0, scale, num=11)
+
+    bins = np.linspace(1 / scale, np.max(x), num=11)
     xdig = np.digitize(x, bins)
     unq_xdig = np.unique(xdig)
     y_smooth = []
@@ -311,13 +356,18 @@ def common_ADsquared_plot(a_d, outputID, params={}, interactive=False):
     for i in unq_xdig:
         ind = (i == xdig)
         y_smooth.append(sum(y[ind]) / sum(ind))
-        x_smooth.append((bins[i] + bins[i - 1]) / 2)
-    plt.scatter(x,y)
-    plt.plot(x_smooth, y_smooth, '-o', color='red')
-    plt.xlabel("Area / Distance ^ 2")
-    plt.ylabel("Commonality")
-    plt.title("Commonality plotted as a function of area over distance^2")
-    plt.legend(("Binned data points", "All data points"))
+        x_smooth.append(sum(x[ind]) / sum(ind))
+        
+    plt.scatter(x, y, color='grey', alpha=0.5 )
+    plt.plot(x_smooth, y_smooth, '-o', color='black')
+    plt.xlabel(" log(Distance ^ 2 / Area))")
+    plt.ylabel("log(Commonality)")
+    if len(areas) == 0:
+        plt.title("Commonality plotted as a function of distance^2 over area")
+    else:
+        plt.title("Commonality plotted as a function of distance^2 over area:\n\
+                   Areas (m^2): " + str(areas)) 
+    plt.legend(("Binned data points", "All data points"), loc='best', prop={'size':9})
     plt.savefig(outputID + "_ADsquared")
     form_func.output_form(a_d, outputID + "_ADsquared.csv")
     module_logger.debug("Plot and csv saved")
@@ -325,7 +375,7 @@ def common_ADsquared_plot(a_d, outputID, params={}, interactive=False):
     if interactive:
         plt.show()
     else:
-        plt.clf()
+        plt.clf()'''
 
 
     

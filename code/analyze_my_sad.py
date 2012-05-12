@@ -1,10 +1,34 @@
 #!/usr/bin/python
 
 '''Script that uses reproducible workflow to make and save graphs
-of SADs of data sets given in the command line
+of SADs 
+
+
+Parameters in parameters.xls
+----------------------------
+Required:
+
+name='grids' value=list of tuples
+
+    The list of tuples specifies the divisions of the plot
+    example:
+    name='grids' value='[(16,16), (4,4), (2,2)]'
+
+name='distr' value=distribution name
+    
+    The predicted distribution to be compared against the
+    empirical SAD.  See predict_sad.py for options
+    example:
+    name='distr' value='mete' or name='distr' value='neg_binom'
+
+
+Optional:
+
+See graph.py
+
 
 '''
-
+#TODO: Need to descided how much flexiblity we want to give the user when graphing
 import sys, os
 from macroeco.workflow import Workflow
 from macroeco import predict_sad

@@ -149,12 +149,12 @@ class Patch:
             sub_width = rnd(self.width / div[0])
             sub_height = rnd(self.height / div[1])
 
-            for grid_row in xrange(0, div[0]):  # Loop rows of grid
-                x_st = rnd(self.x_min + grid_row * sub_width)
+            for grid_col in xrange(0, div[0]):  # Loop columns of grid
+                x_st = rnd(self.x_min + grid_col * sub_width)
                 x_en = rnd(x_st + sub_width)
 
-                for grid_col in xrange(0, div[1]):  # Loop cols of grid
-                    y_st = rnd(self.y_min + grid_col * sub_height)
+                for grid_row in xrange(0, div[1]):  # Loop rows of grid
+                    y_st = rnd(self.y_min + grid_row * sub_height)
                     y_en = rnd(y_st + sub_height)
 
                     div_result.append(self.get_sub_sad(x_st, x_en, y_st, y_en, 
@@ -274,7 +274,6 @@ class Patch:
         # structure within arrays
         SAD = self.sad_grid(div_list, summary = '')
         sp_cent = self.get_sp_centers(div_list)
-        import pdb; pdb.set_trace()
 
         for ind_div, div in enumerate(div_list):
             div_result = []
@@ -288,8 +287,11 @@ class Patch:
                 for ind_b in xrange(ind_a + 1, nsp):
                     spp_in_b = (div_SAD[ind_b,:] > 0)
                     dist = distance(div_sp_cent[ind_a,:], div_sp_cent[ind_b,:])
-                    QS = sum(spp_in_a * spp_in_b) / (0.5 * (sum(spp_in_a) + 
-                                                            sum(spp_in_b)))
+                    denom = (0.5 * (sum(spp_in_a) + sum(spp_in_b)))
+                    if denom == 0:
+                        QS = 0
+                    else:
+                        QS = sum(spp_in_a * spp_in_b) / denom
                     div_result.append((ind_a, ind_b, dist, QS))
 
             result.append(np.array(div_result))

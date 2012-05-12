@@ -1,7 +1,24 @@
 #!/usr/bin/python
 
 '''Script that uses reproducible workflow to test commonality predictions
-on data sets.
+on data sets. Specifically, this script looks at Commonality as a function
+of Distance ** 2 / Area
+
+Parameters in parameters.xls
+----------------------------
+Required:
+
+name='grids' value=list of tuples
+
+    The list of tuples specifies the divisions of the plot
+    example:
+    name='grids' value='[(16,16), (4,4), (2,2)]'
+
+Optional:
+
+None
+    
+
 '''
 
 import sys, os
@@ -21,11 +38,11 @@ __status__ = "Development"
 wf = Workflow()
 wf.logger.debug('Analyzing Commonality')
 
+#TODO: Fail gracefully if there is no params['grid'], it might do this already
 for datafile, outputID, params in wf.single_datasets():
-    #common_arrays = cmn_analysis.get_common_arrays(empirical.Patch(datafile), eval(params['grid']))
-    #graph.common_plot(common_arrays, outputID, params, interactive=wf.runs.interactive)
-    a_d = cmn_analysis.merge_common_arrays(empirical.Patch(datafile), eval(params['grid']))
-    graph.common_ADsquared_plot(a_d, outputID, params, interactive=wf.runs.interactive)
+    data = empirical.Patch(datafile)
+    cmn = cmn_analysis.get_common_arrays(data, eval(params['grid']))
+    graph.common_ADsquared_plot(cmn, outputID, params, interactive=wf.runs.interactive)
     
 wf.logger.info('Commonality analysis complete')
 

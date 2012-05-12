@@ -29,7 +29,7 @@
   </analysis>
   <analysis scriptname='analyze_commonality' version='0.5' interactive='T'>
     <run name='commonality'>
-        <param name='grid' value='[(10,10)]'/>
+        <param name='grid' value='[(20,20), (10,10)]'/>
     </run>
   </analysis>
 </METE>

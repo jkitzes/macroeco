@@ -230,11 +230,6 @@ class TestPatch(unittest.TestCase):
         self.assertTrue(np.array_equal(chi, common[3][:,3]))
         self.assertTrue((float(common[1][:,3]) == 6/7) and (float(common[2][:,3]) == 6/7))
 
-    def test_cmn_analysis(self):
-        common_arrays = get_common_arrays(self.gridtest, [(2,2)])
-        common = self.gridtest.QS_grid([(2,2)])
-        self.assertTrue(np.array_equal(common_arrays[0]['dist'], np.unique(common[0][:,2])))
-        self.assertTrue(np.array_equal(common_arrays[0]['cmn'], np.array([11/15, 8/15])))
 
     def test_sad_sample(self):
         full_sad = self.gridtest.sad_grid([(1,1)])
