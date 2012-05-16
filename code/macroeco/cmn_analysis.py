@@ -35,14 +35,19 @@ def get_common_arrays(patch, grids):
         A list of structured arrays with 
         dtype=[('dist', np.float), ('cmn', np.float), ('area', np.float)]
         Dist = Distance, cmn = commonality
+        Length of list is same length as grids
 
 
     '''
-    #TODO: Check for grid= [(1,1)]
-
+    #Check that grids does not have (1,1)
+    index = str(grids).find('(1, 1)')
+    if index != -1:
+        raise ValueError('Grid of (1,1) has no commonality')
     areas = patch.get_div_areas(grids)
     common = patch.QS_grid(grids)
     struc_list = []
+    
+    
 
     for i in xrange(len(common)):
         dist = np.round(common[i][:,2], decimals=7)#To account for rounding issues
@@ -63,45 +68,7 @@ def get_common_arrays(patch, grids):
 
     return struc_list
 
-def merge_common_arrays(patch, grids):
-    '''Takes in patch object and a a list of tuples and merges the 
-    average commonality for all unique values of A/D**2
 
-    
-    Parameters
-    ----------
-    patch : Patch object from empirical.py
-    
-    grids : list
-        A list of tuples containing desired divisions
-
-    Returns
-    -------
-    : structured array
-        A structured array with dtype = [('A/D**2', np.float), ('cmn', np.float)]
-        where the field A/D**2 is Area / Distance squared and the field 'cmn'
-        is the commonality of the given Area / Distance squared
-
-
-    '''
-
-    cmn_arrays = get_common_arrays(patch, grids)
-    a_d = np.array([])
-    cmn = np.array([])
-    for struc in cmn_arrays:
-        a_d = np.concatenate((a_d, (struc['area'] / (struc['dist'] ** 2))))
-        cmn = np.concatenate((cmn, struc['cmn']))
-    unq_a_d = np.unique(a_d)
-    cmn_average = []
-    for value in unq_a_d:
-        ind = (value == a_d)
-        cmn_average.append(sum(cmn[ind] / sum(ind)))
-
-    struc_array = np.empty(len(unq_a_d), dtype = [('A/D**2', np.float),\
-                                                  ('cmn', np.float)])
-    struc_array['A/D**2'] = unq_a_d
-    struc_array['cmn'] = np.array(cmn_average)
-    return struc_array
 
 
 

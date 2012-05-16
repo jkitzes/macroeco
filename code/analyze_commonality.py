@@ -42,7 +42,7 @@ wf.logger.debug('Analyzing Commonality')
 for datafile, outputID, params in wf.single_datasets():
     data = empirical.Patch(datafile)
     cmn = cmn_analysis.get_common_arrays(data, eval(params['grid']))
-    graph.common_ADsquared_plot(cmn, outputID, params, interactive=wf.runs.interactive)
+    graph.common_ADsquared_plot(cmn, outputID, params, areas=[], interactive=wf.runs.interactive)
     
 wf.logger.info('Commonality analysis complete')
 

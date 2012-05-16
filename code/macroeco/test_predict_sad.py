@@ -44,21 +44,102 @@ class TestPredictSAD(unittest.TestCase):
             pmf = plognorm_pmf(mean, var, sad, pmf_ret=True)
             diff1 = np.round(rdpolono - pmf, decimals=5)
             self.assertTrue(np.sum(diff1) == 0)
+        self.assertRaises(AssertionError, plognorm_pmf, 3, 9, 5)
+        self.assertTrue(sum(np.round(plognorm_pmf(-3,-3, [1,2,3,4,5]), decimals=3)) == 0) 
 
+
+    #Using Ethan White's functions to test
+    def test_trun_plognorm_pmf(self):
+        for sad in self.abund_list:
+            log_abund = np.log(sad)
+            mean = np.mean(log_abund)
+            var = np.var(log_abund, ddof=1)
+            sd = var**0.5
+            ew = pln_ll(mean, sd, sad)[0]
+            tplog = sum(np.log(trun_plognorm_pmf(mean, var, sad)))
+            self.assertTrue(np.round(ew, decimals=2) == np.round(tplog, decimals=2))
+    
 
     def test_mete_lgsr_pmf(self):
         self.assertRaises(AssertionError, mete_lgsr_pmf, 45, 45)
         self.assertRaises(AssertionError, mete_lgsr_pmf, 234, 67)
         self.assertRaises(AssertionError, mete_lgsr_pmf, 34, 0)
+        self.assertRaises(AssertionError, mete_lgsr_pmf, 45, 100)
         pmf = mete_lgsr_pmf(34, 567, pmf_ret=True)
         self.assertTrue(len(pmf) == 567)
-        #TODO: More testing
+        #Testing that values equal values from John's book (Harte 2011)
+        pmf, x = mete_lgsr_pmf(4, 4 * 4, pmf_ret=True, testing=True)
+        self.assertTrue(np.round(-np.log(x), decimals=4) == 0.0459)
+        pmf, x = mete_lgsr_pmf(4, 2**4 * 4, pmf_ret=True, testing=True)
+        self.assertTrue(np.round(-np.log(x), decimals=5) == -0.00884)
+        pmf, x = mete_lgsr_pmf(4, 2**8 * 4, pmf_ret=True, testing=True)
+        self.assertTrue(np.round(-np.log(x), decimals=5) == -0.00161)
+        pmf, x = mete_lgsr_pmf(16, 2**8 * 16, pmf_ret=True, testing=True)
+        self.assertTrue(np.round(-np.log(x), decimals=6) == 0.000413)
+        pmf, x = mete_lgsr_pmf(64, 2**12 * 64, pmf_ret=True, testing=True)
+        self.assertTrue(np.round(-np.log(x), decimals=7) == 0.0000228)
+
 
     def test_mete_lgsr_approx_pmf(self):
-        self.assertRaises(AssertionError, mete_lgsr_pmf, 45, 45)
-        self.assertRaises(AssertionError, mete_lgsr_pmf, 234, 67)
-        self.assertRaises(AssertionError, mete_lgsr_pmf, 34, 0)
-        #TODO: More testing
+        self.assertRaises(AssertionError, mete_lgsr_approx_pmf, 45, 45)
+        self.assertRaises(AssertionError, mete_lgsr_approx_pmf, 234, 67)
+        self.assertRaises(AssertionError, mete_lgsr_approx_pmf, 34, 0)
+        self.assertRaises(AssertionError, mete_lgsr_approx_pmf, 45, 100)
+        #Testing that values = values from John's book (Harte 2011)
+        pmf, x = mete_lgsr_approx_pmf(4, 4 * 4, pmf_ret=True, testing=True)
+        self.assertTrue(np.round(-np.log(x), decimals=3) == 0.116)
+        pmf, x = mete_lgsr_approx_pmf(4, 2**4 * 4, pmf_ret=True, testing=True)
+        self.assertTrue(np.round(-np.log(x), decimals=4) == 0.0148)
+        pmf, x = mete_lgsr_approx_pmf(4, 2**8 * 4, pmf_ret=True, testing=True)
+        self.assertTrue(np.round(-np.log(x), decimals=6) == 0.000516)
+        pmf, x = mete_lgsr_approx_pmf(16, 2**8 * 16, pmf_ret=True, testing=True)
+        self.assertTrue(np.round(-np.log(x), decimals=6) == 0.000516)
+        pmf, x = mete_lgsr_approx_pmf(64, 2**12 * 64, pmf_ret=True, testing=True)
+        self.assertTrue(np.round(-np.log(x), decimals=7) == 0.0000229 or\
+                        np.round(-np.log(x), decimals=7) == 0.0000228)
+
+    
+    def test_lgsr_pmf(self):
+        self.assertRaises(AssertionError, lgsr_pmf, 45, 45)
+        self.assertRaises(AssertionError, lgsr_pmf, 234, 67)
+        self.assertRaises(AssertionError, lgsr_pmf, 34, 0)
+        self.assertRaises(AssertionError, lgsr_pmf, 45, 100)
+        #Test against value in Fisher's paper Fisher et al. 1943
+        pmf, x = lgsr_pmf(240, 15609, pmf_ret=True, testing=True)
+        self.assertTrue(np.round(x, decimals=4) == 0.9974)
+
+    #Kind of a lame test...
+    def test_geo_pmf(self):
+        geo = geo_pmf(23, 100, pmf_ret=True)
+        self.assertTrue(np.array_equal(neg_binom_pmf(23, 100, 1, pmf_ret=True),\
+                        geo))
+        self.assertTrue(len(geo) == 100)
+
+    def test_macroeco_pmf(self):
+        self.assertRaises(AssertionError, macroeco_pmf, 23, 100, 'geom')
+        self.assertRaises(AssertionError, macroeco_pmf, 23, 100, 'neg_binom')
+        self.assertTrue(np.array_equal(macroeco_pmf(23, 100, 'mete', sad=self.abund_list[0]),\
+                                       mete_lgsr_pmf(23, 100, pmf_ret=True)))
+        self.assertTrue(np.array_equal(macroeco_pmf(23, 100, 'mete_approx', sad=self.abund_list[0]),\
+                                       mete_lgsr_approx_pmf(23, 100, pmf_ret=True)))
+        self.assertTrue(np.array_equal(macroeco_pmf(23, 100, 'geo', sad=self.abund_list[0]),\
+                                       geo_pmf(23, 100, pmf_ret=True)))
+
+    def test_nll(self):
+        self.assertRaises(TypeError, nll, (1,1,1,2,3,4,8))
+        self.assertRaises(AssertionError, nll, (1,1,1,2,3,4,8), '')
+        self.assertRaises(AssertionError, nll, (1,1,1,2,3,4,8), 'metes')
+        self.assertRaises(AssertionError, nll, (1,1,1,2,3,4,8), 'Mete')
+        sad = self.abund_list[0]
+        negll = nll(tuple(sad), 'mete')
+        eqnll = -sum(np.log(mete_lgsr_pmf(len(sad), sum(sad), abundances=tuple(sad))))
+        self.assertTrue(negll == eqnll)
+
+    def test_make_rank_abund(self):
+        sad_pmf = mete_lgsr_pmf(12, 112, pmf_ret=True)
+        rank_abund = make_rank_abund(tuple(sad_pmf), 12)
+        self.assertTrue(len(rank_abund) == 12)
+
 
 
 if __name__ == '__main__':

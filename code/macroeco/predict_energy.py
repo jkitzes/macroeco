@@ -32,9 +32,9 @@ import scipy.integrate as integrate
 import math as m
 import sys
 
-def mete_energy_theta_pdf(S, N, E, n, summary=False):
+def mete_energy_theta_pdf(S, N, E, n, testing=False):
     '''
-    mete_energy_theta_pdf(S, N, E, n, summary=False)
+    mete_energy_theta_pdf(S, N, E, n, testing=False)
 
     METE intra-specific energy distribution (Harte 2011)
 
@@ -52,11 +52,8 @@ def mete_energy_theta_pdf(S, N, E, n, summary=False):
     Returns
     -------
     : ndarray (1D)
-        If summary is False, returns array with pmf. If summary is True,
-        returns the summed log likelihood of all values in n.
+        If testing is True, returns both the pdf and the estimate for lambda 2
 
-    Notes
-    -----
 
     '''
     assert S < N, "S must be less than N"
@@ -71,16 +68,18 @@ def mete_energy_theta_pdf(S, N, E, n, summary=False):
     pdf = (n * lambda2 * np.exp(-lambda2 * n * epi)) / (np.exp(-lambda2 * n)\
           - np.exp(-lambda2 * n * E)) #Harte (2011) 7.25
 
-    if summary: return -sum(np.log(pdf))
-    else:       return pdf
+    if testing == True:
+        return pdf, lambda2
+    else:
+        return pdf
 
 def mete_energy_theta_cdf():
     pass
 
-def mete_energy_nu_pdf(S, N, E, summary=False):
+def mete_energy_nu_pdf(S, N, E, testing=False):
     '''
 
-    mete_energy_nu_pdf(S, N, E, nmin, nmax summary=False)
+    mete_energy_nu_pdf(S, N, E, testing=False)
 
     Parameters
     ----------
@@ -94,9 +93,9 @@ def mete_energy_nu_pdf(S, N, E, summary=False):
     Returns
     -------
     : ndarray (1D)
-        If summary is False, returns array with pmf. If summary is True,
-        returns the summed log likelihood of all values in n.
-    
+        If testing is False, return a pdf.  If testing is True, returns pdf, lamda2,
+        beta
+
     Notes
     -----
     This function uses the nu energy equation found in in Table 7.3 of 
@@ -126,10 +125,12 @@ def mete_energy_nu_pdf(S, N, E, summary=False):
     eta = np.linspace(1 + 1e-10, E, num=1000)
     pdf = (1 / np.log(1 / beta)) * ((np.exp(-(beta / (lambda2 * (eta - 1)))) / \
                                     (eta - 1)))
+    if testing == True:
+        return pdf, lambda2, beta
+    else:
+        return pdf
     
-    if summary: return -sum(np.log(pdf))
-    else:       return pdf
-
+#Need to resolve the issue of where e = 1. Not sure about this function...
 def mete_energy_nu_cdf(S, N, E, num_samples=100):
     '''
     mete_energy_nu_cdf(S, N, E, emin, emax, num_samples=100)
@@ -193,9 +194,9 @@ def mete_energy_nu_cdf(S, N, E, num_samples=100):
     return np.array(cdf, dtype=[('cdf', np.float), ('energy', np.float)])
 
 
-def mete_energy_psi_pdf(S, N, E, summary=False):
+def mete_energy_psi_pdf(S, N, E, testing=False):
     '''
-    mete_energy_psi_pdf(S, N, E, summary=False)
+    mete_energy_psi_pdf(S, N, E, testing=False)
 
     METE community energy distribution (Harte 2011)
 
@@ -211,9 +212,9 @@ def mete_energy_psi_pdf(S, N, E, summary=False):
     Returns
     -------
     : ndarray (1D)
-        If summary is False, returns array with pmf. If summary is True,
-        returns the summed log likelihood of all values in n.
-
+        If testing is False, returns array with pmf. If testing is true,
+        returns pmf, lamda2, beta
+        
 
     Notes
     -----
@@ -266,8 +267,10 @@ def mete_energy_psi_pdf(S, N, E, summary=False):
     #pdf as the values get higher. 
 
 
-    if summary: return -sum(np.log(pdf1))
-    else:       return pdf1
+    if testing == True: 
+        return pdf1, lambda2, beta
+    else:       
+        return pdf1
 
     
 

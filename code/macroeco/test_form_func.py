@@ -1,13 +1,15 @@
+#!/usr/bin/python
 #Testing form_func.py
-
-
 
 import unittest
 from form_func import *
 import numpy as np
 import os
 import matplotlib.mlab as plt
-
+gcwd = os.getcwd #get current directory
+pd = os.path.dirname #get parent directory
+chdir = os.chdir #change directories
+jp = os.path.join 
 
 class TestFormFunc(unittest.TestCase):
     '''Tests the functions with in form_func.py'''
@@ -32,11 +34,29 @@ class TestFormFunc(unittest.TestCase):
                         3, 2, 1, 0, 0, 0, 0
                         4, 2, 2, 1, 5, 1, 0''')
         self.arch2.close()
+        cwd = gcwd()
+        chdir(jp(pd(pd(gcwd())), 'data', 'archival', 
+        self.in1 = open('TEST_0001.csv', 'w')
+        self.in1.close()
+        self.in1 = open('TEST_0002.csv', 'w')
+        self.in1.close()
+        self.in1 = open('TEST_0003.csv', 'w')
+        self.in1.close()
+        self.in1 = open('TEST_0004.csv', 'w')
+        self.in1.close()
+
+
+
 
 
     def tearDown(self):
         os.remove('arch1.csv')
         os.remove('arch2.csv')
+        os.remove('TEST_0001.csv')
+        os.remove('TEST_0002.csv')
+        os.remove('TEST_0003.csv')
+        os.remove('TEST_0004.csv')
+
 
 
     def test_make_spec_dict(self):
@@ -87,15 +107,6 @@ class TestFormFunc(unittest.TestCase):
         datayears = [plt.csv2rec('arch2.csv')]
         spec_dict = make_dense_spec_dict(datayears)
         self.assertRaises(Exception, format_dense, datayears, spec_dict)
-
-
-
-        
-
-
-        
-        
-        
 
 if __name__ == '__main__':
     unittest.main()

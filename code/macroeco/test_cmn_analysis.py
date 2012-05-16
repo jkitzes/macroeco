@@ -51,9 +51,11 @@ class TestPatch(unittest.TestCase):
     def test_get_common_arrays(self):
         common_arrays = get_common_arrays(self.gridtest, [(2,2)])
         common = self.gridtest.QS_grid([(2,2)])
-        self.assertTrue(np.array_equal(common_arrays[0]['dist'], np.unique(common[0][:,2])))
+        self.assertTrue(np.array_equal(common_arrays[0]['dist'], np.round(np.unique(common[0][:,2]), decimals=7)))
         self.assertTrue(np.array_equal(common_arrays[0]['cmn'], np.array([11/15, 8/15])))
-        common_arrays = get_common_arrays(self.gridtest, [(1,1)])
+        self.assertRaises(ValueError, get_common_arrays, self.gridtest, [(1,1)])
+        self.assertRaises(ValueError, get_common_arrays, self.gridtest, [(2,2), (1,1), (3,2)])
+        self.assertRaises(IndexError, get_common_arrays, self.gridtest, [(3,2)])
 
 if __name__ == '__main__':
     unittest.main()
