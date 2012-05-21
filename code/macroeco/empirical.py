@@ -20,6 +20,7 @@ Patch Methods
 - `get_sub_sad` -- return SAD, SAR, or EAR for rectangular sub-patch
 - `get_sub_abund` -- return vector of abundances for given table
 - `get_sp_centers` -- 
+- 'get_div_areas' -- return list of areas made by div_list
 
 Misc functions
 --------------
@@ -297,6 +298,67 @@ class Patch:
             result.append(np.array(div_result))
 
         return result
+
+    def sar_grid(self, div_list):
+        '''Calulates the average SAR for the given div_list
+
+        Parameters
+        ----------
+        div_list : list of tuples
+            Number of divisions of patch along (x, y) axes to use for grid.
+            Input of (1, 1) corresponds to no divisions, ie the whole patch.
+
+        Returns
+        -------
+        : 2D ndarray
+            Column one contains the average number of species in a cell of an area
+            given in column 2.  Units of column 2 depend on units in metadata.
+
+
+        '''
+
+        sar_list = self.sad_grid(div_list, summary='SAR')
+        sar_means = []
+        for sar in sar_list:
+            sar_means.append(np.mean(sar))
+        sar_array = np.empty((len(div_list), 2), dtype=np.float)
+        sar_array[:,0] = np.array(sar_means)
+        sar_array[:,1] = np.array(self.get_div_areas(div_list))
+        return sar_array
+        
+
+    def sar_sample(self, wh_list, samples):
+        '''Calculates the average SAR for the given number of samples
+        of each grid in wh_list.
+
+        Parameters
+        ----------
+        wh_list : list of tuples
+            Width and height of subpatches to be placed in patch. Width and 
+            height must be less than patch p_width and p_height.
+        samples : int
+            Number of randomly sampled subpatches to draw for each width/height 
+            combination in wh_list.
+
+        Returns
+        -------
+        : 2D ndarray
+            Column one contains the average number of species in a cell of an area
+            given in column 2.  Units of column 2 depend on units in metadata.
+
+
+        '''
+
+        sar_samples = self.sad_sample(wh_list, samples, summary='SAR')
+        sar_means = []
+        for sar in sar_samples:
+            sar_means.append(np.mean(sar))
+        sar_array = np.empty((len(wh_list), 2), dtype=np.float)
+        sar_array[:,0] = np.array(sar_means)
+        sar_array[:,1] = np.array([x[0] * x[1] for x in wh_list])
+        return sar_array
+
+        
 
 
     def get_sub_sad(self, x_st, x_en, y_st, y_en, summary):

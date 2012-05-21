@@ -85,6 +85,39 @@ class TestPatch(unittest.TestCase):
         except:
             self.datapres = False
 
+        self.xyfile8 = open('xyfile8.csv', 'w')
+        self.xyfile8.write('''spp_code, x, y, count
+                        0, 0, 0, 1
+                        1, 0, 0, 1
+                        2, 0, 0, 0
+                        3, 0, 0, 3
+                        0, 0, 1, 0
+                        1, 0, 1, 4
+                        2, 0, 1, 0
+                        3, 0, 1, 1
+                        0, 1, 0, 1
+                        1, 1, 0, 0
+                        2, 1, 0, 3
+                        3, 1, 0, 1
+                        0, 1, 1, 0
+                        1, 1, 1, 1
+                        2, 1, 1, 3
+                        3, 1, 1, 1
+                        0, 2, 0, 0
+                        1, 2, 0, 0
+                        2, 2, 0, 2
+                        3, 2, 0, 4
+                        0, 2, 1, 0
+                        1, 2, 1, 0
+                        2, 2, 1, 0
+                        3, 2, 1, 1''')
+        self.xyfile8.close()
+        self.xymeta8 = {'precision': 1, 'xrange':(0,2), 'yrange':(0,1)}
+        self.gridtest3 = Patch('xyfile8.csv')
+        self.gridtest3.xy.meta = self.xymeta8
+        self.gridtest3.set_attributes()
+
+
 
 
 
@@ -93,7 +126,7 @@ class TestPatch(unittest.TestCase):
         os.remove('xyfile5.csv')
         os.remove('xyfile6.csv')
         os.remove('xyfile7.csv')
-        pass
+        os.remove('xyfile8.csv')
 
     #
     # init and set_attributes
@@ -233,7 +266,8 @@ class TestPatch(unittest.TestCase):
 
     def test_sad_sample(self):
         full_sad = self.gridtest.sad_grid([(1,1)])
-        samp = self.gridtest.sad_sample([(int(self.gridtest.width), int(self.gridtest.height))], 2) 
+        samp = self.gridtest.sad_sample([(int(self.gridtest.width), \
+                                        int(self.gridtest.height))], 2) 
         self.assertTrue(np.array_equal(samp[0][0], samp[0][1]))
         self.assertTrue(np.array_equal(full_sad[0][0], samp[0][0]))
         random.seed(5)
@@ -257,6 +291,21 @@ class TestPatch(unittest.TestCase):
             for i in xrange(len(grd[0])):
                 bool_list.append(np.array_equal(samp[0][0], grd[0][i]))
             self.assertTrue(np.any(np.array(bool_list)))
+    
+    def test_sar_grid(self):
+        sar = self.gridtest.sar_grid([(1,1), (2, 1), (1,2), (2,2)])
+        expected = np.array(([4,4], [3.5, 2], [3.5, 2], [2.75, 1]), dtype=np.float)
+        self.assertTrue(np.array_equal(sar, expected))
+        self.assertRaises(IndexError, self.gridtest.sar_grid, [(8,8)])
+
+    def test_sar_sample(self): 
+        random.seed(5)
+        sar = self.gridtest3.sar_sample([(2,1), (3,2), (2,2), (1,1)], 10000)
+        #3.251 just for rounding purposes
+        expected = np.array(([3.251, 2], [4, 6], [4, 4], [2.33, 1]), np.float)
+        self.assertTrue(np.array_equal(np.round(sar, decimals=1), np.round(expected, decimals=1)))
+
+        
 
 
 
