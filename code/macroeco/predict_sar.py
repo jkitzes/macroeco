@@ -25,6 +25,8 @@ from __future__ import division
 import numpy as np
 import scipy.optimize
 import sys
+from macroeco import predict_sad
+from macroeco import ssad
 
 class DownscaleError(Exception):
     '''Catch downscale errors'''
@@ -34,7 +36,7 @@ class DownscaleError(Exception):
     def __str__(self):
         return '%s' % self.value
 
-
+#NOTE: Make k_eq defualt = False?
 def predict_sar(sad, S, a_list, ssad, k_eq):
     '''
     Predict the SAR for a given SAD, list of area fractions, and ssad.
@@ -82,7 +84,7 @@ def predict_sar(sad, S, a_list, ssad, k_eq):
     
     return np.array(sar)
 
-def universal_sar(S, N, anchor_area, upscale=0, downscale=0):
+def sar_method1(S, N, anchor_area, upscale=0, downscale=0):
     '''
     Predict the universal SAR curve for the given S and N found at 
     the given anchor scale
@@ -244,7 +246,8 @@ def universal_sar_curve(S=20, N=40, num_iter=10):
     This function calculates the universal SAR curve.  Different ratios
     of N/S will only put you at different places along the same curve. 
     Iterations of more than 15 take a long time. The equations used in this
-    function were taken from Harte et al. (2009) and Harte (2011)
+    function were taken from Harte et al. (2009) and Harte (2011). This is method 1
+    in Harte (2011)
 
     '''
 
@@ -278,6 +281,104 @@ def universal_sar_curve(S=20, N=40, num_iter=10):
             spp[i] = S2A
             univ_SAR['N/S'][i] = N2A / S2A
     return univ_SAR
+
+def sar_method2(S, N, anchor_area, a_list):
+    '''This functions returns the METE predicted SAR for a given a_list.
+    This function can take areas both larger and smaller than the anchor_area.
+    This function uses method 2 from Harte (2011).
+
+    Parameters
+    ----------
+    S : int
+        Total number of species at the given anchor area
+    N : int
+        Total number of individuals at the given anchor area
+    anchor_area : float
+        The area from which the SAR will be upscaled or downscaled.
+    a_list : array-like object
+        List of areas for which to calculate the SAR.
+
+    Returns
+    -------
+    : structured ndarray
+        A structured array of the same length as a_list.
+        dtype=[('species', np.float), ('area', np.float)]
+
+    Notes
+    -----
+    This method is not reliable when one desires to upscale the anchor_area
+    greater than 100 times the anchor_area.  Use method 1 in this case.
+    
+    Something is wierd when A gets too larger! Not finished..
+
+
+    '''
+
+
+
+    #TODO: Assertion testing
+    if type(a_list) is int or type(a_list) is float:
+        raise TypeError('a_list must be array-like object (i.e. list, tuple, or array)')
+
+    a_list = np.array(a_list) 
+    sar_array = np.empty(len(a_list), dtype=[('species', np.float), ('area', np.float)])
+    sar_array['area'] = a_list
+
+    #Did the user include the anchor_area?
+    anch = (a_list == anchor_area)
+    if np.any(anch):
+        sar_array['species'][anch] = S
+
+    #Check if areas in desired areas are less than anchor_area
+    less = (a_list < anchor_area)
+    greater = (a_list > anchor_area)
+    if np.any(less):
+        a_less = a_list[less] / anchor_area
+        sad = predict_sad.macroeco_pmf(S, N, 'mete')
+        sar_array['species'][less] = predict_sar(sad, S, a_less, ssad.tgeo, False)
+
+    if np.any(greater):
+        a_greater = a_list[greater]
+        spp_greater = []
+        for area in a_greater:
+            if (area / anchor_area) <= 32: #Exact solution
+                N0 = np.round((area / anchor_area) * N)
+                n = np.linspace(1, N0, num=N0)
+                def eq(x, S, N0):
+                    bgn = N0 * (sum(x**n / n)) * ((1 - x) / (x - x**(N0 + 1)))
+                    sad = (x ** n / n) / sum(x ** n / n)
+                    #NOTE: Not sure if this is correct...I think it is
+                    ssad_geo = 1 - ssad.tgeo(0, np.arange(1, N0 + 1), \
+                                            np.repeat(anchor_area / area, N0))
+                    return (bgn * sum(sad * ssad_geo)) - S
+                start = 1e-12
+                stop = 2
+                x = scipy.optimize.brentq(eq, start, min((sys.float_info[0] / S)**(1/float(N0)),\
+                              stop), args=(S, N0), disp=True)
+
+                S0 = N0 * (sum(x**n / n)) * ((1 - x) / (x - x**(N0 + 1)))
+            else: #approximation Harte (2011) Appendix C
+                N0 = np.round((area / anchor_area) * N)
+                eu = 0.577215665
+                beta = -np.log(predict_sad.mete_lgsr_pmf(S, N, pmf_ret=True, testing=True)[1])
+                S0 = S + (eu * beta * N) + (beta * N * np.log(area / anchor_area))
+            spp_greater.append(S0)
+        sar_array['species'][greater] = np.array(spp_greater)
+
+    return sar_array
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

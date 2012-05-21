@@ -310,14 +310,14 @@ def tgeo(n, N, a, summary = False):
             n_array = n
 
         pmf = np.zeros(N.shape[0])
-        for i in xrange(0, N.shape[0]):
-            p_i = scipy.optimize.brentq(eq, tol, 1 - tol, args = (N[i], a[i]), 
-                                        disp = True)
+        for i in xrange(0, N.shape[0]):#Stop value could be higher if needed...
+            p_i = scipy.optimize.brentq(eq, tol, 2, args = (N[i], a[i]), 
+                                            disp = True)
             Z_i = (1 - p_i**(N[i]+1)) / (1 - p_i)
             pmf[i] = p_i**n_array[i] / Z_i
 
     else:
-        p = scipy.optimize.brentq(eq, tol, 1 - tol, args = (N, a), disp = True)
+        p = scipy.optimize.brentq(eq, tol, 50, args = (N, a), disp = True)
         Z = (1 - p**(N+1)) / (1 - p)
         pmf = p**n / Z
 
