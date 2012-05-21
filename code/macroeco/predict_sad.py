@@ -12,6 +12,7 @@ Distributions
 -------------
 - `lgsr_pmf` -- Fisher's log series (Fisher et al. 1943)
 - `neg_binom_pmf` -- Negative Binomial
+- `geo_pmf` -- Geometric Distribution
 - `plognorm_pmf` -- Poisson lognormal (Bulmer 1974)
 - `trun_plognorm_pmf` -- Truncated poisson log-normal (Bulmer 1974)
 - `mete_logser_pmf` -- METE log series (Harte 2011)
@@ -21,8 +22,15 @@ Misc Functions
 --------------
 - `make_rank_abund` -- convert any SAD pmf into a rank abundance curve
 - `plognorm_MLE` -- Get MLE estimates for poisson lognormal
+- `macroeco_pmf`
+- `get_sad_cdf`
+- `nll`
+- `distr_parameters`
+- `fit_neg_binom`
+- `pln_lik`
+- `pln_ll`
+- `pln_solver`
 
-- 
 References
 ----------
 Bulmer, M. G. 1974. On fitting the poisson lognormal distribution to species
@@ -83,7 +91,7 @@ def lgsr_pmf(S, N, abundances=[], pmf_ret=False, testing=False):
         Returns array with pmf for values [1, N] if pmf_ret=True. If pmf_ret=False
         and len(abundances) > 1, returns ndarray with likelihoods for each
         abundance. If testing = True, returns both the pmf (depending on pmf_ret) and 
-        the estimate for e ** -(beta).
+        the parameter estimates.
 
 
     Notes
@@ -117,7 +125,7 @@ def lgsr_pmf(S, N, abundances=[], pmf_ret=False, testing=False):
         return pmf
 
 
-def neg_binom_pmf(S, N, k, abundances=[], pmf_ret=False):
+def neg_binom_pmf(S, N, k, abundances=[], pmf_ret=False, testing=False):
     '''
     Negative binomial distribution 
     
@@ -135,7 +143,9 @@ def neg_binom_pmf(S, N, k, abundances=[], pmf_ret=False):
      : ndarray (1D)
         Returns array with pmf for values [1, N] if pmf_ret=True. If pmf_ret=False
         and len(abundances) > 1, returns ndarray with likelihoods for each
-        abundance in object abundances. 
+        abundance in object abundances. If testing=True, returns both the pmf and 
+        the parameter estimates
+
     '''
     assert S < N, "S must be less than N"
     assert S > 1, "S must be greater than 1"
@@ -153,9 +163,12 @@ def neg_binom_pmf(S, N, k, abundances=[], pmf_ret=False):
         n = abundances
     pmf = stats.nbinom.pmf(n, k, p)
 
-    return pmf
+    if testing == True:
+        return pmf, k, p
+    else:
+        return pmf
 
-def geo_pmf(S, N, abundances=[], pmf_ret=False):
+def geo_pmf(S, N, abundances=[], pmf_ret=False, testing=False):
     '''
     Geometric distribution. Using neg_binom_pmf with k=1 as a wrapper
     
@@ -171,11 +184,17 @@ def geo_pmf(S, N, abundances=[], pmf_ret=False):
      : ndarray (1D)
         Returns array with pmf for values [1, N] if pmf_ret=True. If pmf_ret=False
         and len(abundances) > 1, returns ndarray with likelihoods for each
-        abundance in object abundances. 
+        abundance in object abundances. If testing=True, returns both the pmf
+        and the parameter estimates.
 
     '''
-
-    return neg_binom_pmf(S, N, 1, abundances=abundances, pmf_ret=pmf_ret)
+    if testing == True:
+        pmf, k, p =  neg_binom_pmf(S, N, 1, abundances=abundances, pmf_ret=pmf_ret,\
+                                testing=testing)
+        return pmf, p
+    else:
+        return neg_binom_pmf(S, N, 1, abundances=abundances, pmf_ret=pmf_ret,\
+                                testing=testing)
 
 
 
@@ -271,7 +290,7 @@ def plognorm_pmf(mean, var, abundances, pmf_ret=False):
             index = np.where(n_array == n)[0][0]
             pmf_full[i] = pmf[index]
         pmf = pmf_full
-            
+        
     return pmf
 
 
@@ -813,7 +832,7 @@ def macroeco_pmf(S, N, distribution, sad=[]):
 
         
     sad : array like object
-        SAD can be empty if distribution is not plognorm or trun_plognorm
+        SAD can be empty if distribution is not plognorm, trun_plognorm, or neg_binom
 
     Returns
     -------
@@ -860,7 +879,88 @@ def macroeco_pmf(S, N, distribution, sad=[]):
 
     return pmf
 
+def distr_parameters(S, N, distribution, sad=[]):
+    '''
+    This function returns the best fit parameters for the given distribution
+
+    Parameters
+    ----------
+    S : int
+        Total number of species in landscape
+    N : int
+        Total number of individuals in landscape
+    distribution : string
+        The predicted distribution:
+        'mete' - METE
+        'mete_approx' - METE with approximation
+        'plognorm' - Poisson lognormal
+        'trun_plognorm' - Truncated poisson lognormal
+        'neg_binom' - Negative binomial
+        'geo' - Geometric
+        'lgsr' - Fisher's log series
+
+        
+    sad : array like object
+        SAD can be empty if distribution is not plognorm, trun_plognorm, or neg_binom
+
+    Returns
+    -------
+    :dictionary 
+        Dictionary of parameters for given distribution
+
+
+    '''
+    assert distribution == 'mete' or\
+           distribution == 'mete_approx' or\
+           distribution == 'neg_binom' or\
+           distribution == 'geo' or\
+           distribution == 'lgsr' or\
+           distribution == 'trun_plognorm' or\
+           distribution == 'plognorm', "Do not recognize %s distribution" % (distribution)
+
+    #These three distributions require the full sad.
+    if distribution == 'plognorm' or\
+       distribution == 'trun_plognorm' or\
+       distribution == 'neg_binom':
+        assert len(sad) == S, "Length of SAD must equal S"
+        assert np.sum(sad) == N, "Sum of SAD must equal N"
+    sad = np.array(sad)
     
+    parameters = {}
+    if distribution == 'mete':
+        beta = -np.log(mete_lgsr_pmf(S, N, abundances=sad, \
+                            pmf_ret=True, testing=True)[1])
+        parameters['beta'] = beta
+    if distribution == 'mete_approx':
+        beta = -np.log(mete_lgsr_approx_pmf(S, N, abundances=sad, \
+                            pmf_ret=True, testing=True)[1])
+        parameters['beta'] = beta
+    if distribution == 'neg_binom':
+        mlek = fit_neg_binom_pmf(sad)
+        k, p = neg_binom_pmf(S, N, mlek, abundances=sad, pmf_ret=True, testing=True)[1:]
+        parameters['k'] = k
+        parameters['p'] = p
+    if distribution == 'geo':
+        p = geo_pmf(S, N, abundances=sad, pmf_ret=True, testing=True)[1]
+        parameters['p'] = p
+    if distribution == 'trun_plognorm':
+        mu, var = plognorm_MLE(sad, trun=True)
+        parameters['mu'] = mu
+        parameters['var'] = var
+    if distribution == 'plognorm':
+        mu, var = plognorm_MLE(sad, trun=False)
+        parameters['mu'] = mu
+        parameters['var'] = var
+    if distribution == 'lgsr':
+        x = lgsr_pmf(S, N, abundances=sad, pmf_ret=True, testing=True)[1]
+        parameters['x'] = x
+
+    return parameters
+
+
+
+
+
 
         
 

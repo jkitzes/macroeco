@@ -39,6 +39,10 @@ def get_obs_cdf_values(sad):
     : 1D np.array
         an array containing the cdf for the observed sad
     '''
+    sad = np.array(sad)
+    if len(np.where(sad == 0)[0]) != 0:
+        raise ValueError("SAD cannot contain zeros")
+
     unq_sad = np.unique(sad)
     S = len(sad)
     cdf = []
@@ -68,6 +72,7 @@ def get_obs_vs_pred_cdf(sad, distr):
         'plognorm' - Poisson lognormal
         'trun_plognorm' - Truncated poisson lognormal
         'neg_binom' - Negative binomial
+        'geo' - Geometric
         'lgsr' - Fisher's log series
 
     Returns
@@ -79,9 +84,9 @@ def get_obs_vs_pred_cdf(sad, distr):
 
     '''
 
-
-    obs_cdf = get_obs_cdf_values(sad)
+    sad = np.array(sad)
     sad_sorted = np.sort(sad)
+    obs_cdf = get_obs_cdf_values(sad_sorted)
     pred_cdf = predict_sad.get_sad_cdf(len(sad), np.sum(sad), distr, sad=sad)
     cpred_cdf = []
     for n in sad_sorted:
@@ -112,8 +117,8 @@ def get_gridded_sad_list(datapath, grid, clean=False):
     Returns
     -------
     : list
-        Length of list is equal to length of grid.  Each element in the list is a
-        list of arrays.
+        Length of list is equal to length of grid.  Each element in the list is an
+        array of arrays.
 
     '''
     data = empirical.Patch(datapath)
@@ -148,6 +153,7 @@ def get_obs_and_pred_rarity(sad, distr, n=10):
         'plognorm' - Poisson lognormal
         'trun_plognorm' - Truncated poisson lognormal
         'neg_binom' - Negative binomial
+        'geo' - Geometric
         'lgsr' - Fisher's log series
 
     n : int
@@ -159,15 +165,17 @@ def get_obs_and_pred_rarity(sad, distr, n=10):
     Tuple of (observed, predicted) rare species
 
     '''
+    sad = np.array(sad)
+    if len(np.where(sad == 0)[0]) != 0:
+        raise ValueError("SAD cannot contain zeros")
     obs_rare = np.sum(sad < n)
     pred_abund = predict_sad.make_rank_abund(predict_sad.macroeco_pmf(len(sad),\
                                         np.sum(sad), distr, sad=sad), len(sad))
-    pred_rare = np.sum(pred_abund < 10)
+    pred_rare = np.sum(pred_abund < n)
     return (obs_rare, pred_rare)
 
 def get_obs_and_pred_Nmax(sad, distr):
-    '''Gets the Nmax for observed and predicted sads.  Predicted sads are 
-    METE. 
+    '''Gets the Nmax for observed and predicted sads. 
 
     Parameters
     ----------
@@ -180,6 +188,7 @@ def get_obs_and_pred_Nmax(sad, distr):
         'plognorm' - Poisson lognormal
         'trun_plognorm' - Truncated poisson lognormal
         'neg_binom' - Negative binomial
+        'geo' = Geometric
         'lgsr' - Fisher's log series
 
     Returns
@@ -188,6 +197,9 @@ def get_obs_and_pred_Nmax(sad, distr):
     Tuple of (observed, predicted) Nmax
 
     '''
+    sad = np.array(sad)
+    if len(np.where(sad == 0)[0]) != 0:
+        raise ValueError("SAD cannot contain zeros")
     obs_Nmax = np.max(sad)
     pred_abund = predict_sad.make_rank_abund(predict_sad.macroeco_pmf(len(sad),\
                                         np.sum(sad), distr, sad=sad), len(sad))
@@ -208,6 +220,7 @@ def get_obs_pred_abund(sad, distr):
         'plognorm' - Poisson lognormal
         'trun_plognorm' - Truncated poisson lognormal
         'neg_binom' - Negative binomial
+        'geo' - Geometric
         'lgsr' - Fisher's log series
 
     Returns
@@ -217,6 +230,10 @@ def get_obs_pred_abund(sad, distr):
 
 
     '''
+    sad = np.array(sad)
+    if len(np.where(sad == 0)[0]) != 0:
+        raise ValueError("SAD cannot contain zeros")
+
     obs_abund = np.copy(sad)
     obs_abund.sort()
     pred_pmf = predict_sad.macroeco_pmf(len(sad), sum(sad), distr,  sad=sad)
@@ -279,6 +296,75 @@ def lognorm_test(sad):
     logsad = np.log(sad)
     norm_logsad = (logsad - logsad.mean()) / logsad.std()
     return stats.kstest(norm_logsad, 'norm')
+
+def get_values_for_sad(sad, distr):
+    '''Function takes in sad and returns state variables
+    and other information based on specified distribution
+
+    Parameters
+    ----------
+    sad : array like object
+        The empirical SAD
+    
+    distr : string
+        The distribution to which to compare the empirical sad:
+        'mete' - METE
+        'mete_approx' - METE with approximation
+        'plognorm' - Poisson lognormal
+        'trun_plognorm' - Truncated poisson lognormal
+        'neg_binom' - Negative binomial
+        'geo' - Geometric
+        'lgsr' - Fisher's log series
+    
+    Returns
+    -------
+    : dict
+        A dictionary containing state variables and other requested values
+        'S' - Total species in SAD
+        'N' - Total individuals in SAD
+        'Nmax_obs' - Number of individuals in most abundant species
+        'rarity_obs' - Number of species with n < 10
+        'distr' - dictionary of distribution specific values
+            'name' - name of distribution (see above)
+            'nll' - negative-log likelihood
+            'AICc' - Corrected AIC
+            'Nmax_pred' - Predicted Nmax
+            'rarity_pred' = Predicted rarity
+
+
+    '''
+    assert type(sad) == tuple or type(sad) == list or type(sad) == np.ndarray,\
+                'SAD must be tuple, list, or ndarray'
+
+    sad = np.array(sad)
+    if len(np.where(sad == 0)[0]) != 0:
+        raise ValueError("SAD cannot contain zeros")
+    value_dict = {}
+    value_dict['S'] = len(sad)
+    value_dict['N'] = sum(sad)
+    Nmax = get_obs_and_pred_Nmax(sad, distr)
+    rarity = get_obs_and_pred_rarity(sad, distr)
+    value_dict['Nmax_obs'] = Nmax[0]
+    value_dict['rarity_obs'] = rarity[0]
+    value_dict['distr'] = {}
+    value_dict['distr']['name'] = distr
+    value_dict['distr']['nll'] = predict_sad.nll(sad, distr)
+    value_dict['distr']['params'] = predict_sad.distr_parameters(len(sad), sum(sad),\
+                                        distr, sad=sad)
+    value_dict['distr']['AICc'] = aic(value_dict['distr']['nll'],\
+                                    len(value_dict['distr']['params']), len(sad))
+    value_dict['distr']['Nmax_pred'] = Nmax[1]
+    value_dict['distr']['rarity_pred'] = rarity[1]
+
+    return value_dict
+
+
+
+
+
+
+
+
 
 
 
