@@ -360,7 +360,7 @@ def fractionate(datayears, wid_len, step):
     example, LBRI is a 16x16 grid and each cell is labeled with
     integers.  However, the length (and width) of a cell is 0.5m.
     This function converts each integer cell number to the appropriate
-    integer (i.e. for LBRI cell (2,2) becomes cell (0.5, 0.5)). 
+    integer (i.e. for LBRI cell (2,2) (counting from 1) becomes cell (0.5, 0.5)). 
     
     NOTE: This function should be used on formatted data.
 
@@ -371,7 +371,7 @@ def fractionate(datayears, wid_len, step):
 
     step -- the step (or stride length) of the cell width and
                     length (tuple: (x_step, y_step)). It should
-                    be given in terms of meters.
+                    be given in terms of meters. Also, called precision.
 
     returns:
         a list of converted structured arrays
