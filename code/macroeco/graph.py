@@ -301,7 +301,7 @@ def common_ADsquared_plot(cmn, outputID, params={}, areas=[], interactive=False)
 
     '''
     #Getting different symbols for scatter plot
-    def_col = ['red','green', 'blue', 'orange', 'yellow', 'black', 'grey']
+    def_col = ['black','grey', 'white', 'red', 'green', 'yellow', 'purple', 'orange']
     color = []
     for i in xrange(len(cmn)):
         col = np.random.random_sample(3)
@@ -309,15 +309,13 @@ def common_ADsquared_plot(cmn, outputID, params={}, areas=[], interactive=False)
 
     areas = []
     for i, strc in enumerate(cmn): #iterating through each area
-        scale = 20 #scale for truncation
-        ind = ((strc['dist'] ** 2 / strc['area']) > scale)
-        trun_s = strc[ind]
+        trun_s = strc
         if i < len(def_col):
             plt.scatter((trun_s['dist'] ** 2 / trun_s['area']), trun_s['cmn'],\
-                                color=def_col[i])
+                                color=def_col[i], edgecolors='black')
         else:
             plt.scatter((trun_s['dist'] ** 2 / trun_s['area']), trun_s['cmn'],\
-                                color=color[i])
+                                color=color[i], edgecolors='black')
         areas.append('Area = ' + str(trun_s['area'][0]))
         form_func.output_form(strc, outputID + '_unique_area_' + str(i))
     plt.xlabel("Distance ^ 2 / Area")
@@ -334,51 +332,52 @@ def common_ADsquared_plot(cmn, outputID, params={}, areas=[], interactive=False)
     else:
         plt.clf()
 
+def write_summary_table(sad, outputID, distributions, params={}):
+    '''Writes and saves a summary table of relevant sad values.
+    Provides both empirical and predicted values for the sad.
 
-
-
-
-
-
-
-
-    '''#Less than 0.5 because D**2 >> A
-    scale = 0.05
-    ind = (a_d['A/D**2'] < scale)
-    x = 1 / a_d['A/D**2'][ind] #invert to see what happens as D increases
-    y = a_d['cmn'][ind]
-
-    bins = np.linspace(1 / scale, np.max(x), num=11)
-    xdig = np.digitize(x, bins)
-    unq_xdig = np.unique(xdig)
-    y_smooth = []
-    x_smooth = []
-    for i in unq_xdig:
-        ind = (i == xdig)
-        y_smooth.append(sum(y[ind]) / sum(ind))
-        x_smooth.append(sum(x[ind]) / sum(ind))
-        
-    plt.scatter(x, y, color='grey', alpha=0.5 )
-    plt.plot(x_smooth, y_smooth, '-o', color='black')
-    plt.xlabel(" log(Distance ^ 2 / Area))")
-    plt.ylabel("log(Commonality)")
-    if len(areas) == 0:
-        plt.title("Commonality plotted as a function of distance^2 over area")
-    else:
-        plt.title("Commonality plotted as a function of distance^2 over area:\n\
-                   Areas (m^2): " + str(areas)) 
-    plt.legend(("Binned data points", "All data points"), loc='best', prop={'size':9})
-    plt.savefig(outputID + "_ADsquared")
-    form_func.output_form(a_d, outputID + "_ADsquared.csv")
-    module_logger.debug("Plot and csv saved")
-
-    if interactive:
-        plt.show()
-    else:
-        plt.clf()'''
-
-
+    Parameters
+    ----------
+    sad : array-like object
+        SAD
+    outputID : string
+        Name of the output file
+    distributions : list
+        A list of SAD distributions. See predict_sad.py for complete list
+        Summary values are given for each distribution in the list
+    params : dictionary
+        Dictionary of additional parameters
+    interactive : bool
     
+
+   Notes
+   -----
+   Saves a summary file to the current working directory.
+    '''
+    for i, distr in enumerate(distributions):
+        summary = sad_analysis.get_values_for_sad(sad, distr)
+        if i == 0:
+            fout = open(outputID + '_summary.txt', 'w')
+            fout.write('EMPIRICAL VALUES:\n' + 'S = ' + str(summary['S']) + '\nN = '\
+                    + str(summary['N']) + '\nObserved Nmax = ' + str(summary['Nmax_obs'])\
+                    + '\nObserved Rarity = ' + str(summary['rarity_obs'])\
+                    + '\n\nPREDICTED VALUES:\n' + 'Distribution = ' + str(summary['distr']['name'])\
+                    + '\nParameters = ' + str(summary['distr']['params'])\
+                    + '\nNegative Log-likelihood = ' + str(summary['distr']['nll'])\
+                    + '\nAICc = ' + str(summary['distr']['AICc'])\
+                    + '\nPredicted Nmax = ' + str(summary['distr']['Nmax_pred'])\
+                    + '\nPredicted Rarity = ' + str(summary['distr']['rarity_pred']))
+        else:
+            fout.write('\n\nPREDICTED VALUES:\n' + 'Distribution = ' + str(summary['distr']['name'])\
+                    + '\nParameters = ' + str(summary['distr']['params'])\
+                    + '\nNegative Log-likelihood = ' + str(summary['distr']['nll'])\
+                    + '\nAICc = ' + str(summary['distr']['AICc'])\
+                    + '\nPredicted Nmax = ' + str(summary['distr']['Nmax_pred'])\
+                    + '\nPredicted Rarity = ' + str(summary['distr']['rarity_pred']))
+
+
+    fout.close()
+
 
 
 

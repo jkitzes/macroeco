@@ -27,9 +27,15 @@
         <param name='title' value='Observed vs. Predicted cdf (trun_lognormal)'/>
     </run>
   </analysis>
-  <analysis scriptname='analyze_commonality' version='0.5' interactive='T'>
+  <analysis scriptname='analyze_commonality' version='0.5' interactive='F'>
     <run name='commonality'>
         <param name='grid' value='[(20,20), (10,10)]'/>
+    </run>
+  </analysis>
+  <analysis scriptname='analyze_values' version='0.5' interactive='F'>
+    <run name='summary'>
+        <param name='distr' value="['mete', 'neg_binom', 'geo']"/>
+        <param name='grid' value='[(1,1), (2,2)]'/>
     </run>
   </analysis>
 </METE>
