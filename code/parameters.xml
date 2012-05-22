@@ -38,4 +38,11 @@
         <param name='grid' value='[(1,1), (2,2)]'/>
     </run>
   </analysis>
+  <analysis scriptname='analyze_my_sar' version='0.5' interactive='F'>
+    <run name='obs_pred_sar'>
+        <param name='gridded' value='True'/>
+        <param name='samples' value='25'/>
+        <param name='grid' value='[(1,1), (2,2), (4,4), (8,8), (16,16)]'/>
+    </run>
+  </analysis>
 </METE>

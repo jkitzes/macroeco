@@ -86,8 +86,9 @@ def predict_sar(sad, S, a_list, ssad, k_eq):
 
 def sar_method1(S, N, anchor_area, upscale=0, downscale=0):
     '''
-    Predict the universal SAR curve for the given S and N found at 
-    the given anchor scale
+    Predict the SAR curve for the given S and N found at 
+    the given anchor scale.  Uses the method 1 for upscaling and downscaling
+    found in Harte 2011.
 
     Parameters
     ----------
@@ -309,7 +310,9 @@ def sar_method2(S, N, anchor_area, a_list):
     This method is not reliable when one desires to upscale the anchor_area
     greater than 100 times the anchor_area.  Use method 1 in this case.
     
-    Something is wierd when A gets too larger! Not finished..
+    Something is wierd when A gets too larger! This functions does
+    not seem to be working appropriately.  It does not match at all
+    with method 1.
 
 
     '''
