@@ -276,7 +276,7 @@ def aic(neg_L, k, n, corrected=True):
     else:
         return aic
 
-def lognorm_test(sad):
+def lognorm_KS(sad):
     '''Function uses the Kolomogrov-Smirnov test to determine if an
     empirical sad is lognormal
 
