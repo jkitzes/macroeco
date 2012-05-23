@@ -45,7 +45,7 @@ def get_metadata(asklist, folder_name, dataname):
     return meta.TableDescr
 
 
-def get_files(filetype, num, direct, globber='_????.'):
+def get_files(filetype, num, direct, globber='_????'):
     '''This function gets the filetype files from the 
     data directory /archival/direct and returns the 
     names of the filetype files in the directory.  
@@ -68,7 +68,7 @@ def get_files(filetype, num, direct, globber='_????.'):
     cwd = gcwd();
     filedir = jp(pd(pd(gcwd())), 'archival', direct)
     chdir(filedir)
-    datafiles = glob.glob(direct + globber + filetype)
+    datafiles = glob.glob(direct + globber + '.' + filetype)
     chdir(cwd)
     if not(len(datafiles) == num):
         raise Exception("Must be exactly {0} {1}_*.{2} file in /archival/{1}"\
@@ -240,13 +240,16 @@ def open_dense_data(filenames, direct, delim=','):
         datayears.append(data)
     return datayears
 
-def make_dense_spec_dict(datayears):
+def make_dense_spec_dict(datayears, spp_col=3):
     '''This function makes and returns a global species dictionary
     for a list of dense data.  It assigns each species in the 
     data a unique integer code. The dense file should be formatted
     like LBRI of ANBO for this to work.
 
     datayears -- list of rec arrays containing data
+
+    spp_col -- An integer which specifies the column the
+                 the species counts begin in the data.
 
     returns:
         A 1D array of tuples AKA a structured array
@@ -255,12 +258,12 @@ def make_dense_spec_dict(datayears):
     
     spp_array = np.empty(0)
     for data in datayears:
-        spp = np.array(data.dtype.names[3:]) #species names
+        spp = np.array(data.dtype.names[spp_col:]) #species names
         spp_array = np.concatenate((spp_array, spp))
     spec_dict = make_spec_dict(spp_array)
     return spec_dict
 
-def format_dense(datayears, spec_dict):
+def format_dense(datayears, spp_col, column_names):
     '''This function takes a list of data from 
     as well as a global species dictionary.  This functions interates 
     through the list and formats each year of data and stores the 
@@ -270,6 +273,10 @@ def format_dense(datayears, spec_dict):
 
     spec_dict -- a 1D structured array of tuples containing the name of 
                  each species and the corresponding integer.
+
+    spp_col -- The column in the dense array where the spp_names begin
+
+    column_names -- a list of the column names that ARE NOT species names
     
     returns:
         A list of formatted structured arrays.
@@ -280,28 +287,30 @@ def format_dense(datayears, spec_dict):
     '''
 
     for data in datayears:
-        if set(data.dtype.names[0:3]) != set(['cell', 'column', 'row']):
-            raise Exception("Improper labeling of first 3 columns")
+        if set(data.dtype.names[0:spp_col]) != set(column_names):
+            raise Exception("Improper formatting of columns")
 
     data_formatted = []
     for data in datayears:
-        ls = len(data.dtype.names[3:])
-        data_out = np.empty(ls * len(data), \
-                        dtype=[('spp_code', np.int), ('x', np.float),
-                               ('y', np.float), ('count', np.int)])
+        ls = len(data.dtype.names[spp_col:])
+        dtype = data.dtype.descr[:spp_col] + [('spp', 'S22'), ('count', np.float)]
+        data_out = np.empty(ls * len(data), dtype=dtype)
 
-        tot_int = create_intcodes(np.array(data.dtype.names[3:]), \
-                                   spec_dict['spp'], spec_dict['spp_code'])
-        cnt = 0 
-        for i in xrange(len(data)):
-            data_out['x'][cnt:(ls*(i+1))] = data['row'][i]
-            data_out['y'][cnt:(ls*(i+1))] = data['column'][i]
-            data_out['spp_code'][cnt:(ls*(i+1))] = tot_int
-            data_out['count'][cnt:(ls*(i+1))] = np.array(list(data[i]))[3:]
-            cnt = cnt + ls
-
+        for s, name in enumerate(data_out.dtype.names[:spp_col]):
+            cnt = 0
+            for i in xrange(len(data)):
+                if s == 0:
+                    data_out[name][cnt:(ls*(i+1))] = data[name][i]
+                    data_out['spp'][cnt:(ls*(i+1))] = np.array\
+                                                (data.dtype.names[spp_col:])
+                    data_out['count'][cnt:(ls*(i+1))] = np.array(list(data[i]))[spp_col:]
+                    cnt = cnt + ls
+                else:
+                    data_out[name][cnt:(ls*(i+1))] = data[name][i]
+                    cnt = cnt + ls
+        #Remove all zeros, they are not needed
+        data_out = data_out[data_out['count'] != 0]
         data_formatted.append(data_out)
-
     return data_formatted
 
 def open_nan_data(filenames, missing_value, site, delim, xy_labels=('gx', 'gy')):
@@ -354,7 +363,7 @@ def make_multiyear_spec_dict(datayears, sp_field):
     spec_dict = make_spec_dict(spp_array)
     return spec_dict
 
-def fractionate(datayears, wid_len, step):
+def fractionate(datayears, wid_len, step, col_names):
     '''This function takes in a list of formatted data years
     and converts the grid numbers into meter measurements. For
     example, LBRI is a 16x16 grid and each cell is labeled with
@@ -378,18 +387,75 @@ def fractionate(datayears, wid_len, step):
 
     '''
     
-    for data in datayears:
-        assert set(data.dtype.names[1:3]) == set(['x', 'y']), "Data must be\
-                                            properly formatted"
 
     for data in datayears:
-        x_nums = np.unique(data['x'])
-        y_nums = np.unique(data['y'])
-        x_frac = np.arange(0, wid_len[0], step=step[0])
-        y_frac = np.arange(0, wid_len[1], step=step[1])
-        data['x'] = create_intcodes(data['x'], x_nums, x_frac)
-        data['y'] = create_intcodes(data['y'], y_nums, y_frac)
+        for i, name in enumerate(col_names):
+            nums = np.unique(data[name])
+            frac = np.arange(0, wd_len[i], step=step[i])
+            data[name] = create_intcodes(data[name], nums, frac)
     return datayears
+
+def add_data_fields(data_list, fields, values):
+    '''Add fields to data basedon given names and values
+
+    names -- list of strings
+
+    values -- list of tuples corresponding to names
+
+    returns a list containing the structured arrays with
+    the new fields appended
+    '''
+    #TODO: Check that data in data list share dtypes
+
+    alt_data = []
+    for i, data in enumerate(data_list):
+        for j, name in enumerate(fields):
+            data = add_field(data, [(name, 'S20')])
+            data[name] = values[j][i]
+        alt_data.append(data)
+    return alt_data
+
+def merge_formatted(data_form):
+    '''Take in a list of formatted data an merge all data in
+    the list.  The dtypes of the data in the list must
+    be the same
+
+    data_form -- list of formatted structured arrays
+
+    return list containing one merged structured array
+
+    '''
+    if len(data_form) == 1:
+        return data_form[0]
+    else:
+        merged = data_form[0]
+        for i in xrange(1, len(data_form)):
+            merged = np.concatenate((merged, data_form[i]))
+        return merged
+
+
+
+    
+def add_field(a, descr):
+    '''Add field to structured array and
+    return new array with empty field
+    
+    a -- orginial structured array
+    descr -- dtype of new field i.e. [('name', 'type')]'''
+
+    if a.dtype.fields is None:
+        raise ValueError, "`A' must be a structured numpy array"
+    b = np.empty(a.shape, dtype=descr + a.dtype.descr)
+    for name in a.dtype.names:
+        b[name] = a[name]
+    return b
+
+    
+
+    
+    
+
+
 
 
 
