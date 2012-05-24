@@ -264,15 +264,12 @@ def make_dense_spec_dict(datayears, spp_col=3):
     return spec_dict
 
 def format_dense(datayears, spp_col, column_names):
-    '''This function takes a list of data from 
-    as well as a global species dictionary.  This functions interates 
+    '''This function takes a list of data.  This functions interates 
     through the list and formats each year of data and stores the 
     formatted data into a list containing all years of formatted data.
 
     datayears -- a list of rec arrays containing all years of data
 
-    spec_dict -- a 1D structured array of tuples containing the name of 
-                 each species and the corresponding integer.
 
     spp_col -- The column in the dense array where the spp_names begin
 
@@ -281,14 +278,12 @@ def format_dense(datayears, spp_col, column_names):
     returns:
         A list of formatted structured arrays.
 
-    NOTE: Do not use this function unless you are sure that your data 
-    match the formatting 
 
     '''
-
     for data in datayears:
         if set(data.dtype.names[0:spp_col]) != set(column_names):
-            raise Exception("Improper formatting of columns")
+            raise Exception("Improper formatting of columns. Make \
+                                                sure spp_col is correct")
 
     data_formatted = []
     for data in datayears:
@@ -382,21 +377,30 @@ def fractionate(datayears, wid_len, step, col_names):
                     length (tuple: (x_step, y_step)). It should
                     be given in terms of meters. Also, called precision.
 
+    col_names -- the col_names of the structured array that are to be
+                 fractionated.
+
     returns:
         a list of converted structured arrays
 
     '''
     
-
+    frct_array = []
     for data in datayears:
         for i, name in enumerate(col_names):
             nums = np.unique(data[name])
-            frac = np.arange(0, wd_len[i], step=step[i])
+            frac = np.arange(0, wid_len[i], step=step[i])
+            #Have to make sure I have the data right type
+            ind = list(data.dtype.names).index(name)
+            dt = data.dtype.descr
+            dt[ind] = (name, 'f8')
+            data = data.astype(dt)
             data[name] = create_intcodes(data[name], nums, frac)
-    return datayears
+        frct_array.append(data)
+    return frct_array
 
 def add_data_fields(data_list, fields, values):
-    '''Add fields to data basedon given names and values
+    '''Add fields to data based on given names and values
 
     names -- list of strings
 
@@ -422,7 +426,7 @@ def merge_formatted(data_form):
 
     data_form -- list of formatted structured arrays
 
-    return list containing one merged structured array
+    returns a list containing one merged structured array
 
     '''
     if len(data_form) == 1:
@@ -441,7 +445,9 @@ def add_field(a, descr):
     return new array with empty field
     
     a -- orginial structured array
-    descr -- dtype of new field i.e. [('name', 'type')]'''
+    descr -- dtype of new field i.e. [('name', 'type')]
+    
+    returns structured array with field added'''
 
     if a.dtype.fields is None:
         raise ValueError, "`A' must be a structured numpy array"
