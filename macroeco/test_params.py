@@ -1,5 +1,8 @@
+#!/usr/bin/python
+
+import os
 import unittest
-import params
+import workflow
 
 
 # Cases for future testing:
@@ -7,7 +10,7 @@ import params
 # params file has plural interactive runs (complicated dialog ahoy).
 # No params file. Dialog, write, reload.
 # Params file doesn't match ask. Dialog, write, reload, check against ask.
-## params.xml proper subset of ask
+## workflow.xml proper subset of ask
 ## Neither a proper subset of the other
 # Types of param: string, int, float, lists of any of those; mixed-type list (ick).
 
@@ -15,8 +18,10 @@ import params
 class ParamfileTestCase(unittest.TestCase):
 
     def setUp(self):
-        self.asklist = {'size':'positive number', 'species':'string','layers':'list of positive integers'}
-        self.pf = open(params.paramfile, 'w')
+        self.asklist = {'size':'positive number', 
+                        'species':'string',
+                        'layers':'list of positive integers'}
+        self.pf = open('parameters.xml', 'w')
         self.pf.write("""<?xml version='1.0'?>
 <METE>
     <analysis scriptname='RunExists' version='0.5' interactive='F'>
@@ -66,13 +71,16 @@ class ParamfileTestCase(unittest.TestCase):
 </METE>""")
         self.pf.close()
 
+    def tearDown(self):
+        os.remove(workflow.paramfile)
+
     def test_emptyask(self):
-        pa = params.Parameters('unittest', {})
+        pa = workflow.Parameters('unittest', {})
         self.assertEqual(pa.params, {})
         self.assertEqual(pa.interactive, None)
 
     def test_NIrunExists(self):
-        pa = params.Parameters('RunExists', self.asklist)
+        pa = workflow.Parameters('RunExists', self.asklist)
         self.assertTrue(len(pa.params) == 1)
         self.assertTrue(set(self.asklist.keys()).issubset(set(pa.params['ParamfileTestCase'].keys())))
         self.assertTrue(pa.interactive == False)
@@ -81,7 +89,7 @@ class ParamfileTestCase(unittest.TestCase):
         self.assertTrue(float(run['size'])*convertlist[1] == 3*4.4)
 
     def test_MultipleNIRunsExist(self):
-        pa = params.Parameters('ManyNIRuns', self.asklist)
+        pa = workflow.Parameters('ManyNIRuns', self.asklist)
         self.assertTrue(len(pa.params) == 2)
         self.assertTrue(pa.params['FirstCase']['size'] == '4.4')
         self.assertTrue(pa.params['FirstCase']['species'] == 'E. coli')
@@ -91,7 +99,7 @@ class ParamfileTestCase(unittest.TestCase):
         self.assertTrue(pa.params['SecondCase']['layers'] == '[5]')
 
     def test_MultipleUnnamedRunsExist(self):
-        pa = params.Parameters('Unnamed', self.asklist)
+        pa = workflow.Parameters('Unnamed', self.asklist)
         self.assertTrue(len(pa.params) == 2)
         self.assertTrue(pa.params['autoname0']['size'] == '4.4')
         self.assertTrue(pa.params['autoname0']['species'] == 'E. coli')
@@ -101,7 +109,7 @@ class ParamfileTestCase(unittest.TestCase):
         self.assertTrue(pa.params['autoname1']['layers'] == '[5]')
 
     def test_InteractiveRun(self):
-        pa = params.Parameters('Interactive', self.asklist)
+        pa = workflow.Parameters('Interactive', self.asklist)
         self.assertTrue(pa.interactive == True)
 
 if __name__ == '__main__':
