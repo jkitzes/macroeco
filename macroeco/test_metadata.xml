@@ -1,7 +1,0 @@
-TODO: For metadata practice, First line will be ignored.
-gx/measurementScale/interval/precision,1.1
-gx/measurementScale/interval/numericDomain/bounds/maximum,399
-gy/measurementScale/interval/precision,10.5
-gx/measurementScale/interval/numericDomain/bounds/minimum,0
-gy/measurementScale/interval/numericDomain/bounds/minimum,100
-gy/measurementScale/interval/numericDomain/bounds/maximum,4000
