@@ -72,12 +72,14 @@ class RootError(Exception):
     def __str__(self):
         return '%s' % self.value
 
-def lgsr_pmf(S, N, abundances=[], pmf_ret=False, testing=False):
+def lgsr_pmf(n, S, N, testing=False):
     '''
     Fisher's log series pmf (Fisher et al. 1943, Hubbel 2001)
 
     Parameters
     ----------
+    n : int, float or array-like object
+        Abundances at which to calculate the pmf
     S : int
         Total number of species in landscape
     N : int
@@ -88,10 +90,8 @@ def lgsr_pmf(S, N, abundances=[], pmf_ret=False, testing=False):
     Returns
     -------
     : ndarray (1D)
-        Returns array with pmf for values [1, N] if pmf_ret=True. If pmf_ret=False
-        and len(abundances) > 1, returns ndarray with likelihoods for each
-        abundance. If testing = True, returns both the pmf (depending on pmf_ret) and 
-        the parameter estimates.
+        Returns array with pmf for values for the given values n. If 
+        testing = True, returns the array as well as the parameter estimates.
 
 
     Notes
@@ -102,10 +102,10 @@ def lgsr_pmf(S, N, abundances=[], pmf_ret=False, testing=False):
     assert S < N, "S must be less than N"
     assert S > 1, "S must be greater than 1"
     assert N > 0, "N must be greater than 0"
-    if pmf_ret == False:
-        abundances = np.array(abundances)
-        assert len(abundances) == S, "Length of abundances must equal S"
-        assert np.sum(abundances) == N, "Sum of abundances must equal N"
+    if type(n) is int or type(n) is float:
+        n = np.array([n])
+    else:
+        n = np.array(n)
 
     start = -2
     stop = 1 - 1e-10
@@ -113,11 +113,8 @@ def lgsr_pmf(S, N, abundances=[], pmf_ret=False, testing=False):
     eq = lambda x,S,N: (((N/x) - N) * (-(np.log(1 - x)))) - S
     
     x = scipy.optimize.brentq(eq, start, stop, args=(S,N), disp=True)
-    if pmf_ret == True:
-        k = np.linspace(1, N, num=N)
-    elif pmf_ret == False:
-        k = abundances
-    pmf = stats.logser.pmf(k,x)
+    pmf = stats.logser.pmf(n, x)
+
     
     if testing == True:
         return pmf, x
@@ -125,12 +122,14 @@ def lgsr_pmf(S, N, abundances=[], pmf_ret=False, testing=False):
         return pmf
 
 
-def neg_binom_pmf(S, N, k, abundances=[], pmf_ret=False, testing=False):
+def neg_binom_pmf(n, S, N, k, testing=False):
     '''
     Negative binomial distribution 
     
     Parameters
     ----------
+    n : int, float or array-like object
+        Abundances at which to calculate the pmf
     S : int
         Total number of species in landscape
     N : int
@@ -141,26 +140,20 @@ def neg_binom_pmf(S, N, k, abundances=[], pmf_ret=False, testing=False):
     Returns
     -------
      : ndarray (1D)
-        Returns array with pmf for values [1, N] if pmf_ret=True. If pmf_ret=False
-        and len(abundances) > 1, returns ndarray with likelihoods for each
-        abundance in object abundances. If testing=True, returns both the pmf and 
-        the parameter estimates
+        Returns array with pmf for values for the given values n. If 
+        testing = True, returns the array as well as the parameter estimates.
 
     '''
     assert S < N, "S must be less than N"
     assert S > 1, "S must be greater than 1"
     assert N > 0, "N must be greater than 0"
-    if pmf_ret == False:
-        abundances = np.array(abundances)
-        assert len(abundances) == S, "Length of abundances must equal S"
-        assert np.sum(abundances) == N, "Sum of abundances must equal N"
+    if type(n) is int or type(n) is float:
+        n = np.array([n])
+    else:
+        n = np.array(n)
 
     mu = float(N) / S
     p = float(k) / (mu + k)
-    if pmf_ret == True:
-        n = np.arange(1, N + 1)
-    elif pmf_ret == False:
-        n = abundances
     pmf = stats.nbinom.pmf(n, k, p)
 
     if testing == True:
@@ -168,12 +161,14 @@ def neg_binom_pmf(S, N, k, abundances=[], pmf_ret=False, testing=False):
     else:
         return pmf
 
-def geo_pmf(S, N, abundances=[], pmf_ret=False, testing=False):
+def geo_pmf(n, S, N, testing=False):
     '''
     Geometric distribution. Using neg_binom_pmf with k=1 as a wrapper
     
     Parameters
     ----------
+    n : int, float or array-like object
+        Abundances at which to calculate the pmf
     S : int
         Total number of species in landscape
     N : int
@@ -182,19 +177,15 @@ def geo_pmf(S, N, abundances=[], pmf_ret=False, testing=False):
     Returns
     -------
      : ndarray (1D)
-        Returns array with pmf for values [1, N] if pmf_ret=True. If pmf_ret=False
-        and len(abundances) > 1, returns ndarray with likelihoods for each
-        abundance in object abundances. If testing=True, returns both the pmf
-        and the parameter estimates.
+        Returns array with pmf for values for the given values n. If 
+        testing = True, returns the array as well as the parameter estimates.
 
     '''
     if testing == True:
-        pmf, k, p =  neg_binom_pmf(S, N, 1, abundances=abundances, pmf_ret=pmf_ret,\
-                                testing=testing)
+        pmf, k, p =  neg_binom_pmf(n, S, N, 1, testing=testing)
         return pmf, p
     else:
-        return neg_binom_pmf(S, N, 1, abundances=abundances, pmf_ret=pmf_ret,\
-                                testing=testing)
+        return neg_binom_pmf(n, S, N, 1, testing=testing)
 
 
 
@@ -220,33 +211,29 @@ def fit_neg_binom_pmf(sad, guess_for_k=1):
 
     #NOTE: Need to check for convergence
     def nll_nb(k, sad):
-        return -sum(np.log(neg_binom_pmf(len(sad), np.sum(sad), k, abundances=sad)))
+        return -sum(np.log(neg_binom_pmf(sad, len(sad), np.sum(sad), k)))
     mlek = scipy.optimize.fmin(nll_nb, np.array([guess_for_k]), args=(sad,), disp=0)[0]
     return mlek
         
 
-def plognorm_pmf(mean, var, abundances, pmf_ret=False):
+def plognorm_pmf(ab, mean, var, testing=False):
     '''
     Poisson log-normal pmf (Bulmer 1974)
 
     Parameters
     ----------
+    ab : int, float or array-like object
+        Abundances at which to calculate the pmf
     mean : float
         the logmean of the poisson log normal
     var : float
         the logvar of the poisson log normal
         
-    abundances : A list, np.array, or tuple of the abundance of each
-                 species in the plot.  len(abundance) should equal 
-                 the total number of species in the plot and sum(abundances)
-                 should equal the total number of individuals in the plot
-
      Returns
     -------
      : ndarray (1D)
-        Returns array with pmf for values [1, N] if pmf_ret=True. If pmf_ret=False
-        and len(abundances) > 1, returns ndarray with likelihoods for each
-        abundance. 
+        Returns array with pmf for values for the given values n. If 
+        testing = True, returns the array as well as the parameter estimates.
 
     Notes
     -----
@@ -254,25 +241,19 @@ def plognorm_pmf(mean, var, abundances, pmf_ret=False):
     Wilber. The VGAM R package was adopted directly from Bulmer (1974).
 
     '''
+    if type(ab) is int or type(ab) is float:
+        ab = np.array([ab])
+    else:
+        ab = np.array(ab)
+    n_unq = np.unique(ab)
     
-    assert type(abundances) == list or type(abundances) == tuple \
-           or type(abundances) == np.ndarray, "Invalid parameter type"
-
-    
-    abundances = np.array(abundances)
-    if pmf_ret == True:
-        n_array = np.arange(1, int(np.sum(abundances) + 1))
-    if pmf_ret == False:
-        n_array = np.unique(abundances)
-        
-
     if var <= 0 or mean <= 0: #Parameters can be negative when optimizer is running
-        pmf = np.repeat(1e-120, len(n_array))
+        pmf = np.repeat(1e-120, len(n_unq))
     else:
         sd = var**0.5
         eq = lambda t, x: np.exp(t * x - np.exp(t) - 0.5*((t - mean) / sd)**2)
-        pmf = np.empty(len(n_array), dtype=np.float)
-        for i, n in enumerate(n_array):
+        pmf = np.empty(len(n_unq), dtype=np.float)
+        for i, n in enumerate(n_unq):
             if n <= 170:
                 integral = integrate.quad(eq, -np.inf, np.inf, args=(n))[0]
                 norm = np.exp((-0.5 * m.log(2 * m.pi * var) - m.lgamma(n + 1)))
@@ -280,26 +261,30 @@ def plognorm_pmf(mean, var, abundances, pmf_ret=False):
             else:
                 z = (m.log(n) - mean) / sd
                 pmf[i] = (1 + (z**2 + m.log(n) - mean - 1) / (2 * n * sd**2)) *\
-                         np.exp(-0.5 * z**2) / (m.sqrt(2 * m.pi) * sd * n
-                         )   
+                         np.exp(-0.5 * z**2) / (m.sqrt(2 * m.pi) * sd * n)   
+
     #Only calculated unique abundances to save computational time.
     #Get full pmf again
-    if pmf_ret == False:
-        pmf_full = np.empty(len(abundances))
-        for i, n in enumerate(abundances):
-            index = np.where(n_array == n)[0][0]
-            pmf_full[i] = pmf[index]
-        pmf = pmf_full
-        
-    return pmf
+    pmf_full = np.empty(len(ab))
+    for i, n in enumerate(ab):
+        index = np.where(n_unq == n)[0][0]
+        pmf_full[i] = pmf[index]
+    pmf = pmf_full
+     
+    if testing == True:
+        return pmf, mean, var
+    else:
+        return pmf
 
 
-def trun_plognorm_pmf(mean, var, abundances, pmf_ret=False):
+def trun_plognorm_pmf(ab, mean, var, testing=False):
     '''
     Truncated Poisson log-normal (Bulmer 1974)
 
     Parameters
     ----------
+    ab : int, float or array-like object
+        Abundances at which to calculate the pmf
     mean : float
         the logmean of the poisson log normal
     var : float
@@ -312,28 +297,34 @@ def trun_plognorm_pmf(mean, var, abundances, pmf_ret=False):
 
     Returns
     -------
-     : ndarray (1D)
-        Returns array with pmf for values [1, N] if pmf_ret=True. If pmf_ret=False
-        and len(abundances) > 1, returns ndarray with likelihoods for each
-        abundance. 
+      : ndarray (1D)
+        Returns array with pmf for values for the given values n. If 
+        testing = True, returns the array as well as the parameter estimates.
+
 
 
     Notes:  This function was adopted from both Bulmer (1974) and Ethan White's code
     from weecology.  Truncating the plognormal changes the mean of the distribution'''
+    
+    if testing == True:
+        untr_pmf, mn, vr = plognorm_pmf(ab, mean, var, testing=testing)
+        pmf0 = plognorm_pmf(0, mean, var)
+        tr_pmf = (untr_pmf / (1 - pmf0)) #Truncating based on Bulmer 1974 equation A1
+        return tr_pmf, mn, vr
+    else:
+        untr_pmf = plognorm_pmf(ab, mean, var)
+        pmf0 = plognorm_pmf(0, mean, var)
+        tr_pmf = (untr_pmf / (1 - pmf0))
+        return tr_pmf
 
-    untr_pmf = plognorm_pmf(mean, var, abundances, pmf_ret=pmf_ret)
-    pmf0 = plognorm_pmf(mean, var, [0], pmf_ret=False)
-    tr_pmf = (untr_pmf / (1 - pmf0)) #Truncating based on Bulmer 1974 equation A1
 
-    return tr_pmf
-
-def plognorm_MLE(abundances, trun=True):
+def plognorm_MLE(ab, trun=True):
     '''
     Maximum likelihood Estimates for Poisson log normal
 
     Parameter
     ---------
-    abundances : A list, np.array, or tuple of the abundance of each
+    ab : A list, np.array, or tuple of the abundance of each
                  species in the plot.  len(abundance) should equal 
                  the total number of species in the plot and sum(abundances)
                  should equal the total number of individuals in the plot
@@ -351,18 +342,18 @@ def plognorm_MLE(abundances, trun=True):
     This function was adapted from Ethan White's pln_solver function in weecology. 
 
     '''
-    assert type(abundances) == list or type(abundances) == tuple \
-           or type(abundances) == np.ndarray, "Invalid parameter type"
+    assert type(ab) == list or type(ab) == tuple \
+           or type(ab) == np.ndarray, "Invalid parameter type"
 
-    assert len(abundances) >= 1, "len(abundances) must be greater than or equal to 1"
-    abundances = np.array(abundances)
-    mu0 = np.mean(np.log(abundances))
-    var0 = np.var(np.log(abundances), ddof=1)
+    assert len(ab) >= 1, "len(ab) must be greater than or equal to 1"
+    ab = np.array(ab)
+    mu0 = np.mean(np.log(ab))
+    var0 = np.var(np.log(ab), ddof=1)
     def pln_func(x):
         if trun == True:
-            return -sum(np.log(trun_plognorm_pmf(x[0], x[1], abundances)))
+            return -sum(np.log(trun_plognorm_pmf(ab, x[0], x[1])))
         else:
-            return -sum(np.log(plognorm_pmf(x[0], x[1], abundances)))
+            return -sum(np.log(plognorm_pmf(ab, x[0], x[1])))
     mu, var = optimize.fmin(pln_func, x0 = [mu0, var0], disp=0)
     return mu, var
 
