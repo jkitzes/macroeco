@@ -29,8 +29,6 @@ class DataTable():
     ----------
     datapath : str
         Path to data. Location of metadata determined from this path.
-    params : dict
-        Params dictionary.
 
     Attributes
     ----------
@@ -40,11 +38,11 @@ class DataTable():
         Dictionary of metadata associated with table.
     '''
 
-    def __init__(self, datapath, params):
+    def __init__(self, datapath):
         '''Initialize XYTable object. See class docstring.'''
-        self.table, self.meta = self.dataload(datapath, params)
+        self.table, self.meta = self.dataload(datapath)
 
-    def dataload(self, datapath, params):
+    def dataload(self, datapath):
         '''
         Load table and metadata from files.
         
@@ -52,8 +50,6 @@ class DataTable():
         ----------
         datapath : str
             Path to data table file.
-        params : dict
-            Params dictionary.
             
         Returns
         -------
