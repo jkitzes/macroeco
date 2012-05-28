@@ -190,12 +190,22 @@ class Parameters:
 
         self.read_from_xml(asklist)
         self.logger.debug('read parameters: %s'%str(self.params))
+
+        #Make dict values into appropriate types
+        #NOTE: Possilbe Cryptic error if there is a typo in your parameter file
+        #If the eval() cannot eval the parameter it will retain its string form
+        for rn in self.params.iterkeys():
+            for key in self.params[rn].iterkeys():
+                try:
+                    value = eval(self.params[rn][key])
+                    self.params[rn][key] = value
+                    self.logger.debug('evaluated param %s' % key)
+                except:
+                    self.params[rn][key] = self.params[rn][key]
+
         if not self.is_asklist_fulfilled:
             self.logger.critical('Parameters missing from %s'%paramfile)
         return
-        
-        
-
         later='''        self.get_from_dialog(asklist)
         if self.is_asklist_fulfilled:
             self.write_to_xml()
