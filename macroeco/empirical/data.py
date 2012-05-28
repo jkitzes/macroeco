@@ -114,7 +114,7 @@ class DataTable():
             else:
                 new_value = float(value)
 
-            meta_dict[key[0:3]] = new_value
+            meta_dict[key] = new_value
 
         return meta_dict
 
