@@ -112,7 +112,7 @@ class DataTable():
             if value is None:
                 new_value = value
             else:
-                value = float(value)
+                new_value = float(value)
 
             meta_dict[key[0:3]] = new_value
 

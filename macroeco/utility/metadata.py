@@ -80,7 +80,7 @@ class Metadata:
         for a in attributes:
             if a.find('.//attributeName').text == attribName:
                 return a
-            print 'No match found for ', attribName 
+            #print 'No match found for ', attribName 
 
     def get_subattribute_value(self, att, subatt):
         '''
