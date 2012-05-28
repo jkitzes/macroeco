@@ -80,8 +80,9 @@ class Patch:
 
         self.S = self.n0_array.shape[0]
         self.N = sum(self.n0_array['abund'])
-        self.spp_list = str(np.unique(self.table[params['spp_col']]))
-        self.sad = self.get_sad(self.datatable.table, params)
+        self.spp_list = (np.unique(self.table[params['spp_col']])).astype(str)
+        self.sad = self.sum_by_group(self.spp_list, 
+                                     self.datatable.table[params['spp_col']])
 
     def sad_grid(self, div_list, summary = ''):
         '''
@@ -336,7 +337,7 @@ class Patch:
         sar_array[:,1] = np.array([x[0] * x[1] for x in wh_list])
         return sar_array
 
-    def sum_by_group(self, groups, group_col, sum_col):
+    def sum_by_group(self, groups, group_col, sum_col=None):
         '''
         Returns a 1D ndarray of length groups counting the number of instances 
         of each group in group_col or summing values for each group in sum_col 
