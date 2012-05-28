@@ -1,15 +1,17 @@
 #!/usr/bin/python
 
 '''
-Routines for loading and converting data.
+Routines for loading census data and metadata.
 
-This module provides functions that load raw macroecological data and convert 
-it between forms. Currently, the only data option is class xytable.
+Classes
+-------
+- `DataTable` -- data and metadata for a single censused area
 
-Functions
----------
-- `xytable_load` -- load xytable data and metadata from file
-- `xytable_add_count` -- add count column to xytable if not already present
+DataTable Methods
+-------------
+- `dataload` -- loads census data from csv and metadata from EML xml file
+- `get_metadata` -- load metadata
+- `get_sub_table` -- return subset of census table
 '''
 
 from __future__ import division
@@ -34,15 +36,13 @@ class DataTable():
     ----------
     table : recarray
         Census data loaded from csv
-    meta : dict
+    meta_dict : dict
         Dictionary of metadata associated with table.
     '''
 
     def __init__(self, datapath, params):
         '''Initialize XYTable object. See class docstring.'''
-
         self.table, self.meta = self.dataload(datapath, params)
-        self.spp_list = np.unique(self.table[params['spp_col_name']])
 
     def dataload(self, datapath, params):
         '''
@@ -109,7 +109,12 @@ class DataTable():
 
         meta_dict = {}
         for key, value in meta_raw_dict.iteritems():
-            meta_dict[key] = float(value)
+            if value is None:
+                new_value = value
+            else:
+                value = float(value)
+
+            meta_dict[key[0:3]] = new_value
 
         return meta_dict
 

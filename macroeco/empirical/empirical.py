@@ -1,16 +1,15 @@
 #!/usr/bin/python
 
 '''
-Routines for calculating empirical macroecological metrics.
+Calculating empirical macroecological metrics on censused patch.
 
-This module primarily declares a class Patch that represents a single, 
-spatially and temporally discrete ecological census (such as the STRI BCI 
-forest plot 2005, serpentine grassland plot 1998, etc). Patch has many methods 
-that are used to calculate empirical macroecological metrics.
+Declares a class Patch that represents a spatially and temporally discrete 
+ecological census (such as the STRI BCI forest plot 2005, serpentine grassland 
+plot 1998, etc).
 
 Classes
 -------
-- `Patch` -- a single censused area
+- `Patch` -- a censused area
 
 Patch Methods
 -------------
@@ -30,7 +29,7 @@ Misc functions
 from __future__ import division
 import numpy as np
 from random import choice
-from data import XYTable
+from macroeco.data import DataTable
 
 __author__ = "Justin Kitzes"
 __copyright__ = "Copyright 2012, Regents of the University of California"
@@ -47,61 +46,42 @@ __status__ = "Development"
 class Patch:
     '''
     A Patch object represents a single spatially and temporally discrete 
-    ecological dataset containing information on species abundances.
-
-    Multiple non-contiguous patches or temporal series of data from a single 
-    patch should be declared as an object of class Network.
+    ecological dataset.
 
     Parameters
     ----------
-    filepath : str
-        Path to xytable data file. File must have header row and include cols, 
-        at a minimum, named int_code, x, and y.
+    datapath : str
+        Path to csv file containing census data.
+    params : dict
+        Dictionary of parameters.
 
     Attributes
     ----------
-    xy : object of class XYTable
+    datatable : object of class DataTable
         Object containing patch data and metadata.
+    meta_dict : dict
+        Dictionary of metadata, containing minimum, maximum, and precision for 
+        each column of datatable.
     S : int
         Number of species in patch.
     N : int
         Number of total individuals in patch.
-    n0_vect : ndarray
-        1D array of abundance for each species code.
-    x_min, x_max, y_min, y_max : float
-        Minimum and maximum values of x and y for patch.
+    n0_array : recarray
+        Recarray of spp name and abundance.
     width, height : float
         Inclusive width and height of patch, in precisions.
     '''
 
-    def __init__(self, datapath):
-        ''' Initialize object of class Patch. See class documentation. '''
-        self.xy = XYTable(datapath)
-        self.set_attributes()
+    def __init__(self, datapath, params):
+        '''Initialize object of class Patch. See class documentation.'''
 
+        self.datatable = DataTable(datapath, params)
+        self.params = params
 
-    def set_attributes(self):
-        ''' Set attributes other than xy. See class documentation. '''
-        xr = self.xy.meta['xrange']
-        yr = self.xy.meta['yrange']
-        pr = self.xy.meta['precision']
-
-        self.x_min = xr[0]
-        self.x_max = rnd(xr[1] + pr)
-        self.y_min = yr[0]
-        self.y_max = rnd(yr[1] + pr)
-        self.precision = pr
-
-        self.width = rnd(xr[1] - xr[0] + pr)
-        self.height = rnd(yr[1] - yr[0] + pr)
-        
-        # S and N are actual num of spp and individs present. n0_vect sums to
-        # N  but has max_spp_code + 1 elements, not S elements.
-        self.n0_vect = self.get_sub_sad(xr[0], rnd(xr[1] + pr), yr[0], 
-                                        rnd(yr[1] + pr), summary = '')
-        self.S = sum(self.n0_vect > 0)
-        self.N = sum(self.n0_vect)
-
+        self.S = self.n0_array.shape[0]
+        self.N = sum(self.n0_array['abund'])
+        self.spp_list = str(np.unique(self.table[params['spp_col']]))
+        self.sad = self.get_sad(self.datatable.table, params)
 
     def sad_grid(self, div_list, summary = ''):
         '''
@@ -204,8 +184,8 @@ class Patch:
 
         for wh in wh_list:  # Loop each width-height tuple
             if wh[0] > self.width or wh[1] > self.height:
-                raise ValueError("Width and height of sample patch must be less\
-                                than width and height of full patch") 
+                raise ValueError('Width and height of sample patch must be ' +
+                                 'less than width and height of full patch') 
             
             # Calculate result for this width height
             pr = self.xy.meta['precision']
@@ -300,7 +280,8 @@ class Patch:
         return result
 
     def sar_grid(self, div_list):
-        '''Calulates the average SAR for the given div_list
+        '''
+        Calulates the average SAR for the given div_list
 
         Parameters
         ----------
@@ -311,10 +292,9 @@ class Patch:
         Returns
         -------
         : 2D ndarray
-            Column one contains the average number of species in a cell of an area
-            given in column 2.  Units of column 2 depend on units in metadata.
-
-
+            Column one contains the average number of species in a cell of an
+            area given in column 2.  Units of column 2 depend on units in 
+            metadata.
         '''
 
         sar_list = self.sad_grid(div_list, summary='SAR')
@@ -325,7 +305,6 @@ class Patch:
         sar_array[:,0] = np.array(sar_means)
         sar_array[:,1] = np.array(self.get_div_areas(div_list))
         return sar_array
-        
 
     def sar_sample(self, wh_list, samples):
         '''Calculates the average SAR for the given number of samples
@@ -343,10 +322,9 @@ class Patch:
         Returns
         -------
         : 2D ndarray
-            Column one contains the average number of species in a cell of an area
-            given in column 2.  Units of column 2 depend on units in metadata.
-
-
+            Column one contains the average number of species in a cell of an 
+            area given in column 2.  Units of column 2 depend on units in 
+            metadata.
         '''
 
         sar_samples = self.sad_sample(wh_list, samples, summary='SAR')
@@ -358,53 +336,24 @@ class Patch:
         sar_array[:,1] = np.array([x[0] * x[1] for x in wh_list])
         return sar_array
 
-        
-
-
-    def get_sub_sad(self, x_st, x_en, y_st, y_en, summary):
+    def sum_by_group(self, groups, group_col, sum_col):
         '''
-        Calculates a SAD, SAR, or EAR (according to summary, see class 
-        docstring) for a subpatch of known starting and ending coordinates.
+        Returns a 1D ndarray of length groups counting the number of instances 
+        of each group in group_col or summing values for each group in sum_col 
+        (if sum_cols is not None).
         '''
-        
-        sub_table = self.xy.get_sub_table(x_st, x_en, y_st, y_en)
-        sub_abund = self.get_sub_abund(sub_table)
 
-        if summary is 'biomass':
-            sub_table = self.xy.get_sub_table(x_st, x_en, y_st, y_en)
-            sub_biomass = self.get_sub_biomass(sub_table)
-            return sub_biomass
-        if summary is 'SAR': 
-            return sum(sub_abund > 0)
-        elif summary is 'EAR':  # Don't count if self.total_abund = 0
-            return sum((sub_abund == self.n0_vect) * \
-                       (self.n0_vect != 0))
+        n_groups = len(groups)
+        result = np.zeros(n_groups)
+
+        if sum_col == None:
+            for n in xrange(0, n_groups):
+                result = np.sum(group_col == groups[n])
         else:
-            return sub_abund
+            for n in xrange(0, n_groups):
+                result = np.sum(sum_col[group_col == groups[n]])
 
-
-    def get_sub_abund(self, table):
-        '''
-        Calculate abundance of each species in a xytable.
-        
-        If the maximum spp code is much higher than S - 1, this will be
-        inefficient.
-        '''
-        abund = np.zeros(self.xy.max_spp_code + 1)
-        for row in table:
-            abund[row[self.xy.col_spp_code]] += row[self.xy.col_count]
-        return abund
-
-    def get_sub_biomass(self, table):
-        '''
-        Calculate total biomass of each species in xytable.
-        '''
-        biomass = np.zeros(self.xy.max_spp_code + 1)
-        self.xy.get_col_biomass()
-        for row in table:
-            biomass[row[self.xy.col_spp_code]] += row[self.xy.col_biomass]
-        return biomass
-
+        return result
 
     def get_sp_centers(self, div_list):
         '''
@@ -449,13 +398,6 @@ class Patch:
             else:
                 raise IndexError('Patch not evenly divisible by div.')
         return area_list
-
-
-
-
-
-
-
 
 
 #
