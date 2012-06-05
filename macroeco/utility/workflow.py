@@ -68,7 +68,6 @@ class Workflow:
         self.data = {}
         for dfile in sys.argv[1:]:
             dname, dext = os.path.splitext(os.path.split(dfile)[-1])
-            self.data[dname] = csv2rec(dfile)
 
         # Log everything to console; log dated INFO+ to file.
         logging.basicConfig(level=logging.DEBUG,
