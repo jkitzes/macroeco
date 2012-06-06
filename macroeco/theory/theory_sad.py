@@ -187,9 +187,6 @@ def geo_pmf(n, S, N, testing=False):
     else:
         return neg_binom_pmf(n, S, N, 1, testing=testing)
 
-
-
-
 def fit_neg_binom_pmf(sad, guess_for_k=1):
     '''
     Function fits a negative binomial to the sad and returns the MLE for k 
@@ -212,10 +209,10 @@ def fit_neg_binom_pmf(sad, guess_for_k=1):
     #NOTE: Need to check for convergence
     def nll_nb(k, sad):
         return -sum(np.log(neg_binom_pmf(sad, len(sad), np.sum(sad), k)))
-    mlek = scipy.optimize.fmin(nll_nb, np.array([guess_for_k]), args=(sad,), disp=0)[0]
+    mlek = scipy.optimize.fmin(nll_nb, np.array([guess_for_k]), args=(sad,),\
+                                                                    disp=0)[0]
     return mlek
         
-
 def plognorm_pmf(ab, mean, var, testing=False):
     '''
     Poisson log-normal pmf (Bulmer 1974)
@@ -247,7 +244,7 @@ def plognorm_pmf(ab, mean, var, testing=False):
         ab = np.array(ab)
     n_unq = np.unique(ab)
     
-    if var <= 0 or mean <= 0: #Parameters can be negative when optimizer is running
+    if var <= 0 or mean <= 0: #Parameters could be negative
         pmf = np.repeat(1e-120, len(n_unq))
     else:
         sd = var**0.5
@@ -260,8 +257,8 @@ def plognorm_pmf(ab, mean, var, testing=False):
                 pmf[i] = norm * integral
             else:
                 z = (m.log(n) - mean) / sd
-                pmf[i] = (1 + (z**2 + m.log(n) - mean - 1) / (2 * n * sd**2)) *\
-                         np.exp(-0.5 * z**2) / (m.sqrt(2 * m.pi) * sd * n)   
+                pmf[i] = (1 + (z**2 + m.log(n) - mean - 1) / (2 * n * sd**2))\
+                         * np.exp(-0.5 * z**2) / (m.sqrt(2 * m.pi) * sd * n)   
 
     #Only calculated unique abundances to save computational time.
     #Get full pmf again
@@ -275,7 +272,6 @@ def plognorm_pmf(ab, mean, var, testing=False):
         return pmf, mean, var
     else:
         return pmf
-
 
 def trun_plognorm_pmf(ab, mean, var, testing=False):
     '''
@@ -303,20 +299,20 @@ def trun_plognorm_pmf(ab, mean, var, testing=False):
 
 
 
-    Notes:  This function was adopted from both Bulmer (1974) and Ethan White's code
-    from weecology.  Truncating the plognormal changes the mean of the distribution'''
+    Notes:  This function was adopted from both Bulmer (1974) and Ethan White's
+    code from weecology.  Truncating the plognormal changes the mean of the 
+    distribution'''
     
     if testing == True:
         untr_pmf, mn, vr = plognorm_pmf(ab, mean, var, testing=testing)
         pmf0 = plognorm_pmf(0, mean, var)
-        tr_pmf = (untr_pmf / (1 - pmf0)) #Truncating based on Bulmer 1974 equation A1
+        tr_pmf = (untr_pmf / (1 - pmf0))#Truncating based on Bulmer equation A1
         return tr_pmf, mn, vr
     else:
         untr_pmf = plognorm_pmf(ab, mean, var)
         pmf0 = plognorm_pmf(0, mean, var)
         tr_pmf = (untr_pmf / (1 - pmf0))
         return tr_pmf
-
 
 def plognorm_MLE(ab, trun=True):
     '''
@@ -339,7 +335,8 @@ def plognorm_MLE(ab, trun=True):
 
     Notes
     -----
-    This function was adapted from Ethan White's pln_solver function in weecology. 
+    This function was adapted from Ethan White's pln_solver function in 
+    weecology. 
 
     '''
     assert type(ab) == list or type(ab) == tuple \
@@ -358,8 +355,172 @@ def plognorm_MLE(ab, trun=True):
     return mu, var
 
 
+def mete_lgsr_pmf(n, S, N, testing=False):
+    '''
+    mete_logsr_pmf(n, S, N, testing=False)
 
+    Truncated log series pmf (Harte 2011)
 
+    Parameters:
+    -----------
+    n : int, float or array-like object
+        Abundances at which to calculate the pmf
+    S : int
+        Total number of species in landscape
+    N : int
+        Total number of individuals in landscape
+        
+    Returns
+    -------
+     : ndarray (1D)
+        Returns array with pmf for values for the given values n. If 
+        testing = True, returns the array as well as the parameter estimates.
+
+    Notes
+    -----
+    This function uses the truncated log series as described in Harte 2011
+    eq (7.32).  The equation used in this function to solve for the Lagrange 
+    multiplier is equation (7.27) as described in Harte 2011. 
+    
+    Also note that realistic values of x where x = e**-(beta) (see Harte 2011) 
+    arein the range (1/e, 1) (exclusive). Therefore, the start and stop 
+    parameters for the brentq procedure are close to these values. However, x 
+    can occasionally be greater than one so the maximum stop value of the 
+    brentq optimizer is 2.
+    '''
+    assert S < N, "S must be less than N"
+    assert S > 1, "S must be greater than 1"
+    assert N > 0, "N must be greater than 0"
+    if type(n) is int or type(n) is float:
+        n = np.array([n])
+    else:
+        n = np.array(n)
+    start = 0.3
+    stop = 2
+    
+       
+    k = np.linspace(1, N, num=N)
+    eq = lambda x: sum(x ** k / float(N) * S) -  sum((x ** k) / k)
+    x = scipy.optimize.brentq(eq, start, min((sys.float_info[0] / S)**\
+                              (1/float(N)), stop), disp=True)
+    #Taken from Ethan White's trun_logser_pmf
+    norm = sum(x ** k / k)        
+    pmf = (x ** n / n) / norm
+    
+    if testing == True:
+        return pmf, x
+    else:
+        return pmf
+
+def mete_lgsr_approx_pmf(n, S, N, testing=False, root=2):
+    '''
+    mete_lgsr_approx_pmf(n, S, N, testing=False, root=2)
+
+    Truncated log series using approximation (7.30) and (7.32) in Harte 2011
+
+    Parameters
+    ----------
+    n : int, float or array-like object
+        Abundances at which to calculate the pmf
+    S : int
+        Total number of species in landscape
+    N : int
+        Total number of individuals in landscape
+    root: int (optional)
+        1 or 2.  Specifies which root to use for pmf calculations        
+    Returns
+    -------
+     : ndarray (1D)
+        Returns array with pmf for values for the given values n. If 
+        testing = True, returns the array as well as the parameter estimates.
+        
+     Notes:
+    ------
+    This function uses the truncated log series as described in Harte 2011
+    eq (7.32).  The equation used in this function to solve for the Lagrange 
+    multiplier is equation (7.30) as described in Harte 2011.     
+       
+    Also note that realistic values of x where x = e^-(beta) (see Harte 2011) 
+    are in the range (1/e, 1) (exclusive). Therefore, the start and stop 
+    parameters for the brentq optimizer have been chosen near these values.
+    '''
+
+    assert S < N, "S must be less than N"
+    assert S > 1, "S must be greater than 1"
+    assert N > 0, "N must be greater than 0"
+    if type(n) is int or type(n) is float:
+        n = np.array([n])
+    else:
+        n = np.array(n)
+    start = 0.3
+    stop = 1 - 1e-10
+    
+    eq = lambda x: ((-m.log(x))*(m.log(-1/(m.log(x))))) - (float(S)/N)
+    try:
+        x = scipy.optimize.brentq(eq, start, stop, disp=True)
+    except ValueError:
+        values = np.linspace(start, stop, num=1000)
+        solns = []
+        for i in values:
+            solns.append(eq(i))#Find maximum
+        ymax = np.max(np.array(solns))
+        xmax = values[solns.index(ymax)]
+        if ymax > 0:
+            print "Warning: More than one solution."
+            if root == 1:
+                x = scipy.optimize.brentq(eq, start, xmax, disp=True)
+            if root == 2:
+                x = scipy.optimize.brentq(eq, xmax, stop, disp=True)
+                       
+        if ymax < 0:
+            raise RootError('No solution to constraint equation with given '\
+                            + 'values of S and N') 
+    g = -1/m.log(x)
+    pmf = (1/m.log(g)) * ((x**n)/n) 
+    
+    if testing == True:
+        return pmf, x
+    else:
+        return pmf
+
+def make_rank_abund(sad_pmf, S):
+    '''
+    Convert any SAD pmf into a rank abundance curve for S species using 
+    cumulative distribution function.
+ 
+    Parameters
+    ----------
+    sad_pmf : ndarray
+        Probability of observing a species from 1 to length sad_pmf individs
+    S : int
+        Total number of species in landscape
+
+    Returns
+    -------
+    : ndarray (1D)
+        If summary is False, returns array with pmf. If summary is True,
+        returns the summed log likelihood of all values in n.
+
+    Notes
+    -----
+    Function actually implements (philosophically) a step quantile function. 
+    Species indexes currently run from 0 to 1 - 1/S - this might be better 
+    running from 1/2S to 1 - 1/2S.
+    '''
+
+    S_points = np.arange(1/(2*S), 1 + 1/(2*S), 1/S)
+    S_abunds = np.zeros(S_points.shape[0])
+    sad_pmf_w_zero = np.array([0] + list(sad_pmf)) # Add 0 to start of pmf
+    cum_sad_pmf_w_zero = np.cumsum(sad_pmf_w_zero)
+    
+    for cutoff in cum_sad_pmf_w_zero:
+        greater_thans = (S_points >= cutoff)
+        S_abunds[greater_thans] += 1
+
+        if not greater_thans.any():  # If no greater thans, ie done with all S
+            break
+    
+    return S_abunds
 
 ###Functions from Ethan White's weecology###
 
@@ -489,149 +650,6 @@ def pln_solver(ab):
 
 ###End functions from Ethan White's weecology###
 
-def mete_lgsr_pmf(S, N, abundances=[], pmf_ret=False, testing=False):
-    '''
-    mete_logsr_pmf(S, N, summary=False)
-
-    Truncated log series pmf (Harte 2011)
-
-    Parameters:
-    -----------
-    S : int
-        Total number of species in landscape
-    N : int
-        Total number of individuals in landscape
-    abundances : array-like object
-        Array-like object containing sad
-        
-    Returns
-    -------
-     : ndarray (1D)
-        Returns array with pmf for values [1, N] if pmf_ret=True. If pmf_ret=False
-        and len(abundances) > 1, returns ndarray with likelihoods for each
-        abundance. If testing = True, returns both the pmf (depending on pmf_ret) and 
-        the extimate for e ** -(beta)
-
-    Notes
-    -----
-    This function uses the truncated log series as described in Harte 2011
-    eq (7.32).  The equation used in this function to solve for the Lagrange 
-    multiplier is equation (7.27) as described in Harte 2011. 
-    
-    Also note that realistic values of x where x = e**-(beta) (see Harte 2011) are
-    in the range (1/e, 1) (exclusive). Therefore, the start and stop parameters 
-    for the brentq procedure are close to these values. However, x can
-    occasionally be greater than one so the maximum stop value of the brentq optimizer
-    is 2.
-    '''
-    assert S < N, "S must be less than N"
-    assert S > 1, "S must be greater than 1"
-    assert N > 0, "N must be greater than 0"
-    if pmf_ret == False:
-        abundances = np.array(abundances)
-        assert len(abundances) == S, "If pmf_ret = False, length of abundances must equal S"
-        assert np.sum(abundances) == N, "If pmf_ret = False, sum of abundances must equal N"
-    start = 0.3
-    stop = 2
-    
-       
-    n = np.linspace(1, N, num=N)
-    eq = lambda x: sum(x ** n / float(N) * S) -  sum((x ** n) / n)
-    x = scipy.optimize.brentq(eq, start, min((sys.float_info[0] / S)**(1/float(N)),\
-                              stop), disp=True)
-    #Taken from Ethan White's trun_logser_pmf
-    if pmf_ret == True:
-        nvals = np.linspace(1, N, num=N)
-    elif pmf_ret == False:
-        nvals = abundances
-    norm = sum(x ** n / n)        
-    pmf = (x ** nvals / nvals) / norm
-    
-    if testing == True:
-        return pmf, x
-    else:
-        return pmf
-
-
-def mete_lgsr_approx_pmf(S, N, abundances=[], pmf_ret=False, root=2, testing=False):
-    '''
-    mete_lgsr_approx_pmf(S, N, summary=False, root=2)
-
-    Truncated log series using approximation (7.30) and (7.32) in Harte 2011
-
-    Parameters
-    ----------
-    S : int
-        Total number of species in landscape
-    N : int
-        Total number of individuals in landscape
-    abundances : array-like object
-        Array-like object containing sad
-    root: int (optional)
-        1 or 2.  Specifies which root to use for pmf calculations        
-    Returns
-    -------
-     : ndarray (1D)
-        Returns array with pmf for values [1, N] if pmf_ret=True. If pmf_ret=False
-        and len(abundances) > 1, returns ndarray with likelihoods for each
-        abundance. If testing = True, returns both the pmf (depending on pmf_ret) and 
-        the extimate for e ** -(beta).
-
-
-    
-    Notes:
-    ------
-    This function uses the truncated log series as described in Harte 2011
-    eq (7.32).  The equation used in this function to solve for the Lagrange 
-    multiplier is equation (7.30) as described in Harte 2011.     
-       
-    Also note that realistic values of x where x = e^-(beta) (see Harte 2011) are
-    in the range (1/e, 1) (exclusive). Therefore, the start and stop parameters
-    for the brentq optimizer have been chosen near these values.
-    '''
-
-    assert S < N, "S must be less than N"
-    assert S > 1, "S must be greater than 1"
-    assert N > 0, "N must be greater than 0"
-    if pmf_ret == False:
-        abundances = np.array(abundances)
-        assert len(abundances) == S, "If pmf_ret = False, length of abundances must equal S"
-        assert np.sum(abundances) == N, "If pmf_ret = False, sum of abundances must equal N"
-    start = 0.3
-    stop = 1 - 1e-10
-    
-    eq = lambda x: ((-m.log(x))*(m.log(-1/(m.log(x))))) - (float(S)/N)
-    try:
-        x = scipy.optimize.brentq(eq, start, stop, disp=True)
-    except ValueError:
-        values = np.linspace(start, stop, num=1000)
-        solns = []
-        for i in values:
-            solns.append(eq(i))#Find maximum
-        ymax = np.max(np.array(solns))
-        xmax = values[solns.index(ymax)]
-        if ymax > 0:
-            print "Warning: More than one solution."
-            if root == 1:
-                x = scipy.optimize.brentq(eq, start, xmax, disp=True)
-            if root == 2:
-                x = scipy.optimize.brentq(eq, xmax, stop, disp=True)
-                       
-        if ymax < 0:
-            raise RootError('No solution to constraint equation with given ' + \
-                            'values of S and N') 
-    if pmf_ret == True:
-        k = np.linspace(1, N, num = N)
-    if pmf_ret == False:
-        k = abundances
-    g = -1/m.log(x)
-    pmf = (1/m.log(g)) * ((x**k)/k) 
-    
-    if testing == True:
-        return pmf, x
-    else:
-        return pmf
-
 
 def get_sad_cdf(S, N, distribution, sad=[]):
     '''
@@ -708,45 +726,6 @@ def get_sad_cdf(S, N, distribution, sad=[]):
     return cdf_struct
 
 
-def make_rank_abund(sad_pmf, S):
-    '''
-    Convert any SAD pmf into a rank abundance curve for S species using 
-    cumulative distribution function.
- 
-    Parameters
-    ----------
-    sad_pmf : ndarray
-        Probability of observing a species from 1 to length sad_pmf individs
-    S : int
-        Total number of species in landscape
-
-    Returns
-    -------
-    : ndarray (1D)
-        If summary is False, returns array with pmf. If summary is True,
-        returns the summed log likelihood of all values in n.
-
-    Notes
-    -----
-    Function actually implements (philosophically) a step quantile function. 
-    Species indexes currently run from 0 to 1 - 1/S - this might be better 
-    running from 1/2S to 1 - 1/2S.
-    '''
-
-    S_points = np.arange(1/(2*S), 1 + 1/(2*S), 1/S)
-    S_abunds = np.zeros(S_points.shape[0])
-    sad_pmf_w_zero = np.array([0] + list(sad_pmf)) # Add 0 to start of pmf
-    cum_sad_pmf_w_zero = np.cumsum(sad_pmf_w_zero)
-    
-    for cutoff in cum_sad_pmf_w_zero:
-        greater_thans = (S_points >= cutoff)
-        S_abunds[greater_thans] += 1
-
-        if not greater_thans.any():  # If no greater thans, ie done with all S
-            break
-    
-    return S_abunds
-
 def nll(sad, distribution):
     '''
     Calculates the negative log-likelihood for different distributions
@@ -782,7 +761,7 @@ def nll(sad, distribution):
            distribution == 'plognorm', "Do not recognize %s distribution" % (distribution)
 
     if distribution == 'mete':
-        pmf = mete_lgsr_pmf(len(sad), sum(sad), abundances=sad)
+        pmf = mete_lgsr_pmf(sad, len(sad), sum(sad))
     if distribution == 'mete_approx':
         pmf = mete_lgsr_approx_pmf(len(sad), sum(sad), abundances=sad)
     if distribution == 'neg_binom':
