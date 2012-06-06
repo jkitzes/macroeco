@@ -504,12 +504,11 @@ def make_rank_abund(sad_pmf, S):
     Notes
     -----
     Function actually implements (philosophically) a step quantile function. 
-    Species indexes currently run from 0 to 1 - 1/S - this might be better 
-    running from 1/2S to 1 - 1/2S.
     '''
 
-    S_points = np.arange(1/(2*S), 1 + 1/(2*S), 1/S)
-    S_abunds = np.zeros(S_points.shape[0])
+    S_points = np.arange(1/(2*S), 1, 1/S)
+    S_abunds = np.zeros(S)
+
     sad_pmf_w_zero = np.array([0] + list(sad_pmf)) # Add 0 to start of pmf
     cum_sad_pmf_w_zero = np.cumsum(sad_pmf_w_zero)
     
@@ -517,7 +516,7 @@ def make_rank_abund(sad_pmf, S):
         greater_thans = (S_points >= cutoff)
         S_abunds[greater_thans] += 1
 
-        if not greater_thans.any():  # If no greater thans, ie done with all S
+        if not greater_thans.any():  # If no greater thans, done with all S
             break
     
     return S_abunds
