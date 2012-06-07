@@ -288,7 +288,8 @@ def format_dense(datayears, spp_col, column_names):
     data_formatted = []
     for data in datayears:
         ls = len(data.dtype.names[spp_col:])
-        dtype = data.dtype.descr[:spp_col] + [('spp', 'S22'), ('count', np.float)]
+        dtype = data.dtype.descr[:spp_col] + [('spp', 'S22'), ('count',\
+                                                                np.float)]
         data_out = np.empty(ls * len(data), dtype=dtype)
 
         for s, name in enumerate(data_out.dtype.names[:spp_col]):
@@ -298,7 +299,8 @@ def format_dense(datayears, spp_col, column_names):
                     data_out[name][cnt:(ls*(i+1))] = data[name][i]
                     data_out['spp'][cnt:(ls*(i+1))] = np.array\
                                                 (data.dtype.names[spp_col:])
-                    data_out['count'][cnt:(ls*(i+1))] = np.array(list(data[i]))[spp_col:]
+                    data_out['count'][cnt:(ls*(i+1))] =\
+                                    np.array(list(data[i]))[spp_col:]
                     cnt = cnt + ls
                 else:
                     data_out[name][cnt:(ls*(i+1))] = data[name][i]
