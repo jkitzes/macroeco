@@ -28,6 +28,7 @@ Misc functions
 
 from __future__ import division
 import numpy as np
+import itertools
 from random import choice
 from macroeco.data import DataTable
 
@@ -78,58 +79,130 @@ class Patch:
         self.datatable = DataTable(datapath, params)
         self.params = params
 
-        self.S = self.n0_array.shape[0]
-        self.N = sum(self.n0_array['abund'])
+        if self.params['count_col'] == None:
+            count_col = None
+        else:
+            count_col = self.datatable.table[params['count_col']]
+        self.sad = self.sum_by_spp(self.spp_list, 
+                                   self.datatable.table[params['spp_col']],
+                                   count_col)
+
         self.spp_list = (np.unique(self.table[params['spp_col']])).astype(str)
-        self.sad = self.sum_by_group(self.spp_list, 
-                                     self.datatable.table[params['spp_col']])
+        self.S = self.sad.shape[0]
+        self.N = sum(self.sad)
 
-    def sad_grid(self, div_list, summary = ''):
+    def grid(self):
         '''
-        Calculate gridded SAD, SAR, or EAR for patch.
-
-        Divides patch into evenly sized strips along vertical and horizontal 
-        dimensions, as specified in div_list, and calculates SAD, SAR, or EAR 
-        for all subpatches created by a particular division.
+        Divides div_cols into div_list divisions, and sum across sum_col. If no 
+        sum_col is given in params, counts individuals of each species.
         
         Parameters
         ----------
-        div_list : list of tuples
-            Number of divisions of patch along (x, y) axes to use for grid.
-            Tuple (2, 1), for example, splits the patch with a vertical cut.
-        summary : string equal to '', 'SAR', 'EAR', or 'biomass'
-            Chooses to summarize results as full SAD, SAR, or EAR. See Returns.
+        None (but see elements of self.params).
 
         Returns
         -------
-        result : list of ndarrays
-            List of same length as div_list, with each element corresponding to 
-            a division tuple from div_list. If summary = '', elements are a 2D 
-            ndarray with each subpatch in a row and each species in a col. If 
-            summary = 'SAR' or 'EAR', elements are a 1D ndarray giving the 
-            count of species or endemics in each subpatch.
+        grid_dict : dict of ndarrays
+            Dict with one key, value pair for each element of div_list, where 
+            key is the div_list tuple and value is a 2D ndarray with row for 
+            each subtable created by division and col for each spp.          
             
         Notes
         -----
-        The values of x and y in the tuples of div_list must be factors of 
-        p_width and p_height, respectively, so that every subpatch will have an 
-        identical number of survey points.
+        The values of in the tuples of div_list must be factors of the total 
+        range of the associated div_col (maximum - minimum + precision) so that 
+        every subpatch will have an identical number of survey points.
         '''
         
-        result = []
+        grid_dict = {}
 
-        for div in div_list:  # Loop each division tuple
+        # Get range and number of unique elements of all div_cols
+        div_col_ranges = []
+        div_col_mins = []
+        div_col_maxs = []
+        div_unique_vals = []
+        for div_col in self.params['div_cols']:
+            try:
+                div_col_mins.append(self.datatable.meta[(div_col, 'minimum')])
+                div_col_maxs.append(self.datatable.meta[(div_col, 'minimum')])
 
-            # Check that x and y divs are factors of width and height
-            x_d = divisible(self.width, self.xy.meta['precision'], div[0])
-            y_d = divisible(self.height, self.xy.meta['precision'], div[1])
-            if not (x_d and y_d):
-                raise IndexError('Patch not evenly divisible by div.')
+                div_col_ranges.append(\
+                    (self.datatable.meta[(div_col, 'maximum')] - 
+                     self.datatable.meta[(div_col, 'minimum')] + 
+                     self.datatable.meta[(div_col, 'precision')]))
+                div_unique_vals.append(None)
+            except:
+                div_col_ranges.append(None)
+                div_unique_vals.append(\
+                    len(np.unique(self.datatable.table[div_col])))
+
+        # Loop each division tuple
+        for div_tuple in self.params['div_list']:
+
+#            # Loop through each element of the division tuple. Get the
+#            # associated col and check whether it has a range. If it does not,
+#            # make sure that division is either 1 (or 'none') or
+#            # number of unique values (or 'all'). If div_col_ranges, make sure
+#            # range is divisible by division.
+#            for n, this_elem in enumerate(div_tuple):
+#                if not div_col_ranges[n]:  # If no range
+#                    if this_elem == 1:
+#                        pass
+#                    elif this_elem == div_unique_vals[n]:
+#                        pass
+#                    elif this_elem == 'none':
+#                        new_tuple = list(div_tuple)
+#                        new_tuple[n] = 1
+#                        div_tuple = tuple(new_tuple)
+#                    elif this_elem == 'all':
+#                        new_tuple = list(div_tuple)
+#                        new_tuple[n] = div_unique_vals[n]
+#                        div_tuple = tuple(new_tuple)
+#                    else:
+#                        raise ValueError('Field %s cannot be divided into\
+#                                         %s divisions.' % 
+#                                         (self.params['div_cols'][n],
+#                                          this_elem))
+#                else:
+#                    assert (divisible(div_col_ranges[n],
+#                        self.datatable.meta[(self.params['div_cols'][n], 
+#                                             'precision')], this_elem),
+#                            'Field %s cannot be divided into %s divisions.' % 
+#                            (self.params['div_cols'][n], this_elem))
             
-            # Calculate result for this div
-            div_result = []
-            sub_width = rnd(self.width / div[0])
-            sub_height = rnd(self.height / div[1])
+            # Declare array to hold results
+            result = np.empty((np.prod(div_tuple), self.S))
+            row_counter = 0
+
+            # Loop through each row  - FIX FOR UNIQUES
+            for row_tuple in itertools.product(*[range(0, x) for x in 
+                                                 div_tuple]):
+
+                # Get conditions for each col
+                cond_list = []
+                for n, elem in enumerate(row_tuple):
+                    this_col = self.params['div_cols'][n]
+                    if div_col_ranges[n]:  # If there is a range, do <, >
+                        width = rnd(div_col_ranges[n] / div_tuple[n])
+                        st = rnd(div_col_mins[n] + elem * width)
+                        en = rnd(st + width)
+                        cond_list.append((this_col, ">" + str(st)))
+                        cond_list.append((this_col, "<" + str(en)))
+                    else:  # If no range, do unique subset bool
+                        if elem == 'none':
+                            pass
+                        else:  # DON'T KNOW IF THIS IS A STRING OR NOT
+                            cond_list.append((this_col, "=='" + str(elem) + 
+                                              "'"))
+
+
+                # Get subtable
+
+                # Get sub spp count and place in results array
+
+                # Increment row_counter
+                row_counter += 1
+
 
             for grid_col in xrange(0, div[0]):  # Loop columns of grid
                 x_st = rnd(self.x_min + grid_col * sub_width)
@@ -142,12 +215,12 @@ class Patch:
                     div_result.append(self.get_sub_sad(x_st, x_en, y_st, y_en, 
                                                        summary))
 
-            result.append(np.array(div_result))
+            grid_dict[div_tuple] = result
 
-        return result
+        return grid_dict
 
 
-    def sad_sample(self, wh_list, samples, summary = ''):
+    def sample(self, wh_list, samples, summary = ''):
         '''
         Calculate sampled SAD, SAR, or EAR for patch.
 
@@ -337,22 +410,22 @@ class Patch:
         sar_array[:,1] = np.array([x[0] * x[1] for x in wh_list])
         return sar_array
 
-    def sum_by_group(self, groups, group_col, sum_col=None):
+    def sum_by_spp(self, spp_list, spp_col, sum_col=None):
         '''
-        Returns a 1D ndarray of length groups counting the number of instances 
-        of each group in group_col or summing values for each group in sum_col 
-        (if sum_cols is not None).
+        Returns a 1D ndarray of length spp counting the number of instances of 
+        each spp in spp_col or summing values for each spp in sum_col (if 
+        sum_cols is not None).
         '''
 
-        n_groups = len(groups)
-        result = np.zeros(n_groups)
+        n_spp = len(spp_list)
+        result = np.zeros(n_spp)
 
         if sum_col == None:
-            for n in xrange(0, n_groups):
-                result = np.sum(group_col == groups[n])
+            for n in xrange(0, n_spp):
+                result[n] = np.sum(spp_col == spp_list[n])
         else:
-            for n in xrange(0, n_groups):
-                result = np.sum(sum_col[group_col == groups[n]])
+            for n in xrange(0, n_spp):
+                result[n] = np.sum(sum_col[spp_col == spp_list[n]])
 
         return result
 
@@ -434,8 +507,5 @@ def rnd(num):
     Round num to number of decimal places in precision. Used to avoid issues 
     with floating points in the patch and subpatch width and height that make 
     subpatches not lie exactly on even divisions of patch.
-
-    WARNING: The current implementation requires that precision be no less than 
-    0.01! I don't know a good way to check for this.
     '''
-    return round(num, 2)
+    return round(num, 6)
