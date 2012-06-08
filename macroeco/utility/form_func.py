@@ -103,7 +103,7 @@ def make_spec_dict(spp_array):
     assert len(spp_array) > 0, "Species array cannot be empty"
     unq_specs = np.unique(spp_array)
     unq_ints = np.linspace(0, len(unq_specs) - 1, num=len(unq_specs)) 
-    spec_dict = np.empty(len(unq_ints), dtype=[('spp_code', np.int), \
+    spec_dict = np.empty(len(unq_ints), dtype=[('spp_code', np.int),\
                         ('spp', 'S40')])
     spec_dict['spp'] = unq_specs
     spec_dict['spp_code'] = unq_ints
@@ -159,7 +159,7 @@ def rm_trees_reduce(tot_int, data, year, col_name):
     alive = data[include]
     tot_int_alive = tot_int[include]
     sample = len(tot_int_alive)
-    data_out = np.empty(sample, dtype=[('spp_code', np.int), ('x', np.float), \
+    data_out = np.empty(sample, dtype=[('spp_code', np.int), ('x', np.float),\
                                        ('y', np.float)])
     data_out['spp_code'] = tot_int_alive
     data_out['x'] = alive['x']
@@ -310,7 +310,7 @@ def format_dense(datayears, spp_col, column_names):
         data_formatted.append(data_out)
     return data_formatted
 
-def open_nan_data(filenames, missing_value, site, delim, xy_labels=('gx', 'gy')):
+def open_nan_data(filenames, missing_value, site, delim, col_labels):
     '''This function takes in the filenames with nans data file, removes any
     NaN values for the x and y coordinates and returns a rec array.
     
@@ -322,8 +322,9 @@ def open_nan_data(filenames, missing_value, site, delim, xy_labels=('gx', 'gy'))
 
     delim -- delimiter for the files (string)
 
-    xylabels -- tuple with x and y column labels, i.e. ('gx', 'gy') or ('x', 'y')
-    
+    xylabels -- tuple with x and y column labels, i.e. ('gx', 'gy') or 
+                ('x', 'y')
+
     returns:
         a rec array
 
@@ -332,12 +333,12 @@ def open_nan_data(filenames, missing_value, site, delim, xy_labels=('gx', 'gy'))
     datadir = jp(pd(pd(gcwd())), 'archival', site)
     datayears = []
     for name in filenames:
-        data = plt.csv2rec(jp(datadir, name), delimiter=delim, missing=missing_value)
-        xnotNaN = (False == np.isnan(data[xy_labels[0]]))
-        data_out = data[xnotNaN]
-        ynotNaN = (False == np.isnan(data_out[xy_labels[1]]))
-        data_out = data_out[ynotNaN]
-        datayears.append(data_out)
+        data = plt.csv2rec(jp(datadir, name), delimiter=delim,\
+                                                    missing=missing_value)
+        for label in col_labels:
+            notNaN = (False == np.isnan(data[label]))
+            data = data[notNaN]
+        datayears.append(data)
 
     return datayears
 
@@ -366,7 +367,8 @@ def fractionate(datayears, wid_len, step, col_names):
     example, LBRI is a 16x16 grid and each cell is labeled with
     integers.  However, the length (and width) of a cell is 0.5m.
     This function converts each integer cell number to the appropriate
-    integer (i.e. for LBRI cell (2,2) (counting from 1) becomes cell (0.5, 0.5)). 
+    integer (i.e. for LBRI cell (2,2) (counting from 1) becomes cell
+    (0.5, 0.5)). 
     
     NOTE: This function should be used on formatted data.
 
@@ -439,9 +441,6 @@ def merge_formatted(data_form):
             merged = np.concatenate((merged, data_form[i]))
         return merged
 
-
-
-    
 def add_field(a, descr):
     '''Add field to structured array and
     return new array with empty field
