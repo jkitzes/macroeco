@@ -153,7 +153,7 @@ def neg_binom_pmf(n, S, N, k, testing=False):
         n = np.array(n)
 
     mu = float(N) / S
-    p = float(k) / (mu + k)
+    p = 1 / (mu / k + 1)  # See Bolker book Chapt 4
     pmf = stats.nbinom.pmf(n, k, p)
 
     if testing == True:

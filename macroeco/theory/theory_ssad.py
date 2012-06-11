@@ -302,7 +302,7 @@ def tgeo(n, N, a, summary = False):
     eq2 = lambda p,N,a: (1/(1-p**(N+1))) * ( (p/(1-p)) - p**(N+1) * \
             (N + (1/(1-p))) ) - N*a
 
-    if type(N) != int and N.shape[0] > 1:  # If N is array
+    if type(N) != int and np.array(N).shape != ():  # If N is array
 
         if type(n) == int or n.shape[0] == 1:  # If n is an int
             n_array = np.repeat(n, N.shape[0])
@@ -312,7 +312,7 @@ def tgeo(n, N, a, summary = False):
         pmf = np.zeros(N.shape[0])
         for i in xrange(0, N.shape[0]):#Stop value could be higher if needed...
             p_i = scipy.optimize.brentq(eq, tol, 1 - tol, args = (N[i], a[i]), 
-                                            disp = True)
+                                        disp = True)
             Z_i = (1 - p_i**(N[i]+1)) / (1 - p_i)
             pmf[i] = p_i**n_array[i] / Z_i
 

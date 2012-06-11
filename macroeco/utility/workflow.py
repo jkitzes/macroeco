@@ -81,11 +81,11 @@ class Workflow:
 
 
         if len(sys.argv) < 2:
-            self.logger.critical('Need a path to data.')
-            sys.exit()
-
-        # Map the sites.
-        make_map(sys.argv[1:])
+            self.logger.warn('No path to data')
+            # sys.exit()  # Comment out, as may want to proceed with no data
+        else:
+            # Map the sites.
+            make_map(sys.argv[1:])
         
         #may need parameters, which may be in multiple runs
         try:
