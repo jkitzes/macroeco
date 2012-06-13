@@ -406,7 +406,9 @@ def fractionate(datayears, wid_len, step, col_names):
 def add_data_fields(data_list, fields, values):
     '''Add fields to data based on given names and values
 
-    names -- list of strings
+    data_list -- list of data to which a field will be appended
+
+    fileds -- list of field names to be added
 
     values -- list of tuples corresponding to names
 
