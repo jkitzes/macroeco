@@ -1,12 +1,7 @@
 #!/usr/bin/python
 
 '''
-Calculate pmf and likelihood of spatial-abundance distributions.
-
-All distributions have an argument summary, which if False returns the entire 
-pmf for the inputted values of n, and if true returns the summed negative 
-log-likelihood of the inputted values (useful for likelihood ratio tests or 
-AIC).
+Calculate pmf and likelihood of species abundance distributions.
 
 Distributions
 -------------
@@ -27,9 +22,6 @@ Misc Functions
 - `nll`
 - `distr_parameters`
 - `fit_neg_binom`
-- `pln_lik`
-- `pln_ll`
-- `pln_solver`
 
 References
 ----------
@@ -55,12 +47,7 @@ import scipy.special
 import math as m
 import scipy.integrate as integrate
 import sys
-from math import factorial, floor
-from numpy import array, exp, histogram, log, matlib, sort, sqrt, pi, std, mean
-from scipy import integrate, stats, optimize, special
-
 #NOTE: Assertion statements needed!
-
 
 class RootError(Exception):
     '''Error if no root or multiple roots exist for the equation generated
@@ -72,7 +59,7 @@ class RootError(Exception):
     def __str__(self):
         return '%s' % self.value
 
-def lgsr_pmf(n, S, N, testing=False):
+def lgsr_pmf(n, S, N, param_out=False):
     '''
     Fisher's log series pmf (Fisher et al. 1943, Hubbel 2001)
 
@@ -91,7 +78,7 @@ def lgsr_pmf(n, S, N, testing=False):
     -------
     : ndarray (1D)
         Returns array with pmf for values for the given values n. If 
-        testing = True, returns the array as well as the parameter estimates.
+        param_out = True, returns the array as well as the parameter estimates.
 
 
     Notes
@@ -116,13 +103,12 @@ def lgsr_pmf(n, S, N, testing=False):
     pmf = stats.logser.pmf(n, x)
 
     
-    if testing == True:
-        return pmf, x
+    if param_out == True:
+        return (pmf, {'x' : x})
     else:
         return pmf
 
-
-def neg_binom_pmf(n, S, N, k, testing=False):
+def neg_binom_pmf(n, S, N, k, param_out=False):
     '''
     Negative binomial distribution 
     
@@ -141,7 +127,7 @@ def neg_binom_pmf(n, S, N, k, testing=False):
     -------
      : ndarray (1D)
         Returns array with pmf for values for the given values n. If 
-        testing = True, returns the array as well as the parameter estimates.
+        param_out = True, returns the array as well as the parameter estimates.
 
     '''
     assert S < N, "S must be less than N"
@@ -156,12 +142,12 @@ def neg_binom_pmf(n, S, N, k, testing=False):
     p = 1 / (mu / k + 1)  # See Bolker book Chapt 4
     pmf = stats.nbinom.pmf(n, k, p)
 
-    if testing == True:
-        return pmf, k, p
+    if param_out == True:
+        return (pmf, {'k' : k, 'p' : p})
     else:
         return pmf
 
-def geo_pmf(n, S, N, testing=False):
+def geo_pmf(n, S, N, param_out=False):
     '''
     Geometric distribution. Using neg_binom_pmf with k=1 as a wrapper
     
@@ -178,14 +164,15 @@ def geo_pmf(n, S, N, testing=False):
     -------
      : ndarray (1D)
         Returns array with pmf for values for the given values n. If 
-        testing = True, returns the array as well as the parameter estimates.
+        param_out = True, returns the array as well as the parameter estimates.
 
     '''
-    if testing == True:
-        pmf, k, p =  neg_binom_pmf(n, S, N, 1, testing=testing)
-        return pmf, p
+    if param_out == True:
+        pmf, params =  neg_binom_pmf(n, S, N, 1, param_out=param_out)
+        p = params['p']
+        return (pmf, {'p' : p})
     else:
-        return neg_binom_pmf(n, S, N, 1, testing=testing)
+        return neg_binom_pmf(n, S, N, 1, param_out=param_out)
 
 def fit_neg_binom_pmf(sad, guess_for_k=1):
     '''
@@ -204,6 +191,11 @@ def fit_neg_binom_pmf(sad, guess_for_k=1):
     : float
         the mle for k
 
+    Notes
+    -----
+    scipy.stats.nbinom.fit does not exist. That is why the MLE estimator is
+    hardcoded.
+
     '''
 
     #NOTE: Need to check for convergence
@@ -213,7 +205,7 @@ def fit_neg_binom_pmf(sad, guess_for_k=1):
                                                                     disp=0)[0]
     return mlek
         
-def plognorm_pmf(ab, mean, var, testing=False):
+def plognorm_pmf(ab, mean, var, param_out=False):
     '''
     Poisson log-normal pmf (Bulmer 1974)
 
@@ -230,7 +222,7 @@ def plognorm_pmf(ab, mean, var, testing=False):
     -------
      : ndarray (1D)
         Returns array with pmf for values for the given values n. If 
-        testing = True, returns the array as well as the parameter estimates.
+        param_out = True, returns the array as well as the parameter estimates.
 
     Notes
     -----
@@ -268,12 +260,12 @@ def plognorm_pmf(ab, mean, var, testing=False):
         pmf_full[i] = pmf[index]
     pmf = pmf_full
      
-    if testing == True:
-        return pmf, mean, var
+    if param_out == True:
+        return (pmf, {'mean' : mean, 'var' : var})
     else:
         return pmf
 
-def trun_plognorm_pmf(ab, mean, var, testing=False):
+def trun_plognorm_pmf(ab, mean, var, param_out=False):
     '''
     Truncated Poisson log-normal (Bulmer 1974)
 
@@ -295,7 +287,7 @@ def trun_plognorm_pmf(ab, mean, var, testing=False):
     -------
       : ndarray (1D)
         Returns array with pmf for values for the given values n. If 
-        testing = True, returns the array as well as the parameter estimates.
+        param_out = True, returns the array as well as the parameter estimates.
 
 
 
@@ -303,11 +295,11 @@ def trun_plognorm_pmf(ab, mean, var, testing=False):
     code from weecology.  Truncating the plognormal changes the mean of the 
     distribution'''
     
-    if testing == True:
-        untr_pmf, mn, vr = plognorm_pmf(ab, mean, var, testing=testing)
+    if param_out == True:
+        untr_pmf, mn, vr = plognorm_pmf(ab, mean, var, param_out=param_out)
         pmf0 = plognorm_pmf(0, mean, var)
         tr_pmf = (untr_pmf / (1 - pmf0))#Truncating based on Bulmer equation A1
-        return tr_pmf, mn, vr
+        return (tr_pmf, {'mean' : mn, 'var' : vr})
     else:
         untr_pmf = plognorm_pmf(ab, mean, var)
         pmf0 = plognorm_pmf(0, mean, var)
@@ -351,13 +343,13 @@ def plognorm_MLE(ab, trun=True):
             return -sum(np.log(trun_plognorm_pmf(ab, x[0], x[1])))
         else:
             return -sum(np.log(plognorm_pmf(ab, x[0], x[1])))
-    mu, var = optimize.fmin(pln_func, x0 = [mu0, var0], disp=0)
+    mu, var = scipy.optimize.fmin(pln_func, x0 = [mu0, var0], disp=0)
     return mu, var
 
 
-def mete_lgsr_pmf(n, S, N, testing=False):
+def mete_lgsr_pmf(n, S, N, param_out=False):
     '''
-    mete_logsr_pmf(n, S, N, testing=False)
+    mete_logsr_pmf(n, S, N, param_out=False)
 
     Truncated log series pmf (Harte 2011)
 
@@ -374,7 +366,7 @@ def mete_lgsr_pmf(n, S, N, testing=False):
     -------
      : ndarray (1D)
         Returns array with pmf for values for the given values n. If 
-        testing = True, returns the array as well as the parameter estimates.
+        param_out = True, returns the array as well as the parameter estimates.
 
     Notes
     -----
@@ -407,14 +399,14 @@ def mete_lgsr_pmf(n, S, N, testing=False):
     norm = sum(x ** k / k)        
     pmf = (x ** n / n) / norm
     
-    if testing == True:
-        return pmf, x
+    if param_out == True:
+        return (pmf, {'beta' : -np.log(x)}) 
     else:
         return pmf
 
-def mete_lgsr_approx_pmf(n, S, N, testing=False, root=2):
+def mete_lgsr_approx_pmf(n, S, N, param_out=False, root=2):
     '''
-    mete_lgsr_approx_pmf(n, S, N, testing=False, root=2)
+    mete_lgsr_approx_pmf(n, S, N, param_out=False, root=2)
 
     Truncated log series using approximation (7.30) and (7.32) in Harte 2011
 
@@ -432,7 +424,7 @@ def mete_lgsr_approx_pmf(n, S, N, testing=False, root=2):
     -------
      : ndarray (1D)
         Returns array with pmf for values for the given values n. If 
-        testing = True, returns the array as well as the parameter estimates.
+        param_out = True, returns the array as well as the parameter estimates.
         
      Notes:
     ------
@@ -478,8 +470,8 @@ def mete_lgsr_approx_pmf(n, S, N, testing=False, root=2):
     g = -1/m.log(x)
     pmf = (1/m.log(g)) * ((x**n)/n) 
     
-    if testing == True:
-        return pmf, x
+    if param_out == True:
+        return (pmf, {'beta' : -np.log(x)})
     else:
         return pmf
 
@@ -520,135 +512,6 @@ def make_rank_abund(sad_pmf, S):
             break
     
     return S_abunds
-
-###Functions from Ethan White's weecology###
-
-def pln_lik(mu,sigma,abund_vect,approx_cut = 10, full_output=0):
-    #TODO remove all use of matrices unless they are necessary for some
-    #     unforseen reason
-    """Probability function of the Poisson lognormal distribution
-    
-    Method derived from Bulmer 1974 Biometrics 30:101-110    
-    
-    Bulmer equation 7 - approximation for large abundances
-    Bulmer equation 2 - integral for small abundances    
-    
-    Adapted from Brian McGill's MATLAB function of the same name that was
-    originally developed as part of the Palamedes software package by the
-    National Center for Ecological Analysis and Synthesis working group on
-    Tools and Fresh Approaches for Species Abundance Distributions
-    (http://www.nceas.ucsb.edu/projects/11121)
-    
-    """
-   
-    L = matlib.repmat(None, len(abund_vect), 1)
-    if sigma <= 0:
-        L = matlib.repmat(1e-120, len(abund_vect), 1) #very unlikely to have negative params
-    else:
-        for i, ab in enumerate(abund_vect):
-            if ab > approx_cut:
-            #use approximation for large abundances    
-            #Bulmer equation 7
-            #tested vs. integral below - matches to about 6 significant digits for
-            #intermediate abundances (10-50) - integral fails for higher
-            #abundances, approx fails for lower abundances - 
-            #assume it gets better for abundance > 50
-                V = sigma ** 2
-                L[i,] = (1 / sqrt(2 * pi * V) / ab *
-                         exp(-(log(ab) - mu) ** 2 / (2 * V)) *
-                         (1 + 1 / (2 * ab * V) * ((log(ab) - mu) ** 2 / V +
-                                                  log(ab) - mu - 1)))
-            else:
-            # Bulmer equation 2 -tested against Grundy Biometrika 38:427-434
-            # Table 1 & Table 2 and matched to the 4 decimals in the table except
-            # for very small mu (10^-2)
-            # having the /gamma(ab+1) inside the integrand is inefficient but
-            # avoids pseudo-singularities        
-            # split integral into two so the quad function finds the peak
-            # peak apppears to be just below ab - for very small ab (ab<10)
-            # works better to leave entire peak in one integral and integrate 
-            # the tail in the second integral
-                if ab < 10:
-                    ub = 10
-                else: 
-                    ub = ab       
-                term1 = ((2 * pi * sigma ** 2) ** -0.5)/ factorial(ab)
-            #integrate low end where peak is so it finds peak
-                term2a = integrate.quad(lambda x: ((x ** (ab - 1)) * 
-                                                   (exp(-x)) * 
-                                                   exp(-(log(x) - mu) ** 2 / 
-                                                       (2 * sigma ** 2))), 0,
-                                               ub, full_output=full_output, limit=100)
-            #integrate higher end for accuracy and in case peak moves
-                term2b = integrate.quad(lambda x: ((x ** (ab - 1)) * 
-                                                   (exp(-x)) * exp(-(log(x) - mu) ** 
-                                                                   2/ (2 * sigma ** 
-                                                                       2))), ub,
-                                               float('inf'), full_output=full_output, limit=100)
-                Pr = term1 * term2a[0]
-                Pr_add = term1 * term2b[0]                
-                L[i,] = Pr + Pr_add            
-            
-                if L[i,] <= 0:
-                #likelihood shouldn't really be zero and causes problem taking 
-                #log of it
-                    L[i,] = 1e-120
-    return (L)
-
-def pln_ll(mu, sigma, ab, full_output=0):
-    """Log-likelihood of a truncated Poisson lognormal distribution
-    
-    Method derived from Bulmer 1974 Biometrics 30:101-110    
-    
-    Bulmer equation A1
-    
-    Adapted from Brian McGill's MATLAB function of the same name that was
-    originally developed as part of the Palamedes software package by the
-    National Center for Ecological Analysis and Synthesis working group on
-    Tools and Fresh Approaches for Species Abundance Distributions
-    (http://www.nceas.ucsb.edu/projects/11121)    
-    
-    """
-    #purify abundance vector
-    ab = array(ab)
-    ab.transpose()
-    ab = ab[ab>0]
-    ab.sort()
-    
-    cts = histogram(ab, bins = range(1, max(ab) + 2))
-    observed_abund_vals = cts[1][cts[0] != 0]
-    counts = cts[0][cts[0] != 0]
-    plik = log(array(pln_lik(mu, sigma, observed_abund_vals, full_output=full_output), dtype = float))
-    term1 = array([], dtype = float)
-    for i, count in enumerate(counts):
-        term1 = np.append(term1, count * plik[i])
-        
-    #Renormalization for zero truncation
-    term2 = len(ab) * log(1 - array(pln_lik(mu, sigma, [0], full_output=full_output), dtype = float))
-    
-    ll = sum(term1) - term2
-    return ll[0]
-
-def pln_solver(ab):
-    """Given abundance data, solve for MLE of pln parameters mu and sigma
-    
-    Adapted from MATLAB code by Brian McGill that was originally developed as
-    part of the Palamedes software package by the National Center for Ecological
-    Analysis and Synthesis working group on Tools and Fresh Approaches for
-    Species Abundance Distributions (http://www.nceas.ucsb.edu/projects/11121)
-    
-    """
-
-    mu0 = mean(log(ab))
-    sig0 = std(log(ab))
-    def pln_func(x): 
-        return -pln_ll(x[0], x[1], ab, full_output=1)
-    mu, sigma = optimize.fmin(pln_func, x0 = [mu0, sig0], disp=0)
-    return mu, sigma
-
-
-###End functions from Ethan White's weecology###
-
 
 def get_sad_cdf(S, N, distribution, sad=[]):
     '''
@@ -898,19 +761,19 @@ def distr_parameters(S, N, distribution, sad=[]):
     parameters = {}
     if distribution == 'mete':
         beta = -np.log(mete_lgsr_pmf(S, N, abundances=sad, \
-                            pmf_ret=True, testing=True)[1])
+                            pmf_ret=True, param_out=True)[1])
         parameters['beta'] = beta
     if distribution == 'mete_approx':
         beta = -np.log(mete_lgsr_approx_pmf(S, N, abundances=sad, \
-                            pmf_ret=True, testing=True)[1])
+                            pmf_ret=True, param_out=True)[1])
         parameters['beta'] = beta
     if distribution == 'neg_binom':
         mlek = fit_neg_binom_pmf(sad)
-        k, p = neg_binom_pmf(S, N, mlek, abundances=sad, pmf_ret=True, testing=True)[1:]
+        k, p = neg_binom_pmf(S, N, mlek, abundances=sad, pmf_ret=True, param_out=True)[1:]
         parameters['k'] = k
         parameters['p'] = p
     if distribution == 'geo':
-        p = geo_pmf(S, N, abundances=sad, pmf_ret=True, testing=True)[1]
+        p = geo_pmf(S, N, abundances=sad, pmf_ret=True, param_out=True)[1]
         parameters['p'] = p
     if distribution == 'trun_plognorm':
         mu, var = plognorm_MLE(sad, trun=True)
@@ -921,7 +784,7 @@ def distr_parameters(S, N, distribution, sad=[]):
         parameters['mu'] = mu
         parameters['var'] = var
     if distribution == 'lgsr':
-        x = lgsr_pmf(S, N, abundances=sad, pmf_ret=True, testing=True)[1]
+        x = lgsr_pmf(S, N, abundances=sad, pmf_ret=True, param_out=True)[1]
         parameters['x'] = x
 
     return parameters
