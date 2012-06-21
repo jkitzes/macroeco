@@ -174,54 +174,23 @@ def geo_pmf(n, S, N, param_out=False):
     else:
         return neg_binom_pmf(n, S, N, 1, param_out=param_out)
 
-def fit_neg_binom_pmf(sad, guess_for_k=1):
-    '''
-    Function fits a negative binomial to the sad and returns the MLE for k 
-
-    Parameters
-    ----------
-    sad : ndarray
-        Array like object containing a species abundance distribution
-    
-    guess_for_k : float
-        A default parameter for the approximate k given the data
-
-    Returns
-    -------
-    : float
-        the mle for k
-
-    Notes
-    -----
-    scipy.stats.nbinom.fit does not exist. That is why the MLE estimator is
-    hardcoded.
-
-    '''
-
-    #NOTE: Need to check for convergence
-    def nll_nb(k, sad):
-        return -sum(np.log(neg_binom_pmf(sad, len(sad), np.sum(sad), k)))
-    mlek = scipy.optimize.fmin(nll_nb, np.array([guess_for_k]), args=(sad,),\
-                                                                    disp=0)[0]
-    return mlek
-        
-def plognorm_pmf(ab, mean, var, param_out=False):
+def plognorm_pmf(ab, mu, sigma, param_out=False):
     '''
     Poisson log-normal pmf (Bulmer 1974)
 
     Parameters
     ----------
     ab : int, float or array-like object
-        Abundances at which to calculate the pmf
-    mean : float
-        the logmean of the poisson log normal
-    var : float
-        the logvar of the poisson log normal
+        Abundances at which to calculate the pmf 
+    mu : float
+        the mu parameter of the poisson log normal
+    sigma : float
+        the sigma parameter of the poisson log normal
         
      Returns
     -------
      : ndarray (1D)
-        Returns array with pmf for values for the given values n. If 
+        Returns array with pmf for values for the given values ab. If 
         param_out = True, returns the array as well as the parameter estimates.
 
     Notes
@@ -236,21 +205,21 @@ def plognorm_pmf(ab, mean, var, param_out=False):
         ab = np.array(ab)
     n_unq = np.unique(ab)
     
-    if var <= 0 or mean <= 0: #Parameters could be negative
+    if sigma**2 <= 0 or mu <= 0: #Parameters could be negative
         pmf = np.repeat(1e-120, len(n_unq))
     else:
-        sd = var**0.5
-        eq = lambda t, x: np.exp(t * x - np.exp(t) - 0.5*((t - mean) / sd)**2)
+        eq = lambda t, x: np.exp(t * x - np.exp(t) - 0.5*((t - mu) / sigma)**2)
         pmf = np.empty(len(n_unq), dtype=np.float)
         for i, n in enumerate(n_unq):
             if n <= 170:
                 integral = integrate.quad(eq, -np.inf, np.inf, args=(n))[0]
-                norm = np.exp((-0.5 * m.log(2 * m.pi * var) - m.lgamma(n + 1)))
+                norm = np.exp((-0.5 * m.log(2 * m.pi * sigma**2) -\
+                                                m.lgamma(n + 1)))
                 pmf[i] = norm * integral
             else:
-                z = (m.log(n) - mean) / sd
-                pmf[i] = (1 + (z**2 + m.log(n) - mean - 1) / (2 * n * sd**2))\
-                         * np.exp(-0.5 * z**2) / (m.sqrt(2 * m.pi) * sd * n)   
+                z = (m.log(n) - mu) / sigma
+                pmf[i] = (1 + (z**2 + m.log(n) - mu - 1) / (2 * n * sigma**2))\
+                         * np.exp(-0.5 * z**2) / (m.sqrt(2 * m.pi) * sigma * n)   
 
     #Only calculated unique abundances to save computational time.
     #Get full pmf again
@@ -261,11 +230,12 @@ def plognorm_pmf(ab, mean, var, param_out=False):
     pmf = pmf_full
      
     if param_out == True:
-        return (pmf, {'mean' : mean, 'var' : var})
+        #NOTE: How many parameters should I be returning, 1 or 2?
+        return (pmf, {'mu' : mu, 'sigma' : sigma})
     else:
         return pmf
 
-def trun_plognorm_pmf(ab, mean, var, param_out=False):
+def trun_plognorm_pmf(ab, mu, sigma, param_out=False):
     '''
     Truncated Poisson log-normal (Bulmer 1974)
 
@@ -273,36 +243,99 @@ def trun_plognorm_pmf(ab, mean, var, param_out=False):
     ----------
     ab : int, float or array-like object
         Abundances at which to calculate the pmf
-    mean : float
-        the logmean of the poisson log normal
-    var : float
-        the logvar of the poisson log normal
+    mu : float
+        the mu parameter of the poisson log normal
+    sigma : float
+        the sigma parameter of the poisson log normal
         
-    abundances : A list, np.array, or tuple of the abundance of each
-                 species in the plot.  len(abundance) should equal 
-                 the total number of species in the plot and sum(abundances)
-                 should equal the total number of individuals in the plot
-
     Returns
     -------
       : ndarray (1D)
-        Returns array with pmf for values for the given values n. If 
+        Returns array with pmf for values for the given values ab. If 
         param_out = True, returns the array as well as the parameter estimates.
-
-
 
     Notes:  This function was adopted from both Bulmer (1974) and Ethan White's
     code from weecology.  Truncating the plognormal changes the mean of the 
-    distribution'''
+    distribution.  Need to make this change!'''
     
     if param_out == True:
-        untr_pmf, mn, vr = plognorm_pmf(ab, mean, var, param_out=param_out)
-        pmf0 = plognorm_pmf(0, mean, var)
+        untr_pmf, mn, sd = plognorm_pmf(ab, mu, sigma, param_out=param_out)
+        pmf0 = plognorm_pmf(0, mu, sigma)
         tr_pmf = (untr_pmf / (1 - pmf0))#Truncating based on Bulmer equation A1
-        return (tr_pmf, {'mean' : mn, 'var' : vr})
+        return (tr_pmf, {'mu' : mn, 'sigma' : sd})
     else:
-        untr_pmf = plognorm_pmf(ab, mean, var)
-        pmf0 = plognorm_pmf(0, mean, var)
+        untr_pmf = plognorm_pmf(ab, mu, sigma)
+        pmf0 = plognorm_pmf(0, mu, sigma)
+        tr_pmf = (untr_pmf / (1 - pmf0))
+        return tr_pmf
+
+def lognorm_pmf(ab, mu, sigma, param_out=False):
+    '''
+    Lognormal pmf
+
+    Parameters
+    ----------
+    ab : int, float or array-like object
+        Abundances at which to calculate the pmf 
+    mu : float
+        the mu parameter of the poisson log normal
+    sigma : float
+        the sigma parameter of the poisson log normal
+
+    Returns
+    -------
+     : ndarray (1D)
+        Returns array with pmf for values for the given values ab. If 
+        param_out = True, returns the array as well as the parameter estimates.
+
+    Notes
+    -----
+    scipy.stats.lognorm is coded very poorly and the docstring is not 
+    helpful so we coded our own lognormal distribution
+
+    '''
+    if type(ab) is int or type(ab) is float:
+        ab = np.array([ab])
+    else:
+        ab = np.array(ab)
+    pmf = stats.norm.pdf(np.log(ab), loc=mu, scale=sigma) / ab
+    if param_out == True:
+        return (pmf, {'mu' : mu, 'sigma' : sigma})
+    else:
+        return pmf
+
+def trun_lognormal(ab, mu, sigma, param_out=False):
+    '''
+    Zero-Truncated Lognormal pmf
+
+    Parameters
+    ----------
+    ab : int, float or array-like object
+        Abundances at which to calculate the pmf 
+    mu : float
+        the mu parameter of the poisson log normal
+    sigma : float
+        the sigma parameter of the poisson log normal
+
+    Returns
+    -------
+     : ndarray (1D)
+        Returns array with pmf for values for the given values ab. If 
+        param_out = True, returns the array as well as the parameter estimates.
+
+    Notes
+    -----
+    Truncating shifts the mean. Need to take this into account
+    '''
+
+    if param_out == True:
+        untr_pmf, mn, sd = lognorm_pmf(ab, mu, sigma, param_out=param_out)
+        pmf0 = lognorm_pmf(0, mu, sigma)
+        tr_pmf = (untr_pmf / (1 - pmf0))
+        return (tr_pmf, {'mu' : mn, 'sigma' : sd})
+    else:
+        untr_pmf = lognorm_pmf(ab, mu, sigma)
+        pmf0 = lognorm_pmf(0, mu, sigma)
         tr_pmf = (untr_pmf / (1 - pmf0))
         return tr_pmf
 
@@ -788,6 +821,37 @@ def distr_parameters(S, N, distribution, sad=[]):
         parameters['x'] = x
 
     return parameters
+
+def fit_neg_binom_pmf(sad, guess_for_k=1):
+    '''
+    Function fits a negative binomial to the sad and returns the MLE for k 
+
+    Parameters
+    ----------
+    sad : ndarray
+        Array like object containing a species abundance distribution
+    
+    guess_for_k : float
+        A default parameter for the approximate k given the data
+
+    Returns
+    -------
+    : float
+        the mle for k
+
+    Notes
+    -----
+    scipy.stats.nbinom.fit does not exist. That is why the MLE estimator is
+    hardcoded.
+
+    '''
+
+    #NOTE: Need to check for convergence
+    def nll_nb(k, sad):
+        return -sum(np.log(neg_binom_pmf(sad, len(sad), np.sum(sad), k)))
+    mlek = scipy.optimize.fmin(nll_nb, np.array([guess_for_k]), args=(sad,),\
+                                                                    disp=0)[0]
+    return mlek
 
 
 

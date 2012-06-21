@@ -3,11 +3,6 @@
 '''
 Calculate pmf and likelihood of species-level spatial-abundance distributions.
 
-All distributions have an argument summary, which if False returns the entire 
-pmf for the inputted values of n, and if true returns the summed negative 
-log-likelihood of the inputted values (useful for likelihood ratio tests or 
-AIC).
-
 Distributions
 -------------
 - `bin` -- binomial
@@ -66,7 +61,7 @@ __status__ = "Development"
 # TODO: Check that summary is bool (decorator?) to avoid accidental confusion
 # of leaving in a k when not needed and having summary = k argument.
 
-def bin(n, N, a, summary = False):
+def bin(n, N, a):
     '''
     Binomial pmf (ie, random placement model).
 
@@ -81,16 +76,15 @@ def bin(n, N, a, summary = False):
 
     Returns
     -------
-    : ndarray or float
-        If summary is False, returns array with pmf. If summary is True, 
-        returns the summed log likelihood of all values in n.
+    : ndarray
+        Returns array with pmf.
+    
     '''
    
-    if summary: return -sum(np.log(scipy.stats.binom.pmf(n, N, a)))
-    else:       return scipy.stats.binom.pmf(n, N, a)
+    return scipy.stats.binom.pmf(n, N, a)
 
 
-def pois(n, N, a, summary = False):
+def pois(n, N, a):
     '''
     Poisson pmf.
 
@@ -106,19 +100,16 @@ def pois(n, N, a, summary = False):
     Returns
     -------
     : ndarray or float
-        If summary is False, returns array with pmf. If summary is True, 
-        returns the summed log likelihood of all values in n.
+        Returns array with pmf. 
     '''
     
     mu = N * a
-
-    if summary: return -sum(np.log(scipy.stats.poisson.pmf(n, mu)))
-    else:       return scipy.stats.poisson.pmf(n, mu)
+    return scipy.stats.poisson.pmf(n, mu)
 
 
-def nbd(n, N, a, k, summary = False):
+def nbd(n, N, a, k):
     '''
-    Negative binomial pmf.
+    Negative binomal pmf.
 
     Parameters
     ----------
@@ -133,25 +124,18 @@ def nbd(n, N, a, k, summary = False):
 
     Returns
     -------
-    : ndarray or float
-        If summary is False, returns array with pmf. If summary is True, 
-        returns the summed log likelihood of all values in n.
+    : ndarray
+        Returns array with pmf.
     '''
 
     mu = N * a
     p = 1 / (mu / k + 1)  # See Bolker book Chapt 4
     pmf = scipy.stats.nbinom.pmf(n, k, p)
     
-    if summary:
-        if (pmf == 0).any():
-            return np.nan
-        else:
-            return -sum(np.log(pmf))
-    else:
-        return pmf
+    return pmf
 
 
-def fnbd(n, N, a, k, summary = False):
+def fnbd(n, N, a, k):
     '''
     Finite negative binomial pmf (Zillio and He 2010).
 
@@ -168,9 +152,8 @@ def fnbd(n, N, a, k, summary = False):
 
     Returns
     -------
-    : ndarray or float
-        If summary is False, returns array with pmf. If summary is True, 
-        returns the summed log likelihood of all values in n.
+    : ndarray
+        Returns array with pmf.
 
     Notes
     -----
@@ -192,13 +175,10 @@ def fnbd(n, N, a, k, summary = False):
 
     pmf = ln_L(n, N, a, k)  # Already log
 
-    if summary:
-        return -sum(pmf)
-    else:
-        return np.exp(pmf)
+    return np.exp(pmf)
 
 
-def cnbd(n, N, a, k, summary = False):
+def cnbd(n, N, a, k):
     '''
     Conditioned negative binomial pmf (Conlisk et al 2007b)
     
@@ -225,20 +205,19 @@ def cnbd(n, N, a, k, summary = False):
 
     ln_F_Ma_N = _ln_F(M * k, N)  # Ln denom, Theorem 1.3
 
-    if summary: return -sum(ln_F_a_n_i) - ln_F_Ma_N
-    else:       return np.exp(ln_F_a_n_i + ln_F_second - ln_F_Ma_N)
+    return np.exp(ln_F_a_n_i + ln_F_second - ln_F_Ma_N)
 
 
-def geo(n, N, a, summary = False):
+def geo(n, N, a):
     '''
     Geometric pmf (Zillio and He 2010). Wrapper for nbd with k = 1, see 
     docstring there.
     '''
 
-    return nbd(n, N, a, 1, summary)
+    return nbd(n, N, a, 1)
 
 
-def fgeo(n, N, a, summary = False):
+def fgeo(n, N, a):
     '''
     Finite geometric pmf (Zillio and He 2010). Wrapper for fnbd with k = 1, see 
     docstring there.
@@ -249,10 +228,10 @@ def fgeo(n, N, a, summary = False):
     z[1:]/z[0:-1], noting that the ratio is not constant.
     '''
 
-    return fnbd(n, N, a, 1, summary)
+    return fnbd(n, N, a, 1)
 
 
-def tgeo(n, N, a, summary = False):
+def tgeo(n, N, a):
     '''
     Truncated geometric pmf (Harte et al 2008).
 
@@ -269,9 +248,8 @@ def tgeo(n, N, a, summary = False):
 
     Returns
     -------
-    : ndarray (1D)
-        If summary is False, returns array with pmf. If summary is True, 
-        returns the summed log likelihood of all values in n.
+    : ndarray
+        Returns array with pmf.
 
     Notes
     -----
@@ -321,8 +299,7 @@ def tgeo(n, N, a, summary = False):
         Z = (1 - p**(N+1)) / (1 - p)
         pmf = p**n / Z
 
-    if summary: return -sum(np.log(pmf))
-    else:       return pmf
+    return pmf
 
 
 #
