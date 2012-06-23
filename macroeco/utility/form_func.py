@@ -455,7 +455,7 @@ def add_field(a, descr):
     returns structured array with field added'''
 
     if a.dtype.fields is None:
-        raise ValueError, "`A' must be a structured numpy array"
+        raise ValueError, "'A' must be a structured numpy array"
     b = np.empty(a.shape, dtype=descr + a.dtype.descr)
     for name in a.dtype.names:
         b[name] = a[name]
