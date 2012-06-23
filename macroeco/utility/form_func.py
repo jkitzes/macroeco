@@ -430,17 +430,19 @@ def merge_formatted(data_form):
     the list.  The dtypes of the data in the list must
     be the same
 
-    data_form -- list of formatted structured arrays
+    data_form -- list of formatted structured arrays (or rec_arrays)
 
     returns a list containing one merged structured array
 
     '''
     if len(data_form) == 1:
-        return data_form[0]
+        return np.array(data_form[0])
     else:
-        merged = data_form[0]
+        merged = np.array(data_form[0])
         for i in xrange(1, len(data_form)):
-            merged = np.concatenate((merged, data_form[i]))
+            if merged.dtype != data_form[i].dtype:
+                raise TypeError("dtypes of data do not match")
+            merged = np.concatenate((merged, np.array(data_form[i])))
         return merged
 
 def add_field(a, descr):

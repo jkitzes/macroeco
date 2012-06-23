@@ -7,6 +7,7 @@ canonical data type'''
 import numpy as np
 from matplotlib.mlab import csv2rec
 from form_func import *
+from numpy.lib.recfunctions import drop_fields
 
 __author__ = "Mark Wilber"
 __copyright__ = "Copyright 2012, Regents of University of California"
@@ -71,10 +72,77 @@ class Census_Data:
                     for data in self.data_list:
                         notNaN = (False == np.isnan(data[key]))
                         data = data[notNaN]
+        self.archival_data = np.copy(self.data_list)
 
-    def split_up_data_by_field(self):
-        pass
+    def reset_data_list(self):
+        '''
+        Resets self.data_list to self.archival_data
+        '''
+        self.data_list = np.copy(self.archival_data)
 
+    def split_up_data_by_field(self, split_columns):
+        '''
+        This function will take in the split-columns list and and split the
+        data into separate arrays based on the list.  For example, if one were
+        to pass in dbh1, dbh2,  dbh3 the data three copies of the data would be
+        made, each being identical except that each would only contain one of
+        the instances of dbh. One could also pass [(dbh1, recr1), (dbh2, recr2),
+        (dbh3, recr3)].  All other fields in split_columns will be excluded
+        other than the fields within the tuple under consideration.
+
+        Parameters
+        ----------
+        split_columns : list
+            a list of tuples specifying the columns by which to split the array
+        
+        Notes
+        -----
+        Saves the split array as self.data_list
+        
+        
+        '''
+        #Note: If they enter the wrong column name nothing will be removed
+        #Should I error check for this?
+        split_data = []
+        given_col_names = []
+        for tup in split_columns:
+            for name in tup:
+                given_col_names.append(name)
+        given_col_names = np.array(given_col_names)
+
+
+        for data in self.data_list:
+            for tup in split_columns:
+                ind = np.ones(len(given_col_names), dtype=bool)
+                for name in tup:
+                    ind = np.bitwise_and((name != given_col_names), ind)
+                remove_names = given_col_names[ind]
+                split_data.append(drop_fields(data, list(remove_names)))
+        self.data_list = split_data
+    
+    def change_column_names(self, change, changed_to):
+        '''
+        This function takes a list of column names to be changed and a name
+        that they should be changed to
+
+        Parameters
+        ----------
+        change : list
+            List of column names.  Columns names are strings
+        changed_to : string
+            Name to be changed to
+
+
+        '''
+        
+        for data in self.data_list:
+            column_names = np.array(data.dtype.names)
+            for name in change:
+                find = np.where((name == column_names))[0]
+                if len(find) != 0:
+                    column_names[find[0]] = changed_to
+                    data.dtype.names = tuple(column_names)
+        
     def add_fields_to_data_list(self, fields, values):
         '''
         This functions adds given fields and values to the data list. The
@@ -96,6 +164,8 @@ class Census_Data:
 
     def merge_data(self):
         '''
+        This function concatenates the data files in data_list.  The dtypes of
+        the data in data_list must be identical or this function will fail.
         '''
 
         self.merged_data = merge_formatted(self.data_list)
