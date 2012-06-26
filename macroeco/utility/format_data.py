@@ -199,6 +199,103 @@ class Census_Data:
         for i, name in enumerate(filenames):
             output_form(self.data_list[i], name)
 
+class Grid_Data():
+    '''This data should look like the EarthFlow data after a census.  It is
+    grid with species abundance data in each cell. 
+    ex.
+    ARTDRA - 6
+    GERTYR - 8
+
+    '''
+
+    def __init__(self, filenames, num_cols):
+        '''
+        I will take out num_cols but just going to use it for now
+
+        '''
+        #NOTE: Shouldn't just have to pass in lists for filenames and num_cols
+        assert np.all(np.array([name.split('.')[-1] for name in filenames]) ==\
+                      'csv'), "Files must be csv"
+        assert len(num_cols) == len(filenames) or len(num_cols) == 1, 'Length\
+                       of num_cols must be 1 or equal len(filenames)'
+
+        self.grids = []
+        self.cols = []
+        self.rows =[]
+
+        for i, name in enumerate(filenames):
+            if len(num_cols) == 1:
+                self.cols.append(num_cols[0])
+            else:
+                self.cols.append(num_cols[i])
+            self.grids.append(csv2rec(name, names=list(np.arange(0,\
+                                            self.cols[i]).astype('S10'))))
+            self.rows.append(len(self.grids[i]))
+
+    def find_unique_spp_in_grid(self, spacer='-'):
+        '''
+        This function finds all of the unique species in the grid.
+        This function assumes that your grid data is in the proper format.
+
+        Parameters
+        ----------
+        spacer : str
+            The character separating the species code from the species count.
+            Default value is '-' (n-slash)
+
+        '''
+        self.unq_spp_lists = []
+        for num, data in enumerate(self.grids):
+            spp_names = []
+            for col in data.dtype.names:
+                for row in xrange(self.rows[num]):
+                    if data[col][row].find(spacer) != -1:
+                        nam_lst = data[col][row].split(spacer)
+                        if len(nam_lst) == 2:
+                            spp_names.append(nam_lst[0].strip())
+                        else:
+                            spp_names.append(nam_lst[0].strip())
+                            for i in xrange(1, len(nam_lst) - 1):
+                                spp_names.append(nam_lst[i].split('\n')[1].\
+                                                                    strip())
+            self.unq_spp_lists.append(np.unique(np.array(spp_names)))
+
+    def convert_to_matrix_form(self, spacer='-'):
+        '''Convert the plot to matrix form
+
+        '''
+        self.find_unique_spp_in_grid(spacer=spacer)
+        self.data_matrices = []
+        for i, data in enumerate(self.grids):
+            dtype_list = [('cell', np.int), ('row', np.int), ('column', np.int)]
+            for name in self.unq_spp_lists[i]:
+                tuple_type = (name, np.int)
+                dtype_list.append(tuple_type)
+            matrix = np.empty(self.rows[i] * self.cols[i], dtype=dtype_list)
+            #Iterate through the plot
+            count = 0
+            for col in data.dtype.names:
+                for row in xrange(self.rows[i]):
+                    matrix['cell'][count] = count
+                    matrix['row'][count] = row
+                    matrix['column'][count] = int(col)
+                    for spp_name in self.unq_spp_lists[i]:
+                        start = data[col][row].find(spp_name)
+                        if start != -1:
+                            raw = data[col][row][start:].split('-')[1]
+                            if raw.find('\n') != -1:
+                                tot_spp = raw.split('\n')[0].strip()
+                                matrix[spp_name][count] = int(tot_spp)
+                            else:
+                                tot_spp = raw.split()[0].strip()
+                                matrix[spp_name][count] = int(tot_spp)
+                        else:
+                            matrix[spp_name][count] = 0
+                    count += 1
+            self.data_matrices.append(matrix)
+
+
+       
 
 
 
