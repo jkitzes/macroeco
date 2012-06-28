@@ -18,7 +18,7 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
-class Census_Data:
+class Columnar_Data:
     '''
     This class handles data types like the Smithsonian Research Plots.
     Examples include BCIS, LUQU, COCO, SHER.
@@ -30,7 +30,7 @@ class Census_Data:
                 delete_missing=True):
         '''
         This __init__ method takes in data and stores it in rec_arrays.
-        IF specified,  it will located missing data points and remove them
+        If specified,  it will located missing data points and remove them
         from the data set.
 
         Parameters
@@ -200,12 +200,13 @@ class Census_Data:
             output_form(self.data_list[i], name)
 
 class Grid_Data():
-    '''This data should look like the EarthFlow data after a census.  It is
-    grid with species abundance data in each cell. 
+    '''This class handles data should look like the EarthFlow data after a 
+    census.  It is a grid with species abundance data in each cell. 
     ex.
     ARTDRA - 6
     GERTYR - 8
 
+    NOTE: Need to consider things that might break this class
     '''
 
     def __init__(self, filenames, num_cols):
@@ -235,7 +236,7 @@ class Grid_Data():
     def find_unique_spp_in_grid(self, spacer='-'):
         '''
         This function finds all of the unique species in the grid.
-        This function assumes that your grid data is in the proper format.
+        It assumes that your grid data is in the proper format.
 
         Parameters
         ----------
@@ -260,10 +261,18 @@ class Grid_Data():
                                                                     strip())
             self.unq_spp_lists.append(np.unique(np.array(spp_names)))
 
-    def convert_to_matrix_form(self, spacer='-'):
-        '''Convert the plot to matrix form
+    def convert_grid_to_dense(self, spacer='-'):
+        '''
+        This function converts a the list of gridded data sets into dense 
+        data sets and stores them in self.data_matrices
+
+        Parameters
+        ----------
+        spacer : string
+            The character separating a species from its count
 
         '''
+
         self.find_unique_spp_in_grid(spacer=spacer)
         self.data_matrices = []
         for i, data in enumerate(self.grids):
@@ -293,6 +302,44 @@ class Grid_Data():
                             matrix[spp_name][count] = 0
                     count += 1
             self.data_matrices.append(matrix)
+    
+class Dense_Data():
+    '''This class handles data that are in the dense format
+
+    MORE DOC STRING
+
+    Note: Need to consider how I might break this class
+    '''
+
+    def __init__(self, datalist, delim=','):
+        '''
+        Going to duck-type datalist to find out whether it is list of data or
+        a list of strings!
+
+        '''
+        #TODO: What kind of files could break this
+        if np.all(np.array([type(x) == str for x in datalist])):
+            self.dense_data = []
+            for name in datalist:
+                self.dense_data.append(csv2rec(name, delimiter=delim))
+        elif np.all(np.array([type(x) == np.ndarray for x in datalist])):
+            self.dense_data = datalist
+
+    def dense_to_columnar(self, spp_col, column_names):
+        '''
+        '''
+
+
+
+
+
+
+
+
+
+
+
+
 
 
        
