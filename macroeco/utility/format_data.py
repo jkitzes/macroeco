@@ -20,10 +20,13 @@ __status__ = "Development"
 
 class Columnar_Data:
     '''
-    This class handles data types like the Smithsonian Research Plots.
-    Examples include BCIS, LUQU, COCO, SHER.
+    This is the data form that the macroeco software package wants the data
+    file in.  All other canonical data sets are converted to columnar data and
+    then turned into Columnar_Data obejcts.
 
-    Multiple data files must have same format and missing value codes
+    Examples of columnar data include BCIS, LUQU, and COCO
+
+    Multiple data files must have same format if they are to be merged
     '''
 
     def __init__(self, datanames, delimiter=',', missingd=None,\
@@ -132,7 +135,6 @@ class Columnar_Data:
         changed_to : string
             Name to be changed to
 
-
         '''
         
         for data in self.data_list:
@@ -211,10 +213,32 @@ class Grid_Data():
 
     def __init__(self, filenames, num_cols):
         '''
-        I will take out num_cols but just going to use it for now
+        Pass in the file name(s) of the grid data that you want converted and
+        the number of columns in each grid.
+
+        Parameters
+        ----------
+
+        filenames : str or list of strings
+            A filename or list of filenames
+
+        num_cols : int or list of ints
+            If an int or list of length one, this number specifies the number
+            of columns for all grids with in filenames.  If a list of
+            len(filename) this list specifies the number of columns for each
+            individual grid.
 
         '''
-        #NOTE: Shouldn't just have to pass in lists for filenames and num_cols
+        #NOTE: Handle missing data!!!!
+
+        if type(filenames) == str:
+            filename = filenames
+            filenames = [filename]
+
+        if type(num_cols) == int:
+            nmcol = num_cols
+            num_cols = [nmcol]
+
         assert np.all(np.array([name.split('.')[-1] for name in filenames]) ==\
                       'csv'), "Files must be csv"
         assert len(num_cols) == len(filenames) or len(num_cols) == 1, 'Length\
@@ -318,6 +342,7 @@ class Dense_Data():
 
         '''
         #TODO: What kind of files could break this
+        #NOTE: What about missing values?
         if np.all(np.array([type(x) == str for x in datalist])):
             self.dense_data = []
             for name in datalist:
@@ -325,9 +350,25 @@ class Dense_Data():
         elif np.all(np.array([type(x) == np.ndarray for x in datalist])):
             self.dense_data = datalist
 
-    def dense_to_columnar(self, spp_col, column_names):
+    def dense_to_columnar(self, spp_col_num, column_names):
         '''
+        This function uses a function in form_func to convert dense data into
+        columnar data.
+
+        Parameters
+        ----------
+        spp_col_num : int
+            The column number in the dense array where the spp_names begin
+
+        column_names : list
+            A list of the column names that ARE NOT species names
         '''
+
+        self.columnar_data = format_dense(self.dense_data, spp_col_num,\
+                                           column_names)
+    #NOTE: Should I turn dense data convert to columnar data into a
+    #columnar_data object?
+
 
 
 
