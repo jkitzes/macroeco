@@ -30,15 +30,25 @@ abundance data. Biometrics, 30:101-110.
 
 Fisher, R. A., Corbet, A. S., and C. B. Williams. 1943. The relation between
 The number of species and the number of individuals in a random sample
-of an animal populatin. Journal of Animal Ecology, 12:42-58.
+of an animal population. Journal of Animal Ecology, 12:42-58.
 
 Harte, J. 2011. Maximum Entropy and Ecology: A Theory of Abundance,
 Distribution, and Energetics. Oxford University Press.
 
 Hubbell, S. P. 2001. The unified theory of biodiversity and biogeography. 
 Monographs in Population Biology, 32,1:375.
-'''
 
+Magurran, A. E. 1988. Ecological Diversity and Its Measuremnt. Princeton
+University Press.
+
+May, R. M. 1975. Patterns of species abundance and diversity. In Ecology and
+Evolution of Communities (eds M. L. Cody and J. M. Diamond), Harvard University
+Press.
+
+Motomura, L. 1932. A statistical treatment of associations. Japan Journal of
+Zoology, 44:379-383.
+
+'''
 from __future__ import division
 import numpy as np
 import scipy.stats as stats
@@ -97,7 +107,7 @@ def lgsr_pmf(n, S, N, param_out=False):
     start = -2
     stop = 1 - 1e-10
     
-    eq = lambda x,S,N: (((N/x) - N) * (-(np.log(1 - x)))) - S
+    eq = lambda x, S, N: (((N/x) - N) * (-(np.log(1 - x)))) - S
     
     x = scipy.optimize.brentq(eq, start, stop, args=(S,N), disp=True)
     pmf = stats.logser.pmf(n, x)
@@ -173,6 +183,115 @@ def geo_pmf(n, S, N, param_out=False):
         return (pmf, {'p' : p})
     else:
         return neg_binom_pmf(n, S, N, 1, param_out=param_out)
+
+def geo_series_rank_abund(S, N, k):
+    '''
+    geo_series_rank_abund(S, N, k)
+
+    Given S, N and k, this function returns the predicted rank-abundance
+    distribution for a geometric series distribution (Motomura 1932 and 
+    Magurran 1988).
+
+    Parameters
+    ----------
+    S : int
+        Total number of species in landscape
+    N : int
+        Total number of individuals in landscape
+    k : float
+        The fraction of resources that each species acquires. Range is (0, 1].
+
+    Returns
+    -------
+    : np.ndarray
+        An array containing the the predicted SAD with element 0 containing the
+        species with the most individuals and element S - 1 containing the
+        species with the least individuals.
+    
+    '''
+
+    assert S < N, "S must be less than N"
+    assert S > 1, "S must be greater than 1"
+    assert N > 0, "N must be greater than 0"
+    assert k > 0 and k <= 1, "k must be between on the interval (0, 1]"
+
+    C = (1 - (1 - k )** S) ** - 1
+    pred_rank_abund = N * C * k * (1 - k) ** (np.arange(1, S + 1) - 1)
+    return pred_rank_abund
+
+def broken_stick_pmf(n, S, N, param_out=False):
+    '''
+    broken_stick_pmf(n, S, N, param_out=False)
+    
+    McArthur's broken stick species abundance distribution (May 1975)
+
+    Parameters
+    ----------
+    n : int, float or array-like object
+        Abundances at which to calculate the pmf
+    S : int
+        Total number of species in landscape
+    N : int
+        Total number of individuals in landscape
+
+    Returns
+    -------
+     : ndarray (1D) or tuple
+        Returns array with pmf for values for the given values n. If 
+        param_out = True, returns a tuple with the pmf as an array as well as
+        a dictionary of the parameter estimates.
+    
+    '''
+
+    assert S < N, "S must be less than N"
+    assert S > 1, "S must be greater than 1"
+    assert N > 0, "N must be greater than 0"
+    if type(n) is int or type(n) is float:
+        n = np.array([n])
+    else:
+        n = np.array(n)
+
+    eq = lambda x: ((S - 1) / N) * (1 - (x / N)) ** (S - 2)
+    pmf = eq(n)
+
+    if param_out == True:
+        return (pmf, {'S' : S})
+    else:
+        return pmf
+
+def broken_stick_rank_abund(S, N):
+    '''
+    broken_stick_rank_abund(S, N)
+
+    This distribution returns the predicted rank-abundance distribution for
+    McArthur's broken-stick distribution (May 1975).
+
+    Parameters
+    ----------
+    S : int
+        Total number of species in landscape
+    N : int
+        Total number of individuals in landscape
+
+    Returns
+    -------
+    : np.ndarray
+        An array containing the the predicted SAD with element 0 containing the
+        species with the most individuals and element S - 1 containing the
+        species with the least individuals.
+
+    '''
+
+    assert S < N, "S must be less than N"
+    assert S > 1, "S must be greater than 1"
+    assert N > 0, "N must be greater than 0"
+
+    pred_rank_abund = np.empty(S)
+    for i in xrange(S):
+        n = np.arange(i + 1, S + 1) 
+        pred_rank_abund[i] = (N / S) * sum(1 / n)
+    return pred_rank_abund
+
 
 def plognorm_pmf(ab, mu, sigma, param_out=False):
     '''

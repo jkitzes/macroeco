@@ -31,8 +31,9 @@ def get_cdf(sad, full_pmf=None):
         array-like object containing an SAD
     full_pmf : optional argument
         If full_pmf is None, function builds a cdf using just sad.  If full_pmf
-        is not None it is assumed to be a full_pmf and the function builds a
-        cdf using this information.  A full_pmf has support from 1 to N.
+        is not None it is assumed to be a full_pmf (array-like object) and the
+        function builds a cdf using this information.  A full_pmf has support 
+        from 1 to N.
 
     Returns
     -------
@@ -125,7 +126,7 @@ def get_obs_and_pred_rarity(obs_sad, pred_sad, n=10):
     assert np.all(pred_sad != 0), "Predicted SAD cannot contain zeros"
     obs_rare = np.sum(obs_sad < n)
     pred_rare = np.sum(pred_sad < n)
-    return {'obs_rare' : obs_rare, 'pred_rare' : pred_rare} 
+    return {'obs_rare' : obs_rare, 'pred_rare' : pred_rare}
 
 def get_obs_and_pred_Nmax(obs_sad, pred_sad):
     '''Gets the Nmax for observed and predicted sads. 
@@ -150,6 +151,17 @@ def get_obs_and_pred_Nmax(obs_sad, pred_sad):
     obs_Nmax = np.max(obs_sad)
     pred_Nmax = np.max(pred_sad)
     return {'obs_Nmax' : obs_Nmax, 'pred_Nmax' : pred_Nmax}
+
+def is_sad_geo_series(sad):
+    '''
+    '''
+    #NOTE: Should I check dimensions?
+    assert type(sad) == np.ndarray or type(sad) == list or type(sad) == tuple,\
+           "Sad must be a tuple, list or nd.nparray"
+    
+    
+
+
 
 """def get_values_for_sad(sad, distr):
     '''Function takes in sad and returns state variables
