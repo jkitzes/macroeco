@@ -152,17 +152,7 @@ def get_obs_and_pred_Nmax(obs_sad, pred_sad):
     pred_Nmax = np.max(pred_sad)
     return {'obs_Nmax' : obs_Nmax, 'pred_Nmax' : pred_Nmax}
 
-def is_sad_geo_series(sad):
-    '''
-    '''
-    #NOTE: Should I check dimensions?
-    assert type(sad) == np.ndarray or type(sad) == list or type(sad) == tuple,\
-           "Sad must be a tuple, list or nd.nparray"
     
-    
-
-
-
 """def get_values_for_sad(sad, distr):
     '''Function takes in sad and returns state variables
     and other information based on specified distribution

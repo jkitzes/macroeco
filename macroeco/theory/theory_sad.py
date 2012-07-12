@@ -432,9 +432,9 @@ def trun_lognormal(ab, mu, sigma, param_out=False):
     ab : int, float or array-like object
         Abundances at which to calculate the pmf 
     mu : float
-        the mu parameter of the poisson log normal
+        the mu parameter of the log normal
     sigma : float
-        the sigma parameter of the poisson log normal
+        the sigma parameter of the log normal
 
     Returns
     -------
@@ -497,6 +497,84 @@ def plognorm_MLE(ab, trun=True):
             return -sum(np.log(plognorm_pmf(ab, x[0], x[1])))
     mu, var = scipy.optimize.fmin(pln_func, x0 = [mu0, var0], disp=0)
     return mu, var
+
+def canonical_lognorm_pmf(r, S, param_ret=False):
+    '''
+    canonical_lognorm_pmf(r, S, param_ret=False)
+
+    Preston's canonical lognormal
+
+    Parameters
+    ----------
+    r : int or array-like object
+        The number of octaves the octave of interest is away from the the modal
+        octave (see May 1975 or Preston 1948)
+    S : int
+        Total number of species in landscape
+
+    Returns
+    -------
+    : np.ndarray
+        If param_ret == False, returns an np.array with the probability that a
+        given species is in the octave r units from the modal octave.
+
+    Notes
+    -----
+    The canonical lognormal distribution is a one-parameter distribution that
+    depends only on the total number of species in a landscape. The modal
+    octave of this distribution is defined as the log2 abundance octave in
+    which the most species fall.
+
+
+    '''
+    #Going to try to change this assumption so that it can work for S <= 12
+    assert S > 12, "S must be greater than 12"
+    if type(r) is int or type(r) is float:
+        r = np.array([r])
+    else:
+        r = np.array(r)
+
+    pisr = m.pi ** 0.5
+    #NOTE: Equation from May 1975.  Approximation is made so works only with S
+    #greater than 12
+    eq = lambda s: ((np.log(2) / (2 * ((s * pisr) / S))) * np.log(s) ** 0.5)\
+                                                                            - 1
+    s0 = scipy.optimize.brentq(eq, 2, S, disp=True)
+    a = (s0 * pisr) / S
+    pmf = (s0 / S) * np.exp(-(a ** 2) * (r ** 2)) 
+    return pmf, s0, a
+
+def sugihara_rank_abun(S, N, sample_size = 10000):
+    '''
+    This function is a bit questionable because we are using a randomly
+    generated breakage sequence. As S gets large, we will start to under sample
+    some of the possible breakage sequences this model begins to fail.
+
+    '''
+    total = []
+    for i in xrange(sample_size):
+
+        U = np.random.triangular(0.5, 0.75, 1, size=S - 1)
+        p = []
+        #Could this be refactored to look sexier and perform better?
+        for i in xrange(S):
+            if i == 0:
+                p.append(1)
+            else:
+                index = np.random.random_integers(0, len(p) - 1)
+                p_new1 = p[index] * U[i - 1]
+                p_new2 = p[index] * (1 - U[i - 1])
+                p[index] = p_new1
+                p.append(p_new2)
+                p.sort(reverse=True)
+        total.append(p)
+        
+    total_array = np.array(total)
+    means = []
+    for i in xrange(S):
+        means.append(np.mean(total_array[:,i]))
+    means = np.array(means)
+    return N * means
 
 
 def mete_lgsr_pmf(n, S, N, param_out=False):
