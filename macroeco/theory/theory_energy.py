@@ -20,8 +20,8 @@ Distributions
 References
 ----------
 
-Harte, J. 2011. Maximum Entropy and Ecology: A Theory of Abundance, Distribution,
-and Energetics. Oxford University Press. 
+Harte, J. 2011. Maximum Entropy and Ecology: A Theory of Abundance, 
+Distribution, and Energetics. Oxford University Press. 
 
 '''
 from __future__ import division
@@ -32,14 +32,16 @@ import scipy.integrate as integrate
 import math as m
 import sys
 
-def mete_energy_theta_pdf(S, N, E, n, testing=False):
+def mete_energy_theta_pdf(epi, S, N, E, n, param_out=True):
     '''
-    mete_energy_theta_pdf(S, N, E, n, testing=False)
+    mete_energy_theta_pdf(epi, S, N, E, n, param_out=True)
 
     METE intra-specific energy distribution (Harte 2011)
 
     Parameters
     ----------
+    epi : int, float, or array-like object
+        The energy values at which to calculate the pdf (1, E]
     S : int
         Total number of species in landscape
     N : int
@@ -52,8 +54,8 @@ def mete_energy_theta_pdf(S, N, E, n, testing=False):
     Returns
     -------
     : ndarray (1D)
-        If testing is True, returns both the pdf and the estimate for lambda 2
-
+        If param_out is True, returns both the pdf and the estimate for lambda 
+        2
 
     '''
     assert S < N, "S must be less than N"
@@ -61,25 +63,25 @@ def mete_energy_theta_pdf(S, N, E, n, testing=False):
     assert N > 0, "N must be greater than 0"
     assert N < E, "N must be less than E"
     assert n < N, "n must be less than N"
+    if type(epi) is int or type(epi) is float:
+        epi = np.array([epi])
+    else:
+        epi = np.array(epi)
 
     lambda2 = float(S) / (E - N) #Harte (2011) 7.26
     
-    epi = np.linspace(1, E, num=E*10) #Ten is arbitrary
     pdf = (n * lambda2 * np.exp(-lambda2 * n * epi)) / (np.exp(-lambda2 * n)\
           - np.exp(-lambda2 * n * E)) #Harte (2011) 7.25
 
-    if testing == True:
-        return pdf, lambda2
+    if param_out == True:
+        return pdf, { 'lambda2': lambda2}
     else:
         return pdf
 
-def mete_energy_theta_cdf():
-    pass
-
-def mete_energy_nu_pdf(S, N, E, testing=False):
+def mete_energy_nu_pdf(S, N, E, param_out=False):
     '''
 
-    mete_energy_nu_pdf(S, N, E, testing=False)
+    mete_energy_nu_pdf(S, N, E, param_out=False)
 
     Parameters
     ----------
@@ -93,8 +95,8 @@ def mete_energy_nu_pdf(S, N, E, testing=False):
     Returns
     -------
     : ndarray (1D)
-        If testing is False, return a pdf.  If testing is True, returns pdf, lamda2,
-        beta
+        If testing is False, return a pdf.  If testing is True, returns pdf, 
+        lamda2, beta
 
     Notes
     -----
@@ -117,23 +119,22 @@ def mete_energy_nu_pdf(S, N, E, testing=False):
     #Getting beta
     k = np.linspace(1, N, num=N)
     eq = lambda x: sum(x ** k / float(N) * S) -  sum((x ** k) / k)
-    x = scipy.optimize.brentq(eq, start, min((sys.float_info[0] / S)**(1/float(N)),\
-                              stop), disp=True)
+    x = scipy.optimize.brentq(eq, start, min((sys.float_info[0] / S)**\
+                             (1/float(N)), stop), disp=True)
     beta = -m.log(x)
     lambda2 = float(S) / (E - N) #Harte (2011) 7.26
-
-    eta = np.linspace(1 + 1e-10, E, num=1000)
-    pdf = (1 / np.log(1 / beta)) * ((np.exp(-(beta / (lambda2 * (eta - 1)))) / \
+    eta_func = lambda n: 1 + (1 / (n * lambda2)) #Harte (2011) pg. 157
+    eta = eta_func(np.arange(1, N + 1)[::-1])
+    pdf = (1 / np.log(1 / beta)) * ((np.exp(-(beta / (lambda2 * (eta - 1)))) /\
                                     (eta - 1)))
-    if testing == True:
-        return pdf, lambda2, beta
+    if param_out == True:
+        return pdf, eta, {'lambda2' : lambda2, 'beta' : beta}
     else:
-        return pdf
+        return pdf, eta
     
-#Need to resolve the issue of where e = 1. Not sure about this function...
 def mete_energy_nu_cdf(S, N, E, num_samples=100):
     '''
-    mete_energy_nu_cdf(S, N, E, emin, emax, num_samples=100)
+    mete_energy_nu_cdf(S, N, E, num_samples=100)
 
     CDF for mete_energy_nu_pdf
 
@@ -145,18 +146,15 @@ def mete_energy_nu_cdf(S, N, E, num_samples=100):
         Total number of individuals in landscape
     E : float
         Total energy ouput of community
-    emin : float
-        The minumum average energy output of a species
-    emax : float
-        The maximum average energy output of a species
     num_samples : int (default)
         The number of integrals computed within the interval [emin,emax]
 
     Returns
     -------
     : structured ndarray (1D)
-        Structured array contains fields 'cdf' and 'energy'. The field 'cdf' represents
-        the cdf value at a given energy level (Prob (emin <= energy <= upppere)
+        Structured array contains fields 'cdf' and 'energy'. The field 'cdf' 
+        representsthe cdf value at a given energy level 
+        (Prob (emin <= energy <= upppere)
 
     Notes:
     ------
@@ -178,42 +176,46 @@ def mete_energy_nu_cdf(S, N, E, num_samples=100):
     #Getting beta
     k = np.linspace(1, N, num=N)
     eq = lambda x: sum(x ** k / float(N) * S) -  sum((x ** k) / k)
-    x = scipy.optimize.brentq(eq, start, min((sys.float_info[0] / S)**(1/float(N)),\
-                              stop), disp=True)
+    x = scipy.optimize.brentq(eq, start, min((sys.float_info[0] / S)**\
+                             (1/float(N)), stop), disp=True)
     beta = -m.log(x)
     lambda2 = float(S) / (E - N) #Harte (2011) 7.26
 
-    pdf = lambda eta: (1 / np.log(1 / beta)) * ((np.exp(-(beta / (lambda2 * (eta - 1)))) / \
-                                    (eta - 1)))
+    pdf = lambda eta: (1 / np.log(1 / beta)) * ((np.exp(-(beta / (lambda2 * \
+                                    (eta - 1)))) / (eta - 1)))
     cdf = []
-    emin = 1 + (1 / (1 * lambda2))#Harte (2011), Table 7.3
-    emax = 1 + (1 / (N * lambda2))
+    emin = 1 + 1e-10
+    emax = E
+    #emax = 1 + (1 / (1 * lambda2))#Harte (2011), Table 7.3
+    #emin = 1 + (1 / (N * lambda2))
     for eta in np.linspace(emin, emax, num=num_samples):
         cdf.append((integrate.quad(pdf, emin, eta)[0], eta))
 
     return np.array(cdf, dtype=[('cdf', np.float), ('energy', np.float)])
 
 
-def mete_energy_psi_pdf(S, N, E, testing=False):
+def mete_energy_psi_pdf(epi, S, N, E, param_out=True):
     '''
-    mete_energy_psi_pdf(S, N, E, testing=False)
+    mete_energy_psi_pdf(S, N, E, param_out=True)
 
     METE community energy distribution (Harte 2011)
 
     Parameters
     ----------
+    epi : int, float, or array-like object
+        The energy values at which to calculate the pdf (1, E]
     S : int
         Total number of species in landscape
     N : int
         Total number of individuals in landscape
     E : float
-        Total energy ouput of community
+        Total energy output of community
 
     Returns
     -------
     : ndarray (1D)
-        If testing is False, returns array with pmf. If testing is true,
-        returns pmf, lamda2, beta
+        If param_ret is False, returns array with pmf. If param_ret is true,
+        returns (pmf, dictionary)
         
 
     Notes
@@ -236,8 +238,8 @@ def mete_energy_psi_pdf(S, N, E, testing=False):
     #Getting beta
     k = np.linspace(1, N, num=N)
     eq = lambda x: sum(x ** k / float(N) * S) -  sum((x ** k) / k)
-    x = scipy.optimize.brentq(eq, start, min((sys.float_info[0] / S)**(1/float(N)),\
-                              stop), disp=True)
+    x = scipy.optimize.brentq(eq, start, min((sys.float_info[0] / S)**\
+                             (1/float(N)), stop), disp=True)
     beta = -m.log(x)
     lambda2 = float(S) / (E - N) #Harte (2011) 7.26
     lambda1 = beta - lambda2
@@ -267,17 +269,115 @@ def mete_energy_psi_pdf(S, N, E, testing=False):
     #pdf as the values get higher. 
 
 
-    if testing == True: 
-        return pdf1, lambda2, beta
+    if param_out == True: 
+        return pdf1, {'lambda2' : lambda2, 'beta' : beta, 'lambda1' : lambda1,\
+                      'sigma' : sigma}
     else:       
         return pdf1
 
+def mete_energy_psi_rank_abund(S, N, E):
+    '''
+    mete_energy_psi_rank_abund(S, N, E)
+
+    Calculates the rank abundance distribution for the METE psi distribution
+
+    Parameters
+    ----------
+    S : int
+        The total number of species in a given landscape
+    N : int
+        The total number of individuals in a given landscape
+    E : int
+        The total energy of all individuals in a given landscape with the
+        lowest energy being one.
+
+    Returns
+    -------
+    : structured np.ndarray
+        Returns a structured numpy array with dtype = [('rank', np.int),
+        ('psi', np.float)] 
+
+    '''
+
+    assert S < N, "S must be less than N"
+    assert S > 1, "S must be greater than 1"
+    assert N > 0, "N must be greater than 0"
+    assert N < E, "N must be less than E"
+
+    #Start and stop for root finders
+    start = 0.3
+    stop = 2
+
+    #Could make a get beta function like Ethan White...
+    k = np.linspace(1, N, num=N)
+    eq = lambda x: sum(x ** k / float(N) * S) -  sum((x ** k) / k)
+    x = scipy.optimize.brentq(eq, start, min((sys.float_info[0] / S)**\
+                             (1/float(N)), stop), disp=True)
+    beta = -m.log(x)
+    l2 = float(S) / (E - N) #Harte (2011) 7.26
+    l1 = beta - l2
+    rank = np.arange(1, N + 1)
+
+    def rank_abund_func(r):
+        '''
+        Uses Harte (2011) eq. 7.37
+        '''
+        psi = (1 / l2) * np.log(((beta * N) + r - 0.5) / (r - 0.5)) - (l1 / l2)
+        return psi
+
+    psi_struc = np.empty(len(rank), dtype=[('rank', np.int), ('psi',\
+                                                              np.float)])
+    psi_struc['rank'] = rank
+    psi_struc['psi'] = rank_abund_func(rank) 
+    return psi_struc
+
+def mete_energy_theta_rank_abund(S, N, E, n):
+    '''
+    mete_energy_theta_rank_abund(S, N, E, n)
+
+    Calculates the rank abundance distribution for the METE theta distribution
+
+    Parameters
+    ----------
+    S : int
+        The total number of species in a given landscape
+    N : int
+        The total number of individuals in a given landscape
+    E : int
+        The total energy of all individuals in a given landscape with the
+        lowest energy being one.
+    n : int
+        The total number of inidividuals in a given species
+
+    Returns
+    -------
+    : structured np.ndarray
+        Returns a structured numpy array with dtype = [('rank', np.int),
+        ('theta', np.float)] 
+
+    '''
+
+    l2 = float(S) / (E - N)
+    rank = np.arange(1, N + 1)
+    rank_abund = lambda r : 1 + (1 / (l2 * n)) * np.log( n / (r - 0.5))
+    theta_struc = np.empty(len(rank), dtype=[('rank', np.int), ('theta',\
+                                                              np.float)])
+    theta_struc['rank'] = rank
+    theta_struc['theta'] = rank_abund(rank)
+    return theta_struc
+
+
+
+
+
+    
     
 
 
 
 
     
+
 
 
 

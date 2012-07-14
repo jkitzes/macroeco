@@ -32,6 +32,7 @@ class Columnar_Data:
     Examples of columnar data include BCIS, LUQU, and COCO
 
     Multiple data files must have same format if they are to be merged
+
     '''
 
     def __init__(self, datalist, delimiter=',', missingd=None,\
@@ -43,8 +44,11 @@ class Columnar_Data:
 
         Parameters
         ----------
-        datalist : string or list of strings
-            Data filenames
+        datalist : string, list of strings, or list of ndarrays.
+            Data filenames or list of data arrays
+
+        delimiter : string
+            The file delimiter. Default is ','
 
         missingd : dict
             Dictionary mapping munged column names to field values which 
@@ -233,7 +237,7 @@ class Columnar_Data:
         for i, name in enumerate(filenames):
             output_form(self.data_list[i], name)
 
-class Grid_Data():
+class Grid_Data:
     '''This class handles data should look like the EarthFlow data after a 
     census.  It is a grid with species abundance data in each cell. 
     ex.
@@ -289,7 +293,7 @@ class Grid_Data():
                                             self.cols[i]).astype('S10'))))
             self.rows.append(len(self.grids[i]))
 
-    def find_unique_spp_in_grid(self, spacer='-'):
+    def find_unique_spp_in_grid(self, spacer='-', spp_sep='\n'):
         '''
         This function finds all of the unique species in the grid.
         It assumes that your grid data is in the proper format.
@@ -299,6 +303,10 @@ class Grid_Data():
         spacer : str
             The character separating the species code from the species count.
             Default value is '-' (n-slash)
+
+        spp_sep : str
+            The character that separates a speces/count combination from
+            another species/count combination.  Default value is '\n'
 
         '''
         self.unq_spp_lists = []
@@ -313,11 +321,11 @@ class Grid_Data():
                         else:
                             spp_names.append(nam_lst[0].strip())
                             for i in xrange(1, len(nam_lst) - 1):
-                                spp_names.append(nam_lst[i].split('\n')[1].\
+                                spp_names.append(nam_lst[i].split(spp_sep)[1].\
                                                                     strip())
             self.unq_spp_lists.append(np.unique(np.array(spp_names)))
 
-    def grid_to_dense(self, spacer='-'):
+    def grid_to_dense(self, spacer='-', spp_sep='\n'):
         '''
         This function converts a the list of gridded data sets into dense 
         data sets and stores them in self.dense_data.  In addition, it
@@ -325,12 +333,18 @@ class Grid_Data():
 
         Parameters
         ----------
-        spacer : string
-            The character separating a species from its count
+        spacer : str
+            The character separating the species code from the species count.
+            Default value is '-' (n-slash)
+
+        spp_sep : str
+            The character that separates a speces/count combination from
+            another species/count combination.  Default value is '\n'
+
 
         '''
 
-        self.find_unique_spp_in_grid(spacer=spacer)
+        self.find_unique_spp_in_grid(spacer=spacer, spp_sep=spp_sep)
         self.dense_data = []
         for i, data in enumerate(self.grids):
             dtype_list = [('cell', np.int), ('row', np.int), ('column', np.int)]
@@ -349,8 +363,8 @@ class Grid_Data():
                         start = data[col][row].find(spp_name)
                         if start != -1:
                             raw = data[col][row][start:].split('-')[1]
-                            if raw.find('\n') != -1:
-                                tot_spp = raw.split('\n')[0].strip()
+                            if raw.find(spp_sep) != -1:
+                                tot_spp = raw.split(spp_sep)[0].strip()
                                 matrix[spp_name][count] = int(tot_spp)
                             else:
                                 tot_spp = raw.split()[0].strip()
@@ -359,7 +373,7 @@ class Grid_Data():
                             matrix[spp_name][count] = 0
                     count += 1
             self.dense_data.append(matrix)
-        self.Dense_Object = Dense_Data(dense_data)
+        self.Dense_Object = Dense_Data(self.dense_data)
 
     def output_data_matricies(self, filenames):
         '''
@@ -382,7 +396,7 @@ class Grid_Data():
             output_form(data, filenames[i]) 
 
     
-class Dense_Data():
+class Dense_Data:
     '''This class handles data that are in the dense format
 
     MORE DOC STRING
@@ -398,6 +412,9 @@ class Dense_Data():
         '''
         #TODO: What kind of files could break this
         #NOTE: What about missing values?
+        if type(datalist) == str:
+            datalist = [datalist]
+
         self.columnar_data = []
         if np.all(np.array([type(x) == str for x in datalist])):
             self.dense_data = []
@@ -406,7 +423,7 @@ class Dense_Data():
         elif np.all(np.array([type(x) == np.ndarray for x in datalist])):
             self.dense_data = datalist
 
-    def dense_to_columnar(self, spp_col_num, column_names):
+    def dense_to_columnar(self, spp_col_num, num_spp):
         '''
         This function uses a function in form_func to convert dense data into
         columnar data. Stores the columnar data as a Columnar Object.
@@ -416,12 +433,13 @@ class Dense_Data():
         spp_col_num : int
             The column number in the dense array where the spp_names begin
 
-        column_names : list
-            A list of the column names that ARE NOT species names
+        num_spp : int
+            Number of species in plot
+
         '''
 
         self.columnar_data = format_dense(self.dense_data, spp_col_num,\
-                                           column_names)
+                                                                      num_spp)
         self.Columnar_Object = Columnar_Data(self.columnar_data)
 
     def output_columnar_data(self, filenames):
@@ -481,7 +499,7 @@ class Transect_Data:
             column)
         
         stop_name : str
-            The name of the new stop column
+            The name of the new stop column in the formatted data
 
         tot_stops : int
             The number of columns with stops

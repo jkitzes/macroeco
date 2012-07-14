@@ -263,44 +263,55 @@ def make_dense_spec_dict(datayears, spp_col=3):
     spec_dict = make_spec_dict(spp_array)
     return spec_dict
 
-def format_dense(datayears, spp_col, column_names):
-    '''This function takes a list of data.  This functions interates 
+def format_dense(datayears, spp_col, num_spp):
+    '''
+    This function takes a list of data.  This functions interates 
     through the list and formats each year of data and stores the 
     formatted data into a list containing all years of formatted data.
 
-    datayears -- a list of rec arrays containing all years of data
+    Parameters
+    ----------
+    datayears : list
+        A list of rec arrays containing all years of data
 
 
-    spp_col -- The column in the dense array where the spp_names begin
+    spp_col : int
+        The column in the dense array where the spp_names begin. 0 is the first
+        column.
 
-    column_names -- a list of the column names that ARE NOT species names
-    
-    returns:
+    num_spp : int
+        Total number of species in plot
+
+    Returns
+    -------
+    : list
         A list of formatted structured arrays.
 
-
     '''
-    for data in datayears:
-        if set(data.dtype.names[0:spp_col]) != set(column_names):
-            raise Exception("Improper formatting of columns. Make \
-                                                sure spp_col is correct")
-
+  
     data_formatted = []
     for data in datayears:
-        ls = len(data.dtype.names[spp_col:])
-        dtype = data.dtype.descr[:spp_col] + [('spp', 'S22'), ('count',\
+        ls = len(data.dtype.names[spp_col:spp_col + num_spp])
+        if len(data.dtype.names[:spp_col + num_spp]) == len(data.dtype.names):
+            dtype = data.dtype.descr[:spp_col] + [('spp', 'S22'), ('count',\
                                                                 np.float)]
+        else:
+            dtype = data.dtype.descr[:spp_col] + data.dtype.descr[spp_col + \
+                    num_spp:] + [('spp', 'S22'), ('count', np.float)]
+
         data_out = np.empty(ls * len(data), dtype=dtype)
 
-        for s, name in enumerate(data_out.dtype.names[:spp_col]):
+        for s, name in enumerate(data_out.dtype.names[:-2]):
             cnt = 0
             for i in xrange(len(data)):
                 if s == 0:
                     data_out[name][cnt:(ls*(i+1))] = data[name][i]
                     data_out['spp'][cnt:(ls*(i+1))] = np.array\
-                                                (data.dtype.names[spp_col:])
+                                                (data.dtype.names[spp_col:\
+                                                spp_col + num_spp])
                     data_out['count'][cnt:(ls*(i+1))] =\
-                                    np.array(list(data[i]))[spp_col:]
+                                    np.array(list(data[i]))[spp_col:spp_col +\
+                                    num_spp]
                     cnt = cnt + ls
                 else:
                     data_out[name][cnt:(ls*(i+1))] = data[name][i]
