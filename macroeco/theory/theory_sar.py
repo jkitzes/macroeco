@@ -6,7 +6,7 @@ Predict SAR from a base scale SAD and a spatial abundance distribution.
 Functions
 ---------
 - `predict_sar` -- Predict SAR
-- `universal_sar` -- Upscale and downscale Universal SAR
+- `sar_method1' -- Upscale and downscale Universal SAR
 - `universal_sar_curve` -- Universal
 
 References
@@ -25,8 +25,8 @@ from __future__ import division
 import numpy as np
 import scipy.optimize
 import sys
-from macroeco import predict_sad
-from macroeco import ssad
+from macroeco.theory import theory_sad
+from macroeco.theory import theory_ssad
 
 class DownscaleError(Exception):
     '''Catch downscale errors'''
@@ -84,11 +84,10 @@ def predict_sar(sad, S, a_list, ssad, k_eq):
     
     return np.array(sar)
 
-def sar_method1(S, N, anchor_area, upscale=0, downscale=0):
+def sar_method1(S, N, anchor_area, upscale=0, downscale=0, target_area=None):
     '''
-    Predict the SAR curve for the given S and N found at 
-    the given anchor scale.  Uses the method 1 for upscaling and downscaling
-    found in Harte 2011.
+    Predict the universal SAR curve for the given S and N found at 
+    the given anchor scale
 
     Parameters
     ----------
@@ -104,6 +103,9 @@ def sar_method1(S, N, anchor_area, upscale=0, downscale=0):
     downscale : int
         Number of iterations down from the anchor scale. Each iteration halves the 
         previous area.
+    target_area : float
+        The desired area for the species-area relationship.  If not None, this
+        keyword argument overrides the upscale and downscale arguements
 
     Returns
     -------
@@ -122,6 +124,17 @@ def sar_method1(S, N, anchor_area, upscale=0, downscale=0):
     assert S < N, "S must be less than N"
     assert S > 1, "S must be greater than 1"
     assert N > 0, "S must be greater than 0"
+    if target_area != None:
+        if target_area == anchor_area:
+            upscale = 0; downscale = 0
+        elif target_area > anchor_area:
+            upscale = np.int(np.ceil(np.log2(target_area / anchor_area)))
+            downscale = 0
+        elif target_area < anchor_area:
+            downscale = np.int(np.ceil(np.abs(np.log2(target_area /\
+                                                      anchor_area)))) 
+            upscale = 0
+    
     if upscale == 0 and downscale == 0:
         return np.array((S, anchor_area), dtype=[('species', np.float),\
                                                 ('area', np.float)])
@@ -283,7 +296,7 @@ def universal_sar_curve(S=20, N=40, num_iter=10):
             univ_SAR['N/S'][i] = N2A / S2A
     return univ_SAR
 
-def sar_method2(S, N, anchor_area, a_list):
+"""def sar_method2(S, N, anchor_area, a_list):
     '''This functions returns the METE predicted SAR for a given a_list.
     This function can take areas both larger and smaller than the anchor_area.
     This function uses method 2 from Harte (2011).
@@ -337,8 +350,8 @@ def sar_method2(S, N, anchor_area, a_list):
     greater = (a_list > anchor_area)
     if np.any(less):
         a_less = a_list[less] / anchor_area
-        sad = predict_sad.macroeco_pmf(S, N, 'mete')
-        sar_array['species'][less] = predict_sar(sad, S, a_less, ssad.tgeo, False)
+        sad = theory_sad.macroeco_pmf(S, N, 'mete')
+        sar_array['species'][less] = predict_sar(sad, S, a_less, theory_ssad.tgeo, False)
 
     if np.any(greater):
         a_greater = a_list[greater]
@@ -351,7 +364,7 @@ def sar_method2(S, N, anchor_area, a_list):
                     bgn = N0 * (sum(x**n / n)) * ((1 - x) / (x - x**(N0 + 1)))
                     sad = (x ** n / n) / sum(x ** n / n)
                     #NOTE: Not sure if this is correct...I think it is
-                    ssad_geo = 1 - ssad.tgeo(0, np.arange(1, N0 + 1), \
+                    ssad_geo = 1 - theory_ssad.tgeo(0, np.arange(1, N0 + 1), \
                                             np.repeat(anchor_area / area, N0))
                     return (bgn * sum(sad * ssad_geo)) - S
                 start = 1e-12
@@ -363,12 +376,12 @@ def sar_method2(S, N, anchor_area, a_list):
             else: #approximation Harte (2011) Appendix C
                 N0 = np.round((area / anchor_area) * N)
                 eu = 0.577215665
-                beta = -np.log(predict_sad.mete_lgsr_pmf(S, N, pmf_ret=True, testing=True)[1])
+                beta = -np.log(theory_sad.mete_lgsr_pmf(S, N, pmf_ret=True, testing=True)[1])
                 S0 = S + (eu * beta * N) + (beta * N * np.log(area / anchor_area))
             spp_greater.append(S0)
         sar_array['species'][greater] = np.array(spp_greater)
 
-    return sar_array
+    return sar_array"""
 
 
 
