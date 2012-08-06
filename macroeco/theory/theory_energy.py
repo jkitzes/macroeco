@@ -5,17 +5,13 @@ METE energy distributions.
 
 Distributions
 -------------
-- 'mete_energy_theta_pdf -- The METE intra-specific energy distribution 
-                            (Harte 2011)
-
-- 'mete_energy_theta_rank_abund'
-
-- 'mete_energy_psi_pdf' -- The METE community energy distribution
-
--'mete_energy_psi_rank_abund'
-
-- 'mete_energy_nu_pdf/cdf' -- The METE mean energy per species distribution
-
+All distributions from Harte (2011)
+- `mete_energy_theta_pdf` -- The METE intra-specific energy distribution 
+- `mete_energy_theta_rank_abund` -- Theta Rank Abundance Distribution
+- `mete_energy_psi_pdf` -- The METE community energy distribution
+- `mete_energy_psi_rank_abund` -- Psi Rank Abundance Distribution
+- `mete_energy_nu_pdf` -- The METE nu distribution
+- `mete_energy_nu_cdf' -- The cdf of the METE nu distribution
 
 References
 ----------
@@ -32,6 +28,15 @@ import scipy.special
 import math as m
 import sys
 
+__author__ = "Mark Wilber"
+__copyright__ = "Copyright 2012, Regents of the University of California"
+__credits__ = ["John Harte"]
+__license__ = None
+__version__ = "0.1"
+__maintainer__ = "Mark Wilber"
+__email__ = "mqw@berkeley.edu"
+__status__ = "Development"
+
 def mete_energy_theta_pdf(epi, S, N, E, n, param_out=True):
     '''
     mete_energy_theta_pdf(epi, S, N, E, n, param_out=True)
@@ -47,7 +52,7 @@ def mete_energy_theta_pdf(epi, S, N, E, n, param_out=True):
     N : int
         Total number of individuals in landscape
     E : float
-        Total energy ouput of community
+        Total energy output of community
     n : int
         Number of individuals in species of interest
 
@@ -96,7 +101,8 @@ def mete_energy_nu_pdf(S, N, E, param_out=False):
     -------
     : ndarray (1D)
         If param_out is False, return a pdf.  If param_out is True, returns 
-        pdf, eta, and a dictionary with lamda2, beta
+        pdf, epi, and a dictionary with lamda2, beta.  Epi is an array of the
+        discrete energy values that define the nu distribution.
 
     Notes
     -----
@@ -105,7 +111,7 @@ def mete_energy_nu_pdf(S, N, E, param_out=False):
     averaged over individuals within species' (Harte 2011). 
 
     Because of its derivation, this function is discrete!  Only will return
-    certain values of e. 
+    certain values of epi. 
 
     '''
 
@@ -122,16 +128,16 @@ def mete_energy_nu_pdf(S, N, E, param_out=False):
     #Getting beta
     k = np.linspace(1, N, num=N)
     eq = lambda x: sum(x ** k / float(N) * S) -  sum((x ** k) / k)
-    x = scipy.optimize.brentq(eq, start, min((sys.float_info[0] / S)**(1/float(N)),\
-                              stop), disp=True)
+    x = scipy.optimize.brentq(eq, start, min((sys.float_info[0] / S)**\
+                              (1/float(N)), stop), disp=True)
     beta = -m.log(x)
     lambda2 = float(S) / (E - N) #Harte (2011) 7.26
-    eta_func = lambda n: 1 + (1 / (n * lambda2)) #Harte (2011) pg. 157
-    eta = eta_func(np.arange(1, N + 1)[::-1])
-    pdf = (1 / np.log(1 / beta)) * ((np.exp(-(beta / (lambda2 * (eta - 1)))) / \
-                                    (eta - 1)))
+    epi_func = lambda n: 1 + (1 / (n * lambda2)) #Harte (2011) pg. 157
+    epi = epi_func(np.arange(1, N + 1)[::-1])
+    pdf = (1 / np.log(1 / beta)) * ((np.exp(-(beta / (lambda2 * (epi - 1)))) \
+                                    / (epi - 1)))
     if param_out == True:
-        return pdf, eta, {'lambda2' : lambda2, 'beta' : beta}
+        return pdf, epi, {'lambda2' : lambda2, 'beta' : beta}
     else:
         return pdf
     
@@ -153,11 +159,9 @@ def mete_energy_nu_cdf(S, N, E):
     Returns
     -------
     : structured ndarray (1D)
-        Structured array contains fields 'cdf' and 'energy'. The field 'cdf' represents
-        the cdf value at a given energy level (Prob (emin <= energy <= upppere)
+        Structured array contains fields 'cdf' and 'energy'. The field 'cdf' 
+        represents the cdf value at a given energy level. 
 
-    Notes:
-    ------
     '''
 
     assert S < N, "S must be less than N"
@@ -214,7 +218,6 @@ def mete_energy_psi_pdf(epi, S, N, E, param_out=True):
     assert N > 0, "N must be greater than 0"
     assert N < E, "N must be less than E"
 
-    
     #Start and stop for root finders
     start = 0.3
     stop = 2
@@ -230,16 +233,16 @@ def mete_energy_psi_pdf(epi, S, N, E, param_out=True):
     lambda1 = beta - lambda2
     sigma = lambda1 + (E * lambda2)
 
-    norm = (float(S) / (lambda2 * N)) * (((np.exp(-beta) - np.exp(-beta*(N + 1))) /\
-           (1 - np.exp(-beta))) - ((np.exp(-sigma) - np.exp(-sigma*(N + 1))) / \
-           (1 - np.exp(-sigma)))) #Harte (2011) 7.22
+    norm = (float(S) / (lambda2 * N)) * (((np.exp(-beta) - \
+           np.exp(-beta*(N + 1))) / (1 - np.exp(-beta))) - ((np.exp(-sigma) - \
+           np.exp(-sigma*(N + 1))) / (1 - np.exp(-sigma)))) #Harte (2011) 7.22
     
-    epi = np.linspace(1, E, num=E*10) #10 is arbitrary
     exp_neg_gamma = np.exp(-(beta + (epi - 1) * lambda2)) #Notation from E.W.
 
-    pdf1 = (float(S) / (N * norm)) * ((exp_neg_gamma  / (1 - exp_neg_gamma)**2) - \
-          ((exp_neg_gamma**N / (1 - exp_neg_gamma)) * (N + (exp_neg_gamma / (1 - \
-          exp_neg_gamma))))) # Harte (2011) 7.24
+    pdf1 = (float(S) / (N * norm)) * ((exp_neg_gamma  / \
+           (1 - exp_neg_gamma)**2) - ((exp_neg_gamma**N / \
+           (1 - exp_neg_gamma)) * (N + (exp_neg_gamma / (1 - exp_neg_gamma)))))
+           # Harte (2011) 7.24
 
     #EW believes equation 7.24 may have an error
     #norm_factor = lambda2 / ((np.exp(-beta) - np.exp(-beta * (N + 1))) / (1 - \

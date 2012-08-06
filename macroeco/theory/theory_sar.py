@@ -1,19 +1,29 @@
 #!/usr/bin/python
 
 '''
-Predict SAR from a base scale SAD and a spatial abundance distribution.
+Predicted Species Area Relationships
 
 Functions
 ---------
 - `predict_sar` -- Predict SAR
-- `sar_method1' -- Upscale and downscale Universal SAR
-- `universal_sar_curve` -- Universal
+- `power_law` -- Classical power law SAR
+- `mete_sar_method1` -- Upscale and downscale METE SAR using method 1 
+                        (Harte 2011)
+- `mete_universal_sar_curve` -- Universal SAR (Harte 2011)
+- `mete_sar_method2` -- In progress (Harte 2011)
+
+Misc. Functions
+---------------
+- `_upscale_sar_`
+- `_downscale_sar_`
+- `_generate_areas_`
+
 
 References
 ----------
 
-Harte, J., Smith, A. B., and Storch, D. 2009. Biodiversity scales from plots to biomes 
-with a universal species-area curve. Ecology Letters, 12:789-797.
+Harte, J., Smith, A. B., and Storch, D. 2009. Biodiversity scales from plots to
+biomes with a universal species-area curve. Ecology Letters, 12:789-797.
 
 Harte, J. 2011. Maximum Entropy and Ecology: A Theory of Abundance,
 Distribution, and Energetics. Oxford University Press.
@@ -27,6 +37,15 @@ import scipy.optimize
 import sys
 from macroeco.theory import theory_sad
 from macroeco.theory import theory_ssad
+
+__author__ = "Justin Kitzes and Mark Wilber"
+__copyright__ = "Copyright 2012, Regents of the University of California"
+__credits__ = ["John Harte"]
+__license__ = None
+__version__ = "0.1"
+__maintainer__ = "Justin Kitzes and Mark Wilber"
+__email__ = "jkitzes@berkeley.edu"
+__status__ = "Development"
 
 class DownscaleError(Exception):
     '''Catch downscale errors'''
@@ -84,7 +103,44 @@ def predict_sar(sad, S, a_list, ssad, k_eq):
     
     return np.array(sar)
 
-def sar_method1(S, N, anchor_area, upscale=0, downscale=0, target_area=None):
+def power_law(area_list, S, anchor_area, z):
+    '''
+    Generate a power law SAR with a given z for some S at an anchor area
+
+    Parameters
+    ----------
+    area_list : array-like object
+        An array-like object containing SAR areas to be computed
+    S : int
+        Total number of species at the given anchor area
+    anchor_area : float
+        The area which contains S species
+    z : int
+        The power of the power law
+    
+    Returns
+    -------
+    : structured np.array
+        A structured np.array with dtype=[('species', np.float),
+        ('area', np.float)]. 
+    
+    '''
+
+    if type(area_list) is int or type(area_list) is float:
+        area_list = np.array([area_list])
+    else:
+        area_list = np.array(area_list)
+    
+    output_array = np.empty(len(area_list), dtype=[('species', np.float),\
+                                                     ('area', np.float)])
+    output_array['area'] = area_list
+    c = S / (anchor_area ** z)
+    p_law = lambda x: c * (x ** z)
+    output_array['species'] = p_law(area_list)
+    return output_array
+
+def mete_sar_method1(S, N, anchor_area, upscale=0, downscale=0,\
+                     target_area=None):
     '''
     Predict the universal SAR curve for the given S and N found at 
     the given anchor scale
@@ -98,11 +154,11 @@ def sar_method1(S, N, anchor_area, upscale=0, downscale=0, target_area=None):
     anchor_area : float
         The area from which the SAR will be upscaled or downscaled.
     upscale : int
-        Number of iterations up from the anchor scale.  Each iteration doubles the
-        previous area.
+        Number of iterations up from the anchor scale.  Each iteration doubles
+        the previous area.
     downscale : int
-        Number of iterations down from the anchor scale. Each iteration halves the 
-        previous area.
+        Number of iterations down from the anchor scale. Each iteration halves
+        the previous area.
     target_area : float
         The desired area for the species-area relationship.  If not None, this
         keyword argument overrides the upscale and downscale arguements
@@ -139,12 +195,14 @@ def sar_method1(S, N, anchor_area, upscale=0, downscale=0, target_area=None):
         return np.array((S, anchor_area), dtype=[('species', np.float),\
                                                 ('area', np.float)])
     areas = _generate_areas_(anchor_area, upscale, downscale)
-    sar = np.empty(len(areas), dtype=[('species', np.float), ('area', np.float)])
+    sar = np.empty(len(areas), dtype=[('species', np.float),\
+                                      ('area', np.float)])
     sar['area'] = areas
     if upscale != 0: 
         sar['species'][downscale:] = _upscale_sar_(areas[downscale:], N, S)
     if downscale != 0:
-        sar['species'][:downscale + 1] = _downscale_sar_(areas[:downscale + 1], N, S)
+        sar['species'][:downscale + 1] =\
+                                   _downscale_sar_(areas[:downscale + 1], N, S)
 
     return sar
 
@@ -175,10 +233,13 @@ def _upscale_sar_(up_areas, N, S):
             n = np.linspace(1, N2A, num=N2A)
             eq1 = lambda x: (sum((x**n)/n) * ((N2A) / ((x - x**(N2A + 1)) / \
                             (1 - x)) * (1 / x))) - ((N2A) * ((1 - x) / \
-                            (x - x**(N2A + 1))) * (1 - (x**N2A / (N2A + 1)))) - spp[i - 1]
+                            (x - x**(N2A + 1))) * (1 - (x**N2A / (N2A + 1))))\
+                            - spp[i - 1]
             x = scipy.optimize.brentq(eq1, 1e-10, 1 - 1e-10, disp=True)
-            eq2 = lambda S2A: np.log(1 / np.log(1 / x)) * ((N2A) / ((x - x**(N2A + 1)) / (1 - x))) - S2A
-            S2A = scipy.optimize.brentq(eq2, spp[i - 1], 2 * spp[i - 1], disp=True)
+            eq2 = lambda S2A: np.log(1 / np.log(1 / x)) * ((N2A) / \
+                                          ((x - x**(N2A + 1)) / (1 - x))) - S2A
+            S2A = scipy.optimize.brentq(eq2, spp[i - 1], 2 * spp[i - 1],\
+                                                                     disp=True)
             spp[i] = S2A
     return spp
 
@@ -186,7 +247,8 @@ def _downscale_sar_(down_areas, N, S):
     '''
     This function is used to downscale from the anchor area.
 
-    up_areas -- A 1D area of length downscale + 1.  The areas to be downscaled to.
+    up_areas -- A 1D area of length downscale + 1.  The areas to be downscaled
+                to.
 
     N -- Number of individuals at anchor scale (int)
 
@@ -205,16 +267,17 @@ def _downscale_sar_(down_areas, N, S):
         else:
             num_ind[i] = 0.5 * num_ind[i - 1]
             if num_ind[i] <= 1:
-                raise DownscaleError('Cannot downscale %i iterations from anchor scale.\
-                                     One or less individuals per cell.' % (len(down_areas) - 1))
+                raise DownscaleError('Cannot downscale %i iterations from ' +\
+                                     'anchor scale. One or less individuals' +\
+                                     ' per cell.' % (len(down_areas) - 1))
             N_A = num_ind[i - 1]
             S_A = spp[i - 1]
             n = np.linspace(1, N_A, num=N_A)
             eq1 = lambda x: sum((x**n) / n) - ((S_A / N_A) * sum(x**n))
-            x = scipy.optimize.brentq(eq1, 1e-10, min((sys.float_info[0] / S)**(1/float(N)),\
-                              2), disp=True)
-            ShalfA = (S_A * (1 / x)) - ((N_A) * ((1 - x) / (x - x**(N_A + 1))) * \
-                     (1 - ((x**N_A) / (N_A + 1))))
+            x = scipy.optimize.brentq(eq1, 1e-10, min((sys.float_info[0] / S)\
+                                      **(1/float(N)), 2), disp=True)
+            ShalfA = (S_A * (1 / x)) - ((N_A) * ((1 - x) / (x - x**(N_A + 1)))\
+                     * (1 - ((x**N_A) / (N_A + 1))))
             spp[i] = ShalfA
     return spp[::-1]
 
@@ -235,7 +298,7 @@ def _generate_areas_(anchor_area, upscale, downscale):
 
     return areas
 
-def universal_sar_curve(S=20, N=40, num_iter=10):
+def mete_universal_sar_curve(S=20, N=40, num_iter=10):
     '''
     universal_sar_curve(S=20, N=40, num_iter=10)
 
@@ -246,7 +309,7 @@ def universal_sar_curve(S=20, N=40, num_iter=10):
     N : int
         Total number of individuals at the given anchor area
     num_iter : int
-        Number of upscaling iterations.
+        Number of iterations.
         WARNING: Running more than 10 ten begins to take along time
     
     Returns
@@ -260,24 +323,27 @@ def universal_sar_curve(S=20, N=40, num_iter=10):
     This function calculates the universal SAR curve.  Different ratios
     of N/S will only put you at different places along the same curve. 
     Iterations of more than 15 take a long time. The equations used in this
-    function were taken from Harte et al. (2009) and Harte (2011). This is method 1
-    in Harte (2011)
+    function were taken from Harte et al. (2009) and Harte (2011). This uses 
+    method 1 in Harte (2011)
 
     '''
 
     num_ind = np.empty(num_iter + 1)
     spp = np.empty(num_iter + 1)
-    univ_SAR = np.empty(num_iter + 1, dtype=[('z', np.float), ('N/S', np.float)])
-    z = lambda beta: 1 / (np.log(2) * np.log(1 / beta)) #From Harte et al. (2009)
+    univ_SAR = np.empty(num_iter + 1, dtype=[('z', np.float),\
+                                             ('N/S', np.float)])
+    #From Harte et al. (2009)
+    z = lambda beta: 1 / (np.log(2) * np.log(1 / beta))
 
     for i in xrange(num_iter + 1):
         if i == 0:
             num_ind[i] = N
             spp[i] = S
             n = np.linspace(1, N, num=N)
-            eq = lambda x: (((x - x ** (N + 1)) / ( 1 - x)) / sum((x ** n) / n)) - (N / S)
-            x = scipy.optimize.brentq(eq, 1e-10, min((sys.float_info[0] / S)**(1/float(N)),\
-                              2), disp=True)
+            eq = lambda x: (((x - x ** (N + 1)) / ( 1 - x)) / \
+                                                   sum((x ** n) / n)) - (N / S)
+            x = scipy.optimize.brentq(eq, 1e-10, min((sys.float_info[0] / S)\
+                                      **(1/float(N)), 2), disp=True)
             univ_SAR['z'][i] = z(-np.log(x))
             univ_SAR['N/S'][i] = N / S
         else:
@@ -286,12 +352,15 @@ def universal_sar_curve(S=20, N=40, num_iter=10):
             n = np.linspace(1, N2A, num=N2A)
             eq1 = lambda x: (sum((x**n)/n) * ((N2A) / ((x - x**(N2A + 1)) / \
                             (1 - x)) * (1 / x))) - ((N2A) * ((1 - x) / \
-                            (x - x**(N2A + 1))) * (1 - (x**N2A / (N2A + 1)))) - spp[i - 1]
+                            (x - x**(N2A + 1))) * (1 - (x**N2A / (N2A + 1))))\
+                            - spp[i - 1]
             x = scipy.optimize.brentq(eq1, 1e-10, 1 - 1e-10, disp=True)
             univ_SAR['z'][i] = z(-np.log(x))
             #Using approximations for summations. See module notes
-            eq2 = lambda S2A: np.log(1 / np.log(1 / x)) * ((N2A) / ((x - x**(N2A + 1)) / (1 - x))) - S2A
-            S2A = scipy.optimize.brentq(eq2, spp[i - 1], 2 * spp[i - 1], disp=True)
+            eq2 = lambda S2A: np.log(1 / np.log(1 / x)) * ((N2A) / \
+                                          ((x - x**(N2A + 1)) / (1 - x))) - S2A
+            S2A = scipy.optimize.brentq(eq2, spp[i - 1], 2 * spp[i - 1], \
+                                                                     disp=True)
             spp[i] = S2A
             univ_SAR['N/S'][i] = N2A / S2A
     return univ_SAR

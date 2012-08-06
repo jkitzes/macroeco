@@ -1,27 +1,31 @@
 #!/usr/bin/python
 
 '''
-Calculate pmf and likelihood of species abundance distributions.
+Species abundance distributions.
 
 Distributions
 -------------
 - `lgsr_pmf` -- Fisher's log series (Fisher et al. 1943)
 - `neg_binom_pmf` -- Negative Binomial
 - `geo_pmf` -- Geometric Distribution
+- `geo_series_rank_abund' -- Geometric Series Rank Abundance Distribution
+  (Motomura 1932)
+- `broken_stick_pmf` -- McArthur's Broken Stick Distribution (May 1975)
+- `broken_stick_rank_abund` -- McArthur's Broken Stick Rank Abundance
+  Distribution (May 1975)
 - `plognorm_pmf` -- Poisson lognormal (Bulmer 1974)
 - `trun_plognorm_pmf` -- Truncated poisson log-normal (Bulmer 1974)
+- `lognorm_pmf` -- Lognormal Distribution
+- `trun_lognormal_pmf` -- Truncated Lognormal Distribution
+- `canonical_lognormal_pmf` -- Preston's Canonical Lognormal Parameterized by
+  May (May 1975)
+- `sugihara_rank_abund` -- Sugihara's sequential breakage model (Sugihara 1980)
 - `mete_logser_pmf` -- METE log series (Harte 2011)
 - `mete_logser_approx_pmf` -- METE log series using approximation (Harte 2011)
 
 Misc Functions
 --------------
 - `make_rank_abund` -- convert any SAD pmf into a rank abundance curve
-- `plognorm_MLE` -- Get MLE estimates for poisson lognormal
-- `macroeco_pmf`
-- `get_sad_cdf`
-- `nll`
-- `distr_parameters`
-- `fit_neg_binom`
 
 References
 ----------
@@ -48,6 +52,9 @@ Press.
 Motomura, L. 1932. A statistical treatment of associations. Japan Journal of
 Zoology, 44:379-383.
 
+Sugihara, G. 1980. Minimal community structure: an explanation of species
+abundance patterns. The American Naturalist, 116:770-787.
+
 '''
 from __future__ import division
 import numpy as np
@@ -57,6 +64,15 @@ import scipy.special
 import math as m
 import scipy.integrate as integrate
 import sys
+
+__author__ = "Justin Kitzes and Mark Wilber"
+__copyright__ = "Copyright 2012, Regents of the University of California"
+__credits__ = ["John Harte"]
+__license__ = None
+__version__ = "0.1"
+__maintainer__ = "Justin Kitzes and Mark Wilber"
+__email__ = "jkitzes@berkeley.edu"
+__status__ = "Development"
 #NOTE: Assertion statements needed!
 
 class RootError(Exception):
@@ -423,7 +439,7 @@ def lognorm_pmf(ab, mu, sigma, param_out=False):
     else:
         return pmf
 
-def trun_lognormal(ab, mu, sigma, param_out=False):
+def trun_lognormal_pmf(ab, mu, sigma, param_out=False):
     '''
     Zero-Truncated Lognormal pmf
 
@@ -458,7 +474,7 @@ def trun_lognormal(ab, mu, sigma, param_out=False):
         tr_pmf = (untr_pmf / (1 - pmf0))
         return tr_pmf
 
-def plognorm_MLE(ab, trun=True):
+"""def plognorm_MLE(ab, trun=True):
     '''
     Maximum likelihood Estimates for Poisson log normal
 
@@ -497,6 +513,7 @@ def plognorm_MLE(ab, trun=True):
             return -sum(np.log(plognorm_pmf(ab, x[0], x[1])))
     mu, var = scipy.optimize.fmin(pln_func, x0 = [mu0, var0], disp=0)
     return mu, var
+"""
 
 def canonical_lognorm_pmf(r, S, param_ret=False):
     '''
@@ -544,10 +561,10 @@ def canonical_lognorm_pmf(r, S, param_ret=False):
     pmf = (s0 / S) * np.exp(-(a ** 2) * (r ** 2)) 
     return pmf, s0, a
 
-def sugihara_rank_abun(S, N, sample_size = 10000):
+def sugihara_rank_abund(S, N, sample_size = 10000):
     '''
     
-    sugihara_rank_abun(S, N, sample_size = 10000)
+    sugihara_rank_abund(S, N, sample_size = 10000)
 
     Parameters
     ----------
@@ -567,11 +584,11 @@ def sugihara_rank_abun(S, N, sample_size = 10000):
     This function is a bit questionable because we are using a randomly
     generated breakage sequence. As S gets large, we will start to under sample
     some of the possible breakage sequences and this model begins to fail.
+    Adapted from Sugihara (1980)
 
     '''
     total = []
     for i in xrange(sample_size):
-
         U = np.random.triangular(0.5, 0.75, 1, size=S - 1)
         p = []
         #Could this be refactored to look sexier and perform better?
@@ -586,13 +603,13 @@ def sugihara_rank_abun(S, N, sample_size = 10000):
                 p.append(p_new2)
                 p.sort(reverse=True)
         total.append(p)
-        
+      
     total_array = np.array(total)
     means = []
     for i in xrange(S):
         means.append(np.mean(total_array[:,i]))
     means = np.array(means)
-    return N * means
+    return N *means
 
 
 def mete_lgsr_pmf(n, S, N, param_out=False):
@@ -761,7 +778,7 @@ def make_rank_abund(sad_pmf, S):
     
     return S_abunds
 
-def fit_neg_binom_pmf(sad, guess_for_k=1):
+"""def fit_neg_binom_pmf(sad, guess_for_k=1):
     '''
     Function fits a negative binomial to the sad and returns the MLE for k 
 
@@ -791,7 +808,7 @@ def fit_neg_binom_pmf(sad, guess_for_k=1):
     mlek = scipy.optimize.fmin(nll_nb, np.array([guess_for_k]), args=(sad,),\
                                                                     disp=0)[0]
     return mlek
-
+"""
 
 
 
