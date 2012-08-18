@@ -60,6 +60,7 @@ class Workflow:
         self.script = os.path.split(script_path)[-1]
 
         # Store output directory path - contains params file, log, results
+        # TODO: If dir does not exist, create it? What if low level typo?
         self.output_path = sys.argv[1]
 
         # Store list of paths to data files
@@ -67,7 +68,7 @@ class Workflow:
 
         # Prepare logger
         logging.basicConfig(filename=self.output_path + logfile, 
-                            level=logging.DEBUG, format='''%(asctime)s | 
+                            level=logging.INFO, format='''%(asctime)s | 
                             %(levelname)s | %(filename)s:%(lineno)d | 
                             %(message)s''', datefmt='%H:%M:%S')
 
@@ -115,10 +116,6 @@ class Workflow:
                     yield datafile, output_ID, self.runs.params[run]
 
         
-class AllEntities:
-    def __getitem__(self, key):
-        return key        
-
 class Parameters:
     '''Parameter values for any analysis:
         asked for as a dictionary of name:helpstring,
@@ -183,6 +180,10 @@ class Parameters:
             raise Error #user wasn't helpful... TODO error type'''
          
     def read_from_xml(self, asklist):
+
+        class AllEntities:
+            def __getitem__(self, key):
+                return key
 
         try:
             pf = open(paramfile,'r')
