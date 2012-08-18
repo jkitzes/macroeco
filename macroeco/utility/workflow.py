@@ -45,20 +45,25 @@ class Workflow:
     -------
     script : string
         Name of script originating the workflow
+    output_path : string
+        Path to output directory
     interactive : bool
-         Whether the script can pause for user interaction
+        Whether the script can pause for user interaction
     runs : dict
-         If parameters are needed, sets of parameter values are named runs
+        If parameters are needed, sets of parameter values are named runs
     '''
 
     def __init__(self, asklist={}):
 
-        # Get and store script name using command line call
+        # Store script name using command line call
         script_path, script_extension = os.path.splitext(sys.argv[0])
         self.script = os.path.split(script_path)[-1]
 
-        # Store list of data paths
-        self.datafiles = sys.argv[1:]
+        # Store output directory path
+        self.output_path = sys.argv[1]
+
+        # Store list of paths to data files
+        self.datafiles = sys.argv[2:]
 
         # Prepare logger
         logging.basicConfig(level=logging.DEBUG, format='''%(asctime)s | 
@@ -66,10 +71,10 @@ class Workflow:
                             %(message)s''', datefmt='%H:%M:%S')
 
         # Make map of sites if data files present
-        if len(sys.argv) < 2:
+        if len(sys.argv) < 3:
             logging.info('No data files given, no site map generated')
         else:
-            make_map(sys.argv[1:])
+            make_map(sys.argv[2:])
         
         #may need parameters, which may be in multiple runs
         try:
