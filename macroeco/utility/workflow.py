@@ -59,7 +59,7 @@ class Workflow:
         script_path, script_extension = os.path.splitext(sys.argv[0])
         self.script = os.path.split(script_path)[-1]
 
-        # Store output directory path
+        # Store output directory path - contains params file, log, results
         self.output_path = sys.argv[1]
 
         # Store list of paths to data files
@@ -76,7 +76,7 @@ class Workflow:
         else:
             make_map(sys.argv[2:])
         
-        #may need parameters, which may be in multiple runs
+        # Try to get parameters from file
         try:
             self.runs = Parameters(self.script, asklist) #The asking stuff happens post-beta.
             self.interactive = self.runs.interactive
@@ -108,30 +108,6 @@ class Workflow:
                 for df in self.datafiles:
                     ID = '_'.join([self.script, _clean_name(df), run])
                     yield  df, ID, self.runs.params[run]
-                
-    
-    def all_datasets(self):
-        '''
-        Returns
-        -------
-        datasetpaths, outputID
-        
-        datasetpaths : list
-                       List of complete paths to all datasets.
-
-        outputID : string
-                   Concatenates script and all dataset identifiers.
-        '''
-        datanames = map(_clean_name, self.datafiles)
-        outputID = '_'.join([self.script]+datanames)
-        if type(self.runs) == type(None):
-            self.logger.debug('No params')
-            yield self.datafiles, outputID
-        else:
-            self.logger.debug('Multiple params')
-            for run in self.runs.params.keys():
-                outputID = '_'.join([self.script]+datanames + [run])
-                yield self.datafiles, outputID, self.runs.params[run]
 
         
 class AllEntities:
