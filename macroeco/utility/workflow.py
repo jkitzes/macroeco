@@ -1,18 +1,16 @@
 #!/usr/bin/python
 
 '''
-Workflow manages the details of a reproducible workflow within the METE system.
+Manages the details of a reproducible workflow within macroeco.
 
 Classes
 -------
-- Workflow: tracks the analysis & data requested, and any parameters needed.
-            Generates a map of data sites.
-- Parameters: Find, or ask for, and store the run names and parameters asked for by an analysis.
-
+- `Workflow` -- tracks the analysis, data requested, and parameters; maps sites
+- `Parameters` -- finds/asks for and stores run names and parameters
 '''
+
 import xml.etree.ElementTree as etree
 import sys, os, logging
-from matplotlib.mlab import csv2rec
 from mpl_toolkits.basemap import Basemap
 import matplotlib.pyplot as plt
 import metadata as metadata
@@ -26,10 +24,9 @@ __maintainer__ = "Chloe Lewis"
 __email__ = "chlewis@berkeley.edu"
 __status__ = "Development"
 
-paramfile = "parameters.xml"
-logfile   = "logfile.txt"
-loggername = "macroeco"
-
+paramfile = 'parameters.xml'  # Name of parameter file found in output dir
+logfile   = 'logfile.txt'  # Name of logfile to save in output dir
+loggername = 'macroeco'
 
 
 class Workflow:
@@ -40,27 +37,26 @@ class Workflow:
     Parameters
     ----------
     asklist : dictionary
-              'parameter_name':'hint' describes the parameters needed.
-              If not given, all parameters recorded in %s
-              for the current scriptname will be available.
+        Parameters needed in form of 'parameter_name':'value'. If not given, 
+        all parameters recorded in %s for the current scriptname will be 
+        available.
 
     Members
     -------
     script : string
-             Name of script originating the workflow
+        Name of script originating the workflow
     logger : logging.logger
-             Also shareable with any module as logging.getLogger(%s)
+         Also shareable with any module as logging.getLogger(%s)
     interactive : bool
-             Whether the script can pause for user interaction
-    runs   : dict
-             If parameters are needed, sets of parameter values are named runs
+         Whether the script can pause for user interaction
+    runs : dict
+         If parameters are needed, sets of parameter values are named runs
     '''%(paramfile, loggername)
 
     def __init__(self, asklist={}):
-        # Track output with the analysis name as running. Tidy up:
-        sPath, sExt = os.path.splitext(sys.argv[0])
-        self.script = os.path.split(sPath)[-1]
-
+        # Get and store script name using command line call
+        script_path, script_extension = os.path.splitext(sys.argv[0])
+        self.script = os.path.split(script_path)[-1]
 
         # The rest of the arguments are the data files to analyze.
         self.datafiles = sys.argv[1:]
