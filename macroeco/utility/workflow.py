@@ -66,7 +66,8 @@ class Workflow:
         self.datafiles = sys.argv[2:]
 
         # Prepare logger
-        logging.basicConfig(level=logging.DEBUG, format='''%(asctime)s | 
+        logging.basicConfig(filename=self.output_path + logfile, 
+                            level=logging.DEBUG, format='''%(asctime)s | 
                             %(levelname)s | %(filename)s:%(lineno)d | 
                             %(message)s''', datefmt='%H:%M:%S')
 
