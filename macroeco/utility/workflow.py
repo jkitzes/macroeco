@@ -87,27 +87,31 @@ class Workflow:
         
     def single_datasets(self):
         '''
-        Generator. For each dataset being analyzed:
+        Generator that yields data files and descriptive parameters.
 
         Yields
         ------
-        datasetpath, outputID
-
-        datasetpath : string
-                      Full path to data to analyze
-        outputID : string
-                   Concatenates script and dataset identifiers
+        datafile : string
+            Full path to data to analyze
+        output_ID : string
+            Concatenates script and dataset identifiers
         '''
+
+        def clean_name(fp):  # Extrace file name from path
+            return os.path.splitext(os.path.split(fp)[-1])[0]
+
         if type(self.runs) == type(None):
-            for df in self.datafiles:
-                self.logger.debug(df)
-                ID = '_'.join([self.script, _clean_name(df)])
-                yield  df, ID
+            for datafile in self.datafiles:
+                output_ID = '_'.join([self.script, clean_name(datafile)])
+                logging.debug('Beginning %s' % output_ID)
+                yield datafile, output_ID
         else:
             for run in self.runs.params.keys():
-                for df in self.datafiles:
-                    ID = '_'.join([self.script, _clean_name(df), run])
-                    yield  df, ID, self.runs.params[run]
+                for datafile in self.datafiles:
+                    output_ID = '_'.join([self.script, clean_name(datafile), 
+                                          run])
+                    logging.debug('Beginning %s' % output_ID)
+                    yield datafile, output_ID, self.runs.params[run]
 
         
 class AllEntities:
@@ -235,9 +239,6 @@ class Parameters:
         else:
             return True
             
-def _clean_name(fp):
-        return os.path.splitext(os.path.split(fp)[-1])[0]
-
 def make_map(datalist, mapname = None, whole_globe = False):
     '''
     Ensures that a map of all the datasites being analyzed exists.
