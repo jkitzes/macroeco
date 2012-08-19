@@ -23,15 +23,15 @@ class ParamfileTestCase(unittest.TestCase):
                         'layers':'list of positive integers'}
         self.pf = open('parameters.xml', 'w')
         self.pf.write("""<?xml version='1.0'?>
-<METE>
-    <analysis scriptname='RunExists' version='0.5' interactive='F'>
+<macroeco>
+    <analysis script_name='RunExists' version='0.5' interactive='F'>
         <run name='ParamfileTestCase'>
             <param name='size' value='4.4' />
             <param name='species' value='E. coli' />
             <param name='layers' value='[0,3,12]' />
         </run>
     </analysis>
-    <analysis scriptname='ManyNIRuns' version='0.5' interactive='f'>
+    <analysis script_name='ManyNIRuns' version='0.5' interactive='f'>
         <run name='FirstCase' >
             <param name='size' value='4.4' />
             <param name='species' value='E. coli' />
@@ -43,7 +43,7 @@ class ParamfileTestCase(unittest.TestCase):
             <param name='layers' value='[5]' />
         </run>
     </analysis>
-    <analysis scriptname='Unnamed' version='0.5'>
+    <analysis script_name='Unnamed' version='0.5'>
         <run>
             <param name='size' value='4.4' />
             <param name='species' value='E. coli' />
@@ -55,7 +55,7 @@ class ParamfileTestCase(unittest.TestCase):
             <param name='layers' value='[5]' />
         </run>
     </analysis>
-    <analysis scriptname='Interactive' version='0.5' interactive='T'>
+    <analysis script_name='Interactive' version='0.5' interactive='T'>
         <run>
             <param name='size' value='4.4' />
             <param name='species' value='E. coli' />
@@ -68,7 +68,7 @@ class ParamfileTestCase(unittest.TestCase):
         </run>
     </analysis>
     
-</METE>""")
+</macroeco>""")
         self.pf.close()
 
     def tearDown(self):
