@@ -69,9 +69,9 @@ class Workflow:
 
         # Prepare logger
         logging.basicConfig(filename=self.output_path + logfile, 
-                            level=logging.INFO, format='''%(asctime)s | 
-                            %(levelname)s | %(filename)s:%(lineno)d | 
-                            %(message)s''', datefmt='%H:%M:%S')
+                            level=logging.INFO, format=('%(asctime)s | '
+                            '%(levelname)s | %(filename)s:%(lineno)d | '
+                            '%(message)s'), datefmt='%H:%M:%S')
 
         # Get parameters from file, including data paths
         assert type(required_params) == type({})
@@ -80,10 +80,10 @@ class Workflow:
             self.parameters = Parameters(self.script_name, required_params)
             self.interactive = self.parameters.interactive
         except:  # If no params file exists
-            logging.info('''No parameter file found at %s, proceeding without 
-                         parameters''' % output_path)
+            logging.info(('No parameter file found at %s, proceeding without '
+                         'parameters') % output_path)
             self.parameters = None
-            self.interactive = False            
+            self.interactive = False
         
     def single_datasets(self):
         '''
@@ -110,12 +110,15 @@ class Workflow:
         for run_name in self.parameters.params.keys():
         # TODO: Check for output_ID conflicts (must be unique)
 
-            # Make map of sites if data file paths given in parameters
-            if 'data_paths' in self.parameters.params[run_name].keys():
-                make_map(self.parameters.params['data_paths'])
+            # Check if data_paths in params. If not, add one empty data_path
+            # for the loop below. If so, make a map.
+            if 'data_paths' not in self.parameters.params[run_name].keys():
+                logging.debug(('No data paths given for run %s, no map of '
+                              'sites created') % run_name)
+                self.parameters.params[run_name]['data_paths'] = ['']
             else:
-                logging.debug('''No data paths given for run %s, no map of 
-                              sites created''' % run_name)
+                pass
+                #make_map(self.parameters.params['data_paths'])
                 
             # Loop through each dataset and yield values for dataset and run
             for data_path in self.parameters.params[run_name]['data_paths']:
@@ -225,8 +228,8 @@ class Parameters:
                     self.interactive = False
 
                 if len(analysis) == 0:  # Error if no runs in analysis
-                    raise IOError('''Analysis found for this script, but no 
-                                  valid runs found''')
+                    raise IOError(('Analysis found for this script, but no ' 
+                                   'valid runs found'))
 
                 for run in analysis.getchildren():  # Loop runs
                     run_name = run.get('name')
