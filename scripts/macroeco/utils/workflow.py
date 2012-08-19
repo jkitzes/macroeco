@@ -73,17 +73,14 @@ class Workflow:
                             '%(levelname)s | %(filename)s:%(lineno)d | '
                             '%(message)s'), datefmt='%H:%M:%S')
 
+        logging.info('Creating workflow object')
+
         # Get parameters from file, including data paths
         assert type(required_params) == type({})
+        self.parameters = Parameters(self.script_name, output_path, 
+                                     required_params)
+        self.interactive = self.parameters.interactive
 
-        try:
-            self.parameters = Parameters(self.script_name, required_params)
-            self.interactive = self.parameters.interactive
-        except:  # If no params file exists
-            logging.info(('No parameter file found at %s, proceeding without '
-                         'parameters') % output_path)
-            self.parameters = None
-            self.interactive = False
         
     def single_datasets(self):
         '''
@@ -137,6 +134,8 @@ class Parameters:
     ---------
     script_name : string
         Name of script originating the workflow
+    output_path : string
+        Path to output directory
     required_params : dictionary
         Parameters needed for analysis, in form of 
         'parameter_name':'short_description'. All of these parameters must be 
@@ -156,16 +155,27 @@ class Parameters:
         
     '''
     
-    def __init__(self, script_name, required_params):
+    def __init__(self, script_name, output_path, required_params):
 
         # Store initial attributes
         self.script_name = script_name
-        self.interactive = None
+        self.interactive = False
         self.params = {}
+
+        # Check that parameter file exists, if not use default values
+        try:
+            pf = open(output_path + paramfile, 'r')
+            pf.close()
+        except IOError:
+            logging.info(('No parameter file found at %s, proceeding without '
+                          'parameters') % output_path)
+            self.params[''] = {}
+            self.interactive = False
+            return
 
         # Read parameter file
         logging.info('Reading parameters from %s' % (output_path + paramfile))
-        self.read_from_xml()
+        self.read_from_xml(output_path)
 
         # Check that all required parameters present in all runs
         if not self.required_params_present(required_params):
@@ -176,23 +186,13 @@ class Parameters:
         self.eval_params()
 
          
-    def read_from_xml(self):
+    def read_from_xml(self, output_path):
         ''' Read parameters from xml file into self.params dictionary. '''
 
         # Define class for checking keys
         class AllEntities:
             def __getitem__(self, key):
                 return key
-
-        # Check that parameter file is present and can be read
-        # TODO: Should this and try statements below just raise error w/o log?
-        try:
-            pf = open(output_path + paramfile, 'r')
-            pf.close()
-        except IOError:
-            logging.error('Could not open parameter file %s' % (output_path + 
-                                                                paramfile))
-            raise
 
         # Declare parser object
         # TODO: Without next line, works in iPython, console, not script ??
@@ -244,11 +244,12 @@ class Parameters:
     def required_params_present(self, req_params):
         ''' Check if any required parameters missing from any runs. '''
 
+        status = 1
         for run_name in self.params.keys():
             run_params = self.params[run_name]
-            if not set(run_params.keys()).issubset(set(req_params.keys())):
-                return False
-        return True
+            if not set(req_params.keys()).issubset(set(run_params.keys())):
+                status = 0
+        return status
 
 
     def eval_params(self):
@@ -265,11 +266,11 @@ class Parameters:
                     value = eval(self.params[run_name][param_name])
                     self.params[run_name][param_name] = value
                     value_type = str(type(value)).split("'")[1]
-                    self.logger.debug('In run %s, parameter %s evaluated to %s' 
-                                      % (run_name, param_name, value_type))
+                    logging.debug('In run %s, parameter %s evaluated to %s' % 
+                                  (run_name, param_name, value_type))
                 except:
-                    self.logger.debug('In run %s, parameter %s left as string' 
-                    % (run_name, param_name))
+                    logging.debug('In run %s, parameter %s left as string' % 
+                                  (run_name, param_name))
 
             
 def make_map(datalist, mapname=None, whole_globe=False):
