@@ -6,19 +6,13 @@ Routines for loading census data and metadata.
 Classes
 -------
 - `DataTable` -- data and metadata for a single censused area
-
-DataTable Methods
--------------
-- `dataload` -- loads census data from csv and metadata from EML xml file
-- `get_metadata` -- load metadata
-- `get_sub_table` -- return subset of census table
+- `Metadata` -- load and parse EML metadata for data file
 '''
 
 from __future__ import division
 import warnings
 import numpy as np
 from matplotlib.mlab import csv2rec
-from macroeco.utility import metadata
 
 
 class DataTable():
@@ -130,3 +124,91 @@ class DataTable():
                          < y_en], axis = 0)
         sub_table = self.table[in_sub]
         return sub_table
+
+
+class Metadata:
+    '''
+    Metadata values for any analysis. Metadata is intrinsic to a dataset, 
+    and is stored using Ecological Markup Language. %citation TODO.
+    
+    '''
+
+    def __init__(self, datapath):
+        ''' Parses the metadata from the EML file sibling to datapath (same 
+        location, same filename, .XML extension).
+
+        datapath is expected to be relative (from cwd).
+        
+        '''#TODO: handle absolute.
+        
+        dPath, dExtension = os.path.splitext(datapath)
+        xmlpath = os.path.abspath(os.path.join(dPath + '.xml'))
+        try:
+            xmlfile = open(xmlpath)
+        except IOError:
+            print 'IOError: Could not open %s'%xmlpath
+        except:
+            print 'Error trying to open %s:'%xmlpath, sys.exc_info()[0]
+ 	
+        try:
+	        self.doc = ElementTree(file=xmlfile)
+	        self.root = self.doc.getroot()
+        except IOError:
+            print 'IOError: Could not open %s'%xmlpath
+        except:
+            print 'Error trying to open %s:'%xmlpath, sys.exc_info()[0]
+
+	    self.TableDescr = None
+
+    def get_dataTable_values(self, asklist):
+        ''' The asklist is pairs of column names and sub-attributes of that 
+        column, e.g. ('gx','precision').
+
+        Metadata.TableDescr = {(columnName, subAttribute):subAttributeValue}'''
+        self.TableDescr = {}
+        for request in asklist:
+            print 'looking for %s in %s'%(request[1],request[0])
+            a = self.get_columnAtt_by_name(request[0])
+            if a is None:
+                v = None
+            else:
+                v = self.get_subattribute_value(a, request[1])
+            self.TableDescr[request] = v
+
+
+    def get_columnAtt_by_name(self, attribName):
+        '''
+        Returns list of XML elements of type attribute with the requested 
+        attributeName.
+        '''
+
+        attributes = self.root.findall('.//dataTable/attributeList/attribute')
+        for a in attributes:
+            if a.find('.//attributeName').text == attribName:
+                return a
+            #print 'No match found for ', attribName 
+
+    def get_subattribute_value(self, att, subatt):
+        '''
+        Returns the value of the subatt of the given att
+        '''
+        try:
+            value = att.find('.//%s'%subatt).text
+            return value
+        except AttributeError:
+            return None
+
+    def get_coverage_region(self):
+        '''
+        Returns a tuple of the limits of the physical area of the dataset:  
+        NESW.
+        '''
+        coords = self.root.find('.//coverage/geographicCoverage/boundingCoordinates')
+        bounds = []
+        for d in ('north','east','south','west'):
+            bounds.append(float(coords.find('%sBoundingCoordinate'%d).text))
+        return bounds
+
+    def get_title(self):
+        '''Extracts the title of the dataset'''
+        return self.root.find('.//dataset/title').text
