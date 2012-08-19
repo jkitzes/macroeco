@@ -12,17 +12,15 @@ import workflow
 # Params file doesn't match ask. Dialog, write, reload, check against ask.
 ## workflow.xml proper subset of ask
 ## Neither a proper subset of the other
-# Types of param: string, int, float, lists of any of those; mixed-type list (ick).
+# Types of param: string, int, float, lists of those; mixed-type list (ick).
 
 
 class ParamfileTestCase(unittest.TestCase):
 
     def setUp(self):
-        self.asklist = {'size':'positive number', 
-                        'species':'string',
-                        'layers':'list of positive integers'}
         self.pf = open('parameters.xml', 'w')
-        self.pf.write("""<?xml version='1.0'?>
+        self.pf.write("""
+<?xml version='1.0'?>
 <macroeco>
     <analysis script_name='RunExists' version='0.5' interactive='F'>
         <run name='ParamfileTestCase'>
@@ -68,7 +66,8 @@ class ParamfileTestCase(unittest.TestCase):
         </run>
     </analysis>
     
-</macroeco>""")
+</macroeco>
+                      """)
         self.pf.close()
 
     def tearDown(self):
