@@ -1,2 +1,0 @@
-2012 06:50PM UTC :	/Users/mqwilber/macroeco/code/analyze_commonality.py	['/Users/mqwilber/macroeco/data/formatted/ANBO/ANBO_2010.csv']
-2012 06:50PM UTC :	/Users/mqwilber/macroeco/code/analyze_my_sad.py	['/Users/mqwilber/macroeco/data/formatted/ANBO/ANBO_2010.csv']
