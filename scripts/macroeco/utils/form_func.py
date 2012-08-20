@@ -1,7 +1,6 @@
 #!/usr/bin/python
 '''This module contains the functions for formatting data files'''
 
-
 import os
 import numpy as np
 import csv
@@ -25,18 +24,27 @@ __status__ = "Development"
 
 #Formatting functions
 def get_metadata(asklist, folder_name, dataname):
-    '''This function takes in a list of tuples and returns the appropriate
+    '''
+    This function takes in a list of tuples and returns the appropriate
     metadata in a dictionary
 
-    asklist -- A list of tuples e.g. [('x', 'precision'), ('y', 'maximum')]
+    Parameters
+    ----------
+    asklist : list
+        A list of tuples e.g. [('x', 'precision'), ('y', 'maximum')]
 
-    folder_name -- name of the archival folder where data is e.g. BCIS
+    folder_name : string
+        Name of the archival folder where data is located e.g. BCIS
 
-    dataname -- name of the metadata e.g. BCIS_1984.xml (string)
+    dataname : string
+        Name of the metadata e.g. BCIS_1984.xml (string)
 
+    Returns
+    -------
+    : dict
+        A dictionary containing requested metadata values
     
     '''
-
     cwd = gcwd()
     chdir(jp(pd(pd(gcwd())), 'archival', folder_name))
     meta = Metadata(dataname)
@@ -44,26 +52,34 @@ def get_metadata(asklist, folder_name, dataname):
     chdir(cwd)
     return meta.TableDescr
 
-
 def get_files(filetype, num, direct, globber='_????'):
-    '''This function gets the filetype files from the 
-    data directory /archival/direct and returns the 
-    names of the filetype files in the directory.  
-    filetype -- a string specifying the type of the file, i.e. 'csv' or 'txt'
+    '''
+    This function gets the filetype files from the data directory
+    /archival/direct and returns the names of the filetype files in the 
+    directory.
 
-    num -- expected number of files of type 'direct_????.filetype'
+    Parameters
+    ----------
+    filetype : string
+        A string specifying the type of the file, i.e. 'csv' or 'txt'
 
-    direct -- the directory within /data/archival/ where the files are.
-              example 'BCIS' or 'COCO'
+    num : int
+        Expected number of files of type 'direct_????.filetype'
 
-    globber -- String of what pattern is to be globbed (string)
+    direct : string 
+        The directory within /data/archival/ where the files are. 
+        Example 'BCIS' or 'COCO'
+
+    globber : string
+        String of what pattern is to be globbed
     
-    returns:
+    Returns
+    -------
+    : list
         A list of strings
     
     '''
 
-    #NOTE:This function is vulnerable to break! More checking needed
     assert direct.find('/') == -1, "%s should not contain a '/'" % (direct)
     cwd = gcwd();
     filedir = jp(pd(pd(gcwd())), 'archival', direct)
@@ -77,137 +93,41 @@ def get_files(filetype, num, direct, globber='_????'):
 
 
 def open_data(filename, delim, names=None):
-    '''This functions takes in the data and returns a rec array.
+    '''
+    This functions takes in the filename and returns a rec array.
+    
+    Parameters
+    ----------
+    filename : string
+        Name of the data file
 
-    filename -- name of the file, a string
+    delim : string
+        File delimiter
 
-    delim -- file delimiter, a string
+    names : list
+        A list of columns names. See csv2rec?
+
+    Returns
+    -------
+    : recarray
+        A recarray containing the data from the specified file name
 
     '''
 
     data = plt.csv2rec(filename, delimiter=delim, names=names)
     return data
 
-def make_spec_dict(spp_array):
-    '''This function takes in an array of all the 
-    species occurences in a plot and returns a species 
-    dictionary with spp_codes coressponding to species
-    names.
-
-    spp_array -- 1D array of all species occurences
-
-    returns:
-        2D structured np.array
-
-    '''
-    assert len(spp_array) > 0, "Species array cannot be empty"
-    unq_specs = np.unique(spp_array)
-    unq_ints = np.linspace(0, len(unq_specs) - 1, num=len(unq_specs)) 
-    spec_dict = np.empty(len(unq_ints), dtype=[('spp_code', np.int),\
-                        ('spp', 'S40')])
-    spec_dict['spp'] = unq_specs
-    spec_dict['spp_code'] = unq_ints
-    return spec_dict
-
-def format_by_year(tot_int, data, col_name='recr', years=3):
-    '''This function breaks data up by year, 
-        removes dead trees, and flips y values.
-        
-        tot_int -- 1D np.array of integer codes for each species location
-        
-        data -- 2D np.array formatted like COCO or SHER
-
-        col_name -- string, a column name in the data to use for formatting
-        
-        years -- an int specifying how many years of data are held in the
-                 parameter data. col_name allows you to extract these years.
-
-        returns:
-            A list of formatted 2D np.arrays
-               
-        '''
-    
-    datalist = []
-    #Eliminating all trees that aren't marked as alive
-    #xrange(3) is 3 because this function only looks at 3 years
-    for i in xrange(years):
-        datalist.append(rm_trees_reduce(tot_int, data, i + 1, col_name))
-      
-    return datalist
-
-def rm_trees_reduce(tot_int, data, year, col_name):
-    '''This function removes all trees that are not
-    marked as alive in the SHER_t data set and returns
-    the reduced data for a given year.
-        
-    tot_int -- 1D np.array of integer codes for each species location
-        
-    data -- 2D np.array of COCO or SHER data
-        
-    year -- int
-
-    returns:
-        A rec array containing the data for a given year
-        
-    '''
-    if col_name == 'recr':
-        include = np.bitwise_or((data['recr' + str(year)] == 'A'),\
-                                (data['recr' + str(year)] == 'P'))
-    if col_name == 'dbh':
-        include = (data['dbh' + str(year)] >= 1)
-                            
-    alive = data[include]
-    tot_int_alive = tot_int[include]
-    sample = len(tot_int_alive)
-    data_out = np.empty(sample, dtype=[('spp_code', np.int), ('x', np.float),\
-                                       ('y', np.float)])
-    data_out['spp_code'] = tot_int_alive
-    data_out['x'] = alive['x']
-    data_out['y'] = alive['y']
-    
-    return data_out
-
-
-
-def create_intcodes(speclist, unq_specs, unq_ints):
-    '''This function converts each species code into 
-    its corresponding integer value.
-    
-    speclist -- a 1D np.array which contains the occurrences 
-    of the species within the plot
-        
-    unq_specs -- a 1D np.array of the unique species codes 
-    within the plot
-        
-    unq_int -- a 1D np.array of unique integers referring to
-    the unique species codes found within the plot
-        
-    returns: 
-        A 1D np.array of integers that is equivalent to
-        speclist
-        
-    '''
-    assert len(speclist) > 0, "Species array cannot be empty"
-    speclist = speclist.astype(unq_specs.dtype)
-    tot_int = np.empty(len(speclist))
-    for s in xrange(len(unq_specs)):
-        check = (unq_specs[s] == speclist)
-        for i in xrange(len(check)):
-            if check[i]:
-                tot_int[i] = unq_ints[s]
-    return tot_int
-
 def output_form(data, filename):
-    '''This function writes the formatted data into
-    the appropriate formatted folder as a .csv file.
+    '''This function writes data as a .csv into the current working directory
 
-    data -- An np structured array containing the the data
-            to be output
+    Parameters
+    ----------
+    data : structures array
+        An structured array containing the data to be output
 
-    filename -- A string representing the name of the file to 
-                be output.
+    filename : string
+        A string representing the name of the file to be output.
 
-    Notes: Must be called within the appropriate formatted directory
     '''
     savedir = jp(gcwd(), filename.split('.')[0] + '.csv')
     fout = csv.writer(open(savedir, 'w'), delimiter=',')
@@ -215,20 +135,27 @@ def output_form(data, filename):
     for i in xrange(len(data)):
         fout.writerow(data[i])
 
-
-
 def open_dense_data(filenames, direct, delim=','):
-    '''This function takes in a list of dense data file names, opens
+    '''
+    This function takes in a list of dense data file names, opens
     them and returns them as list of rec arrays.
 
-    filenames -- a list of filenames
+    Parameters
+    ----------
 
-    direct -- The directory within data/archival/ where the files are.
-              example 'ANBO_2010' or 'LBRI'
+    filenames : list 
+        A list of filenames
 
-    delim -- Default file delimiter is ','
+    direct : string
+        The directory within data/archival/ where the files are.
+        Example 'ANBO_2010' or 'LBRI'
 
-    returns:
+    delim : string
+        The default file delimiter is ','
+
+    Returns
+    -------
+    : list
         A list of rec arrays
 
     '''
@@ -239,29 +166,6 @@ def open_dense_data(filenames, direct, delim=','):
         data = plt.csv2rec(jp(filedir, name), delimiter=delim)
         datayears.append(data)
     return datayears
-
-def make_dense_spec_dict(datayears, spp_col=3):
-    '''This function makes and returns a global species dictionary
-    for a list of dense data.  It assigns each species in the 
-    data a unique integer code. The dense file should be formatted
-    like LBRI of ANBO for this to work.
-
-    datayears -- list of rec arrays containing data
-
-    spp_col -- An integer which specifies the column the
-                 the species counts begin in the data.
-
-    returns:
-        A 1D array of tuples AKA a structured array
-
-    '''
-    
-    spp_array = np.empty(0)
-    for data in datayears:
-        spp = np.array(data.dtype.names[spp_col:]) #species names
-        spp_array = np.concatenate((spp_array, spp))
-    spec_dict = make_spec_dict(spp_array)
-    return spec_dict
 
 def format_dense(datayears, spp_col, num_spp):
     '''
@@ -322,22 +226,32 @@ def format_dense(datayears, spp_col, num_spp):
     return data_formatted
 
 def open_nan_data(filenames, missing_value, site, delim, col_labels):
-    '''This function takes in the filenames with nans data file, removes any
+    '''
+    This function takes in the filenames with nans data file, removes any
     NaN values for the x and y coordinates and returns a rec array.
+
+    Parameters
+    ----------
     
-    filename -- list of filenames on data with nans (list)
+    filename : list
+        A list of filenames which point to data with missing values
 
-    missing_value -- How a missing value is labeled in the data (string)
+    missing_value : string
+        How a missing value is labeled in the data
 
-    site -- Site name (string)
+    site : string 
+        Site name. Ex. 'COCO' or 'BCIS'
 
-    delim -- delimiter for the files (string)
+    delim : string
+        Delimiter for the files
 
-    xylabels -- tuple with x and y column labels, i.e. ('gx', 'gy') or 
-                ('x', 'y')
+    xylabels : tuple 
+        Tuple with x and y column labels, i.e. ('gx', 'gy') or ('x', 'y')
 
-    returns:
-        a rec array
+    Returns
+    -------
+    : list
+        list of recarrays
 
     '''
     #NOTE: Might need to get rid of some more NA fields
@@ -353,50 +267,40 @@ def open_nan_data(filenames, missing_value, site, delim, col_labels):
 
     return datayears
 
-def make_multiyear_spec_dict(datayears, sp_field):
-    '''This functions makes and returns a global species dictionary across 
-    all years of a multi year data set.  It assigns each species that occurs
-    over the years of data a unique integer code.
-
-    datayears -- list of recarrays containing data (list)
-
-    sp_field -- field name in rec array for species column (string)
-
-    returns:
-        A structured array with field names 'spp' and 'spp_code'
-    '''
-
-    spp_array = np.empty(0)
-    for data in datayears:
-        spp_array = np.concatenate((spp_array, data[sp_field]))
-    spec_dict = make_spec_dict(spp_array)
-    return spec_dict
-
 def fractionate(datayears, wid_len, step, col_names):
-    '''This function takes in a list of formatted data years
-    and converts the grid numbers into meter measurements. For
-    example, LBRI is a 16x16 grid and each cell is labeled with
-    integers.  However, the length (and width) of a cell is 0.5m.
-    This function converts each integer cell number to the appropriate
+    '''
+    This function takes in a list of formatted data yearsand converts the grid
+    numbers into meter measurements. Forexample, LBRI is a 16x16 grid and each
+    cell is labeled withintegers.  However, the length (and width) of a cell is
+    0.5m. This function converts each integer cell number to the appropriate
     integer (i.e. for LBRI cell (2,2) (counting from 1) becomes cell
-    (0.5, 0.5)). 
+    (0.5, 0.5)).
     
-    NOTE: This function should be used on formatted data.
+    Parameters
+    ----------
+    datayears : list 
+        A list of formatted structured arrays
 
-    datayears -- a list of formatted structured arrays
+    wid_len : tuple
+        A tuple containing the width (x) in meters and length (y)
+        in meters of the entire plot.
 
-    wid_len -- a tuple containing the width (x) in meters and length (y)
-               in meters of the entire plot.
+    step : tuple
+        The step (or stride length) of the cell width and length 
+        (tuple: (x_step, y_step)). It shouldbe given in terms of meters. Also,
+        called precision.
 
-    step -- the step (or stride length) of the cell width and
-                    length (tuple: (x_step, y_step)). It should
-                    be given in terms of meters. Also, called precision.
+    col_names : list 
+        The col_names of the structured array that are to be fractionated.
 
-    col_names -- the col_names of the structured array that are to be
-                 fractionated.
+    Returns
+    -------
+    : list
+        A list of converted structured arrays
 
-    returns:
-        a list of converted structured arrays
+    Notes
+    -----
+    This function should be used on formatted data
 
     '''
     
@@ -415,19 +319,28 @@ def fractionate(datayears, wid_len, step, col_names):
     return frct_array
 
 def add_data_fields(data_list, fields, values):
-    '''Add fields to data based on given names and values
+    '''
+    Add fields to data based on given names and values
 
-    data_list -- list of data to which a field will be appended
+    Parameters
+    ----------
+    data_list : list 
+        List of data to which a field will be appended
 
-    fileds -- list of field names to be added
+    fields : list
+        List of field names to be added
 
-    values -- list of tuples corresponding to names
+    values : list
+        List of tuples corresponding to fields.  Must be same length as fields.
+        These values are added to the new field.
 
-    returns a list containing the structured arrays with
-    the new fields appended
+    Returns 
+    -------
+    : list
+        A list containing the structured arrays with the new fields appended
+
     '''
     #TODO: Check that data in data list share dtypes
-
     alt_data = []
     for i, data in enumerate(data_list):
         for j, name in enumerate(fields):
@@ -437,13 +350,20 @@ def add_data_fields(data_list, fields, values):
     return alt_data
 
 def merge_formatted(data_form):
-    '''Take in a list of formatted data an merge all data in
+    '''
+    Take in a list of formatted data an merge all data in
     the list.  The dtypes of the data in the list must
     be the same
 
-    data_form -- list of formatted structured arrays (or rec_arrays)
+    Parameters
+    ----------
+    data_form : list 
+        List of formatted structured arrays (or rec_arrays)
 
-    returns a list containing one merged structured array
+    Returns
+    -------
+    : list
+        A list containing one merged structured array
 
     '''
     if len(data_form) == 1:
@@ -457,13 +377,22 @@ def merge_formatted(data_form):
         return merged
 
 def add_field(a, descr):
-    '''Add field to structured array and
-    return new array with empty field
+    '''
+    Add field to structured array and return new array with empty field
+
+    Parameters
+    ----------
+    a : structured array
+        Orginial structured array
+    descr : list 
+        dtype of new field i.e. [('name', 'type')]
     
-    a -- orginial structured array
-    descr -- dtype of new field i.e. [('name', 'type')]
+    Returns
+    -------
+    : structured array
+        Structured array with field added
     
-    returns structured array with field added'''
+    '''
 
     if a.dtype.fields is None:
         raise ValueError, "'A' must be a structured numpy array"

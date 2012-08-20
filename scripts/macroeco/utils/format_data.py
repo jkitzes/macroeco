@@ -175,7 +175,27 @@ class Columnar_Data:
         '''
         #NOTE: Should probably make a single dictionary for field/values
         self.data_list = add_data_fields(self.data_list, fields, values)
-    
+
+    def remove_columns(self, col_names):
+        '''
+        This function will remove the all the columns within with names in
+        col_names from all the datasets in self.data_list.
+
+        Parameters
+        ----------
+        col_names : string or list
+            The name or names of columns to be removed
+
+        '''
+        if type(col_names) == str:
+            col_names = [col_names]
+        else:
+            col_names = list(col_names)
+        removed_data = []
+        for data in self.data_list:
+            removed_data.append(drop_fields(data, col_names))
+        self.data_list = removed_data
+
     def fractionate_data(self, wid_len, step, col_names):
         '''
         fractionate_data(self, wid_len, step, col_names)
@@ -292,6 +312,15 @@ class Grid_Data:
             self.grids.append(csv2rec(name, names=list(np.arange(0,\
                                             self.cols[i]).astype('S10'))))
             self.rows.append(len(self.grids[i]))
+
+        #Remove all '\n' from the end of each cell in grid
+        #Not technically necessary but just being clean
+        for grid in self.grids:
+            for name in grid.dtype.names:
+                for i in xrange(len(grid[name])): 
+                    while grid[name][i][::-1].find('\n') == 0:
+                        grid[name][i] = grid[name][i][:-1]
+
 
     def find_unique_spp_in_grid(self, spacer='-', spp_sep='\n'):
         '''
