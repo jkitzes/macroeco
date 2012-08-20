@@ -14,6 +14,11 @@ import sys, os, logging
 #from mpl_toolkits.basemap import Basemap
 #import matplotlib.pyplot as plt
 #import metadata as metadata
+import subprocess
+import glob
+import os
+from datetime import datetime
+
 
 __author__ = "Chloe Lewis"
 __copyright__ = "Copyright 2012, Regents of the University of California"
@@ -42,6 +47,36 @@ def simple_app(environ, start_response):
            for key, value in environ.iteritems()]
     return ret
 
+def call_script(data='data/formatted/LBRI/LBRI_1998.csv',analysis='code/analyze_my_sad.py',output='projects/BOUNDS'):
+    '''Runs the chosen data,analysis,output triple.
+     There can be more than one dataset and more than one analysis.
+     All analyses will be run with all datasets.
+
+     Note that the GUI stays open: user can choose another triple to run.'''
+    METEbase = os.path.dirname(os.path.abspath(__file__)) #Using METE file structure
+    later ='''    for afile in self.alist.curselection():
+        script = self.alist.realcontent[int(afile)]
+        spath = os.path.join(METEbase,script)
+
+        output = self.structure['output']
+
+        dfiles = []
+        for dfile in self.dlist.curselection():
+            data = self.dlist.realcontent[int(dfile)]
+            dpath = os.path.join(METEbase, data)
+            dfiles.append(dpath)
+'''
+    
+    dt = datetime.utcnow()
+    dfiles = [os.path.join(METEbase,data)]
+    spath = os.path.join(METEbase,analysis)
+    with open("logfile.txt","a") as log:
+        log.write( dt.strftime("%Y %I:%M%p UTC")+" :\t"
+                   + spath + "\t" + str(dfiles) +'\n')
+    subprocess.Popen(["python", spath] + dfiles, cwd=output,
+                     shell=False,stdin=None,stdout=None,close_fds=True)
+
+
 def AutoMETE_app(environ, start_response):
     '''
     Serves an interface to AutoMETE data and analysis on port %d of the localhost.
@@ -49,7 +84,7 @@ def AutoMETE_app(environ, start_response):
     status = '200 OK'
     headers = [('Content-type','text/html')]
     start_response(status, headers)
-
+    call_script()
     return ["Hello World"]
 
 httpd = make_server('', localport, AutoMETE_app)
