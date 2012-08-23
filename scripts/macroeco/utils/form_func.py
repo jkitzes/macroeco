@@ -6,7 +6,7 @@ import numpy as np
 import csv
 import matplotlib.mlab as plt
 import glob
-from metadata import *
+from macroeco.data import Metadata
 
 gcwd = os.getcwd #get current directory
 pd = os.path.dirname #get parent directory
