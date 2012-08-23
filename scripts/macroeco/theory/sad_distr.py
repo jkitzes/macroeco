@@ -6,18 +6,17 @@ Species abundance distributions.
 Distributions
 -------------
 - `lgsr` -- Fisher's log series (Fisher et al. 1943)
-- `neg_binom` -- Negative Binomial
-- `geo_series' -- Geometric Series Rank Abundance Distribution
-  (Motomura 1932)
-- `broken_stick` -- McArthur's Broken Stick Distribution (May 1975)
-- `plognorm` -- Poisson lognormal (Bulmer 1974)
+- `neg_binom` -- Negative binomial
+- `geo_series' -- Geometric series distribution (Motomura 1932)
+- `broken_stick` -- McArthur's broken stick distribution (May 1975)
+- `plognorm` -- Poisson log-normal (Bulmer 1974)
 - `trun_plognorm` -- Truncated poisson log-normal (Bulmer 1974)
-- `lognorm_pmf` -- Lognormal Distribution
-- `canonical_lognormal_pmf` -- Preston's Canonical Lognormal Parameterized by
-  May (May 1975)
-- `sugihara_rank` -- Sugihara's sequential breakage model (Sugihara 1980)
-- `mete_logser` -- METE log series (Harte 2011)
-- `mete_logser_approx` -- METE log series using approximation (Harte 2011)
+- `lognorm_pmf` -- Lognormal distribution
+- `canonical_lognormal_pmf` -- Preston's canonical lognormal parameterized by
+  May (1975)
+- `sugihara` -- Sugihara's sequential breakage model (Sugihara 1980)
+- `mete_lgsr` -- METE log series (Harte 2011)
+- `mete_lgsr_approx` -- METE log series using approximation (Harte 2011)
 
 Misc Functions
 --------------
@@ -70,6 +69,8 @@ __maintainer__ = "Justin Kitzes and Mark Wilber"
 __email__ = "jkitzes@berkeley.edu"
 __status__ = "Development"
 
+#TODO: Add truncated negative binomial and truncated log-normal
+
 class RootError(Exception):
     '''Error if no root or multiple roots exist for the equation generated
     for specified values of S and N'''
@@ -98,9 +99,6 @@ class lgsr:
 
     '''
 
-    #NOTE: Should we create a generic pmf method that just takes the parameter
-    #for the Fisher Log series and then calculate that paramter using S and N
-    #or MLE?
     def pmf(self, n, S, N, param_out=False):
         '''
         Probability mass function of Fisher log series generated with S and N
@@ -202,30 +200,7 @@ class lgsr:
         '''
 
         full_pmf = self.pmf(np.arange(1, N + 1), S, N)
-        return make_rank_abund(full_pmf, S)
-
-    def fit(self, sad, guess_for_x=.95):
-        '''
-        Fit a Fisher log series to sad data using maximum likelihood.
-
-        Parameters
-        ----------
-        sad : array-like object
-            The observed abundances which will be fit to Fisher's log series
-
-        Returns
-        -------
-        : dict
-            A dictionary containing the maximum likelihood estimator (MLE) and
-            the negative log-likelihood (NLL).
-
-        '''
-        def nll_logser(x, sad):
-            return -sum(np.log(stats.logser.pmf(sad, x)))
-        mlex = scipy.optimize.fmin(nll_logser, np.array([guess_for_x]), args=\
-                                   (sad,), disp=0)[0]
-        return {'MLE' : mlex, 'NLL' : nll_logser(mlex, sad)}
-                                    
+        return make_rank_abund(full_pmf, S)                                    
 
 class neg_binom:
     '''
@@ -363,7 +338,7 @@ class neg_binom:
             return -sum(np.log(self.pmf(sad, len(sad), np.sum(sad), k)))
         mlek = scipy.optimize.fmin(nll_nb, np.array([guess_for_k]), args=\
                                    (sad,), disp=0)[0]
-        return {'MLE' : mlek, 'NLL' : nll_nb(mlek, sad)}
+        return {'k' : mlek}
 
 class geo_series:
     '''
@@ -408,6 +383,29 @@ class geo_series:
         C = (1 - (1 - k )** S) ** - 1
         pred_rank_abund = N * C * k * (1 - k) ** (np.arange(1, S + 1) - 1)
         return pred_rank_abund
+
+    def fit_k(self, sad):
+        '''
+        Fit k parameter of geometric series (May 1975)
+
+        Parameters
+        ----------
+        sad : array-like object
+            The observed SAD to be fit to a geometric series
+
+        Returns
+        : float
+            An estimate for k given the observed SAD
+        '''
+        sad = np.array(sad)
+        S = len(sad)
+        N = np.sum(sad)
+        Nmin = np.min(sad)
+        #Equation from May (1975)
+        eq = lambda x: ((x / (1 - x)) * ((1 - x) ** S / (1 - (1 - x) ** S))) -\
+                       (Nmin / N)
+        k = scipy.optimize.brentq(eq, 1e-10, 1 - 1e-10, disp=True)
+        return k
 
 class broken_stick:
     '''
@@ -618,7 +616,15 @@ class plognorm:
         : ndarray (1D)
             Returns array with cdf values for the given values of ab.
 
+        Notes
+        -----
+        Any lognormal distribution is continuous which makes is slightly
+        problematic when modeling SADs which are discrete (see Blackburn and 
+        Gaston article). We condsider the plognorm to be discrete and sum to 
+        find the cdf rather than integrating.
+
         '''
+
         try:
             len(ab)
             ab = np.array(ab)
@@ -1343,10 +1349,11 @@ def canonical_lognorm_pmf(r, S, param_ret=False):
     '''
     #Going to try to change this assumption so that it can work for S <= 12
     assert S > 12, "S must be greater than 12"
-    if type(r) is int or type(r) is float:
-        r = np.array([r])
-    else:
+    try:
+        len(r)
         r = np.array(r)
+    except:
+        r = np.array([r])
 
     pisr = m.pi ** 0.5
     #NOTE: Equation from May 1975.  Approximation is made so works only with S
