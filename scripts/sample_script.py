@@ -12,12 +12,9 @@ To Use
 
 Best Practices
 --------------
-Required Parameters - The workflow object contains validation procedures that 
-will check to ensure that the parameters file in the output directory contains 
-all the parameters in a required_parameters dictionary in which entries are 
-'parameter_name':'short_description'. This dictionary is optional if the script 
-is run from the command line but required if it is run from the web GUI, in 
-which case it is used to allow users to create a params file from the GUI.
+Required Parameters - Workflow will check to ensure that the parameters file
+in the output directory contains all the parameters in a required_parameters
+dictionary in which entries are 'parameter_name':'short_description'.
 
 Logging - To log the progress of the script, use logging.info('My message'), 
 where info may be replaced by other words to signify logging level (see Python 
