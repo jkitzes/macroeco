@@ -2,7 +2,7 @@
 #Testing form_func.py
 
 import unittest
-from form_func import *
+from macroeco.utils.form_func import *
 import numpy as np
 import os
 import matplotlib.mlab as plt
