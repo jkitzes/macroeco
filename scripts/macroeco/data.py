@@ -10,8 +10,10 @@ Classes
 '''
 
 from __future__ import division
-import warnings
+import os, sys
+import logging
 import numpy as np
+import xml.etree.ElementTree as etree
 from matplotlib.mlab import csv2rec
 
 
@@ -69,13 +71,7 @@ class DataTable():
             asklist.append((name, 'maximum'))
             asklist.append((name, 'precision'))
 
-        try:
-            meta_dict = self.get_metadata(asklist, metadatapath)
-        except IOError:
-            meta_dict = {}
-            for id in asklist:
-                meta_dict[id] = None
-            warnings.warn('No metadata file found.')
+        meta_dict = self.get_metadata(asklist, metadatapath)
 
         return table, meta_dict
 
@@ -93,7 +89,12 @@ class DataTable():
             Path to the metadata file.
         '''
 
-        meta_raw = metadata.Metadata(metadatapath)
+        meta_raw = Metadata(metadatapath)
+
+        # Check if metadata is missing, if so return None
+        if meta_raw.valid_file == False:
+            return None
+
         meta_raw.get_dataTable_values(asklist)
         meta_raw_dict = meta_raw.TableDescr
 
@@ -143,22 +144,24 @@ class Metadata:
         
         dPath, dExtension = os.path.splitext(datapath)
         xmlpath = os.path.abspath(os.path.join(dPath + '.xml'))
+    
+        self.valid_file = True
+
         try:
-            xmlfile = open(xmlpath)
-        except IOError:
-            print 'IOError: Could not open %s'%xmlpath
+            open(xmlpath)
         except:
-            print 'Error trying to open %s:'%xmlpath, sys.exc_info()[0]
- 	
+            logging.info('Missing or invalid metadata file at %s' % xmlpath)
+            self.valid_file = False
+        
         try:
-	        self.doc = ElementTree(file=xmlfile)
-	        self.root = self.doc.getroot()
-        except IOError:
-            print 'IOError: Could not open %s'%xmlpath
+            self.doc = etree.ElementTree(file=xmlpath)
+            self.root = self.doc.getroot()
         except:
-            print 'Error trying to open %s:'%xmlpath, sys.exc_info()[0]
+            logging.info('Error parsing metadata file at %s' % xmlpath)
+            self.valid_file = False
 
 	    self.TableDescr = None
+
 
     def get_dataTable_values(self, asklist):
         ''' The asklist is pairs of column names and sub-attributes of that 
@@ -203,7 +206,8 @@ class Metadata:
         Returns a tuple of the limits of the physical area of the dataset:  
         NESW.
         '''
-        coords = self.root.find('.//coverage/geographicCoverage/boundingCoordinates')
+        coords = self.root.find('.//coverage/geographicCoverage/' + 
+                                'boundingCoordinates')
         bounds = []
         for d in ('north','east','south','west'):
             bounds.append(float(coords.find('%sBoundingCoordinate'%d).text))
