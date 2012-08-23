@@ -102,7 +102,7 @@ class Workflow:
 
         def clean_name(fp):  # Extract file name from path
             return os.path.splitext(os.path.split(fp)[-1])[0]
-
+        print self.parameters.params.keys()
         # Run script on all runs (parameter sets), and data sets
         for run_name in self.parameters.params.keys():
         # TODO: Check for output_ID conflicts (must be unique)
@@ -231,8 +231,12 @@ class Parameters:
                     raise IOError(('Analysis found for this script, but no ' 
                                    'valid runs found'))
 
+                run_counter = 1
                 for run in analysis.getchildren():  # Loop runs
                     run_name = run.get('name')
+                    if run_name is None:
+                        run_name = 'run' + str(run_counter)
+                        run_counter += 1
                     self.params[run_name] = {}
                     for elt in run.getchildren():  # Loop params in run
                         if elt.tag == 'param':

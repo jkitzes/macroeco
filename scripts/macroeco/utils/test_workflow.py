@@ -2,7 +2,7 @@
 
 import os
 import unittest
-import workflow
+from macroeco.utils import workflow
 
 
 # Cases for future testing:
@@ -18,9 +18,10 @@ import workflow
 class ParamfileTestCase(unittest.TestCase):
 
     def setUp(self):
+        self.cwd = os.getcwd() + '/'
+
         self.pf = open('parameters.xml', 'w')
-        self.pf.write("""
-<?xml version='1.0'?>
+        self.pf.write("""<?xml version='1.0'?>
 <macroeco>
     <analysis script_name='RunExists' version='0.5' interactive='F'>
         <run name='ParamfileTestCase'>
@@ -71,44 +72,47 @@ class ParamfileTestCase(unittest.TestCase):
         self.pf.close()
 
     def tearDown(self):
+        pass
         os.remove(workflow.paramfile)
 
     def test_emptyask(self):
-        pa = workflow.Parameters('unittest', {})
+        pa = workflow.Parameters('nonexistantrun', '', {})
         self.assertEqual(pa.params, {})
-        self.assertEqual(pa.interactive, None)
+        self.assertEqual(pa.interactive, False)
 
     def test_NIrunExists(self):
-        pa = workflow.Parameters('RunExists', self.asklist)
+        req_params = {'size': 'descripsize', 'species': 'descripspp'}
+        pa = workflow.Parameters('RunExists', self.cwd, req_params)
         self.assertTrue(len(pa.params) == 1)
-        self.assertTrue(set(self.asklist.keys()).issubset(set(pa.params['ParamfileTestCase'].keys())))
+        self.assertTrue(set(req_params.keys()).issubset(\
+            set(pa.params['ParamfileTestCase'].keys())))
         self.assertTrue(pa.interactive == False)
+
         run = pa.params['ParamfileTestCase']
-        convertlist = map(int, run['layers'][1:-1].split(','))
-        self.assertTrue(float(run['size'])*convertlist[1] == 3*4.4)
+        self.assertTrue(run['size']*run['layers'][1] == 3*4.4)
 
     def test_MultipleNIRunsExist(self):
-        pa = workflow.Parameters('ManyNIRuns', self.asklist)
-        self.assertTrue(len(pa.params) == 2)
-        self.assertTrue(pa.params['FirstCase']['size'] == '4.4')
-        self.assertTrue(pa.params['FirstCase']['species'] == 'E. coli')
-        self.assertTrue(pa.params['FirstCase']['layers'] == '[0,3,12]')
-        self.assertTrue(pa.params['SecondCase']['size'] == '2.2')
-        self.assertTrue(pa.params['SecondCase']['species'] == 'H. sapiens')
-        self.assertTrue(pa.params['SecondCase']['layers'] == '[5]')
+        pa = workflow.Parameters('ManyNIRuns', self.cwd, {})
+        self.assertEqual(len(pa.params), 2)
+        self.assertEqual(pa.params['FirstCase']['size'], 4.4)
+        self.assertEqual(pa.params['FirstCase']['species'], 'E. coli')
+        self.assertEqual(pa.params['FirstCase']['layers'], [0,3,12])
+        self.assertEqual(pa.params['SecondCase']['size'], 2.2)
+        self.assertEqual(pa.params['SecondCase']['species'], 'H. sapiens')
+        self.assertEqual(pa.params['SecondCase']['layers'], [5])
 
-    def test_MultipleUnnamedRunsExist(self):
-        pa = workflow.Parameters('Unnamed', self.asklist)
-        self.assertTrue(len(pa.params) == 2)
-        self.assertTrue(pa.params['autoname0']['size'] == '4.4')
-        self.assertTrue(pa.params['autoname0']['species'] == 'E. coli')
-        self.assertTrue(pa.params['autoname0']['layers'] == '[0,3,12]')
-        self.assertTrue(pa.params['autoname1']['size'] == '2.2')
-        self.assertTrue(pa.params['autoname1']['species'] == 'H. sapiens')
-        self.assertTrue(pa.params['autoname1']['layers'] == '[5]')
+    def test_UnnamedRunErrors(self):
+        pa = workflow.Parameters('Unnamed', self.cwd, {})
+        self.assertEqual(len(pa.params), 2)
+        self.assertEqual(pa.params['run1']['size'], 4.4)
+        self.assertEqual(pa.params['run1']['species'], 'E. coli')
+        self.assertEqual(pa.params['run1']['layers'], [0,3,12])
+        self.assertEqual(pa.params['run2']['size'], 2.2)
+        self.assertEqual(pa.params['run2']['species'], 'H. sapiens')
+        self.assertEqual(pa.params['run2']['layers'], [5])
 
     def test_InteractiveRun(self):
-        pa = workflow.Parameters('Interactive', self.asklist)
+        pa = workflow.Parameters('Interactive', '', {})
         self.assertTrue(pa.interactive == True)
 
 if __name__ == '__main__':
