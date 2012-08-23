@@ -1,3 +1,8 @@
+/*--------
+Adapted from the free samples posted by www.maxdesign.au
+Thanks for the simple and accessible designs 
+---------*/
+
 #container
 {
 	margin: 0 30px;
@@ -6,11 +11,15 @@
 
 #header
 {
-	background: #ccc;
+	background: #77f;
 	padding: 20px;
 }
 
-#header h1 { margin: 0; }
+#header h1 
+{
+        margin: 0;
+        color: #ff3;
+}
 
 #navigation
 {
@@ -63,7 +72,7 @@
 
 #footer
 {
-	background: #ccc;
+	background: #77f;
 	text-align: right;
 	padding: 20px;
 }
