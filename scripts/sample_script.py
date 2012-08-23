@@ -25,15 +25,15 @@ docs). By default, debug will print only to console and other levels will write
 to logfile.txt in the output directory.
 
 GUI Compatibility - For compatibility with the html GUI, the strings 
-'gui_name', 'short_descrip' and 'long_descrip' should appear in this script.
+'gui_name', 'summary' and 'explanation' should be defined at script-level.
 
 '''
 
 gui_name = '''Sample Script'''
 
-short_descrip = '''This is a one sentence description of script actions.'''
+summary = '''This is a one sentence description of script actions.'''
 
-long_descrip = '''This is a longer description of script actions, perhaps as 
+explanation = '''This is a longer description of script actions, perhaps as 
 long as a paragraph, that gives a detailed description of the purpose and 
 operation of this script.'''
 
