@@ -49,7 +49,7 @@ wf = Workflow()
 # is not a parameter, the loop below will run once with an empty string for
 # data_path.
 for data_path, output_ID, params in wf.single_datasets():
-
+    print 'data_path:', data_path, '\noutput_ID:', output_ID, '\nparams:', params
     y = params['x'] + 1
 
     with open(wf.output_path + output_ID + '_results.txt', 'w') as file:
