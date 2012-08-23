@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 '''
-webMETE runs a local webserver to allow a browser interface to the Macroeco scripts.
+CoolName1 runs a local webserver to allow a browser interface to the Macroeco scripts.
 
 Classes
 -------
@@ -33,9 +33,10 @@ localport = 8000
 from wsgiref.util import setup_testing_defaults
 from wsgiref.simple_server import make_server
 
-# A relatively simple WSGI application. It's going to print out the
-# environment dictionary after being updated by setup_testing_defaults
 def simple_app(environ, start_response):
+    '''A simple Web application. Prints the environment dictionary after being updated by setup_testing_defaults.
+    '''
+
     setup_testing_defaults(environ)
 
     status = '200 OK'
@@ -47,7 +48,7 @@ def simple_app(environ, start_response):
            for key, value in environ.iteritems()]
     return ret
 
-def call_script(data='data/formatted/LBRI/LBRI_1998.csv',analysis='code/analyze_my_sad.py',output='projects/BOUNDS'):
+def call_script(data='',analysis='scripts/sample_script.py',output='scripts/samples/'):
     '''Runs the chosen data,analysis,output triple.
      There can be more than one dataset and more than one analysis.
      All analyses will be run with all datasets.
@@ -87,7 +88,9 @@ def AutoMETE_app(environ, start_response):
     call_script()
     return ["Hello World"]
 
+# Try this if AutoMETE_app fails and it might be the server:
+#httpd = make_server('', localport, simple_app)
 httpd = make_server('', localport, AutoMETE_app)
-print "Running analysis engine. Access through: \n\n http://localhost:%d"%localport
+print "Running CoolName1 analysis. Use your browser to interact: \n\n http://localhost:%d"%localport
 httpd.serve_forever()
 httpd.handle_request()
