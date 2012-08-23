@@ -15,7 +15,7 @@ import xml.etree.ElementTree as etree
 import sys, os, logging
 from mpl_toolkits.basemap import Basemap
 import matplotlib.pyplot as plt
-import metadata as metadata
+from macroeco.data import Metadata
 
 __author__ = "Chloe Lewis"
 __copyright__ = "Copyright 2012, Regents of the University of California"
@@ -307,7 +307,7 @@ def make_map(datalist, mapname=None, whole_globe=False):
     
     for f in datalist:
         x = f[:-3]+'xml'
-        meta = metadata.Metadata(x)
+        meta = Metadata(x)
         bounds = meta.get_coverage_region()
 
         lats.append(bounds[0])
