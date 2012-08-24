@@ -64,7 +64,8 @@ class Workflow:
         # Store output directory path - contains params file, log, results
         # TODO: If dir does not exist, create it? What if low level typo?
         # TODO: Make more robust to non-absolute path entries
-        output_path = os.path.abspath(os.path.join(os.getcwd(), sys.argv[1]))
+        output_path = (os.path.abspath(os.path.join(os.getcwd(), 
+                                                    sys.argv[1])) + '/')
         self.output_path = output_path
 
         # Prepare logger
@@ -102,7 +103,6 @@ class Workflow:
 
         def clean_name(fp):  # Extract file name from path
             return os.path.splitext(os.path.split(fp)[-1])[0]
-        print self.parameters.params.keys()
 
         # Run script on all runs (parameter sets), and data sets
         for run_name in self.parameters.params.keys():
@@ -121,7 +121,7 @@ class Workflow:
             # Loop through each dataset and yield values for dataset and run
             for data_path in self.parameters.params[run_name]['data_paths']:
                 abs_data_path = os.path.abspath(os.path.join(self.output_path, 
-                                                             data_path))
+                                                             data_path)) + '/'
                 output_ID = '_'.join([self.script_name, clean_name(data_path), 
                                       run_name])
                 logging.info('Beginning %s' % output_ID)
