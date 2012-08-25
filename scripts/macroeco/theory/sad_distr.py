@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 '''
-Species abundance distributions.
+Macroecological distributions.
 
 Distributions
 -------------
@@ -69,7 +69,7 @@ __maintainer__ = "Justin Kitzes and Mark Wilber"
 __email__ = "jkitzes@berkeley.edu"
 __status__ = "Development"
 
-#TODO: Add truncated negative binomial and truncated log-normal
+#TODO: Add truncated log-normal?
 
 class RootError(Exception):
     '''Error if no root or multiple roots exist for the equation generated
@@ -81,32 +81,99 @@ class RootError(Exception):
     def __str__(self):
         return '%s' % self.value
 
-class lgsr:
+class Distribution(object):
+
+    def __init__(self, **kwargs):
+        '''
+        Generic constructor
+
+        **kwargs : keyword parameters for distribution
+
+        '''
+        self.params = kwargs
+    
+    #Better option than lower bound?
+    def cdf(self, n, lower_bound=1):
+        '''
+        Cumulative distribution function.  Determined by summing pmf
+
+        Parameters
+        ----------
+        n : int, float or array-like object
+            Values at which to calculate the cdf
+
+        Returns
+        -------
+        : ndarray (1D)
+            Returns array with cdf values for the given values of n.
+
+        '''
+        try:
+            len(n); n = np.array(n)
+        except:
+            n = np.array([n])
+        max_n = np.max(n)
+        cdf = np.cumsum(self.pmf(np.arange(lower_bound, max_n + 1)))
+        return np.array([cdf[x - 1] for x in n])
+
+    def rad(self):
+        '''
+        Rank abundance distribution. Calculated using pmf
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        : ndarray (1D)
+            Returns and array of length S with the expected abundances given
+            pmf
+
+        '''
+        N = self.params.get('N', None)
+        S = self.params.get('S', None)
+        assert N != None, "N parameter not given"
+        assert S != None, "S parameter not given"
+        full_pmf = self.pmf(np.arange(1, N + 1))
+        return make_rank_abund(full_pmf, S)  
+
+class lgsr(Distribution):
     '''
-    Fisher's log series distribution (Fisher et al. 1943, Hubbel 2001)
+    Fisher's log series distribution (Fisher et al. 1943, Hubbel 2001).
 
     Methods
     -------
-    
-    pmf(n, x)
+    pmf(n, param_out); S and N parameters passed into __init__
         Probability mass function
-    pmf_SN(n, S, N, param_out=False)
-        Probability mass function generated with S and N
-    cdf(n, S, N)
+    cdf(n); S and N parameters passed into __init__
         Cumulative distribution function
-    rad(S, N)
+    rad(); S and N parameters passed into __init__
         Rank abundance distribution
 
-    '''
+    Parameters
+    ----------
+    S : int
+        Total number of species in landscape
+    N : int
+        Total number of indviduals in landscape
 
-    def pmf(self, n, S, N, param_out=False):
+    Notes
+    -----
+    S and N are passed into the constructor (__init__)
+
+    '''
+    def pmf(self, n, param_out=False):
         '''
-        Probability mass function of Fisher log series generated with S and N
+        Probability mass function of Fisher log series generated with S and N.
 
         Parameters
         ----------
         n : int, float or array-like object
             Abundances at which to calculate the pmf
+        
+        Passed into __init__
+        ---------------------
         S : int
             Total number of species in landscape
         N : int
@@ -119,14 +186,16 @@ class lgsr:
             param_out = True, returns the array as well as the parameter 
             estimates.
 
-
         Notes
         -----
         Multiplying the pmf by S yields the predicted number of species
         with a given abundance.
 
         '''
-
+        S = self.params.get('S', None)
+        N = self.params.get('N', None) 
+        assert S != None, "S parameter not given"
+        assert N != None, "N parameter not given"
         assert S < N, "S must be less than N"
         assert S > 1, "S must be greater than 1"
         assert N > 0, "N must be greater than 0"
@@ -149,87 +218,48 @@ class lgsr:
         if param_out == True:
             return (pmf, {'x' : x})
         else:
-            return pmf
-    
-    def cdf(self, n, S, N):
-        '''
-        Cumulative distribution function for the Fisher logseries
+            return pmf                                   
 
-        Parameters
-        ----------
-        n : int, float or array-like object
-            Abundances at which to calculate the pmf
-        S : int
-            Total number of species in landscape
-        N : int
-            Total number of indviduals in landscape
-
-        Returns
-        -------
-        : ndarray (1D)
-            Returns array with cdf values for the given values of n.
-
-        '''
-
-        try:
-            len(n)
-            n = np.array(n)
-        except:
-            n = np.array([n])
-        max_n = np.max(n)
-        cdf = np.cumsum(self.pmf(np.arange(1, max_n + 1), S, N))
-        return np.array([cdf[x - 1] for x in n])
-
-    def rad(self, S, N):
-        '''
-        Rank abundance distribution for the Fisher logseries
-
-        Parameters
-        ----------
-        S : int
-            Total number of species in landscape
-        N : int
-            Total number of indviduals in landscape
-        
-        Returns
-        -------
-        : ndarray (1D)
-            Returns and array of length S with the expected abundances given
-            the Fisher log series
-            
-        '''
-
-        full_pmf = self.pmf(np.arange(1, N + 1), S, N)
-        return make_rank_abund(full_pmf, S)                                    
-
-class neg_binom:
+class trun_neg_binom(Distribution):
     '''
-    Negative binomial distribution with infinite support.  Because this
-    distribution has infinite support the fit the cdf fron 1:N will be less
-    than one.
-
+    Zero-truncated negative binomial distribution .  
+    Because this distribution has infinite support the fit the cdf fron 1:N 
+    will be less than one.
     Methods
     -------
-    pmf(n, S, N, k, param_out=False)
+    pmf(n, param_out=False); S, N, and k parameters passed into __init__
         Probability mass function
-    cdf(n, S, N, k):
+    cdf(n);  S, N, and k parameters passed into __init__
         Cumulative distribution function
-    rad(S, N, k)
+    rad(); S, N, and k parameters passed into __init__
         Rank abundance distribution
     fit(sad, guess_for_k=1)
         Maximum likelihood fitting for neg_binom
 
-    '''
+    Parameters
+    ----------
+    S : int
+        Total number of species in landscape
+    N : int
+        Total number of individuals in landscape
+    k : int
+        Aggregation parameter
 
-    def pmf(self, n, S, N, k, param_out=False):
+
+    '''
+    
+    def pmf(self, n, param_out=False):
         '''
-        Probablity mass function of the Negative Bionomial generated with S and
+        Probablity mass function of the negative binomial generated with S and
         N
 
         Parameters
         ----------
         n : int, float or array-like object
             Abundances at which to calculate the pmf
+
+        Passed into __init__
+        ---------------------
         S : int
             Total number of species in landscape
         N : int
@@ -245,6 +275,12 @@ class neg_binom:
             estimates.
 
         '''
+        S = self.params.get('S', None)
+        N = self.params.get('N', None)
+        k = self.params.get('k', None)
+        assert S != None, "S parameter not given"
+        assert N != None, "N parameter not given"
+        assert k != None, "k parameter not given"
         assert S < N, "S must be less than N"
         assert S > 1, "S must be greater than 1"
         assert N > 0, "N must be greater than 0"
@@ -258,67 +294,16 @@ class neg_binom:
         mu = float(N) / S
         p = 1 / (mu / k + 1)  # See Bolker book Chapt 4
         pmf = stats.nbinom.pmf(n, k, p)
+        pmf = pmf / (1 - stats.nbinom.pmf(0, k, p)) #Truncation
 
         if param_out == True:
             return (pmf, {'k' : k, 'p' : p})
         else:
-            return pmf
-
-    def cdf(self, n, S, N, k):
-        '''
-        Cumulative distribution function for the Negative Binomial
-
-        Parameters
-        ----------
-        n : int, float or array-like object
-            Abundances at which to calculate the pmf
-        S : int
-            Total number of species in landscape
-        N : int
-            Total number of indviduals in landscape
-
-        Returns
-        -------
-        : ndarray (1D)
-            Returns array with cdf values for the given values of n.
-
-        '''
-        try:
-            len(n)
-            n = np.array(n)
-        except:
-            n = np.array([n])
-        max_n = np.max(n)
-        cdf = np.cumsum(self.pmf(np.arange(1, max_n + 1), S, N, k))
-        return np.array([cdf[x - 1] for x in n])
-
-    def rad(self, S, N, k):
-        '''
-        Rank abundance distribution for the Infinite Negative Binomial
-
-        Parameters
-        ----------
-        S : int
-            Total number of species in landscape
-        N : int
-            Total number of indviduals in landscape
-        k : float
-            Aggregation paramter
+            return pmf   
         
-        Returns
-        -------
-        : ndarray (1D)
-            Returns and array of length S with the expected abundances given by
-            the Negative Binomial
-
-        '''
-        
-        full_pmf = self.pmf(np.arange(1, N + 1), S, N, k)
-        return make_rank_abund(full_pmf, S)
-
     def fit(self, sad, guess_for_k=1):
         '''
-        Fits the Infinite Negative Bionial to the given sad
+        Fits the truncated negative binomial to the given sad
 
         Parameters
         ----------
@@ -330,29 +315,43 @@ class neg_binom:
         Returns
         -------
         : dict
-            The maximum likelihood estimator (MLE) for k and the negative
-            log-likelihood (NLL) of the negative binomial with MLE k. 
+            The maximum likelihood estimator (MLE) for k
 
         '''
         def nll_nb(k, sad):
-            return -sum(np.log(self.pmf(sad, len(sad), np.sum(sad), k)))
+            self.params['k'] = k
+            self.params['N'] = np.sum(sad)
+            self.params['S'] = len(sad)
+            return -sum(np.log(self.pmf(sad)))
         mlek = scipy.optimize.fmin(nll_nb, np.array([guess_for_k]), args=\
                                    (sad,), disp=0)[0]
         return {'k' : mlek}
 
-class geo_series:
+class geo_series(Distribution):
     '''
     Geometric series distribution (Motomura 1932 and Magurran 1988).
 
     Methods
     -------
-    rad(S, N, k)
+    rad(); S, N, and k parameters passed into __init__
         Rank abundance distribution
+    fit(data)
+        Fit k to data
+
+    Parameters
+    ----------
+    S : int
+        Total number of species in landscape
+    N : int
+        Total number of individuals in landscape
+    k : float
+        The fraction of resources that each species acquires. Range is 
+        (0, 1].
 
     '''
 
     #TODO:  Need to derive the pmf and cdf for the Geometric series
-    def rad(self, S, N, k):
+    def rad(self):
         '''
         Given S, N and k, this function returns the predicted rank-abundance
         distribution for a geometric series distribution (Motomura 1932 and 
@@ -360,13 +359,7 @@ class geo_series:
 
         Parameters
         ----------
-        S : int
-            Total number of species in landscape
-        N : int
-            Total number of individuals in landscape
-        k : float
-            The fraction of resources that each species acquires. Range is 
-            (0, 1].
+        None
 
         Returns
         -------
@@ -375,6 +368,12 @@ class geo_series:
             thespecies with the most individuals and element S - 1 containing 
             the species with the least individuals.
         '''
+        S = self.params.get('S', None)
+        N = self.params.get('N', None)
+        k = self.params.get('k', None)
+        assert S != None, "S parameter not given"
+        assert N != None, "N parameter not given"
+        assert k != None, "k parameter not given"
         assert S < N, "S must be less than N"
         assert S > 1, "S must be greater than 1"
         assert N > 0, "N must be greater than 0"
@@ -383,46 +382,57 @@ class geo_series:
         C = (1 - (1 - k )** S) ** - 1
         pred_rank_abund = N * C * k * (1 - k) ** (np.arange(1, S + 1) - 1)
         return pred_rank_abund
-
-    def fit_k(self, sad):
+    
+    def fit(self, data):
         '''
         Fit k parameter of geometric series (May 1975)
 
         Parameters
         ----------
-        sad : array-like object
+        data : array-like object
             The observed SAD to be fit to a geometric series
 
         Returns
-        : float
+        : dict
             An estimate for k given the observed SAD
         '''
-        sad = np.array(sad)
-        S = len(sad)
-        N = np.sum(sad)
-        Nmin = np.min(sad)
+        data = np.array(data)
+        S = len(data)
+        N = np.sum(data)
+        Nmin = np.min(data)
         #Equation from May (1975)
         eq = lambda x: ((x / (1 - x)) * ((1 - x) ** S / (1 - (1 - x) ** S))) -\
                        (Nmin / N)
         k = scipy.optimize.brentq(eq, 1e-10, 1 - 1e-10, disp=True)
-        return k
+        return {'k' : k}
 
-class broken_stick:
+class broken_stick(Distribution):
     '''
     McArthur's broken stick species abundance distribution (May 1975)
 
     Methods
     -------
-    pmf(n, S, N, param_out=False)
+    pmf(n, param_out=False); S and N parameters passed into __init__
         Probability mass function
-    cdf(n, S, N)
+    cdf(n); S and N parameters passed into __init__
         Cumulative distribution function
-    rad(S, N)
+    rad(); S and N parameters passed into __init__
         Rank abundance distribution
 
-    '''
+    Parameters
+    ----------
+    S : int
+        Total number of species in landscape
+    N : int
+        Total number of indviduals in landscape
 
-    def pmf(self, n, S, N, param_out=False):
+    Notes
+    -----
+    S and N are passed into the constructor (__init__)
+
+    '''
+    
+    def pmf(self, n, param_out=False):
         '''
         Probability mass function for MacArthur's broken stick
 
@@ -430,10 +440,13 @@ class broken_stick:
         ----------
         n : int, float or array-like object
             Abundances at which to calculate the pmf
+
+        Passed into __init__
+        ---------------------
         S : int
             Total number of species in landscape
         N : int
-            Total number of individuals in landscape
+            Total number of indviduals in landscape
 
         Returns
         -------
@@ -442,6 +455,11 @@ class broken_stick:
             param_out = True, returns a tuple with the pmf as an array as well 
             as a dictionary of the parameter estimates.
         '''
+
+        S = self.params.get('S', None)
+        N = self.params.get('N', None) 
+        assert S != None, "S parameter not given"
+        assert N != None, "N parameter not given"
         assert S < N, "S must be less than N"
         assert S > 1, "S must be greater than 1"
         assert N > 0, "N must be greater than 0"
@@ -459,97 +477,54 @@ class broken_stick:
             return (pmf, {'S' : S})
         else:
             return pmf
-
-    def cdf(self, n, S, N):
-        '''
-        Cumulative distribution function for MacArthur's broken stick model
-
-        Parameters
-        ----------
-        n : int, float or array-like object
-            Abundances at which to calculate the pmf
-        S : int
-            Total number of species in landscape
-        N : int
-            Total number of indviduals in landscape
-
-        Returns
-        -------
-        : ndarray (1D)
-            Returns array with cdf values for the given values of n.
-
-        '''
-        try:
-            len(n)
-            n = np.array(n)
-        except:
-            n = np.array([n])
-        max_n = np.max(n)
-        cdf = np.cumsum(self.pmf(np.arange(1, max_n + 1), S, N))
-        return np.array([cdf[x - 1] for x in n])
-    
-    def rad(self, S, N):
-        '''
-        Rank-abundance distribution for McArthur's broken-stick distribution
-        (May 1975).
-
-        Parameters
-        ----------
-        S : int
-            Total number of species in landscape
-        N : int
-            Total number of individuals in landscape
-
-        Returns
-        -------
-        : np.ndarray
-            An array containing the the predicted SAD with element 0 containing
-            the species with the most individuals and element S - 1 containing
-            the species with the least individuals.
-
-        '''
-        assert S < N, "S must be less than N"
-        assert S > 1, "S must be greater than 1"
-        assert N > 0, "N must be greater than 0"
-
-        pred_rank_abund = np.empty(S)
-        for i in xrange(S):
-            n = np.arange(i + 1, S + 1) 
-            pred_rank_abund[i] = (N / S) * sum(1 / n)
-        return pred_rank_abund
-
-class plognorm:
+        
+class plognorm(Distribution):
     '''
     Poisson log-normal distribution (Bulmer 1974)
 
     Methods
     -------
-    pmf(ab, mu, sigma, param_out=False)
+    pmf(ab, param_out=False); mu and sigma parameters passed into __init__
         Probability mass function
-    cdf(ab, mu, sigma)
+    cdf(ab); mu and sigma parameters passed into __init__
         Cumulative distribution function
-    rad(S, N, mu, sigma)
+    rad(); mu, sigma, S, and N parameters passed into __init__
         Rank abundance distribution
     fit(sad)
         Maximum likelihood estimator for poisson lognormal
 
+    Parameters
+    ----------
+    mu : float
+        the mu parameter of the poisson log normal
+    sigma : float
+        the sigma parameter of the poisson log normal
+    S : int
+        Total number of species in landscape
+    N : int
+        Total number of individuals in landscape
+
+
     '''
     
-    def pmf(self, ab, mu, sigma, param_out=False):
+    def pmf(self, ab, param_out=False):
         '''
         Probability mass function
         
         Parameters
         ----------
         ab : int, float or array-like object
-            Abundances at which to calculate the pmf 
+            Abundances at which to calculate the pmf
+
+        Passed into __init__
+        ---------------------
         mu : float
             the mu parameter of the poisson log normal
         sigma : float
             the sigma parameter of the poisson log normal
 
          Returns
-        -------
+        --------
         : ndarray (1D)
             Returns array with pmf for values for the given values ab. If 
             param_out = True, returns the array as well as the parameter 
@@ -561,6 +536,10 @@ class plognorm:
         Wilber. The VGAM R package was adopted directly from Bulmer (1974).
 
         '''
+        mu = self.params.get('mu', None)
+        sigma = self.params.get('sigma',  None)
+        assert mu != None; "mu paramater not given"
+        assert sigma != None; "sigma parameter not given"
         try:
             len(ab)
             ab = np.array(ab)
@@ -571,6 +550,7 @@ class plognorm:
         if sigma**2 <= 0 or mu <= 0: #Parameters could be negative
             pmf = np.repeat(1e-120, len(n_unq))
         else:
+            #TODO: Throwing overflow warning but not affecting result
             eq = lambda t, x: np.exp(t * x - np.exp(t) - 0.5*((t - mu) / sigma)**2)
             pmf = np.empty(len(n_unq), dtype=np.float)
             for i, n in enumerate(n_unq):
@@ -593,80 +573,17 @@ class plognorm:
         pmf = pmf_full
 
         if param_out == True:
-            #NOTE: How many parameters should I be returning, 1 or 2?
             return (pmf, {'mu' : mu, 'sigma' : sigma})
         else:
-            return pmf
-
-    def cdf(self, ab, mu, sigma):
-        '''
-        Cumulative distribution function
-
-        Parameters
-        ----------
-        ab : int, float or array-like object
-            Abundances at which to calculate the cdf 
-        mu : float
-            the mu parameter of the poisson log normal
-        sigma : float
-            the sigma parameter of the poisson log normal
-
-        Returns
-        -------
-        : ndarray (1D)
-            Returns array with cdf values for the given values of ab.
-
-        Notes
-        -----
-        Any lognormal distribution is continuous which makes is slightly
-        problematic when modeling SADs which are discrete (see Blackburn and 
-        Gaston article). We condsider the plognorm to be discrete and sum to 
-        find the cdf rather than integrating.
-
-        '''
-
-        try:
-            len(ab)
-            ab = np.array(ab)
-        except:
-            ab = np.array([ab])
-        max_ab = np.max(ab)
-        cdf = np.cumsum(self.pmf(np.arange(1, max_ab + 1), mu, sigma))
-        return np.array([cdf[x - 1] for x in ab])
-
-    def rad(self, S, N, mu, sigma):
-        '''
-        Rank abundance distribution
-
-        Parameters
-        ----------
-        S : int
-            Total number of species in landscape
-        N : int
-            Total number of indviduals in landscape
-        mu : float
-            the mu parameter of the poisson log normal
-        sigma : float
-            the sigma parameter of the poisson log normal
-
-        Returns
-        -------
-        : ndarray (1D)
-            Returns and array of length S with the expected abundances given
-            by the poisson log-normal
-
-        '''
-
-        full_pmf = self.pmf(np.arange(1, N + 1), mu, sigma)
-        return make_rank_abund(full_pmf, S)
-
-    def fit(self, sad):
+            return pmf      
+    
+    def fit(self, data):
         '''
         Maximum likelihood Estimates for Poisson log normal
 
         Parameter
         ---------
-        sad : array-like object
+        data : array-like object
             The observed abundances which will be fit to a poison lognormal
 
         Returns
@@ -680,35 +597,50 @@ class plognorm:
         weecology.
 
         '''
-        assert type(sad) == list or type(sad) == tuple \
-           or type(sad) == np.ndarray, "Invalid parameter type"
-        assert len(sad) >= 1, "len(sad) must be greater than or equal to 1"
-        sad = np.array(sad)
-        mu0 = np.mean(np.log(sad))
-        sigma0 = np.std(np.log(sad), ddof=1)
+        try:
+            len(data); data = np.array(data)
+        except:
+            data = np.array([data])
+        assert len(data) >= 1, "Data length must be greater than or equal to 1"
+        mu0 = np.mean(np.log(data))
+        sigma0 = np.std(np.log(data), ddof=1)
         def pln_func(x):
-            return -sum(np.log(self.pmf(sad, x[0], x[1])))
+            self.params['mu'] = x[0]
+            self.params['sigma'] = x[1]
+            return -sum(np.log(self.pmf(data)))
         mu, sigma = scipy.optimize.fmin(pln_func, x0 = [mu0, sigma0], disp=0)
         return { 'mu' : mu, 'sigma' : sigma}
 
-class trun_plognorm:
+class trun_plognorm(Distribution):
     '''
     Truncated Poisson lognormal (Bulmer 1974)
 
     Methods
     -------
-    pmf(ab, mu, sigma, param_out=False)
+    pmf(ab, param_out=False); mu and sigma parameters passed into __init__
         Probability mass function
-    cdf(ab, mu, sigma)
+    cdf(ab); mu and sigma parameters passed into __init__
         Cumulative distribution function
-    rad(S, N, mu, sigma)
+    rad(); mu, sigma, S, and N parameters passed into __init__
         Rank abundance distribution
     fit(sad)
-        Maximum likelihood estimator for distribution parameters
+        Maximum likelihood estimator for poisson lognormal
+
+    Parameters
+    ----------
+    mu : float
+        the mu parameter of the poisson log normal
+    sigma : float
+        the sigma parameter of the poisson log normal
+    S : int
+        Total number of species in landscape
+    N : int
+        Total number of individuals in landscape
+
 
     '''
 
-    def pmf(self, ab, mu, sigma, param_out=False):
+    def pmf(self, ab, param_out=False):
         '''
         Truncated Poisson log-normal (Bulmer 1974)
 
@@ -716,6 +648,9 @@ class trun_plognorm:
         ----------
         ab : int, float or array-like object
             Abundances at which to calculate the pmf
+
+        Passed into __init__
+        ---------------------
         mu : float
             the mu parameter of the poisson log normal
         sigma : float
@@ -729,76 +664,26 @@ class trun_plognorm:
             parameter estimates.
 
         '''
-
+        mu = self.params.get('mu', None)
+        sigma = self.params.get('sigma',  None)
+        assert mu != None; "mu paramater not given"
+        assert sigma != None; "sigma parameter not given"
         if param_out == True:
-            untr_pmf, params = plognorm().pmf(ab, mu, sigma,\
-                                                          param_out=param_out)
-            pmf0 = plognorm().pmf(0, mu, sigma)
+            plgn = plognorm(mu=mu, sigma=sigma)
+            untr_pmf, params = plgn.pmf(ab, param_out=param_out)
+            pmf0 = plgn.pmf(0)
             tr_pmf = (untr_pmf / (1 - pmf0))#Truncating based on Bulmer eq. A1
             return (tr_pmf, {'mu' : params['mu'], 'sigma' : params['sigma']})
         else:
-            untr_pmf = plognorm().pmf(ab, mu, sigma)
-            pmf0 = plognorm().pmf(0, mu, sigma)
+            plgn = plognorm(mu=mu, sigma=sigma)
+            untr_pmf = plgn.pmf(ab)
+            pmf0 = plgn.pmf(0)
             tr_pmf = (untr_pmf / (1 - pmf0))
             return tr_pmf
-
-    def cdf(self, ab, mu, sigma):
-        '''
-        Cumulative distribution function
-
-        Parameters
-        ----------
-        ab : int, float or array-like object
-            Abundances at which to calculate the cdf 
-        mu : float
-            the mu parameter of the poisson log normal
-        sigma : float
-            the sigma parameter of the poisson log normal
-
-        Returns
-        -------
-        : ndarray (1D)
-            Returns array with cdf values for the given values of ab.
-
-        '''
-        try:
-            len(ab)
-            ab = np.array(ab)
-        except:
-            ab = np.array([ab])
-        max_ab = np.max(ab)
-        cdf = np.cumsum(self.pmf(np.arange(1, max_ab + 1), mu, sigma))
-        return np.array([cdf[x - 1] for x in ab])
-
-    def rad(self, S, N, mu, sigma):
-        '''
-        Rank abundance distribution
-
-        Parameters
-        ----------
-        S : int
-            Total number of species in landscape
-        N : int
-            Total number of indviduals in landscape
-        mu : float
-            the mu parameter of the poisson log normal
-        sigma : float
-            the sigma parameter of the poisson log normal
-
-        Returns
-        -------
-        : ndarray (1D)
-            Returns and array of length S with the expected abundances given
-            by the poisson log-normal
-
-        '''
-
-        full_pmf = self.pmf(np.arange(1, N + 1), mu, sigma)
-        return make_rank_abund(full_pmf, S)
-
+            
     def fit(self, sad):
         '''
-        Maximum likelihood Estimates for truncated poisson log normal
+        Maximum likelihood estimates for truncated poisson log normal
 
         Parameter
         ---------
@@ -822,36 +707,61 @@ class trun_plognorm:
         mu0 = np.mean(np.log(sad))
         sigma0 = np.std(np.log(sad), ddof=1)
         def pln_func(x):
-            return -sum(np.log(self.pmf(sad, x[0], x[1])))
+            self.params['mu'] = x[0]
+            self.params['sigma'] = x[1]
+            return -sum(np.log(self.pmf(sad)))
         mu, sigma = scipy.optimize.fmin(pln_func, x0 = [mu0, sigma0], disp=0)
         return { 'mu' : mu, 'sigma' : sigma}
 
-class lognorm:
+class lognorm(Distribution):
     '''
     Lognormal distribution
 
     Methods
     -------
-    pmf(ab, mu, sigma, param_out=False)
+    pmf(ab, param_out=False); mu and sigma parameters passed into __init__
         Probability mass function
-    cdf(ab, mu, sigma, param_out=False)
+    cdf(ab); mu and sigma parameters passed into __init__
         Cumulative distribution function
-    rad(S, N, mu, sigma)
+    rad(); mu, sigma, S, and N parameters passed into __init__
         Rank abundance distribution
     fit(sad)
-        Maximum likelihood estimator for distribution parameters
+        Maximum likelihood estimator for lognormal
+
+    Parameters
+    ----------
+    mu : float
+        the mu parameter of the log normal
+    sigma : float
+        the sigma parameter of the poisson log normal
+    S : int
+        Total number of species in landscape
+    N : int
+        Total number of individuals in landscape
+    
+    Notes
+    -----
+    Log-normal distributions are continuous and there for the cdf should be an
+    integral. However, the cdf of an integral from a to a is 0 and the
+    probability of there being a single individual within a species given an
+    SAD is certainly not 0.  Therefore, we consider the lognormal "discrete"
+    and calcuate the cdf by summing.  Note that this is one of the many 
+    problems that Blackburn and Gaston have with using the lognormal for SADs.
 
 
     '''
-
-    def pmf(self, ab, mu, sigma, param_out=False):
+    
+    def pmf(self, ab, param_out=False):
         '''
         Lognormal pmf
 
         Parameters
         ----------
         ab : int, float or array-like object
-            Abundances at which to calculate the pmf 
+            Abundances at which to calculate the pmf
+
+        Pass into __init__
+        ------------------
         mu : float
             the mu parameter of the poisson log normal
         sigma : float
@@ -866,9 +776,14 @@ class lognorm:
 
         Notes
         -----
-        scipy.stats.lognorm is coded very poorly and the docstring is not 
+        scipy.stats.lognorm is coded very unclearly and the docstring is not 
         helpful so we coded our own lognormal distribution
         '''
+
+        mu = self.params.get('mu', None)
+        sigma = self.params.get('sigma',  None)
+        assert mu != None; "mu paramater not given"
+        assert sigma != None; "sigma parameter not given"
         try:
             len(ab)
             ab = np.array(ab)
@@ -879,62 +794,7 @@ class lognorm:
             return (pmf, {'mu' : mu, 'sigma' : sigma})
         else:
             return pmf
-
-    def cdf(self, ab, mu, sigma, param_out=False):
-        '''
-        Cumulative distribution function
-
-        Parameters
-        ----------
-        ab : int, float or array-like object
-            Abundances at which to calculate the cdf 
-        mu : float
-            the mu parameter of the log normal
-        sigma : float
-            the sigma parameter of the log normal
-
-        Returns
-        -------
-        : ndarray (1D)
-            Returns array with cdf values for the given values of ab.
-
-        '''
-
-        try:
-            len(ab)
-            ab = np.array(ab)
-        except:
-            ab = np.array([ab])
-        max_ab = np.max(ab)
-        cdf = np.cumsum(self.pmf(np.arange(1, max_ab + 1), mu, sigma))
-        return np.array([cdf[x - 1] for x in ab])
-
-
-    def rad(self, S, N, mu, sigma):
-        '''
-        Rank abundance distribution
-
-        Parameters
-        ----------
-        S : int
-            Total number of species in landscape
-        N : int
-            Total number of indviduals in landscape
-        mu : float
-            the mu parameter of the log normal
-        sigma : float
-            the sigma parameter of the log normal
-
-        Returns
-        -------
-        : ndarray (1D)
-            Returns and array of length S with the expected abundances given
-            by the log-normal
-
-        '''
-        full_pmf = self.pmf(np.arange(1, N + 1), mu, sigma)
-        return make_rank_abund(full_pmf, S)
-    
+        
     def fit(self, sad):
         '''
         Maximum likelihood Estimates for log normal
@@ -955,30 +815,35 @@ class lognorm:
         mu0 = np.mean(np.log(sad))
         sigma0 = np.std(np.log(sad), ddof=1)
         def ln_func(x):
-            return -sum(np.log(self.pmf(sad, x[0], x[1])))
+            self.params['mu'] = x[0]
+            self.params['sigma'] = x[1]
+            return -sum(np.log(self.pmf(sad)))
         mu, sigma = scipy.optimize.fmin(ln_func, x0 = [mu0, sigma0], disp=0)
         return {'mu' : mu, 'sigma' : sigma}
 
-
-class sugihara:
+class sugihara(Distribution):
     '''
     Sugihara Rank Abundance Distribution (Sugihara 1980)
 
     Methods
     -------
-    rad(S, N, sample_size=10000)
+    rad(sample_size=10000); N and S parameters are passed in __init__
 
     '''
     #TODO: Back-derive the pmf?
 
-    def rad(self, S, N, sample_size=10000):
+    def rad(self, sample_size=10000):
         '''
         Parameters
         ----------
+        None
+
+        Passed into __init__
+        ---------------------
         S : int
-            Total number of species in the landscape
+            Total number of species in landscape
         N : int
-            Total number of individuals in the lanscape
+            Total number of indviduals in landscape
 
         Returns
         -------
@@ -988,12 +853,15 @@ class sugihara:
 
         Notes
         -----
-        This function is a bit questionable because we are using a randomly
-        generated breakage sequence. As S gets large, we will start to under 
-        sample some of the possible breakage sequences and this model begins to
-        fail. Adapted from Sugihara (1980)
+        As S gets large, we will start to under sample some of the possible 
+        breakage sequences and this model begins to fail. Adapted from 
+        Sugihara (1980)
 
         '''
+        S = self.params.get('S', None)
+        N = self.params.get('N', None) 
+        assert S != None, "S parameter not given"
+        assert N != None, "N parameter not given"
         total = []
         for i in xrange(sample_size):
             U = np.random.triangular(0.5, 0.75, 1, size=S - 1)
@@ -1018,53 +886,72 @@ class sugihara:
         means = np.array(means)
         return N * means
 
-class mete_lgsr:
+class mete_lgsr(Distribution):
     '''
     METE truncated log series (Harte 2011)
 
     Methods
     -------
-    pmf(n, S, N, param_out=False)
+    pmf(n, param_out); S and N parameters passed into __init__
         Probability mass function
-    cdf(n, S, N)
-        Cumulative mass function 
-    rad(S, N)
+    cdf(n); S and N parameters passed into __init__
+        Cumulative distribution function
+    rad(); S and N parameters passed into __init__
         Rank abundance distribution
 
-    '''
+    Parameters
+    ----------
+    S : int
+        Total number of species in landscape
+    N : int
+        Total number of indviduals in landscape
 
-    def pmf(self, n, S, N, param_out=False):
+    Notes
+    -----
+    S and N are passed into the constructor (__init__)
+    
+    '''
+    
+    def pmf(self, n, param_out=False):
         '''
         Truncated log series pmf (Harte 2011)
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         n : int, float or array-like object
             Abundances at which to calculate the pmf
+        
+        Passed into __init__
+        ---------------------
         S : int
             Total number of species in landscape
         N : int
-            Total number of individuals in landscape
-        
+            Total number of indviduals in landscape
+
         Returns
         -------
         : ndarray (1D)
             Returns array with pmf for values for the given values n. If 
-            param_out = True, returns the array as well as the parameter estimates.
+            param_out = True, returns the array as well as the parameter 
+            estimates.
 
         Notes
         -----
         This function uses the truncated log series as described in Harte 2011
-        eq (7.32).  The equation used in this function to solve for the Lagrange 
-        multiplier is equation (7.27) as described in Harte 2011. 
+        eq (7.32).  The equation used in this function to solve for the 
+        Lagrange multiplier is equation (7.27) as described in Harte 2011. 
     
-        Also note that realistic values of x where x = e**-(beta) (see Harte 2011) 
-        are in the range (1/e, 1) (exclusive). Therefore, the start and stop 
-        parameters for the brentq procedure are close to these values. However,
-        x can occasionally be greater than one so the maximum stop value of the 
-        brentq optimizer is 2.
+        Also note that realistic values of x where x = e**-(beta) 
+        (see Harte 2011) are in the range (1/e, 1) (exclusive). Therefore, the
+        start and stop parameters for the brentq procedure are close to these 
+        values. However, x can occasionally be greater than one so the maximum
+        stop value of the brentq optimizer is 2.
 
         '''
+        S = self.params.get('S', None)
+        N = self.params.get('N', None) 
+        assert S != None, "S parameter not given"
+        assert N != None, "N parameter not given"
         assert S < N, "S must be less than N"
         assert S > 1, "S must be greater than 1"
         assert N > 0, "N must be greater than 0"
@@ -1089,71 +976,33 @@ class mete_lgsr:
         else:
             return pmf
     
-    def cdf(self, n, S, N):
-        '''
-        Cumulative distribution function
-
-        Parameters
-        ----------
-        n : int, float or array-like object
-            Abundances at which to calculate the cdf 
-        mu : float
-            the mu parameter of the log normal
-        sigma : float
-            the sigma parameter of the log normal
-
-        Returns
-        -------
-        : ndarray (1D)
-            Returns array with cdf values for the given values of n.
-
-        '''
-        try:
-            len(n)
-            n = np.array(n)
-        except:
-            n = np.array([n])
-        max_n = np.max(n)
-        cdf = np.cumsum(self.pmf(np.arange(1, max_n + 1), S, N))
-        return np.array([cdf[x - 1] for x in n])
-        
-    def rad(self, S, N):
-        '''
-        Rank abundance distribution for the METE truncated log series
-
-        Parameters
-        ----------
-        S : int
-            Total number of species in landscape
-        N : int
-            Total number of indviduals in landscape
-        
-        Returns
-        -------
-        : ndarray (1D)
-            Returns and array of length S with the expected abundances given
-            by the METE truncated log series
-        '''
-
-        full_pmf = self.pmf(np.arange(1, N + 1), S, N)
-        return make_rank_abund(full_pmf, S)
-
-class mete_lgsr_approx:
+class mete_lgsr_approx(Distribution):
     '''
     METE log series distribution with approximation (Harte 2011)
 
     Methods
     -------
-    pmf(n, S, N, param_out=False), root=2)
+    pmf(n, param_out); S and N parameters passed into __init__
         Probability mass function
-    cdf(n, S, N, root=2)
-        Cumulative mass function 
-    rad(S, N, root=2)
+    cdf(n); S and N parameters passed into __init__
+        Cumulative distribution function
+    rad(); S and N parameters passed into __init__
         Rank abundance distribution
 
-    '''
+    Parameters
+    ----------
+    S : int
+        Total number of species in landscape
+    N : int
+        Total number of indviduals in landscape
 
-    def pmf(self, n, S, N, param_out=False, root=2):
+    Notes
+    -----
+    S and N are passed into the constructor (__init__)
+
+    '''
+    
+    def pmf(self, n, param_out=False, root=2):
         '''
         Truncated log series using approximation (7.30) and (7.32) in Harte 
         2011
@@ -1162,12 +1011,17 @@ class mete_lgsr_approx:
         ----------
         n : int, float or array-like object
             Abundances at which to calculate the pmf
+
+        root: int (optional)
+            1 or 2.  Specifies which root to use for pmf calculations   
+
+        Passed into __init__
+        ---------------------
         S : int
             Total number of species in landscape
         N : int
-            Total number of individuals in landscape
-        root: int (optional)
-            1 or 2.  Specifies which root to use for pmf calculations        
+            Total number of indviduals in landscape
+
         Returns
         -------
         : ndarray (1D)
@@ -1187,6 +1041,10 @@ class mete_lgsr_approx:
         values.
         
         '''
+        S = self.params.get('S', None)
+        N = self.params.get('N', None) 
+        assert S != None, "S parameter not given"
+        assert N != None, "N parameter not given"
         assert S < N, "S must be less than N"
         assert S > 1, "S must be greater than 1"
         assert N > 0, "N must be greater than 0"
@@ -1228,56 +1086,712 @@ class mete_lgsr_approx:
         else:
             return pmf
 
-    def cdf(self, n, S, N, root=2):
+class binm(Distribution):
+    ''' Binomial distribution (ie, random placement model)
+
+    Methods
+    -------
+    pmf(n); N and a parameters are passed in the __init__ method
+        Probability mass function
+    cdf(n); N an a parameters are passed in the __init__method
+        Cumulative distribution function
+    
+    Parameters
+    ----------
+    N : ndarray or int
+        Total number of individuals in landscape
+    a : ndarray or int
+        Ratio of cell size to area of whole landscape
+
+    '''
+
+    def pmf(self, n):
+        '''
+        Binomial pmf (ie, random placement model).
+
+        Parameters
+        ----------
+        n : ndarray or int
+            Values of n for which to calculate pmf or likelihood
+
+        Pass to __init__
+        -----------------
+        N : ndarray or int
+            Total number of individuals in landscape
+        a : ndarray or int
+            Ratio of cell size to area of whole landscape
+
+        Returns
+        -------
+        : ndarray
+            Returns array with pmf.
+    
+        '''
+        N = self.params.get('N', None)
+        a = self.params.get('a', None)
+        assert N != None, "N parameter not given"
+        assert a != None, "a parameter not given"
+        assert a < 1, "a must be less than 1"
+        try:
+            len(n); n = np.array(n)
+        except:
+            n = np.array([n])
+        assert np.max(n) <= N, "n maximum must be less than or equal to N"
+        return stats.binom.pmf(n, N, a)
+
+    def cdf(self, n):
         '''
         Cumulative distribution function
 
         Parameters
         ----------
-        n : int, float or array-like object
-            Abundances at which to calculate the cdf 
-        mu : float
-            the mu parameter of the log normal
-        sigma : float
-            the sigma parameter of the log normal
+        n : ndarray or int
+            Values of n for which to calculate the cdf
+
+        Pass to __init__
+        -----------------
+        N : ndarray or int
+            Total number of individuals in landscape
+        a : ndarray or int
+            Ratio of cell size to area of whole landscape
 
         Returns
         -------
-        : ndarray (1D)
-            Returns array with cdf values for the given values of n.
+        : ndarray
+            Returns array with cdf.
+        
+        '''
+        N = self.params.get('N', None)
+        a = self.params.get('a', None)
+        assert N != None, "N parameter not given"
+        assert a != None, "a parameter not given"
+        assert a < 1, "a must be less than 1"
+        try:
+            len(n); n = np.array(n)
+        except:
+            n = np.array([n])
+        assert np.max(n) <= N, "n maximum must be less than or equal to N"
+        return scipy.stats.binom.cdf(n, N, a)
+
+class pois(Distribution):
+    '''
+    Poisson distribution
+
+    Methods
+    -------
+    pmf(n); N and a parameters are passed in the __init__ method
+        Probability mass function
+    cdf(n); N an a parameters are passed in the __init__method
+        Cumulative distribution function
+    
+    Parameters
+    ----------
+    N : ndarray or int
+        Total number of individuals in landscape
+    a : ndarray or int
+        Ratio of cell size to area of whole landscape
+
+    '''
+    
+    def pmf(self, n):
+        '''
+        Poisson pmf.
+
+        Parameters
+        ----------
+        n : ndarray or int
+            Values of n for which to calculate pmf or likelihood
+
+        Pass to __init__
+        -----------------
+        N : ndarray or int
+            Total number of individuals in landscape
+        a : ndarray or int
+            Ratio of cell size to area of whole landscape
+
+        Returns
+        -------
+        : ndarray
+            Returns array with pmf. 
 
         '''
+        N = self.params.get('N', None)
+        a = self.params.get('a', None)
+        assert N != None, "N parameter not given"
+        assert a != None, "a parameter not given"
+        assert a < 1, "a must be less than 1"
+        try:
+            len(n); n = np.array(n)
+        except:
+            n = np.array([n])
+        assert np.max(n) <= N, "n maximum must be less than or equal to N" 
+        mu = N * a
+        return scipy.stats.poisson.pmf(n, mu)
+    
+    def cdf(self, n):
+        '''
+        Cumulative distribution function
+
+        Parameters
+        ----------
+        n : ndarray or int
+            Values of n for which to calculate the cdf
+
+        Pass to __init__
+        -----------------
+        N : ndarray or int
+            Total number of individuals in landscape
+        a : ndarray or int
+            Ratio of cell size to area of whole landscape
+
+        Returns
+        -------
+        : ndarray
+            Returns array with cdf.
+
+        '''
+
+        N = self.params.get('N', None)
+        a = self.params.get('a', None)
+        assert N != None, "N parameter not given"
+        assert a != None, "a parameter not given"
+        assert a < 1, "a must be less than 1"
+        try:
+            len(n); n = np.array(n)
+        except:
+            n = np.array([n])
+        assert np.max(n) <= N, "n maximum must be less than or equal to N"
+        mu = N * a
+        return scipy.stats.poisson.cdf(n, mu)
+
+class nbd(Distribution):
+    '''
+    Negative binomial distribution
+
+    Methods
+    -------
+    pmf(n); N, a, k parameters are passed in the __init__ method
+        Probability mass function
+    cdf(n); N, a, and k parameters are passed in the __init__ method
+        Cumulative distribution function
+    fit(data): a parameter is passed in the __init__ method
+
+    Parameters
+    ----------
+    N : ndarray or int
+        Total number of individuals in landscape
+    a : ndarray or int
+        Ratio of cell size to area of whole landscape
+    k : int
+        Aggregation parameter
+
+    '''
+
+    def pmf(self, n):
+
+        '''
+        Negative binomial pmf.
+
+        Parameters
+        ----------
+        n : ndarray or int
+            Values of n for which to calculate pmf
+
+        Pass in __init__
+        -----------------
+        N : ndarray or int
+            Total number of individuals in landscape
+        a : ndarray or int
+            Ratio of cell size to area of whole landscape
+        k : int
+            Aggregation parameter
+
+        Returns
+        -------
+        : ndarray
+            Returns array with pmf.
+        '''
+        N = self.params.get('N', None)
+        a = self.params.get('a', None)
+        k = self.params.get('k', None)
+        assert N != None, "N parameter not given"
+        assert a != None, "a parameter not given"
+        assert k != None, "k parameter not given"
+        assert a < 1, "a must be less than 1"
+        try:
+            len(n); n = np.array(n)
+        except:
+            n = np.array([n])
+        assert np.max(n) <= N, "n maximum must be less than or equal to N"
+        mu = N * a
+        p = 1 / (mu / k + 1)  # See Bolker book Chapt 4
+        return scipy.stats.nbinom.pmf(n, k, p)
+    
+    def cdf(self, n):
+        '''
+        Cumuluative distribution function
+
+        Parameters
+        ----------
+        n : ndarray or int
+            Values of n for which to calculate the cdf
+
+        Pass in __init__
+        ----------------
+        N : ndarray or int
+            Total number of individuals in landscape
+        a : ndarray or int
+            Ratio of cell size to area of whole landscape
+        k : int
+            Aggregation parameter
+
+        Returns
+        -------
+        : ndarray or float
+            Returns array with cdf.
+
+        '''
+        N = self.params.get('N', None)
+        a = self.params.get('a', None)
+        k = self.params.get('k', None)
+        assert N != None, "N parameter not given"
+        assert a != None, "a parameter not given"
+        assert k != None, "k parameter not given"
+        assert a < 1, "a must be less than 1"
+        try:
+            len(n); n = np.array(n)
+        except:
+            n = np.array([n])
+        assert np.max(n) <= N, "n maximum must be less than or equal to N"
+        mu = N * a
+        p = 1 / (mu / k + 1)  # See Bolker book Chapt 4
+        return scipy.stats.nbinom.cdf(n, k, p)
+
+    def fit(self, data, guess_for_k=1):
+        '''
+        Fits negative binomial to data
+
+        Parameters
+        ----------
+        data : array-like object
+            Individuals per cell
+        guess_for_k : float
+            Default parameter for the approximate k given the data
+
+        Pass to __init__
+        -----------------
+        a : ndarray or int
+            Ratio of cell size to area of whole landscape
+
+
+        Returns
+        -------
+        : dict
+            The maximum likelihood estimator (MLE) for k
+        
+        '''
+        a = self.params.get('a', None)
+        assert a != None, "a parameter not given"
+        def nll_nb(k, data):
+            self.params['k'] = k
+            self.params['N'] = sum(data)
+            return -sum(np.log(self.pmf(data)))
+        mlek = scipy.optimize.fmin(nll_nb, np.array([guess_for_k]), args=\
+                                   (data,), disp=0)[0]
+        return {'k' : mlek}
+
+class fnbd(Distribution):
+    '''
+    Finite negative binomial (Zillio and He 2010).
+
+    Methods
+    -------
+    pmf(n); N, a, k parameters are passed in the __init__ method
+        Probability mass function
+    cdf(n); N, a, and k parameters are passed in the __init__ method
+        Cumulative distribution function
+    fit(data): a parameter is passed in the __init__ method
+
+    Parameters
+    ----------
+    N : ndarray or int
+        Total number of individuals in landscape
+    a : ndarray or int
+        Ratio of cell size to area of whole landscape
+    k : int
+        Aggregation parameter
+    
+    '''
+    
+    def pmf(self, n):
+        '''
+        Finite negative binomial pmf (Zillio and He 2010).
+
+        Parameters
+        ----------
+        n : ndarray or int
+            Values of n for which to calculate pmf
+
+        Pass in __init__
+        -----------------
+        N : ndarray or int
+            Total number of individuals in landscape
+        a : ndarray or int
+            Ratio of cell size to area of whole landscape
+        k : int
+            Aggregation parameter
+
+        Returns
+        -------
+        : ndarray
+            Returns array with pmf.
+
+        Notes
+        -----
+        If any arg other than n is iterable, all args must be iterable of same 
+        length.
+
+        The fnbd with k = 1 is not a true geometric distribution - calculate a 
+        pmf z and run z[1:]/z[0:-1], noting that the ratio is not constant.
+
+        '''
+
+        # TODO: Fix to work if n and N are one value
+        #    if not (n <= N).all():
+        #        raise Exception, "All values of n must be <= N."
+        #    elif (a <= 0) or (a >= 1):
+        #        raise Exception, "a must be between 0 and 1"
+        N = self.params.get('N', None)
+        a = self.params.get('a', None)
+        k = self.params.get('k', None)
+        assert N != None, "N parameter not given"
+        assert a != None, "a parameter not given"
+        assert k != None, "k parameter not given"
         try:
             len(n)
             n = np.array(n)
         except:
             n = np.array([n])
-        max_n = np.max(n)
-        cdf = np.cumsum(self.pmf(np.arange(1, max_n + 1), S, N, root=root))
-        return np.array([cdf[x - 1] for x in n])
+        assert np.max(n) <= N, "n maximum must be less than or equal to N"
+        ln_L = lambda n_i,N,a,k: _ln_choose(n_i+k-1,n_i) + \
+            _ln_choose(N-n_i+(k/a)-k-1,N-n_i) - _ln_choose(N +(k/a)-1,N)
 
-    def rad(self, S, N, root=2):
+        pmf = ln_L(n, N, a, k)  # Already log
+
+        return np.exp(pmf)
+    
+    def cdf(self, n):
         '''
-        Rank abundance distribution for the METE truncated log series with
-        approximation
+        See Distribution.cdf() docstring
+        '''
+        return super(fnbd, self).cdf(n, lower_bound=0)
+            
+    def fit(self, data, guess_for_k=1):
+        '''
+        Fits finite negative binomial to data
 
         Parameters
         ----------
-        S : int
-            Total number of species in landscape
-        N : int
-            Total number of indviduals in landscape
-        
+        data : array-like object
+            Individuals per cell
+        guess_for_k : float
+            Default parameter for the approximate k given the data
+
+        Pass to __init__
+        -----------------
+        a : ndarray or int
+            Ratio of cell size to area of whole landscape
+
+
         Returns
         -------
-        : ndarray (1D)
-            Returns and array of length S with the expected abundances given
-            by the METE truncated log series with approximation
+        : dict
+            The maximum likelihood estimator (MLE) for 
+        
+        '''
+        #Something is wrong with this fit function
+        a = self.params.get('a', None)
+        assert a != None, "a parameter not given"
+        def nll_nb(k, data):
+            self.params['k'] = k
+            self.params['N'] = sum(data)
+            return -sum(np.log(self.pmf(data)))
+        mlek = scipy.optimize.fmin(nll_nb, np.array([guess_for_k]), args=\
+                                   (data,), disp=0)[0]
+        return {'k' : mlek}
+
+class geo(Distribution):
+    '''
+    Geometric distribution.  Uses nbd object as wrapper with k = 1
+
+    Methods
+    -------
+    pmf(n); N and a parameters are passed in the __init__ method
+        Probability mass function
+    cdf(n); N and a parameters are passed in the __init__ method
+        Cumulative distribution function
+
+    Parameters
+    ----------
+    N : ndarray or int
+        Total number of individuals in landscape
+    a : ndarray or int
+        Ratio of cell size to area of whole landscape
+        
+    '''
+
+    def pmf(self, n):
+        '''
+        Geometric pdf
+
+        Parameters
+        ----------
+        n : ndarray or int
+            Values of n for which to calculate pmf
+
+        Pass in __init__
+        -----------------
+        N : ndarray or int
+            Total number of individuals in landscape
+        a : ndarray or int
+            Ratio of cell size to area of whole landscape
+
+        Returns
+        -------
+        : ndarray
+            Returns array with pmf.
+            
+        '''
+        
+        N = self.params.get('N', None)
+        a = self.params.get('a', None)
+        assert N != None, "N parameter not given"
+        assert a != None, "a parameter not given"
+        return nbd(N=N, a=a, k=1).pmf(n)
+    
+    def cdf(self, n):
+        '''
+        Cumulative distribution function
+
+        Parameters
+        ----------
+        n : ndarray or int
+            Values of n for which to calculate pmf 
+
+        Pass from __init__
+        ------------------
+        N : ndarray or int
+            Total number of individuals in landscape
+        a : ndarray or int
+            Ratio of cell size to area of whole landscape
+
+        Returns
+        -------
+        : ndarray
+            Returns array with pmf.
 
         '''
 
-        full_pmf = self.pmf(np.arange(1, N + 1), S, N, root=root)
-        return make_rank_abund(full_pmf, S)
+        N = self.params.get('N', None)
+        a = self.params.get('a', None)
+        assert N != None, "N parameter not given"
+        assert a != None, "a parameter not given"
+        return nbd(N=N, a=a, k=1).cdf(n)
+
+class fgeo(Distribution):
+    '''
+    Finite geometric pmf (Zillio and He 2010). Use fnbd object as wrapper with 
+    k = 1
+
+    Methods
+    -------
+    pmf(n); N and a parameters are passed in the __init__ method
+        Probability mass function
+    cdf(n); N and a parameters are passed in the __init__ method
+        Cumulative distribution function
+
+    Parameters
+    ----------
+    N : ndarray or int
+        Total number of individuals in landscape
+    a : ndarray or int
+        Ratio of cell size to area of whole landscape
+    
+    '''
+    
+    def pmf(self, n):
+        '''
+        Finite geometric pmf
+
+        Parameters
+        ----------
+        n : ndarray or int
+            Values of n for which to calculate pmf
+
+        Pass to __init__
+        -----------------
+        N : ndarray or int
+            Total number of individuals in landscape
+        a : ndarray or int
+            Ratio of cell size to area of whole landscape
+
+        Notes
+        -----
+        This is not a true geometric distribution - calculate a pmf z and run 
+        z[1:]/z[0:-1], noting that the ratio is not constant.
+
+        '''
+        
+        N = self.params.get('N', None)
+        a = self.params.get('a', None)
+        assert N != None, "N parameter not given"
+        assert a != None, "a parameter not given"
+        return fnbd(N=N, a=a, k=1).pmf(n)
+    
+    def cdf(self, n):
+        '''
+        Cumulative distribution function
+
+        Parameters
+        ----------
+        n : ndarray or int
+            Values of n for which to calculate pmf
+
+        Pass to __init__
+        -----------------
+        N : ndarray or int
+            Total number of individuals in landscape
+        a : ndarray or int
+            Ratio of cell size to area of whole landscape
+
+        '''
+        
+        N = self.params.get('N', None)
+        a = self.params.get('a', None)
+        assert N != None, "N parameter not given"
+        assert a != None, "a parameter not given"
+        return fnbd(N=N, a=a, k=1).cdf(n)
+
+class tgeo(Distribution):
+    '''
+    Truncated geometric distribution (Harte et al. 2008)
+
+    Methods
+    -------
+    pmf(n); N and a parameters are passed in the __init__ method
+        Probability mass function
+    cdf(n); N and a parameters are passed in the __init__ method
+        Cumulative distribution function
+
+    Parameters
+    ----------
+    N : ndarray or int
+        Total number of individuals in landscape
+    a : ndarray or int
+        Ratio of cell size to area of whole landscape
+
+    '''
+    
+    def pmf(self, n):
+        '''
+        Truncated geometric pmf (Harte et al 2008).
+
+        Parameters
+        ----------
+        n : ndarray or int
+            Values of n for which to calculate pmf or likelihood
+        N : ndarray or int
+            Total number of individuals in landscape
+        a : ndarray or int
+            Ratio of cell size to area of whole landscape
+
+        Returns
+        -------
+        : ndarray
+            Returns array with pmf.
+
+        Notes
+        -----
+        N and a must be the same length.
+
+        This is a true geometric distribution in which p = exp(-lambda). Confirmed 
+        with z[1:]/z[0:-1].
+
+        Plotting eq for various realistic values of p, N, and a confirms that this 
+        is a smooth, well-behaved function that should be amenable to using a root 
+        finder. As written, function works (ie, root is in the interval 0,2) for 
+        all tested N >= 10 and a <= 0.9. If root is outside, will throw error.
+
+        eq is from Harte 2011, eq2 from Harte et al 2008 - both give the same 
+        answer for p.
+
+        '''
+        # TODO: Fix to work if n and N are one value
+        #    if not (n <= N).all():
+        #        raise Exception, "All values of n must be <= N."
+        #    elif (a <= 0) or (a >= 1):
+        #        raise Exception, "a must be between 0 and 1"
+        N = self.params.get('N', None)
+        a = self.params.get('a', None)
+        assert N != None, "N parameter not given"
+        assert a != None, "a parameter not given"
+        try:
+            len(n)
+            n = np.array(n)
+        except:
+            n = np.array([n])
+        tol = 1e-16
+        N = np.round(N)# N must be integer, brentq seems to fail if not
+        
+        eq = lambda p,N,a: (p / (1-p)) - (N+1)*(p**(N+1)) / (1 - (p**(N+1))) -\
+                            N*a
+        eq2 = lambda p,N,a: (1/(1-p**(N+1))) * ( (p/(1-p)) - p**(N+1) * \
+                (N + (1/(1-p))) ) - N*a
+
+        if type(N) != int and np.array(N).shape != ():  # If N is array
+
+            if type(n) == int or n.shape[0] == 1:  # If n is an int
+                n_array = np.repeat(n, N.shape[0])
+            else:
+                n_array = n
+
+            pmf = np.zeros(N.shape[0])
+            for i in xrange(0, N.shape[0]):#Higher stop value if needed
+                p_i = scipy.optimize.brentq(eq, tol, 1 - tol, args = (N[i], \
+                                            a[i]), disp = True)
+                Z_i = (1 - p_i**(N[i]+1)) / (1 - p_i)
+                pmf[i] = p_i**n_array[i] / Z_i
+
+        else:
+            p = scipy.optimize.brentq(eq, tol, 1 - tol, args = (N, a), \
+                                      disp = True)
+            Z = (1 - p**(N+1)) / (1 - p)
+            pmf = p**n / Z
+
+        return pmf
+
+    def cdf(self, n):
+        '''
+        Cumulative distribution function
+
+        Parameters
+        ----------
+        n : ndarray or int
+            Values of n for which to calculate pmf 
+
+        Pass from __init__
+        ------------------
+        N : ndarray or int
+            Total number of individuals in landscape
+        a : ndarray or int
+            Ratio of cell size to area of whole landscape
+
+        Returns
+        -------
+        : ndarray
+            Returns array with pmf.
+        '''
+        return super(tgeo, self).cdf(n, lower_bound=0)
 
 def make_rank_abund(sad_pmf, S):
     '''
@@ -1296,7 +1810,6 @@ def make_rank_abund(sad_pmf, S):
     : ndarray (1D)
         If summary is False, returns array with pmf. If summary is True,
         returns the summed log likelihood of all values in n.
-
 
     Notes
     -----
@@ -1365,6 +1878,118 @@ def canonical_lognorm_pmf(r, S, param_ret=False):
     pmf = (s0 / S) * np.exp(-(a ** 2) * (r ** 2)) 
     return pmf, s0, a
 
+def _ln_choose(n, k):
+    '''
+    Log binomial coefficient with extended gamma factorials. n and k may be int 
+    or array - if both array, must be the same length.
+    '''
+    gammaln = scipy.special.gammaln
+    return gammaln(n + 1) - (gammaln(k + 1) + gammaln(n - k + 1))
+
+
+def _ln_F(k, n):
+    '''
+    Log of F(k, n) as appearing in Conlisk et al 2007 Am Nat, also F(a, n) in 
+    Conlisk et al 2007 Ecol Mono. This form of F from Ecol Mono paper.
+    '''
+    gammaln = scipy.special.gammaln
+
+    return gammaln(k + n) - (gammaln(k) + gammaln(n + 1))
+
+"""class cnbd:
+    '''
+    Conditional negative binomial distribution (Conlisk et al 2007b)
+    
+    Methods
+    -------
+    pmf(n, N, a, k)
+        Probability mass function
+    cdf(n, N, a, k)
+        Cumulative distribution function
+    fit(n, guess_for_k=1)
+        Maximum likelihood fit for k parameter
+
+    '''
+    
+    @classmethod
+    def pmf(cls, n, N, a, k):
+        '''
+        Conditional negative binomial pmf
+
+        Parameters
+        ----------
+        n : ndarray or int
+            Values of n for which to calculate pmf 
+        N : ndarray or int
+            Total number of individuals in landscape
+        a : ndarray or int
+            Ratio of cell size to area of whole landscape
+        k : ndarray or int
+            Aggregation parameter
+
+        Returns
+        -------
+        : ndarray
+            Returns array with pmf.
+
+        '''
+        #NOTE:  THERE IS AN ERROR IN THIS PMF!! CDF DOES NOT SUM TO 1
+        try:
+            len(n)
+            n = np.array(n)
+        except:
+            n = np.array([n])
+
+        M = 1 / a  # Number of cells
+
+        if not (n <= N).all():
+            raise Exception, "All values of n must be <= N."
+        elif (a <= 0) or (a >= 1):
+            raise Exception, "a must be between 0 and 1"
+
+        ln_F_a_n_i = np.zeros(np.size(n))  # Ln first term in num, Theorem 1.3
+        for i in xrange(0,np.size(n)):
+            ln_F_a_n_i[i] = _ln_F(k, n[i])
+
+        ln_F_second = np.zeros(np.size(n))  # Ln second term in num, Theorem 1.3
+        for j in xrange(0,np.size(n)):
+            ln_F_a_n_i[j] = _ln_F((M - 1) * k, N - n[j])
+
+        ln_F_Ma_N = _ln_F(M * k, N)  # Ln denom, Theorem 1.3
+
+        return np.exp(ln_F_a_n_i + ln_F_second - ln_F_Ma_N)
+    
+    @classmethod
+    def cdf(cls, n, N, a, k):
+        '''
+        Cumuluative distribution function
+
+        Parameters
+        ----------
+        n : ndarray or int
+            Values of n for which to calculate the cdf
+        N : ndarray or int
+            Total number of individuals in landscape
+        a : ndarray or int
+            Ratio of cell size to area of whole landscape
+        k : int
+            Aggregation parameter
+
+        Returns
+        -------
+        : ndarray
+            Returns array with cdf.
+
+        '''
+        try:
+            len(n)
+            n = np.array(n)
+        except:
+            n = np.array([n])
+        max_n = np.max(n)
+        cdf = np.cumsum(cls.pmf(np.arange(0, max_n + 1), N, a, k))
+        return np.array([cdf[x] for x in n])
+"""
 
 
 

@@ -5,7 +5,7 @@ Calculate pmf and likelihood of species-level spatial-abundance distributions.
 
 Distributions
 -------------
-- `bin` -- binomial
+- `binm` -- binomial
 - `pois` -- poisson
 - `nbd` -- negative binomial (Zillio and He 2010)
 - `fnbd` -- finite negative binomial (Zillio and He 2010)
@@ -61,7 +61,7 @@ __status__ = "Development"
 # TODO: Check that summary is bool (decorator?) to avoid accidental confusion
 # of leaving in a k when not needed and having summary = k argument.
 
-class bin:
+class binm:
     ''' Binomial distribution (ie, random placement model)
 
     Methods
@@ -72,8 +72,8 @@ class bin:
         Cumulative distribution function
 
     '''
-    
-    def pmf(self, n, N, a):
+    @classmethod 
+    def pmf(cls, n, N, a):
         '''
         Binomial pmf (ie, random placement model).
 
@@ -92,9 +92,17 @@ class bin:
             Returns array with pmf.
     
         '''
+
+        assert a < 1, "a must be less than 1"
+        try:
+            len(n); n = np.array(n)
+        except:
+            n = np.array([n])
+        assert np.max(n) <= N, "n maximum must be less than or equal to N"
         return scipy.stats.binom.pmf(n, N, a)
 
-    def cdf(self, n, N, a):
+    @classmethod
+    def cdf(cls, n, N, a):
         '''
         Cumulative distribution function
 
@@ -113,6 +121,12 @@ class bin:
             Returns array with cdf.
         
         '''
+        assert a < 1, "a must be less than 1"
+        try:
+            len(n); n = np.array(n)
+        except:
+            n = np.array([n])
+        assert np.max(n) <= N, "n maximum must be less than or equal to N"
         return scipy.stats.binom.cdf(n, N, a)
 
 
@@ -129,7 +143,8 @@ class pois:
 
     '''
     
-    def pmf(self, n, N, a):
+    @classmethod
+    def pmf(cls, n, N, a):
         '''
         Poisson pmf.
 
@@ -148,11 +163,17 @@ class pois:
             Returns array with pmf. 
 
         '''
-
+        assert a < 1, "a must be less than 1"
+        try:
+            len(n); n = np.array(n)
+        except:
+            n = np.array([n])
+        assert np.max(n) <= N, "n maximum must be less than or equal to N" 
         mu = N * a
         return scipy.stats.poisson.pmf(n, mu)
-
-    def cdf(self, n, N, a):
+    
+    @classmethod
+    def cdf(cls, n, N, a):
         '''
         Cumuluative distribution function
 
@@ -171,7 +192,12 @@ class pois:
             Returns array with cdf.
 
         '''
-
+        assert a < 1, "a must be less than 1"
+        try:
+            len(n); n = np.array(n)
+        except:
+            n = np.array([n])
+        assert np.max(n) <= N, "n maximum must be less than or equal to N"
         mu = N * a
         return scipy.stats.poisson.cdf(n, mu)
 
@@ -190,7 +216,8 @@ class nbd:
 
     '''
 
-    def pmf(self, n, N, a, k):
+    @classmethod
+    def pmf(cls, n, N, a, k):
         '''
         Negative binomal pmf.
 
@@ -211,11 +238,18 @@ class nbd:
             Returns array with pmf.
         '''
 
+        assert a < 1, "a must be less than 1"
+        try:
+            len(n); n = np.array(n)
+        except:
+            n = np.array([n])
+        assert np.max(n) <= N, "n maximum must be less than or equal to N"
         mu = N * a
         p = 1 / (mu / k + 1)  # See Bolker book Chapt 4
         return scipy.stats.nbinom.pmf(n, k, p)
     
-    def cdf(self, n, N, a, k):
+    @classmethod
+    def cdf(cls, n, N, a, k):
         '''
         Cumuluative distribution function
 
@@ -237,11 +271,18 @@ class nbd:
 
         '''
 
+        assert a < 1, "a must be less than 1"
+        try:
+            len(n); n = np.array(n)
+        except:
+            n = np.array([n])
+        assert np.max(n) <= N, "n maximum must be less than or equal to N"
         mu = N * a
         p = 1 / (mu / k + 1)  # See Bolker book Chapt 4
         return scipy.stats.nbinom.cdf(n, k, p)
-
-    def fit(self, n, a, guess_for_k=1):
+    
+    @classmethod
+    def fit(cls, n, a, guess_for_k=1):
         '''
         Fits negative binomial to data
 
@@ -262,7 +303,7 @@ class nbd:
         '''
 
         def nll_nb(k, n):
-            return -sum(np.log(self.pmf(n, sum(n), a, k)))
+            return -sum(np.log(cls.pmf(n, sum(n), a, k)))
         mlek = scipy.optimize.fmin(nll_nb, np.array([guess_for_k]), args=\
                                    (n,), disp=0)[0]
         return {'k' : mlek}
@@ -282,7 +323,8 @@ class fnbd:
     
     '''
     
-    def pmf(self, n, N, a, k):
+    @classmethod
+    def pmf(cls, n, N, a, k):
         '''
         Finite negative binomial pmf (Zillio and He 2010).
 
@@ -328,8 +370,9 @@ class fnbd:
         pmf = ln_L(n, N, a, k)  # Already log
 
         return np.exp(pmf)
-
-    def cdf(self, n, N, a, k):
+    
+    @classmethod
+    def cdf(cls, n, N, a, k):
         '''
         Cumuluative distribution function
 
@@ -356,10 +399,11 @@ class fnbd:
         except:
             n = np.array([n])
         max_n = np.max(n)
-        cdf = np.cumsum(self.pmf(np.arange(0, max_n + 1), N, a, k))
+        cdf = np.cumsum(cls.pmf(np.arange(0, max_n + 1), N, a, k))
         return np.array([cdf[x] for x in n])
-
-    def fit(self, n, a, guess_for_k=1):
+    
+    @classmethod
+    def fit(cls, n, a, guess_for_k=1):
         '''
         Fits finite negative binomial to data
 
@@ -380,7 +424,7 @@ class fnbd:
         '''
 
         def nll_nb(k, n):
-            return -sum(np.log(self.pmf(n, sum(n), a, k)))
+            return -sum(np.log(cls.pmf(n, sum(n), a, k)))
         mlek = scipy.optimize.fmin(nll_nb, np.array([guess_for_k]), args=\
                                    (n,), disp=0)[0]
         return {'k' : mlek}
@@ -399,8 +443,9 @@ class cnbd:
         Maximum likelihood fit for k parameter
 
     '''
-
-    def pmf(self, n, N, a, k):
+    
+    @classmethod
+    def pmf(cls, n, N, a, k):
         '''
         Conditional negative binomial pmf
 
@@ -446,8 +491,9 @@ class cnbd:
         ln_F_Ma_N = _ln_F(M * k, N)  # Ln denom, Theorem 1.3
 
         return np.exp(ln_F_a_n_i + ln_F_second - ln_F_Ma_N)
-
-    def cdf(self, n, N, a, k):
+    
+    @classmethod
+    def cdf(cls, n, N, a, k):
         '''
         Cumuluative distribution function
 
@@ -474,10 +520,11 @@ class cnbd:
         except:
             n = np.array([n])
         max_n = np.max(n)
-        cdf = np.cumsum(self.pmf(np.arange(0, max_n + 1), N, a, k))
+        cdf = np.cumsum(cls.pmf(np.arange(0, max_n + 1), N, a, k))
         return np.array([cdf[x] for x in n])
-
-    def fit(self, n, a, guess_for_k=1):
+    
+    @classmethod
+    def fit(cls, n, a, guess_for_k=1):
         '''
         Fits finite negative binomial to data
 
@@ -498,7 +545,7 @@ class cnbd:
         '''
 
         def nll_nb(k, n):
-            return -sum(np.log(self.pmf(n, sum(n), a, k)))
+            return -sum(np.log(cls.pmf(n, sum(n), a, k)))
         mlek = scipy.optimize.fmin(nll_nb, np.array([guess_for_k]), args=\
                                    (n,), disp=0)[0]
         return {'k' : mlek}
@@ -516,7 +563,8 @@ class geo:
         
     '''
 
-    def pmf(self, n, N, a):
+    @classmethod
+    def pmf(cls, n, N, a):
         '''
         Geometric pdf
 
@@ -537,8 +585,9 @@ class geo:
         '''
 
         return nbd().pmf(n, N, a, 1)
-
-    def cdf(self, n, N, a):
+    
+    @classmethod
+    def cdf(cls, n, N, a):
         '''
         Cumulative distribution function
 
@@ -573,8 +622,9 @@ class fgeo:
         Cumulative distribution function
     
     '''
-
-    def pmf(self, n, N, a):
+    
+    @classmethod
+    def pmf(cls, n, N, a):
         '''
         Finite geometric pmf
 
@@ -595,8 +645,9 @@ class fgeo:
         '''
 
         return fnbd().pmf(n, N, a, 1)
-
-    def cdf(self, n, N, a):
+    
+    @classmethod
+    def cdf(cls, n, N, a):
         '''
         Cumulative distribution function
 
@@ -625,8 +676,9 @@ class tgeo:
         Cumulative distribution function
 
     '''
-
-    def pmf(self, n, N, a):
+    
+    @classmethod
+    def pmf(cls, n, N, a):
         '''
         Truncated geometric pmf (Harte et al 2008).
 
@@ -700,8 +752,9 @@ class tgeo:
             pmf = p**n / Z
 
         return pmf
-
-    def cdf(self, n, N, a):
+    
+    @classmethod
+    def cdf(cls, n, N, a):
         '''
         Cumulative distribution function
 
@@ -727,7 +780,7 @@ class tgeo:
         except:
             n = np.array([n])
         max_n = np.max(n)
-        cdf = np.cumsum(self.pmf(np.arange(0, max_n + 1), N, a))
+        cdf = np.cumsum(cls.pmf(np.arange(0, max_n + 1), N, a))
         return np.array([cdf[x] for x in n])
 
 #
