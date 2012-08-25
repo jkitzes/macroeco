@@ -6,7 +6,7 @@ import unittest
 import os
 import numpy as np
 from matplotlib.mlab import csv2rec
-from data import DataTable, Metadata
+from macroeco.data import DataTable, Metadata
 
 class TestDataTable(unittest.TestCase):
 
