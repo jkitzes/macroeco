@@ -16,7 +16,6 @@ import numpy as np
 import xml.etree.ElementTree as etree
 from matplotlib.mlab import csv2rec
 
-logging.disable(logging.CRITICAL)  # Disable any logging output
 
 class DataTable:
     '''

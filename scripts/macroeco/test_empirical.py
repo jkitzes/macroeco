@@ -8,8 +8,7 @@ import os
 gcwd = os.getcwd
 pd = os.path.dirname
 jp = os.path.join
-from empirical import *
-from cmn_analysis import *
+from macroeco.empirical import *
 import numpy as np
 import random
 
