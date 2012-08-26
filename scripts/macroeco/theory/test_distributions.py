@@ -17,7 +17,7 @@ Press.
 '''
 
 import unittest
-from sad_distr import *
+from distributions import *
 import numpy as np
 
 class TestSADDistributions(unittest.TestCase):
@@ -164,6 +164,61 @@ class TestSADDistributions(unittest.TestCase):
         N=sum(self.abund_list[0]); S=len(self.abund_list[0])
         lognorm(N=N, S=S, mu=2, sigma=5).rad()
         lognorm(mu=1.5, sigma=3.45).cdf([1,1,4,5,12])
+
+    def test_binm(self):
+        dist = binm(N=8123, a=.22)
+        self.assertTrue(dist.cdf(8123) == 1)
+        self.assertTrue(dist.cdf(0) == dist.pmf(0))
+        self.assertTrue(dist.cdf(1) == (sum(dist.pmf([0,1]))))
+        self.assertRaises(AssertionError, dist.pmf, [1,1,3,8124])
+        self.assertRaises(AssertionError, binm(S=3, N=45).pmf, (23,24))
+
+    def test_pois(self):
+        dist = pois(N=112, a=0.1)
+        self.assertTrue(dist.cdf(112) == 1)
+        #import pdb; pdb.set_trace()
+        a = np.round(dist.cdf(0), decimals=12)
+        b = np.round(dist.pmf(0), decimals=12)
+        self.assertTrue(a == b)
+        a = np.round(dist.cdf(23), decimals=12)
+        b = np.round(np.sum(dist.pmf(np.arange(0,24))), decimals=12)
+        self.assertTrue(a == b)
+        self.assertRaises(AssertionError, dist.rad)
+
+    def test_nbd(self):
+        dist = nbd(N=2300, a=.3)
+        self.assertRaises(AssertionError, dist.pmf, 45)
+        dist = nbd(N=2300, a=.3, k=2)
+        self.assertTrue(np.round(dist.cdf(2300), decimals=1) == 1.0)
+        np.random.seed(345)
+        p = 0.001
+        geo_data = np.random.geometric(p, size=10000)
+        N = sum(geo_data); mu = (1 - p) / p;  a = mu / N
+        k = nbd(a=a).fit(geo_data)
+        self.assertTrue(np.round(k['k'], decimals=1) == 1)
+
+    def test_fnbd(self):
+        dist = fnbd(N=2300, a=.3)
+        self.assertRaises(AssertionError, dist.pmf, 45)
+        dist = fnbd(N=2300, a=.3, k=2)
+        self.assertTrue(np.round(dist.cdf(2300), decimals=1) == 1.0)
+        a = np.round(dist.pmf(0), decimals=12)
+        b = np.round(dist.cdf(0), decimals=12)
+        self.assertTrue(a == b)
+        np.random.seed(345)
+        p = 0.001
+        geo_data = np.random.geometric(p, size=10000)
+        N = sum(geo_data); mu = (1 - p) / p;  a = mu / N
+        k = fnbd(a=a).fit(geo_data)
+        self.assertTrue(np.round(k['k'], decimals=1) == 1)
+
+    def test_tgeo(self):
+        dist = tgeo(a=.2, N=2345)
+        self.assertTrue(np.round(dist.cdf(2345), decimals=1) == 1.0)
+        #It would be good to test against values in Harte book.
+        check = dist.pmf([1,1,2,3,4,5,12,34,65])
+        self.assertTrue(dist.cdf(0) == dist.pmf(0))
+        self.assertTrue(dist.cdf(23) == np.sum(dist.pmf(np.arange(0,24))))
 
 if __name__ == '__main__':
     unittest.main()

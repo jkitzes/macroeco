@@ -6,7 +6,7 @@ Macroecological distributions.
 Distributions
 -------------
 - `lgsr` -- Fisher's log series (Fisher et al. 1943)
-- `neg_binom` -- Negative binomial
+- `trun_neg_binom` -- Truncated negative binomial
 - `geo_series' -- Geometric series distribution (Motomura 1932)
 - `broken_stick` -- McArthur's broken stick distribution (May 1975)
 - `plognorm` -- Poisson log-normal (Bulmer 1974)
@@ -17,15 +17,32 @@ Distributions
 - `sugihara` -- Sugihara's sequential breakage model (Sugihara 1980)
 - `mete_lgsr` -- METE log series (Harte 2011)
 - `mete_lgsr_approx` -- METE log series using approximation (Harte 2011)
+- `binm` - Binomial distribution (Random Placement Model)
+- `pois` - Poisson distribution
+- `nbd` - Negative binomial distribution
+- `fnbd` - Finite negative binomial (Zillio and He 2010)
+- `cnbd` - Conditional negative binomial distribution (Conlisk et al 2007b)
+- `geo` - Geometric distribution
+- `fgeo` - Finite geometric distribution (Zillio and He 2010)
+- `tgeo` - Truncated geometric distribution (Harte et al. 2008)
 
 Misc Functions
 --------------
 - `make_rank_abund` -- convert any SAD pmf into a rank abundance curve
+- `_ln_choose`
+- `_ln_F`
 
 References
 ----------
 Bulmer, M. G. 1974. On fitting the poisson lognormal distribution to species
 abundance data. Biometrics, 30:101-110.
+
+Conlisk E, Bloxham M, Conlisk J, Enquist B, Harte J (2007a) A new class of 
+models of spatial distribution. Ecological Monographs 77:269-284.
+
+Conlisk E, Conlisk J, Harte J (2007b) The impossibility of estimating a 
+negative binomial clustering parameter from presence-absence data: a comment on 
+He and Gaston. The American Naturalist 170:651-654.
 
 Fisher, R. A., Corbet, A. S., and C. B. Williams. 1943. The relation between
 The number of species and the number of individuals in a random sample
@@ -33,6 +50,10 @@ of an animal population. Journal of Animal Ecology, 12:42-58.
 
 Harte, J. 2011. Maximum Entropy and Ecology: A Theory of Abundance,
 Distribution, and Energetics. Oxford University Press.
+
+Harte J, Conlisk E, Ostling A, Green JL, Smith AB (2005) A theory of spatial 
+structure in ecological communities at multiple spatial scales. Ecological 
+Monographs 75:179-197.
 
 Hubbell, S. P. 2001. The unified theory of biodiversity and biogeography. 
 Monographs in Population Biology, 32,1:375.
@@ -49,6 +70,9 @@ Zoology, 44:379-383.
 
 Sugihara, G. 1980. Minimal community structure: an explanation of species
 abundance patterns. The American Naturalist, 116:770-787.
+
+Zillio T, He F (2010) Modeling spatial aggregation of finite populations. 
+Ecology 91:3698-3706.
 
 '''
 from __future__ import division
@@ -114,7 +138,7 @@ class Distribution(object):
             n = np.array([n])
         max_n = np.max(n)
         cdf = np.cumsum(self.pmf(np.arange(lower_bound, max_n + 1)))
-        return np.array([cdf[x - 1] for x in n])
+        return np.array([cdf[x - lower_bound] for x in n])
 
     def rad(self):
         '''
@@ -1486,7 +1510,7 @@ class fnbd(Distribution):
         '''
         return super(fnbd, self).cdf(n, lower_bound=0)
             
-    def fit(self, data, guess_for_k=1):
+    def fit(self, data, upper_bnd=5):
         '''
         Fits finite negative binomial to data
 
@@ -1494,8 +1518,8 @@ class fnbd(Distribution):
         ----------
         data : array-like object
             Individuals per cell
-        guess_for_k : float
-            Default parameter for the approximate k given the data
+        upper_bnd : float
+            Default parameter for upper_bnd on k estimate
 
         Pass to __init__
         -----------------
@@ -1509,16 +1533,133 @@ class fnbd(Distribution):
             The maximum likelihood estimator (MLE) for 
         
         '''
-        #Something is wrong with this fit function
+
         a = self.params.get('a', None)
         assert a != None, "a parameter not given"
         def nll_nb(k, data):
             self.params['k'] = k
             self.params['N'] = sum(data)
             return -sum(np.log(self.pmf(data)))
-        mlek = scipy.optimize.fmin(nll_nb, np.array([guess_for_k]), args=\
-                                   (data,), disp=0)[0]
+        mlek = scipy.optimize.brute(nll_nb, ((1e-10,upper_bnd),), args=(data,))
         return {'k' : mlek}
+
+class cnbd(Distribution):
+    '''
+    Conditional negative binomial distribution (Conlisk et al 2007b)
+    
+    Methods
+    -------
+    pmf(n); N, a, k parameters are passed in the __init__ method
+        Probability mass function
+    cdf(n); N, a, and k parameters are passed in the __init__ method
+        Cumulative distribution function
+    fit(data): a parameter is passed in the __init__ method
+
+    Parameters
+    ----------
+    N : ndarray or int
+        Total number of individuals in landscape
+    a : ndarray or int
+        Ratio of cell size to area of whole landscape
+    k : int
+        Aggregation parameter
+
+    '''
+    
+    def pmf(self, n):
+        '''
+        Conditional negative binomial pmf
+
+        Parameters
+        ----------
+        n : ndarray or int
+            Values of n for which to calculate pmf
+
+        Pass in __init__
+        -----------------
+        N : ndarray or int
+            Total number of individuals in landscape
+        a : ndarray or int
+            Ratio of cell size to area of whole landscape
+        k : int
+            Aggregation parameter
+
+        Returns
+        -------
+        : ndarray
+            Returns array with pmf.
+
+        '''
+        #NOTE:  THERE IS AN ERROR IN THIS PMF!! CDF DOES NOT SUM TO 1
+        N = self.params.get('N', None)
+        a = self.params.get('a', None)
+        k = self.params.get('k', None)
+        assert N != None, "N parameter not given"
+        assert a != None, "a parameter not given"
+        assert k != None, "k parameter not given"
+        try:
+            len(n); n = np.array(n)
+        except:
+            n = np.array([n])
+
+        M = 1 / a  # Number of cells
+
+        if not (n <= N).all():
+            raise Exception, "All values of n must be <= N."
+        elif (a <= 0) or (a >= 1):
+            raise Exception, "a must be between 0 and 1"
+
+        ln_F_a_n_i = np.zeros(np.size(n))  # Ln first term in num, Theorem 1.3
+        for i in xrange(0,np.size(n)):
+            ln_F_a_n_i[i] = _ln_F(k, n[i])
+
+        ln_F_second = np.zeros(np.size(n))  # Ln second term in num, Theorem 1.3
+        for j in xrange(0,np.size(n)):
+            ln_F_a_n_i[j] = _ln_F((M - 1) * k, N - n[j])
+
+        ln_F_Ma_N = _ln_F(M * k, N)  # Ln denom, Theorem 1.3
+
+        return np.exp(ln_F_a_n_i + ln_F_second - ln_F_Ma_N)
+    
+    def cdf(self, n):
+        '''
+        See Distribution.cdf() docstring
+        '''
+        return super(cnbd, self).cdf(n, lower_bound=0)
+    
+    def fit(self, data, upper_bnd=5):
+        '''
+        Fits conditional negative binomial to data
+
+        Parameters
+        ----------
+        data : array-like object
+            Individuals per cell
+        upper_bnd : float
+            Default parameter for upper_bnd on k estimate
+
+        Pass to __init__
+        -----------------
+        a : ndarray or int
+            Ratio of cell size to area of whole landscape
+
+
+        Returns
+        -------
+        : dict
+            The maximum likelihood estimator (MLE) for 
+        
+        '''
+
+        a = self.params.get('a', None)
+        assert a != None, "a parameter not given"
+        def nll_nb(k, data):
+            self.params['k'] = k
+            self.params['N'] = sum(data)
+            return -sum(np.log(self.pmf(data)))
+        mlek = scipy.optimize.brute(nll_nb, ((1e-10,upper_bnd),), args=(data,))
+        return {'k' : mlek}
+
 
 class geo(Distribution):
     '''
@@ -1674,7 +1815,7 @@ class fgeo(Distribution):
 
 class tgeo(Distribution):
     '''
-    Truncated geometric distribution (Harte et al. 2008)
+    Truncated geometric distribution (Harte 2011)
 
     Methods
     -------
@@ -1736,10 +1877,10 @@ class tgeo(Distribution):
         assert N != None, "N parameter not given"
         assert a != None, "a parameter not given"
         try:
-            len(n)
-            n = np.array(n)
+            len(n); n = np.array(n)
         except:
             n = np.array([n])
+        assert np.max(n) <= N, "n maximum must be less than or equal to N"
         tol = 1e-16
         N = np.round(N)# N must be integer, brentq seems to fail if not
         
@@ -1896,100 +2037,6 @@ def _ln_F(k, n):
 
     return gammaln(k + n) - (gammaln(k) + gammaln(n + 1))
 
-"""class cnbd:
-    '''
-    Conditional negative binomial distribution (Conlisk et al 2007b)
-    
-    Methods
-    -------
-    pmf(n, N, a, k)
-        Probability mass function
-    cdf(n, N, a, k)
-        Cumulative distribution function
-    fit(n, guess_for_k=1)
-        Maximum likelihood fit for k parameter
-
-    '''
-    
-    @classmethod
-    def pmf(cls, n, N, a, k):
-        '''
-        Conditional negative binomial pmf
-
-        Parameters
-        ----------
-        n : ndarray or int
-            Values of n for which to calculate pmf 
-        N : ndarray or int
-            Total number of individuals in landscape
-        a : ndarray or int
-            Ratio of cell size to area of whole landscape
-        k : ndarray or int
-            Aggregation parameter
-
-        Returns
-        -------
-        : ndarray
-            Returns array with pmf.
-
-        '''
-        #NOTE:  THERE IS AN ERROR IN THIS PMF!! CDF DOES NOT SUM TO 1
-        try:
-            len(n)
-            n = np.array(n)
-        except:
-            n = np.array([n])
-
-        M = 1 / a  # Number of cells
-
-        if not (n <= N).all():
-            raise Exception, "All values of n must be <= N."
-        elif (a <= 0) or (a >= 1):
-            raise Exception, "a must be between 0 and 1"
-
-        ln_F_a_n_i = np.zeros(np.size(n))  # Ln first term in num, Theorem 1.3
-        for i in xrange(0,np.size(n)):
-            ln_F_a_n_i[i] = _ln_F(k, n[i])
-
-        ln_F_second = np.zeros(np.size(n))  # Ln second term in num, Theorem 1.3
-        for j in xrange(0,np.size(n)):
-            ln_F_a_n_i[j] = _ln_F((M - 1) * k, N - n[j])
-
-        ln_F_Ma_N = _ln_F(M * k, N)  # Ln denom, Theorem 1.3
-
-        return np.exp(ln_F_a_n_i + ln_F_second - ln_F_Ma_N)
-    
-    @classmethod
-    def cdf(cls, n, N, a, k):
-        '''
-        Cumuluative distribution function
-
-        Parameters
-        ----------
-        n : ndarray or int
-            Values of n for which to calculate the cdf
-        N : ndarray or int
-            Total number of individuals in landscape
-        a : ndarray or int
-            Ratio of cell size to area of whole landscape
-        k : int
-            Aggregation parameter
-
-        Returns
-        -------
-        : ndarray
-            Returns array with cdf.
-
-        '''
-        try:
-            len(n)
-            n = np.array(n)
-        except:
-            n = np.array([n])
-        max_n = np.max(n)
-        cdf = np.cumsum(cls.pmf(np.arange(0, max_n + 1), N, a, k))
-        return np.array([cdf[x] for x in n])
-"""
 
 
 
