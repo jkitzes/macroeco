@@ -224,8 +224,7 @@ class lgsr(Distribution):
         assert S > 1, "S must be greater than 1"
         assert N > 0, "N must be greater than 0"
         try:
-            len(n)
-            n = np.array(n)
+            len(n); n = np.array(n)
         except:
             n = np.array([n])
         assert np.max(n) <= N, "Maximum n cannot be greater than N"
@@ -309,8 +308,7 @@ class trun_neg_binom(Distribution):
         assert S > 1, "S must be greater than 1"
         assert N > 0, "N must be greater than 0"
         try:
-            len(n)
-            n = np.array(n)
+            len(n); n = np.array(n)
         except:
             n = np.array([n])
         assert np.max(n) <= N, "Maximum n must be less than or equal to N"
@@ -488,8 +486,7 @@ class broken_stick(Distribution):
         assert S > 1, "S must be greater than 1"
         assert N > 0, "N must be greater than 0"
         try:
-            len(n)
-            n = np.array(n)
+            len(n); n = np.array(n)
         except:
             n = np.array([n])
         assert np.max(n) <= N, "Maximum n must be less than or equal to N"
@@ -565,8 +562,7 @@ class plognorm(Distribution):
         assert mu != None; "mu paramater not given"
         assert sigma != None; "sigma parameter not given"
         try:
-            len(ab)
-            ab = np.array(ab)
+            len(ab); ab = np.array(ab)
         except:
             ab = np.array([ab])
         n_unq = np.unique(ab)
@@ -809,8 +805,7 @@ class lognorm(Distribution):
         assert mu != None; "mu paramater not given"
         assert sigma != None; "sigma parameter not given"
         try:
-            len(ab)
-            ab = np.array(ab)
+            len(ab); ab = np.array(ab)
         except:
             ab = np.array([ab])
         pmf = stats.norm.pdf(np.log(ab), loc=mu, scale=sigma) / ab
@@ -980,8 +975,7 @@ class mete_lgsr(Distribution):
         assert S > 1, "S must be greater than 1"
         assert N > 0, "N must be greater than 0"
         try:
-            len(n)
-            n = np.array(n)
+            len(n); n = np.array(n)
         except:
             n = np.array([n])
         assert np.max(n) <= N, "Maximum n must be less than or equal to N"
@@ -1073,8 +1067,7 @@ class mete_lgsr_approx(Distribution):
         assert S > 1, "S must be greater than 1"
         assert N > 0, "N must be greater than 0"
         try:
-            len(n)
-            n = np.array(n)
+            len(n); n = np.array(n)
         except:
             n = np.array([n])
         assert np.max(n) <= N, "Maximum n must be less than or equal to N"
@@ -1492,8 +1485,7 @@ class fnbd(Distribution):
         assert a != None, "a parameter not given"
         assert k != None, "k parameter not given"
         try:
-            len(n)
-            n = np.array(n)
+            len(n); n = np.array(n)
         except:
             n = np.array([n])
         assert np.max(n) <= N, "n maximum must be less than or equal to N"
@@ -2004,8 +1996,7 @@ def canonical_lognorm_pmf(r, S, param_ret=False):
     #Going to try to change this assumption so that it can work for S <= 12
     assert S > 12, "S must be greater than 12"
     try:
-        len(r)
-        r = np.array(r)
+        len(r); r = np.array(r)
     except:
         r = np.array([r])
 
