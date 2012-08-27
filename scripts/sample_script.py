@@ -26,33 +26,35 @@ GUI Compatibility - For compatibility with the html GUI, the strings
 
 '''
 
-gui_name = '''Sample Script'''
+GUI_name = '''Sample Script'''
 
 summary = '''This is a one sentence description of script actions.'''
 
-explanation = '''This is a longer description of script actions, perhaps as 
-long as a paragraph, that gives a detailed description of the purpose and 
+explanation = '''This is a longer description of script actions, as long as neccessary, that gives a detailed description of the purpose and 
 operation of this script.'''
 
 required_params = {'x': 'A sample numeric value'}
 
-import logging
-from macroeco.utils.workflow import Workflow
+if __name__=="__main__": # This lets us read the summary and explanation
+                         # without executing the file
 
-# Begin by creating a Workflow object
-wf = Workflow()
+    import logging
+    from macroeco.utils.workflow import Workflow
 
-# Loop through each dataset specified in params and run analysis. If data_path 
-# is not a parameter, the loop below will run once with an empty string for
-# data_path.
-for data_path, output_ID, params in wf.single_datasets():
-    print 'data_path:', data_path, '\noutput_ID:', output_ID, '\nparams:', params
-    y = params['x'] + 1
+    # Begin by creating a Workflow object
+    wf = Workflow()
 
-    with open(wf.output_path + output_ID + '_results.txt', 'w') as file:
-        file.write('Results\n\n')
-        file.write('Data Path: %s\n\n' % data_path)
-        file.write('Parameters: %s\n\n' % str(params))
-        file.write('y = %f\n\n' % y)
+    # Loop through each dataset specified in params and run analysis. If data_path 
+    # is not a parameter, the loop below will run once with an empty string for
+    # data_path.
+    for data_path, output_ID, params in wf.single_datasets():
+        print 'data_path:', data_path, '\noutput_ID:', output_ID, '\nparams:', params
+        y = params['x'] + 1
 
-    logging.info('Completed analysis %s' % output_ID)
+        with open(wf.output_path + output_ID + '_results.txt', 'w') as file:
+            file.write('Results\n\n')
+            file.write('Data Path: %s\n\n' % data_path)
+            file.write('Parameters: %s\n\n' % str(params))
+            file.write('y = %f\n\n' % y)
+
+        logging.info('Completed analysis %s' % output_ID)
