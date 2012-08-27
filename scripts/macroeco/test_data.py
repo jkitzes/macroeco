@@ -6,7 +6,7 @@ import unittest
 import os
 import numpy as np
 from matplotlib.mlab import csv2rec
-from data import DataTable, Metadata
+from macroeco.data import DataTable, Metadata
 
 class TestDataTable(unittest.TestCase):
 
@@ -14,12 +14,12 @@ class TestDataTable(unittest.TestCase):
         '''Write test xytable csv file.'''
 
         self.xyfile1 = open('xyfile1.csv','w')
-        self.xyfile1.write('''spp_code, x, y
-                       0, 0, 0
-                       0, 0, 0
-                       0, 0, 1
-                       1, 0, 0
-                       1, 1, 0''')
+        self.xyfile1.write('''spp_code, x, y, count
+                       0, 0, 0, 1
+                       0, 0, 0, 2
+                       0, 0, 1, 1
+                       1, 0, 0, 1
+                       1, 1, 0, 2''')
         self.xyfile1.close()
         self.xyarr1 = csv2rec('xyfile1.csv')
 
@@ -37,16 +37,28 @@ class TestDataTable(unittest.TestCase):
         xy1 = DataTable('xyfile1.csv')
         np.testing.assert_array_equal(xy1.table, self.xyarr1)
 
-#    def test_accurate_sub_tables(self):
-#        xy2 = DataTable('xyfile2.csv')  # More complex table
-#
-#        sub1 = xy2.get_sub_table(0, 1, 0, 1)  # One cell
-#        np.testing.assert_array_equal(sub1, self.xyarr2[[0, 1, 3]])
-#        sub2 = xy2.get_sub_table(0, 1, 0, 2)  # Half plot
-#        np.testing.assert_array_equal(sub2, self.xyarr2[[0, 1, 2, 3]])
-#        sub3 = xy2.get_sub_table(0, 2, 0, 2)  # Whole plot
-#        np.testing.assert_array_equal(sub3, self.xyarr2)
-        
+    def test_get_subtable(self):
+        xy1 = DataTable('xyfile1.csv')
+        xy1.meta = {('x', 'maximum'): 1,
+                    ('x', 'minimum'): 0,
+                    ('x', 'precision'): 1,
+                    ('y', 'maximum'): 1,
+                    ('y', 'minimum'): 0,
+                    ('y', 'precision'): 1}
+
+        # Whole table
+        sub = xy1.get_subtable({})
+        np.testing.assert_array_equal(sub, self.xyarr1)
+
+        sub = xy1.get_subtable({'x': ('>=0','<2'), 'y': ('>=0','<2')})
+        np.testing.assert_array_equal(sub, self.xyarr1)
+
+        # Subset
+        sub = xy1.get_subtable({'spp_code': '==0'})
+        np.testing.assert_array_equal(sub, self.xyarr1[0:3])
+
+        sub = xy1.get_subtable({'spp_code': '==0', 'x': '>0'})
+        np.testing.assert_array_equal(sub, self.xyarr1[2])
 
 class TestMetadata(unittest.TestCase):
     

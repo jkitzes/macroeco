@@ -83,22 +83,42 @@ class DataTable:
         return table, meta
 
 
-    def get_sub_table(self, x_st, x_en, y_st, y_en):
+    def get_subtable(self, subset):
         '''
-        Returns subtable including only species within rectangle defined by 
-        x_st, x_en, y_st, and y_en.
+        Return subtable matching all conditions in subset.
+
+        Parameters
+        ----------
+        subset : dict
+            Dictionary of conditions for subsetting data (see description in 
+            EPatch Class docstring).
+
+        Returns
+        -------
+        subtable : ndarray
+            Subtable with records from table meeting requirements in subset.
+
+        '''
+
+        # If no subset, return original table
+        if subset == {}:
+            return self.table
         
-        Rectangle is inclusive only on the lower and left sides.
-        '''
+        # Declare array to track valid rows of table
+        valid = np.ones(len(self.table), dtype=bool)
 
-        x_col = self.head.index('x')
-        y_col = self.head.index('y')
+        # TODO: Add ability to do logical or - and is just multiple subsets on 
+        # same column.
+        for key, value in subset.iteritems():
+            if type(value) is not type(('a', 'b')):  # Make all iterables
+                value = (value,)
 
-        in_sub = np.all([self.table[:,x_col] >= x_st, self.table[:,x_col] < 
-                         x_en, self.table[:,y_col] >= y_st, self.table[:,y_col] 
-                         < y_en], axis = 0)
-        sub_table = self.table[in_sub]
-        return sub_table
+            for this_value in value:
+                this_valid = eval('self.table[key]' + this_value)
+                valid = np.logical_and(valid, this_valid)
+
+        subtable = self.table[valid]
+        return subtable
 
 
 class Metadata:
