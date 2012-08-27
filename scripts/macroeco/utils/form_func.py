@@ -6,12 +6,17 @@ import numpy as np
 import csv
 import matplotlib.mlab as plt
 import glob
-from macroeco.data import Metadata
+import sys
 
+#Hacking this..Oh well
+import format_data
+loc = format_data.__file__
 gcwd = os.getcwd #get current directory
 pd = os.path.dirname #get parent directory
 chdir = os.chdir #change directories
 jp = os.path.join #Join paths
+sys.path.append(pd(pd(loc)))
+from data import Metadata
 
 __author__ = "Mark Wilber"
 __copyright__ = "Copyright 2012, Regents of University of California"
@@ -47,10 +52,9 @@ def get_metadata(asklist, folder_name, dataname):
     '''
     cwd = gcwd()
     chdir(jp(pd(pd(gcwd())), 'archival', folder_name))
-    meta = Metadata(dataname)
-    meta.get_dataTable_values(asklist)
+    meta = Metadata(dataname, asklist)
     chdir(cwd)
-    return meta.TableDescr
+    return meta.get_meta_dict(asklist)
 
 def get_files(filetype, num, direct, globber='_????'):
     '''
@@ -116,6 +120,34 @@ def open_data(filename, delim, names=None):
 
     data = plt.csv2rec(filename, delimiter=delim, names=names)
     return data
+
+def create_intcodes(speclist, unq_specs, unq_ints):
+    '''This function converts each species code into 
+    its corresponding integer value.
+    
+    speclist -- a 1D np.array which contains the occurrences 
+    of the species within the plot
+        
+    unq_specs -- a 1D np.array of the unique species codes 
+    within the plot
+        
+    unq_int -- a 1D np.array of unique integers referring to
+    the unique species codes found within the plot
+        
+    returns: 
+        A 1D np.array of integers that is equivalent to
+        speclist
+        
+    '''
+    assert len(speclist) > 0, "Species array cannot be empty"
+    speclist = speclist.astype(unq_specs.dtype)
+    tot_int = np.empty(len(speclist))
+    for s in xrange(len(unq_specs)):
+        check = (unq_specs[s] == speclist)
+        for i in xrange(len(check)):
+            if check[i]:
+                tot_int[i] = unq_ints[s]
+    return tot_int
 
 def output_form(data, filename):
     '''This function writes data as a .csv into the current working directory
@@ -183,8 +215,10 @@ def format_dense(datayears, spp_col, num_spp):
         The column in the dense array where the spp_names begin. 0 is the first
         column.
 
-    num_spp : int
-        Total number of species in plot
+    num_spp : tuple
+        Total number of species in plot. Each element in the tuple is the
+        number of species in the corresponding rec array in data year.
+        Therefore, len(num_spp) should equal len(datayears).
 
     Returns
     -------
@@ -192,16 +226,16 @@ def format_dense(datayears, spp_col, num_spp):
         A list of formatted structured arrays.
 
     '''
-  
     data_formatted = []
-    for data in datayears:
-        ls = len(data.dtype.names[spp_col:spp_col + num_spp])
-        if len(data.dtype.names[:spp_col + num_spp]) == len(data.dtype.names):
+    for k, data in enumerate(datayears):
+        ls = len(data.dtype.names[spp_col:spp_col + num_spp[k]])
+        if len(data.dtype.names[:spp_col + num_spp[k]]) == \
+                                                        len(data.dtype.names):
             dtype = data.dtype.descr[:spp_col] + [('spp', 'S22'), ('count',\
                                                                 np.float)]
         else:
             dtype = data.dtype.descr[:spp_col] + data.dtype.descr[spp_col + \
-                    num_spp:] + [('spp', 'S22'), ('count', np.float)]
+                    num_spp[k]:] + [('spp', 'S22'), ('count', np.float)]
 
         data_out = np.empty(ls * len(data), dtype=dtype)
 
@@ -212,10 +246,10 @@ def format_dense(datayears, spp_col, num_spp):
                     data_out[name][cnt:(ls*(i+1))] = data[name][i]
                     data_out['spp'][cnt:(ls*(i+1))] = np.array\
                                                 (data.dtype.names[spp_col:\
-                                                spp_col + num_spp])
+                                                spp_col + num_spp[k]])
                     data_out['count'][cnt:(ls*(i+1))] =\
                                     np.array(list(data[i]))[spp_col:spp_col +\
-                                    num_spp]
+                                    num_spp[k]]
                     cnt = cnt + ls
                 else:
                     data_out[name][cnt:(ls*(i+1))] = data[name][i]
