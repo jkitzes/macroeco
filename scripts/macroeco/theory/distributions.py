@@ -1706,8 +1706,9 @@ class tgeo(Distribution):
         Ratio of cell size to area of whole landscape
 
     '''
+
     
-    def pmf(self, n):
+    def pmf(self, n, param_out=False):
         '''
         Truncated geometric pmf (Harte et al 2008).
 
@@ -1715,6 +1716,11 @@ class tgeo(Distribution):
         ----------
         n : ndarray or int
             Values of n for which to calculate pmf or likelihood
+        stop : int or float
+            The maximum value for the brentq solver
+
+        Pass to __init__
+        -----------------
         N : ndarray or int
             Total number of individuals in landscape
         a : ndarray or int
@@ -1723,29 +1729,25 @@ class tgeo(Distribution):
         Returns
         -------
         : ndarray
-            Returns array with pmf.
+            Returns array with pmf.  If param_out is True, returns a tuple with
+            the pmf as well as the lagrange multiplier lambda_pi within a
+            dictionary.
 
         Notes
         -----
         N and a must be the same length.
 
-        This is a true geometric distribution in which p = exp(-lambda). Confirmed 
-        with z[1:]/z[0:-1].
-
-        Plotting eq for various realistic values of p, N, and a confirms that this 
-        is a smooth, well-behaved function that should be amenable to using a root 
-        finder. As written, function works (ie, root is in the interval 0,2) for 
-        all tested N >= 10 and a <= 0.9. If root is outside, will throw error.
-
-        eq is from Harte 2011, eq2 from Harte et al 2008 - both give the same 
-        answer for p.
+        This is a true geometric distribution in which p = exp(-lambda). 
+        Confirmed with z[1:]/z[0:-1].
+`
+        Plotting eq for various realistic values of p, N, and a confirms that 
+        this is a smooth, well-behaved function that should be amenable to 
+        using a root finder. When a is large and N is small (i.e. a = .9 and
+        N = 32) the lagrange multiplier has no solution.  For large a's (.8 or
+        greater), N needs to be sufficiently large for lambda pi to have a 
+        solution.
 
         '''
-        # TODO: Fix to work if n and N are one value
-        #    if not (n <= N).all():
-        #        raise Exception, "All values of n must be <= N."
-        #    elif (a <= 0) or (a >= 1):
-        #        raise Exception, "a must be between 0 and 1"
         N = self.params.get('N', None)
         a = self.params.get('a', None)
         assert N != None, "N parameter not given"
@@ -1755,35 +1757,16 @@ class tgeo(Distribution):
         except:
             n = np.array([n])
         assert np.max(n) <= N, "n maximum must be less than or equal to N"
-        tol = 1e-16
-        N = np.round(N)# N must be integer, brentq seems to fail if not
-        
-        eq = lambda p,N,a: (p / (1-p)) - (N+1)*(p**(N+1)) / (1 - (p**(N+1))) -\
-                            N*a
-        eq2 = lambda p,N,a: (1/(1-p**(N+1))) * ( (p/(1-p)) - p**(N+1) * \
-                (N + (1/(1-p))) ) - N*a
-
-        if type(N) != int and np.array(N).shape != ():  # If N is array
-
-            if type(n) == int or n.shape[0] == 1:  # If n is an int
-                n_array = np.repeat(n, N.shape[0])
-            else:
-                n_array = n
-
-            pmf = np.zeros(N.shape[0])
-            for i in xrange(0, N.shape[0]):#Higher stop value if needed
-                p_i = scipy.optimize.brentq(eq, tol, 1 - tol, args = (N[i], \
-                                            a[i]), disp = True)
-                Z_i = (1 - p_i**(N[i]+1)) / (1 - p_i)
-                pmf[i] = p_i**n_array[i] / Z_i
-
+        eq = lambda x: ((x / (1 - x)) - (((N + 1) * x ** (N + 1)) / \
+                            (1 - x ** (N + 1)))) - (N * a)
+        x = scipy.optimize.brentq(eq, 0, min((sys.float_info[0] *\
+                                            a)**(1/float(N)), 2), disp=False)
+        z = (1 - x ** (N + 1)) / (1 - x)
+        pmf = (1 / z) * (x ** n)
+        if param_out:
+            return pmf, {'lambda_pi' :  -np.log(x)}
         else:
-            p = scipy.optimize.brentq(eq, tol, 1 - tol, args = (N, a), \
-                                      disp = True)
-            Z = (1 - p**(N+1)) / (1 - p)
-            pmf = p**n / Z
-
-        return pmf
+             return pmf 
 
     def cdf(self, n):
         '''
