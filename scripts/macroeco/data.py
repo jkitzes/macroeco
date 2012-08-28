@@ -123,7 +123,7 @@ class DataTable:
 
 class Metadata:
     '''
-    Metadata values for any analysis stored using Ecological Markup Language.
+    Metadata values for any analysis stored using Ecological Metadata Language.
 
     Parameters
     ----------
@@ -201,12 +201,13 @@ class Metadata:
         for item in asklist:
             # Get list of all elements for this attribute
             all_elements = self.get_all_elements(item[0])
+            #import pdb; pdb.set_trace()
 
             # Get value of element for this attribute if it exists
             if all_elements is None:
                 value = None
             else:
-                value = self.get_element_value(all_elements, item[1])
+                value = self.get_element_value(all_elements, item[1], item[0])
             
             # Eval value if possible and log outcome
             try:
@@ -233,13 +234,30 @@ class Metadata:
                 return a
 
 
-    def get_element_value(self, all_elements, element_name):
+    def get_element_value(self, all_elements, element_name, col_name):
         '''Returns value of attribute_name from all_attributes list.'''
-        try:
-            value = all_elements.find('.//%s' % element_name).text
-            return value
-        except AttributeError:
-            return None
+        if element_name == 'type':
+            if len(all_elements.findall('.//dateTime')) == 1:
+                return 'ordinal'
+            elif len(all_elements.findall('.//interval')) == 1:
+                return 'interval'
+            elif len(all_elements.findall('.//ordinal')) == 1:
+                return 'ordinal'
+            elif len(all_elements.findall('.//nominal')) == 1:
+                return 'nominal'
+            elif len(all_elements.findall('.//ratio')) == 1:
+                return 'ratio'
+            else:
+                logging.warning("Could not find recognizable column type. " +\
+                             "Setting type of column name '%s' to ordinal." %\
+                             col_name)
+                return 'ordinal'
+        else:
+            try:
+                value = all_elements.find('.//%s' % element_name).text
+                return value
+            except AttributeError:
+                return None
 
 
     def get_physical_coverage(self):

@@ -43,11 +43,14 @@ class MetaWriter:
         self.dataTable = ET.SubElement(self.root, 'dataTable')
         self.attributeList = ET.SubElement(self.dataTable, 'attributeList')
         self.attributes = []
+        self.attributeTypes = []
         for i, name in enumerate(self.datafile.dtype.names):
             attribute = ET.SubElement(self.attributeList, 'attribute')
             attributeName = ET.SubElement(attribute, 'attributeName')
+            attributeType = ET.SubElement(attribute, 'unknown')
             attributeName.text = name
             self.attributes.append(attribute)
+            self.attributeTypes.append(attributeType)
 
     def add_attribute_traits(self, traitlist):
         '''
@@ -55,6 +58,13 @@ class MetaWriter:
         by the traitlist.  Traitlist is a list of tuples with each tuple
         containting two elements: the attribute name (string) and a dictionary
         of traits to be added to the attribute.
+        
+        Parameters
+        ----------
+        traitlist : list
+            A list of 2 element tuples where the first element contains a
+            string and the second element conatins a dict. See example in
+            docstring.
 
         Example of traitlist:
 
@@ -66,10 +76,63 @@ class MetaWriter:
         for item in traitlist:
             for attribute in self.attributes:
                 tree = ET.ElementTree(attribute)
-                if (tree.findall('./')[0].text == item[0]):
-                    for key in item[1].iterkeys():
-                        trait = ET.SubElement(attribute, key)
-                        trait.text = item[1][key]
+                for child in tree.findall('attributeName'):
+                    if child.text == item[0]:
+                        #TODO:Cleaner way to do this than with if?
+                        if len(tree.findall('unknown')) == 1:
+                            for key in item[1].iterkeys():
+                                att_type = tree.findall('unknown')[0]
+                                trait = ET.SubElement(att_type, key)
+                                trait.text = str(item[1][key])
+                        if len(tree.findall('ordinal')) == 1:
+                            for key in item[1].iterkeys():
+                                att_type = tree.findall('ordinal')[0]
+                                trait = ET.SubElement(att_type, key)
+                                trait.text = str(item[1][key])
+                        if len(tree.findall('interval')) == 1:
+                            for key in item[1].iterkeys():
+                                att_type = tree.findall('interval')[0]
+                                trait = ET.SubElement(att_type, key)
+                                trait.text = str(item[1][key])
+
+    def add_attribute_types(self, typelist):
+        '''
+        Sets the type of the attribute to either ordinal (categorical) or
+        interval (categorical). Initialized in constructor as unknown.
+
+        Parameters
+        ----------
+        typelist : list
+            A list of tuples.  Each tuple contains 2 elements: a string and a
+            dict. The dict must contain the keywork cat (categorical) or a 
+            KeyError will be thrown.
+
+        Example of typelist:
+
+            [('x', {'cat' : True}), ('y' : {'cat' : True}), ('year',
+            {'cat' : False}]
+
+        '''
+
+        for item in typelist:
+            for attribute in self.attributes:
+                tree = ET.ElementTree(attribute)
+                att = tree.findall('attributeName')[0]
+                if (att.text == item[0]):
+                    if item[1]['cat'] == True:
+                        if len(tree.findall('unknown')) == 1:
+                            att_type = tree.findall('unknown')[0]
+                            att_type.tag = 'ordinal'
+                        elif len(tree.findall('interval')) == 1:
+                            att_type = tree.findall('interval')[0]
+                            att_type.tag = 'ordinal'
+                    elif item[1]['cat'] == False:
+                        if len(tree.findall('unknown')) == 1:
+                            att_type = tree.findall('unknown')[0]
+                            att_type.tag = 'interval'
+                        elif len(tree.findall('ordinal')) == 1:
+                            att_type = tree.findall('ordinal')[0]
+                            att_type.tag = 'interval'
 
     def write_meta_data(self):
         '''
