@@ -2,10 +2,9 @@
 #Testing form_func.py
 
 import unittest
-from macroeco.utils.form_func import *
+from form_func import *
 import numpy as np
 import os
-import matplotlib.mlab as plt
 gcwd = os.getcwd #get current directory
 pd = os.path.dirname #get parent directory
 chdir = os.chdir #change directories
@@ -35,29 +34,9 @@ class TestFormFunc(unittest.TestCase):
                         4, 2, 2, 1, 5, 1, 0''')
         self.arch2.close()
 
-
-
-
-
     def tearDown(self):
         os.remove('arch1.csv')
-        os.remove('arch2.csv')
-
-
-
-    def test_make_spec_dict(self):
-        self.assertRaises(AssertionError, make_spec_dict, self.spp_array4)
-        spec_dict = make_spec_dict(self.spp_array1)
-        self.assertTrue(len(spec_dict) == 1)
-        self.assertTrue(spec_dict['spp_code'][0] == 0)
-        self.assertTrue(spec_dict['spp'][0] == 'as')
-        spec_dict = make_spec_dict(self.spp_array2)
-        self.assertTrue(len(spec_dict) == 7)
-        self.assertTrue(sum(np.equal(spec_dict['spp_code'], \
-                            np.array([0,1,2,3,4,5,6]))) == 7)
-        spec_dict = make_spec_dict(self.spp_array3)
-        self.assertTrue(len(spec_dict) == 3)
-        
+        os.remove('arch2.csv')        
 
     def test_create_intcodes(self):
         unq_specs = np.unique(self.spp_array1)
@@ -76,13 +55,6 @@ class TestFormFunc(unittest.TestCase):
         self.assertRaises(AssertionError, create_intcodes, self.spp_array4, unq_specs,\
                                                           unq_ints)
 
-    def test_make_dense_spec_dict(self):
-        datayears = [plt.csv2rec('arch1.csv')]
-        spec_dict = make_dense_spec_dict(datayears)
-        self.assertTrue(len(spec_dict) == 4)
-        self.assertTrue(set(spec_dict['spp']) == set(['agr', 'thy', 'ftw', 'rew'])) 
-        self.assertTrue(set(spec_dict['spp_code']) == set([0,1,2,3]))
-    
 
 if __name__ == '__main__':
     unittest.main()
