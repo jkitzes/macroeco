@@ -36,8 +36,8 @@ from string import Template
 # Could subclass BaseWSGI instead of running as a script,
 # but it doesn't gain anything (and is self-ish). 
 
-localport = 8000
-layout = Template(open('CoolName1.html').read())
+localport = 8000 #NOTE: this number is hardcoded into CoolName1.html, dynamic elsewhere
+layout = Template(open('CoolName1.txt').read())
 
 
 
@@ -138,19 +138,14 @@ def results(environ, start_response):
     
     return layout.safe_substitute(maincontent = "<h2>Running %s</h2><p>Parameters:  %s</p>"%(scriptname,str(fields)), localport = localport)
 
-def call_script(data='',analysis='scripts/sample_script.py',output='scripts/samples/'):
-    '''Runs the chosen data,analysis,output triple.
-     There can be more than one dataset and more than one analysis.
-     All analyses will be run with all datasets.
-
-     Note that the GUI stays open: user can choose another triple to run.'''
-    METEbase = os.path.dirname(os.path.abspath(__file__)) #Using METE file structure
-    
-    dt = datetime.utcnow()
-    dfiles = [os.path.join(METEbase,data)]
-    spath = os.path.join(METEbase,analysis)
-    opath = os.path.join(METEbase, output)
-
+def project(environ, start_response):
+    '''Ask the user to browse to a parameters.xml file;
+    populate the list with the last 5 projects used,
+    or the demo projects.'''
+    RecentList = open("CoolName1.recent").readlines()
+        
+    start_response('200 OK', [('Content-Type', 'text/html')])
+    return layout.safe_substitute(maincontent = fill, localport = localport)
     
 
 def NIY(environ, start_response):
@@ -163,6 +158,8 @@ urls = [
     (r'^$', index), # Index of scripts.
     (r'css', css),  # CSS style file.
     (r'setup/(.+)$',setup_script), # Set up a script
+    (r'project', NIY), # Choose a parameters.xml file
+                         # (and therefore an output directory)
     (r'data/(.+)$', NIY), # Choose a dataset
     (r'documentation/?$', NIY), # Local documentation
     (r'results/?$', results) # Point to or display results (if any).
@@ -182,14 +179,25 @@ def simple_app(environ, start_response):
 
     ret = ["%s: %s\n" % (key, value)
            for key, value in environ.iteritems()]
+
     return ret
 
 
 # Try this if the app fails and it might be the webservice itself:
 #httpd = make_server('', localport, simple_app)
-#make_pretty_lists()
+# make_pretty_lists()
+# print('Trying to open entry page in browser...')
+# subprocess.Popen("CoolName1.html", cwd='.', shell=False, stdin=None, stdout=None, close_fds=True)
 httpd = make_server('', localport, CoolName1_app)
-print "Running CoolName1 analysis. Use your browser to interact: \n\n http://localhost:%d"%localport
+print '''
+
+The CoolName1 engine is running now.
+
+Open this URL in your browser:
+
+http://localhost:%s
+
+'''%localport
 httpd.serve_forever()
 httpd.handle_request()
 
