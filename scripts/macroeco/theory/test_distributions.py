@@ -14,13 +14,15 @@ University Press.
 May, R. M. 1975. Patterns of species abundance and diversity. In Ecology and
 Evolution of Communities (eds M. L. Cody and J. M. Diamond), Harvard University
 Press.
+
+Weecology functions from https://github.com/weecology/macroecotools.
 '''
 
 import unittest
 from distributions import *
 import numpy as np
 
-class TestSADDistributions(unittest.TestCase):
+class TestDistributions(unittest.TestCase):
     '''Test the functions within sad_distr.py'''
 
     def setUp(self):
@@ -35,6 +37,15 @@ class TestSADDistributions(unittest.TestCase):
         #Simulated values in A. J. Baczkowski 1997 paper 
         self.sugi = [.4761, .1962, .1180, .0751, .0499, .0337, .0226, .0148,\
                      .0090, .0047]
+        #Testing against weecology function: N=1122, S=34, target_area=2
+        #Anchor_area=45
+        #There will be some differences because we are using approximations
+        #to make things faster
+        self.EWsar_down = np.array([8.79, 12.37, 16.71, 21.81, 27.59, 34])
+        #S = 23, N=3400, anchor_area=123, target_area=2000)
+        self.EWsar_up = np.array([23, 26.47, 30.11, 33.92, 37.89, 42.01])
+        #N/S:  1000/100, 5000/100, 200/10
+        self.EWslop = np.array([.3887, .2612, 0.3140])
 
     def test_lgsr_pmf(self):
         self.assertRaises(AssertionError, lgsr(S=45, N=45).pmf, 1)
@@ -219,6 +230,45 @@ class TestSADDistributions(unittest.TestCase):
         check = dist.pmf([1,1,2,3,4,5,12,34,65])
         self.assertTrue(dist.cdf(0) == dist.pmf(0))
         self.assertTrue(dist.cdf(23) == np.sum(dist.pmf(np.arange(0,24))))
+
+    def test_mete_sar_method1(self):
+        sar = Mete_sar(S=34, N=1122).mete_sar_method1(45, target_area=2)
+        spp = np.round(sar['species'], decimals=2)
+        error = 0.001 * spp
+        diff = np.abs(spp - self.EWsar_down)
+        self.assertTrue(np.all(diff <= error))
+        sar = Mete_sar(S=23, N=3400).mete_sar_method1(123, target_area=2000)
+        spp = np.round(sar['species'], decimals=2)
+        error = 0.005 * spp
+        diff = np.abs(spp - self.EWsar_up)
+        self.assertTrue(np.all(diff <= error))
+        self.assertRaises(Exception, Mete_sar(S=12, N=100).mete_sar_method1,\
+                                                100, downcale=8)
+        sar = Mete_sar(S=34, N=1000).mete_sar_method1(200, upscale=4, \
+                                                                downscale=6)
+        self.assertTrue(len(sar) == 11)
+
+    def test_power_law(self):
+        sar = SAR().power_law([34, 56, 112, 12, 78], 23, 98, 0.25)
+        self.assertTrue(len(sar) == 6)
+        #Not much else to test here...
+
+    def test_universal_sar(self):
+        '''Interesting test results.  EW and our functions agree that using
+        sar_method1 METE is not quite universal.  The z that results from
+        different N and S with the same ratio differe slightly.  The amount
+        they differ might just be a result of approximations.  Need to look
+        into this'''
+        
+        answ = []
+        answ.append(Mete_sar(S=100, N=1000).univ_curve(num_iter=0)['z'][0])
+        answ.append(Mete_sar(S=100, N=5000).univ_curve(num_iter=0)['z'][0])
+        answ.append(Mete_sar(S=10, N=200).univ_curve(num_iter=0)['z'][0])
+        answ = np.array(answ)
+        #Using different methods to calculate so use error
+        error = 0.05 * answ
+        diff = np.abs(self.EWslop - answ)
+        self.assertTrue(np.all(diff <= error))
 
 if __name__ == '__main__':
     unittest.main()
