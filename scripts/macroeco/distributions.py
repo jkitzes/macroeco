@@ -98,9 +98,8 @@ __email__ = "jkitzes@berkeley.edu"
 __status__ = "Development"
 
 #TODO: Add truncated log-normal?
-#TODO: In the docstrings, mention that all class parameters are keyword 
-#arguments
 #TODO: Which distributions should have param_out?
+#TODO: Check test_distributions and account for changes 
 
 class RootError(Exception):
     '''Error if no root or multiple roots exist for the equation generated
@@ -175,7 +174,29 @@ class Distribution(object):
         assert N != None, "N parameter not given"
         assert S != None, "S parameter not given"
         full_pmf = self.pmf(np.arange(1, N + 1))
-        return make_rank_abund(full_pmf, S)  
+        return make_rank_abund(full_pmf, S)
+
+    def fit(self, data, sad=True):
+        '''
+        Generic fit to sad or ssads
+
+        Parameters
+        ----------
+        data : array-like object
+            Data used to calculate fit
+        sad : bool
+            If True, calculate S and N parameter, else only calculate N.
+
+        Return
+        ------
+        None
+        '''
+        #Might not be the best check here
+        if sad:
+            self.params['N'] = np.sum(data)
+            self.params['S'] = len(data)
+        else:
+            self.params['N'] = sum(data)
 
     def nll(self, n):
         '''
@@ -273,7 +294,7 @@ class lgsr(Distribution):
         if param_out == True:
             return (pmf, {'x' : x})
         else:
-            return pmf                                   
+            return pmf
 
 class trun_neg_binom(Distribution):
     '''
@@ -374,8 +395,7 @@ class trun_neg_binom(Distribution):
 
         Returns
         -------
-        : dict
-            The maximum likelihood estimator (MLE) for k
+        None
 
         '''
         def nll_nb(k, sad):
@@ -385,7 +405,8 @@ class trun_neg_binom(Distribution):
             return -sum(np.log(self.pmf(sad)))
         mlek = scipy.optimize.fmin(nll_nb, np.array([guess_for_k]), args=\
                                    (sad,), disp=0)[0]
-        return {'k' : mlek}
+        self.params['k'] = mlek
+        super(trun_neg_binom, self).fit(sad)
 
 class geo_series(Distribution):
     '''
@@ -407,6 +428,11 @@ class geo_series(Distribution):
     k : float
         The fraction of resources that each species acquires. Range is 
         (0, 1].
+
+    Notes
+    -----
+    S, N, and k are passed into the constructor (__init__) as keyword 
+    arguments. Example: geo_series(S=34, N=345, k=.4)
 
     '''
 
@@ -453,8 +479,9 @@ class geo_series(Distribution):
             The observed SAD to be fit to a geometric series
 
         Returns
-        : dict
-            An estimate for k given the observed SAD
+        -------
+        None
+
         '''
         data = np.array(data)
         S = len(data)
@@ -464,7 +491,8 @@ class geo_series(Distribution):
         eq = lambda x: ((x / (1 - x)) * ((1 - x) ** S / (1 - (1 - x) ** S))) -\
                        (Nmin / N)
         k = scipy.optimize.brentq(eq, 1e-10, 1 - 1e-10, disp=True)
-        return {'k' : k}
+        self.params['k'] = k
+        super(geo_series, self).fit(data)
 
 class broken_stick(Distribution):
     '''
@@ -492,7 +520,7 @@ class broken_stick(Distribution):
     Example: broken_stick(S=22, N=567)
 
     '''
-    
+    #TODO:  PMF is not quite summing to one 
     def pmf(self, n, param_out=False):
         '''
         Probability mass function for MacArthur's broken stick
@@ -528,7 +556,7 @@ class broken_stick(Distribution):
             len(n); n = np.array(n)
         except:
             n = np.array([n])
-        assert np.max(n) <= N, "Maximum n must be less than or equal to N"
+        #assert np.max(n) <= N, "Maximum n must be less than or equal to N"
 
         eq = lambda x: ((S - 1) / N) * (1 - (x / N)) ** (S - 2)
         pmf = eq(n)
@@ -537,7 +565,42 @@ class broken_stick(Distribution):
             return (pmf, {'S' : S})
         else:
             return pmf
-        
+
+    def rad(self):
+        '''
+
+        This distribution returns the predicted rank-abundance distribution for
+        McArthur's broken-stick distribution (May 1975).
+
+        Parameters
+        ----------
+        S : int
+            Total number of species in landscape
+        N : int
+            Total number of individuals in landscape
+
+        Returns
+        -------
+        : np.ndarray
+            An array containing the the predicted SAD with element 0 containing
+            the species with the most individuals and element S - 1 containing 
+            the species with the least individuals.
+
+        '''
+        S = self.params.get('S', None)
+        N = self.params.get('N', None) 
+        assert S != None, "S parameter not given"
+        assert N != None, "N parameter not given"
+        assert S < N, "S must be less than N"
+        assert S > 1, "S must be greater than 1"
+        assert N > 0, "N must be greater than 0"
+
+        pred_rank_abund = np.empty(S)
+        for i in xrange(S):
+            n = np.arange(i + 1, S + 1) 
+            pred_rank_abund[i] = (N / S) * sum(1 / n)
+        return pred_rank_abund
+            
 class plognorm(Distribution):
     '''
     Poisson log-normal distribution (Bulmer 1974)
@@ -648,12 +711,11 @@ class plognorm(Distribution):
         Parameter
         ---------
         data : array-like object
-            The observed abundances which will be fit to a poison lognormal
+            The observed abundances which will be fit to a poisson lognormal
 
         Returns
         -------
-        : dict
-            The maximum likelihood estimates of mu and sigma
+        None
 
         Notes
         -----
@@ -673,7 +735,10 @@ class plognorm(Distribution):
             self.params['sigma'] = x[1]
             return -sum(np.log(self.pmf(data)))
         mu, sigma = scipy.optimize.fmin(pln_func, x0 = [mu0, sigma0], disp=0)
-        return { 'mu' : mu, 'sigma' : sigma}
+        self.params['mu'] = mu
+        self.params['sigma'] = sigma
+        super(plognorm, self).fit(data)
+        
 
 class trun_plognorm(Distribution):
     '''
@@ -781,7 +846,9 @@ class trun_plognorm(Distribution):
             self.params['sigma'] = x[1]
             return -sum(np.log(self.pmf(sad)))
         mu, sigma = scipy.optimize.fmin(pln_func, x0 = [mu0, sigma0], disp=0)
-        return { 'mu' : mu, 'sigma' : sigma}
+        self.params['mu'] = mu
+        self.params['sigma'] = sigma
+        super(trun_plognorm, self).fit(sad)
 
 class lognorm(Distribution):
     '''
@@ -879,8 +946,7 @@ class lognorm(Distribution):
 
         Returns
         -------
-        : dict
-            The maximum likelihood estimates of mu and sigma
+        None
 
         '''
         assert len(sad) >= 1, "len(sad) must be greater than or equal to 1"
@@ -892,7 +958,9 @@ class lognorm(Distribution):
             self.params['sigma'] = x[1]
             return -sum(np.log(self.pmf(sad)))
         mu, sigma = scipy.optimize.fmin(ln_func, x0 = [mu0, sigma0], disp=0)
-        return {'mu' : mu, 'sigma' : sigma}
+        self.params['mu'] = mu
+        self.params['sigma'] = sigma
+        super(lognorm, self).fit(sad)
 
 class sugihara(Distribution):
     '''
@@ -1493,7 +1561,8 @@ class nbd(Distribution):
             return -sum(np.log(self.pmf(data)))
         mlek = scipy.optimize.fmin(nll_nb, np.array([guess_for_k]), args=\
                                    (data,), disp=0)[0]
-        return {'k' : mlek}
+        self.params['k'] = mlek
+        super(nbd, self).fit(data, sad=False)
 
 class fnbd(Distribution):
     '''
@@ -1617,7 +1686,8 @@ class fnbd(Distribution):
             self.params['N'] = sum(data)
             return -sum(np.log(self.pmf(data)))
         mlek = scipy.optimize.brute(nll_nb, ((1e-10,upper_bnd),), args=(data,))
-        return {'k' : mlek}
+        self.params['k'] = mlek
+        super(fnbd, self).fit(data, sad=False)
 
 class geo(Distribution):
     '''

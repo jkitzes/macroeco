@@ -32,6 +32,48 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
+class Compare(object):
+    '''
+    Comparison object allows the user to all means of comparisons
+    Review the keyword arguments that can be passed to __init__ or set after
+    the object is instantiated using the objects values dictionary self.vals.
+
+
+    Keywords
+    --------
+    {'obs_data' : array-like object} -- The observed data (counts, energy, etc)
+                                        Each comparison object only handles
+                                        one observed data set.
+    {'pmfs' : list of arrays} -- A list containing pmfs generated from
+                                 different distributions.  Can be compared to
+                                 'obs_data'
+    {'rads' : list of arrays} -- A list containing rank abundance distributions
+                                 generated from different distributions. Can be
+                                 directly compared to 'obs_data'
+    {'nlls' : list of floats} -- A list of negative log-likelihoods that have
+                                 been derived from fitting the observed data to
+                                 different distributions. 
+    {'cdfs' : list of arrays} -- A list containing cdfs generated from 
+                                 different distributions. Can be compared to
+                                 'obs_data'
+
+    Examples
+    --------
+
+    '''
+
+    def __init__(self, **kwargs):
+        self.vals = kwargs
+
+    def compare_aic(self):
+        '''
+        '''
+        nlls = self.vals.get('nlls', None)
+        assert nlls != None, "self.vals does not contain keyword 'nlls'"
+
+
+
+
 def empirical_cdf(emp_data):
     '''
     Generates an empirical cdf from a empirical data
