@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-#Testing sad distributions
+#Testing distributions
 
 '''
 References for Unit Tests
