@@ -290,96 +290,6 @@ class Patch:
         return areas, mean_result, full_result
 
 
-    def comm(self, div_list):
-        '''
-        Calculates commonality between pairs of subpatches.
-        
-        Result is the Sorensen index, equivalent to Chi in Harte et al., also 
-        equivalent to 1 - Bray-Curtis dissimilarity.
-
-        Parameters
-        ----------
-        div_list : list of tuples
-            Number of divisions of patch along (x, y) axes to use for grid.
-            Input of (1, 1) corresponds to no divisions, ie the whole patch.
-
-        Returns
-        -------
-        result : list of ndarrays
-            List of same length as div_list, with each element corresponding to 
-            a division tuple from div_list. Elements are a 2D ndarray with the 
-            index of the pair of subpatches (counting row wise from the top 
-            left) in the first 2 cols, the distance between the center of the 
-            subpatches in the 3rd col, and the commonality in the 4th col.
-            
-        Notes
-        -----
-        The values of x and y in the tuples of div_list must be factors of 
-        width and height, respectively, so that every subpatch will have an 
-        identical number of survey points.
-        '''
-        # TODO: Make sure that divs divide plot evenly and that divs are of
-        # width at least one precision.
-        # TODO: Failed with test_dense?
-        # TODO: Arg to spit out individ species, not Sorensen
-
-        result = []
-
-        # SAD and sp_cent have the same number of list elements and row
-        # structure within arrays
-        SAD = self.sad_grid(div_list, summary = '')
-        sp_cent = self.get_sp_centers(div_list)
-
-        for ind_div, div in enumerate(div_list):
-            div_result = []
-            nsp = div[0] * div[1]
-
-            div_SAD = SAD[ind_div]
-            div_sp_cent = sp_cent[ind_div]
-
-            for ind_a in xrange(0, nsp - 1):
-                spp_in_a = (div_SAD[ind_a,:] > 0)
-                for ind_b in xrange(ind_a + 1, nsp):
-                    spp_in_b = (div_SAD[ind_b,:] > 0)
-                    dist = distance(div_sp_cent[ind_a,:], div_sp_cent[ind_b,:])
-                    denom = (0.5 * (sum(spp_in_a) + sum(spp_in_b)))
-                    if denom == 0:
-                        QS = 0
-                    else:
-                        QS = sum(spp_in_a * spp_in_b) / denom
-                    div_result.append((ind_a, ind_b, dist, QS))
-
-            result.append(np.array(div_result))
-
-        return result
-
-
-    def get_sp_centers(self, div_list):
-        '''
-        Get coordinate of center of patches in landscape gridded according to 
-        divisions in div_list.
-        '''
-        # TODO: Did not confirm that this works for x_min and y_min > 0
-        sp_centers = []
-        for div in div_list:
-            sp_width = self.width / float(div[0])
-            sp_height = self.height / float(div[1])
-
-            div_sp_cent = []
-            for sp_x in xrange(0, div[0]):  # Same sp order as SAD_grid
-                x_origin = (self.x_min + sp_x * sp_width)
-                x_cent = x_origin + 0.5 * (sp_width - self.precision)
-                for sp_y in xrange(0, div[1]):
-                    y_origin = (self.y_min + sp_y * sp_height)
-                    y_cent = y_origin + 0.5 * (sp_height - self.precision)
-
-                    div_sp_cent.append((x_cent, y_cent))
-
-            sp_centers.append(np.array(div_sp_cent))
-
-        return sp_centers
-
-
 def flatten_sad(sad):
     '''
     Takes a list of tuples, like sad output, ignores keys, and converts values 
@@ -398,6 +308,7 @@ def flatten_sad(sad):
 def distance(pt1, pt2):
     ''' Calculate Euclidean distance between two points '''
     return np.sqrt((pt1[0] - pt2[0]) ** 2 + (pt1[1] - pt2[1]) ** 2)
+
 
 def divisible(dividend, precision, divisor, tol = 1e-9):
     '''
@@ -418,6 +329,7 @@ def divisible(dividend, precision, divisor, tol = 1e-9):
         return True
     else:
         return False
+
 
 def rnd(num):
     '''
