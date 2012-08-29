@@ -169,6 +169,22 @@ class Distribution(object):
         full_pmf = self.pmf(np.arange(1, N + 1))
         return make_rank_abund(full_pmf, S)  
 
+    def nll(self, n):
+        '''
+        Calcuates the negative log-likelihood for a given distribution
+
+        Parameters
+        ----------
+        n : array-like object
+            Values for which to calculate nll
+
+        Returns
+        : float
+            Negative log-likelihood for given values
+
+        '''
+        return -sum(np.log(self.pmf(n)))
+
 class lgsr(Distribution):
     '''
     Fisher's log series distribution (Fisher et al. 1943, Hubbel 2001).
@@ -191,7 +207,8 @@ class lgsr(Distribution):
 
     Notes
     -----
-    S and N are passed into the constructor (__init__)
+    S and N are passed into the constructor (__init__) as keyword arguments.
+    Example: lgsr(S=34, N=345)
 
     '''
     def pmf(self, n, param_out=False):
@@ -274,6 +291,12 @@ class trun_neg_binom(Distribution):
         Total number of individuals in landscape
     k : int
         Aggregation parameter
+
+    Notes
+    -----
+    S, N, and k are passed into the constructor (__init__) as keyword 
+    arguments. Example: trun_neg_binom(S=34, N=345, k=1)
+
 
 
     '''
@@ -457,7 +480,8 @@ class broken_stick(Distribution):
 
     Notes
     -----
-    S and N are passed into the constructor (__init__)
+    S and N are passed into the constructor (__init__) as keyword arguments.
+    Example: broken_stick(S=22, N=567)
 
     '''
     
@@ -532,7 +556,11 @@ class plognorm(Distribution):
     N : int
         Total number of individuals in landscape
 
-
+    Notes
+    -----
+    mu, sigma, S and N are passed into the constructor (__init__) as keyword 
+    arguments. Example: plognorm(S=22, N=567, mu=.23, sigma=.89).  S and N
+    are needed for plognorm().rad
     '''
     
     def pmf(self, ab, param_out=False):
@@ -663,6 +691,12 @@ class trun_plognorm(Distribution):
         Total number of species in landscape
     N : int
         Total number of individuals in landscape
+    
+    Notes
+    -----
+    mu, sigma, S and N are passed into the constructor (__init__) as keyword 
+    arguments. Example: trun_plognorm(S=22, N=567, mu=.23, sigma=.89).  S and N
+    are needed for trun_plognorm().rad
 
 
     '''
@@ -768,6 +802,10 @@ class lognorm(Distribution):
     
     Notes
     -----
+    mu, sigma, S and N are passed into the constructor (__init__) as keyword 
+    arguments. Example: lognorm(S=22, N=567, mu=.23, sigma=.89).  S and N
+    are needed for lognorm().rad
+
     Log-normal distributions are continuous and there for the cdf should be an
     integral. However, the cdf of an integral from a to a is 0 and the
     probability of there being a single individual within a species given an
@@ -855,6 +893,11 @@ class sugihara(Distribution):
     -------
     rad(sample_size=10000); N and S parameters are passed in __init__
 
+    Notes
+    -----
+    S and N are passed into the constructor (__init__) as keyword 
+    arguments. Example: sugihara(S=22, N=567)
+
     '''
     #TODO: Back-derive the pmf?
 
@@ -934,7 +977,8 @@ class mete_lgsr(Distribution):
 
     Notes
     -----
-    S and N are passed into the constructor (__init__)
+    S and N are passed into the constructor (__init__) as keyword arguments. 
+    Example: mete_lgsr(S=22, N=567)
     
     '''
     
@@ -1023,7 +1067,8 @@ class mete_lgsr_approx(Distribution):
 
     Notes
     -----
-    S and N are passed into the constructor (__init__)
+    S and N are passed into the constructor (__init__) as keyword arguments. 
+    Example: mete_lgsr_approx(S=22, N=567)
 
     '''
     
@@ -1127,6 +1172,11 @@ class binm(Distribution):
     a : ndarray or int
         Ratio of cell size to area of whole landscape
 
+    Notes
+    -----
+    N and a are passed into the constructor (__init__) as keyword arguments. 
+    Example: binm(N=567, a=0.2)
+
     '''
 
     def pmf(self, n):
@@ -1214,6 +1264,12 @@ class pois(Distribution):
         Total number of individuals in landscape
     a : ndarray or int
         Ratio of cell size to area of whole landscape
+
+    Notes
+    -----
+    N and a are passed into the constructor (__init__) as keyword arguments. 
+    Example: pois(N=567, a=0.2)
+
 
     '''
     
@@ -1308,6 +1364,12 @@ class nbd(Distribution):
         Ratio of cell size to area of whole landscape
     k : int
         Aggregation parameter
+
+    Notes
+    -----
+    N, a, and k are passed into the constructor (__init__) as keyword arguments. 
+    Example: nbd(N=567, a=0.2, k=1)
+
 
     '''
 
@@ -1444,6 +1506,12 @@ class fnbd(Distribution):
         Ratio of cell size to area of whole landscape
     k : int
         Aggregation parameter
+
+    Notes
+    -----
+    N, a, and k are passed into the constructor (__init__) as keyword arguments. 
+    Example: fnbd(N=567, a=0.2, k=1)
+
     
     '''
     
@@ -1559,6 +1627,12 @@ class geo(Distribution):
         Total number of individuals in landscape
     a : ndarray or int
         Ratio of cell size to area of whole landscape
+
+    Notes
+    -----
+    N and aare passed into the constructor (__init__) as keyword arguments. 
+    Example: geo(N=567, a=0.2)
+
         
     '''
 
@@ -1639,6 +1713,11 @@ class fgeo(Distribution):
     a : ndarray or int
         Ratio of cell size to area of whole landscape
     
+    Notes
+    -----
+    N and aare passed into the constructor (__init__) as keyword arguments. 
+    Example: fgeo(N=567, a=0.2)
+
     '''
     
     def pmf(self, n):
@@ -1711,6 +1790,12 @@ class tgeo(Distribution):
         Total number of individuals in landscape
     a : ndarray or int
         Ratio of cell size to area of whole landscape
+
+    Notes
+    -----
+    N and aare passed into the constructor (__init__) as keyword arguments. 
+    Example: tgeo(N=567, a=0.2)
+
 
     '''
 
@@ -1818,7 +1903,7 @@ class Mete_sar(object):
     Notes
     -----
     S and N should be passed as keyword arguments to the constructor.
-    ex. S=34, N=235
+    Example: Mete_sar(S=34, N=235)
 
     '''
 
@@ -2039,7 +2124,7 @@ class SAR(object):
         a_list : list
             List of area fractions at which to calculate SAD
         ssad : ssad distribution object
-            Spatial abundance distribution function from ssad module. N and a
+            Spatial abundance distribution object distributions module. N and a
             parameters are filled in the function.  Any additional parameters
             to a ssad distribution object need to be filled before the object
             is passed. See examples 
@@ -2047,8 +2132,11 @@ class SAR(object):
         Notes
         -----
         Example
-
+        
+        #Fill k parameter before passing
         sar1 = SAR().predict_sar(sad, S, [.1,.2,.3,.4,.5], nbd(k=.3))
+
+        #No parameters to fill in tgeo. N and a are filled in function
         sar2 = SAR().predict_sar(sad, S, [.1,.2,.6], tgeo())
 
         '''
