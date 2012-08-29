@@ -25,11 +25,16 @@ Distributions
 - `geo` - Geometric distribution
 - `fgeo` - Finite geometric distribution (Zillio and He 2010)
 - `tgeo` - Truncated geometric distribution (Harte et al. 2008)
+- `mete_sar` - METE sar functions (Harte 2011)
+- `SAR` - General non-METE sar functions
 
 Misc Functions
 --------------
 - `make_rank_abund` -- convert any SAD pmf into a rank abundance curve
 - `_ln_choose`
+- `_downscale_sar_`
+- `_upscale_sar_`
+- `_generate_areas_`
 
 References
 ----------
@@ -93,6 +98,9 @@ __email__ = "jkitzes@berkeley.edu"
 __status__ = "Development"
 
 #TODO: Add truncated log-normal?
+#TODO: In the docstrings, mention that all class parameters are keyword 
+#arguments
+#TODO: Which distributions should have param_out?
 
 class RootError(Exception):
     '''Error if no root or multiple roots exist for the equation generated
@@ -578,7 +586,8 @@ class plognorm(Distribution):
             pmf = np.repeat(1e-120, len(n_unq))
         else:
             #TODO: Throwing overflow warning but not affecting result
-            eq = lambda t, x: np.exp(t * x - np.exp(t) - 0.5*((t - mu) / sigma)**2)
+            eq = lambda t, x: np.exp(t * x - np.exp(t) - 0.5*((t - mu) / \
+                                                                    sigma)**2)
             pmf = np.empty(len(n_unq), dtype=np.float)
             for i, n in enumerate(n_unq):
                 if n <= 170:
@@ -1529,7 +1538,7 @@ class fnbd(Distribution):
         Returns
         -------
         : dict
-            The maximum likelihood estimator (MLE) for 
+            The maximum likelihood estimator (MLE) for k 
         
         '''
 
@@ -1564,7 +1573,7 @@ class geo(Distribution):
 
     def pmf(self, n):
         '''
-        Geometric pdf
+        Geometric pmf
 
         Parameters
         ----------
@@ -1836,14 +1845,15 @@ class Mete_sar(object):
         anchor_area : float
             The area from which the SAR will be upscaled or downscaled.
         upscale : int
-            Number of iterations up from the anchor scale.  Each iteration doubles
-            the previous area.
+            Number of iterations up from the anchor scale.  Each iteration 
+            doubles the previous area.
         downscale : int
-            Number of iterations down from the anchor scale. Each iteration halves
-            the previous area.
+            Number of iterations down from the anchor scale. Each iteration 
+            halves the previous area.
         target_area : float
-            The desired area for the species-area relationship.  If not None, this
-            keyword argument overrides the upscale and downscale arguements
+            The desired area for the species-area relationship.  If not None, 
+            this keyword argument overrides the upscale and downscale 
+            arguements.
 
         Passed to __init__
         -------------------
@@ -1860,9 +1870,9 @@ class Mete_sar(object):
 
         Notes
         -----
-        This function uses equations 3, 7, 8, and 9 found in Harte et al. (2009).
-        When possible, the approximation sum(x**n / n) ~= log(1 / log( 1/x)) was
-        used to decrease runtime.  
+        This function uses equations 3, 7, 8, and 9 found in Harte et al. 
+        (2009). When possible, the approximation 
+        sum(x**n / n) ~= log(1 / log( 1/x)) was used to decrease runtime.  
     
     
         '''
