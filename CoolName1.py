@@ -36,10 +36,8 @@ from string import Template
 # Could subclass BaseWSGI instead of running as a script,
 # but it doesn't gain anything (and is self-ish). 
 
-localport = 8000 #NOTE: this number is hardcoded into CoolName1.html, dynamic elsewhere
+localport = 8000 #NOTE: this number is hardcoded into CoolName1.html
 layout = Template(open('CoolName1.txt').read())
-
-
 
 def CoolName1_app(environ, start_response):
     '''
@@ -52,7 +50,7 @@ def CoolName1_app(environ, start_response):
     captures in the WSGI environment as  `myapp.url_args` so that
     the functions from above can access the url placeholders.
 
-    If nothing matches call the `not_found` function.
+    If nothing matches call NIY().
     '''%localport
     path = environ.get('PATH_INFO', '').lstrip('/')
     for regex, callback in urls:
@@ -86,10 +84,10 @@ def make_pretty_lists():
 
         #and in the description & form page for each script
 
-        #save out separate d & f page
+        #save out separate d & f page as scripts/modname.txt
         del module
         
-    #save pretty list
+    #save pretty list as script_list.txt
         
 def css(environ, start_response):
     '''Read in the CSS file that styles our GUI.'''
@@ -147,7 +145,6 @@ def project(environ, start_response):
     start_response('200 OK', [('Content-Type', 'text/html')])
     return layout.safe_substitute(maincontent = fill, localport = localport)
     
-
 def NIY(environ, start_response):
     start_response('404 NOT FOUND', [('Content-Type', 'text/html')])
     return ['Not Found or Not Implemented Yet']
@@ -159,7 +156,7 @@ urls = [
     (r'css', css),  # CSS style file.
     (r'setup/(.+)$',setup_script), # Set up a script
     (r'project', NIY), # Choose a parameters.xml file
-                         # (and therefore an output directory)
+                       # (and therefore an output directory)
     (r'data/(.+)$', NIY), # Choose a dataset
     (r'documentation/?$', NIY), # Local documentation
     (r'results/?$', results) # Point to or display results (if any).
