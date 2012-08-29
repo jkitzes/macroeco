@@ -366,11 +366,3 @@ class TestSadAnalysis(unittest.TestCase):
     def self_get_values_for_sad(self):
         self.asertRaises(ValueError, get_values_for_sad, [1,1,1,1,0,4,6,7,9,23,45,67], 'mete')
         
-
-if __name__ == '__main__':
-    unittest.main()
-        
-        
-
-
-

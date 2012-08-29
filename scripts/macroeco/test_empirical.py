@@ -302,12 +302,5 @@ class TestPatch(unittest.TestCase):
         sar = self.gridtest3.sar_sample([(2,1), (3,2), (2,2), (1,1)], 10000)
         #3.251 just for rounding purposes
         expected = np.array(([3.251, 2], [4, 6], [4, 4], [2.33, 1]), np.float)
-        self.assertTrue(np.array_equal(np.round(sar, decimals=1), np.round(expected, decimals=1)))
-
-        
-
-
-
-if __name__ == '__main__':
-    unittest.main()
-
+        self.assertTrue(np.array_equal(np.round(sar, decimals=1), 
+                                       np.round(expected, decimals=1)))
