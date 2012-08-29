@@ -164,7 +164,7 @@ class EPatch:
                 spp_list = np.unique(self.data_table.table[key])
                 spp_col = key
                 continue
-            if value == 'counts':
+            if value == 'count':
                 count_col = key
                 continue
 
