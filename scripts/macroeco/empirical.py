@@ -258,10 +258,10 @@ class Patch:
             flat_sad = flatten_sad(sad)
 
             # Store results
-            if type == 'sar':
+            if form == 'sar':
                 this_full = np.sum((flat_sad > 0), axis=0)
                 this_mean = np.mean(this_full)
-            elif type == 'ear':
+            elif form == 'ear':
                 totcnt = np.sum(flat_sad, axis=1)
                 totcnt_arr = \
                     np.array([list(totcnt),]*np.shape(flat_sad)[1]).transpose()
@@ -269,7 +269,7 @@ class Patch:
                 this_full = np.sum(np.equal(flat_sad, totcnt_arr), axis=0)
                 this_mean = np.mean(this_full)
             else:
-                raise NotImplementedError('No SAR of type %s available' % type)
+                raise NotImplementedError('No SAR of form %s available' % form)
 
             full_result.append(this_full)
             mean_result.append(this_mean)
