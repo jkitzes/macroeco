@@ -6,15 +6,14 @@ is interpreted broadly as any temporally and spatially defined census.
 
 Classes
 -------
-- `EPatch` -- empirical metrics for census data
-- `TPatch` -- parallel predicted/theoretical/fit metrics
+- `Patch` -- empirical metrics for census data
 
 Patch Methods
 -------------
 - `sad` -- calculate species abundance distribution (grid or sample)
 - `sar` -- calculate species-area relationship (grid or sample)
 - `ear` -- calculate endemics-area relationship (grid or sample)
-- `qs` -- calculate commonality between sub-patches (grid)
+- `comm` -- calculate commonality between sub-patches (grid)
 - `ssad` -- calculate species-level spatial abundance distrib (grid or sample)
 
 - `get_sp_centers` --
@@ -27,9 +26,7 @@ Misc functions
 
 from __future__ import division
 import numpy as np
-import itertools
 from copy import deepcopy
-from random import choice
 from data import DataTable
 
 __author__ = "Justin Kitzes"
@@ -42,7 +39,7 @@ __email__ = "jkitzes@berkeley.edu"
 __status__ = "Development"
 
 
-class EPatch:
+class Patch:
     '''
     An object representing an empirical census.
 
@@ -83,7 +80,7 @@ class EPatch:
             value of 'species' indicating the column with species identifiers 
             (this column must be type categorical in metadata). If a column 
             giving the counts of species found at a point is also in the data, 
-            a key with the value 'counts' should also be given.
+            a key with the value 'count' should also be given.
 
             Value has a different meaning depending on column type:
             - metric - number of divisions of data along this axis, int/float
@@ -181,13 +178,13 @@ class EPatch:
                 # TODO: Add support for sampling, if 'sample' in args, randomly 
                 # choose n start coords and store in levels
 
-                min = self.data_table.meta[(key, 'minimum')]
-                max = self.data_table.meta[(key, 'maximum')]
-                prec = self.data_table.meta[(key, 'precision')]
+                dmin = self.data_table.meta[(key, 'minimum')]
+                dmax = self.data_table.meta[(key, 'maximum')]
+                dprec = self.data_table.meta[(key, 'precision')]
 
                 # TODO: Error if step < prec
-                step = (max + prec - min) / value
-                starts = np.arange(min, max + prec, step)
+                step = (dmax + dprec - dmin) / value
+                starts = np.arange(dmin, dmax + dprec, step)
                 ends = starts + step
 
                 starts_str = ['>=' + str(x) for x in starts]
@@ -210,7 +207,7 @@ class EPatch:
         return spp_list, spp_col, count_col, combinations
 
 
-    def sar(self, div_cols, div_list, criteria, type='sar'):
+    def sar(self, div_cols, div_list, criteria, form='sar'):
         '''
         Calulate an empirical species-area relationship given criteria.
 
@@ -224,7 +221,7 @@ class EPatch:
         criteria : dict
             See docstring for EPatch.sad. Here, criteria SHOULD NOT include 
             items referring to div_cols (if there are any, they are ignored).
-        type : string
+        form : string
             'sar' or 'ear' for species or endemics area relationship. EAR is 
             relative to the subtable selected after criteria is applied.
 
@@ -280,10 +277,10 @@ class EPatch:
             # Store area
             area = 1
             for i, col in enumerate(div_cols):
-                min = self.data_table.meta[(col, 'minimum')]
-                max = self.data_table.meta[(col, 'maximum')]
-                prec = self.data_table.meta[(col, 'precision')]
-                length = (max + prec - min)
+                dmin = self.data_table.meta[(col, 'minimum')]
+                dmax = self.data_table.meta[(col, 'maximum')]
+                dprec = self.data_table.meta[(col, 'precision')]
+                length = (dmax + dprec - dmin)
 
                 area *= length / div[i]
 
