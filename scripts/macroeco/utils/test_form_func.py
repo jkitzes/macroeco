@@ -54,8 +54,3 @@ class TestFormFunc(unittest.TestCase):
         self.assertTrue(np.all(np.equal(np.unique(tot_int), np.linspace(0,6,num=7))))
         self.assertRaises(AssertionError, create_intcodes, self.spp_array4, unq_specs,\
                                                           unq_ints)
-
-
-if __name__ == '__main__':
-    unittest.main()
-

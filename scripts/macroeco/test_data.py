@@ -133,7 +133,3 @@ eml.xsd"><dataset>
     def test_title(self):
         meta = Metadata('xyfile1.csv', [])
         self.assertEqual(meta.get_title(), 'Unittest XML')
-
-
-if __name__ == '__main__':
-    unittest.main()

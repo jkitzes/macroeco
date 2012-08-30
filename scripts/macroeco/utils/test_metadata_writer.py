@@ -58,9 +58,3 @@ class TestMetadataWriter(unittest.TestCase):
                 self.assertTrue(len(child.findall('interval')) == 1)
         types = [('year', {'ct' : False})]
         self.assertRaises(KeyError, mt.add_attribute_types, types)
-
-if __name__ == '__main__':
-        unittest.main()
-
-
-

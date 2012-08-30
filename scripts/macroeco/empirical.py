@@ -6,15 +6,14 @@ is interpreted broadly as any temporally and spatially defined census.
 
 Classes
 -------
-- `EPatch` -- empirical metrics for census data
-- `TPatch` -- parallel predicted/theoretical/fit metrics
+- `Patch` -- empirical metrics for census data
 
 Patch Methods
 -------------
 - `sad` -- calculate species abundance distribution (grid or sample)
 - `sar` -- calculate species-area relationship (grid or sample)
 - `ear` -- calculate endemics-area relationship (grid or sample)
-- `qs` -- calculate commonality between sub-patches (grid)
+- `comm` -- calculate commonality between sub-patches (grid)
 - `ssad` -- calculate species-level spatial abundance distrib (grid or sample)
 
 - `get_sp_centers` --
@@ -27,9 +26,7 @@ Misc functions
 
 from __future__ import division
 import numpy as np
-import itertools
 from copy import deepcopy
-from random import choice
 from data import DataTable
 
 __author__ = "Justin Kitzes"
@@ -42,7 +39,7 @@ __email__ = "jkitzes@berkeley.edu"
 __status__ = "Development"
 
 
-class EPatch:
+class Patch:
     '''
     An object representing an empirical census.
 
@@ -83,7 +80,7 @@ class EPatch:
             value of 'species' indicating the column with species identifiers 
             (this column must be type categorical in metadata). If a column 
             giving the counts of species found at a point is also in the data, 
-            a key with the value 'counts' should also be given.
+            a key with the value 'count' should also be given.
 
             Value has a different meaning depending on column type:
             - metric - number of divisions of data along this axis, int/float
@@ -181,13 +178,13 @@ class EPatch:
                 # TODO: Add support for sampling, if 'sample' in args, randomly 
                 # choose n start coords and store in levels
 
-                min = self.data_table.meta[(key, 'minimum')]
-                max = self.data_table.meta[(key, 'maximum')]
-                prec = self.data_table.meta[(key, 'precision')]
+                dmin = self.data_table.meta[(key, 'minimum')]
+                dmax = self.data_table.meta[(key, 'maximum')]
+                dprec = self.data_table.meta[(key, 'precision')]
 
                 # TODO: Error if step < prec
-                step = (max + prec - min) / value
-                starts = np.arange(min, max + prec, step)
+                step = (dmax + dprec - dmin) / value
+                starts = np.arange(dmin, dmax + dprec, step)
                 ends = starts + step
 
                 starts_str = ['>=' + str(x) for x in starts]
@@ -210,7 +207,7 @@ class EPatch:
         return spp_list, spp_col, count_col, combinations
 
 
-    def sar(self, div_cols, div_list, criteria, type='sar'):
+    def sar(self, div_cols, div_list, criteria, form='sar'):
         '''
         Calulate an empirical species-area relationship given criteria.
 
@@ -224,7 +221,7 @@ class EPatch:
         criteria : dict
             See docstring for EPatch.sad. Here, criteria SHOULD NOT include 
             items referring to div_cols (if there are any, they are ignored).
-        type : string
+        form : string
             'sar' or 'ear' for species or endemics area relationship. EAR is 
             relative to the subtable selected after criteria is applied.
 
@@ -261,10 +258,10 @@ class EPatch:
             flat_sad = flatten_sad(sad)
 
             # Store results
-            if type == 'sar':
+            if form == 'sar':
                 this_full = np.sum((flat_sad > 0), axis=0)
                 this_mean = np.mean(this_full)
-            elif type == 'ear':
+            elif form == 'ear':
                 totcnt = np.sum(flat_sad, axis=1)
                 totcnt_arr = \
                     np.array([list(totcnt),]*np.shape(flat_sad)[1]).transpose()
@@ -272,7 +269,7 @@ class EPatch:
                 this_full = np.sum(np.equal(flat_sad, totcnt_arr), axis=0)
                 this_mean = np.mean(this_full)
             else:
-                raise NotImplementedError('No SAR of type %s available' % type)
+                raise NotImplementedError('No SAR of form %s available' % form)
 
             full_result.append(this_full)
             mean_result.append(this_mean)
@@ -280,10 +277,10 @@ class EPatch:
             # Store area
             area = 1
             for i, col in enumerate(div_cols):
-                min = self.data_table.meta[(col, 'minimum')]
-                max = self.data_table.meta[(col, 'maximum')]
-                prec = self.data_table.meta[(col, 'precision')]
-                length = (max + prec - min)
+                dmin = self.data_table.meta[(col, 'minimum')]
+                dmax = self.data_table.meta[(col, 'maximum')]
+                dprec = self.data_table.meta[(col, 'precision')]
+                length = (dmax + dprec - dmin)
 
                 area *= length / div[i]
 
@@ -291,96 +288,6 @@ class EPatch:
 
         # Return
         return areas, mean_result, full_result
-
-
-    def comm(self, div_list):
-        '''
-        Calculates commonality between pairs of subpatches.
-        
-        Result is the Sorensen index, equivalent to Chi in Harte et al., also 
-        equivalent to 1 - Bray-Curtis dissimilarity.
-
-        Parameters
-        ----------
-        div_list : list of tuples
-            Number of divisions of patch along (x, y) axes to use for grid.
-            Input of (1, 1) corresponds to no divisions, ie the whole patch.
-
-        Returns
-        -------
-        result : list of ndarrays
-            List of same length as div_list, with each element corresponding to 
-            a division tuple from div_list. Elements are a 2D ndarray with the 
-            index of the pair of subpatches (counting row wise from the top 
-            left) in the first 2 cols, the distance between the center of the 
-            subpatches in the 3rd col, and the commonality in the 4th col.
-            
-        Notes
-        -----
-        The values of x and y in the tuples of div_list must be factors of 
-        width and height, respectively, so that every subpatch will have an 
-        identical number of survey points.
-        '''
-        # TODO: Make sure that divs divide plot evenly and that divs are of
-        # width at least one precision.
-        # TODO: Failed with test_dense?
-        # TODO: Arg to spit out individ species, not Sorensen
-
-        result = []
-
-        # SAD and sp_cent have the same number of list elements and row
-        # structure within arrays
-        SAD = self.sad_grid(div_list, summary = '')
-        sp_cent = self.get_sp_centers(div_list)
-
-        for ind_div, div in enumerate(div_list):
-            div_result = []
-            nsp = div[0] * div[1]
-
-            div_SAD = SAD[ind_div]
-            div_sp_cent = sp_cent[ind_div]
-
-            for ind_a in xrange(0, nsp - 1):
-                spp_in_a = (div_SAD[ind_a,:] > 0)
-                for ind_b in xrange(ind_a + 1, nsp):
-                    spp_in_b = (div_SAD[ind_b,:] > 0)
-                    dist = distance(div_sp_cent[ind_a,:], div_sp_cent[ind_b,:])
-                    denom = (0.5 * (sum(spp_in_a) + sum(spp_in_b)))
-                    if denom == 0:
-                        QS = 0
-                    else:
-                        QS = sum(spp_in_a * spp_in_b) / denom
-                    div_result.append((ind_a, ind_b, dist, QS))
-
-            result.append(np.array(div_result))
-
-        return result
-
-
-    def get_sp_centers(self, div_list):
-        '''
-        Get coordinate of center of patches in landscape gridded according to 
-        divisions in div_list.
-        '''
-        # TODO: Did not confirm that this works for x_min and y_min > 0
-        sp_centers = []
-        for div in div_list:
-            sp_width = self.width / float(div[0])
-            sp_height = self.height / float(div[1])
-
-            div_sp_cent = []
-            for sp_x in xrange(0, div[0]):  # Same sp order as SAD_grid
-                x_origin = (self.x_min + sp_x * sp_width)
-                x_cent = x_origin + 0.5 * (sp_width - self.precision)
-                for sp_y in xrange(0, div[1]):
-                    y_origin = (self.y_min + sp_y * sp_height)
-                    y_cent = y_origin + 0.5 * (sp_height - self.precision)
-
-                    div_sp_cent.append((x_cent, y_cent))
-
-            sp_centers.append(np.array(div_sp_cent))
-
-        return sp_centers
 
 
 def flatten_sad(sad):
@@ -402,6 +309,7 @@ def distance(pt1, pt2):
     ''' Calculate Euclidean distance between two points '''
     return np.sqrt((pt1[0] - pt2[0]) ** 2 + (pt1[1] - pt2[1]) ** 2)
 
+
 def divisible(dividend, precision, divisor, tol = 1e-9):
     '''
     Check if dividend (here width or height of patch) is evenly divisible by 
@@ -421,6 +329,7 @@ def divisible(dividend, precision, divisor, tol = 1e-9):
         return True
     else:
         return False
+
 
 def rnd(num):
     '''

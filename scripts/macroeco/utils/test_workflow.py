@@ -115,5 +115,3 @@ class ParamfileTestCase(unittest.TestCase):
         pa = workflow.Parameters('Interactive', '', {})
         self.assertTrue(pa.interactive == True)
 
-if __name__ == '__main__':
-    unittest.main()

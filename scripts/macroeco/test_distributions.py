@@ -272,6 +272,3 @@ class TestDistributions(unittest.TestCase):
         error = 0.05 * answ
         diff = np.abs(self.EWslop - answ)
         self.assertTrue(np.all(diff <= error))
-
-if __name__ == '__main__':
-    unittest.main()

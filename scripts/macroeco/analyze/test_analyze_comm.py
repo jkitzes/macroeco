@@ -57,6 +57,3 @@ class TestPatch(unittest.TestCase):
         self.assertRaises(ValueError, get_common_arrays, self.gridtest, [(2,2), (1,1), (3,2)])
         self.assertRaises(IndexError, get_common_arrays, self.gridtest, [(3,2)])
 
-if __name__ == '__main__':
-    unittest.main()
-
