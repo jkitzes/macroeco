@@ -195,8 +195,10 @@ class Distribution(object):
         if sad:
             self.params['N'] = np.sum(data)
             self.params['S'] = len(data)
+            return self
         else:
             self.params['N'] = sum(data)
+            return self
 
     def nll(self, n):
         '''
