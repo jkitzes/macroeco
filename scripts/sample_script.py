@@ -26,7 +26,16 @@ GUI Compatibility - For compatibility with the html GUI, the strings
 
 '''
 
-GUI_name = '''Sample Script'''
+__author__ = "Justin Kitzes"
+__copyright__ = "Copyright 2012, Regents of the University of California"
+__credits__ = ["John Harte"]
+__license__ = None
+__version__ = "0.1"
+__maintainer__ = "Justin Kitzes"
+__email__ = "jkitzes@berkeley.edu"
+__status__ = "Development"
+
+gui_name = '''Sample Script'''
 
 summary = '''This is a one sentence description of script actions.'''
 
@@ -35,20 +44,20 @@ operation of this script.'''
 
 required_params = {'x': 'A sample numeric value'}
 
-if __name__=="__main__": # This lets us read the summary and explanation
-                         # without executing the file
+if __name__ == '__main__':
 
+    # TODO: Can future division be imported here, or needs to be at start?
     import logging
     from macroeco.utils.workflow import Workflow
 
     # Begin by creating a Workflow object
     wf = Workflow()
 
-    # Loop through each dataset specified in params and run analysis. If data_path 
-    # is not a parameter, the loop below will run once with an empty string for
-    # data_path.
+    # Loop through each dataset specified in params and run analysis. If
+    # data_path is not a parameter, the loop below will run once with an empty
+    # string for data_path.
     for data_path, output_ID, params in wf.single_datasets():
-        print 'data_path:', data_path, '\noutput_ID:', output_ID, '\nparams:', params
+
         y = params['x'] + 1
 
         with open(wf.output_path + output_ID + '_results.txt', 'w') as file:
