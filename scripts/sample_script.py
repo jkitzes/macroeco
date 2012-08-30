@@ -29,6 +29,15 @@ GUI Compatibility - For compatibility with the html GUI, the strings
 
 '''
 
+__author__ = "Justin Kitzes"
+__copyright__ = "Copyright 2012, Regents of the University of California"
+__credits__ = ["John Harte"]
+__license__ = None
+__version__ = "0.1"
+__maintainer__ = "Justin Kitzes"
+__email__ = "jkitzes@berkeley.edu"
+__status__ = "Development"
+
 gui_name = '''Sample Script'''
 
 short_descrip = '''This is a one sentence description of script actions.'''
@@ -39,23 +48,26 @@ operation of this script.'''
 
 required_params = {'x': 'A sample numeric value'}
 
-import logging
-from macroeco.utils.workflow import Workflow
+if __name__ == 'main':
 
-# Begin by creating a Workflow object
-wf = Workflow()
+    # TODO: Can future division be imported here, or needs to be at start?
+    import logging
+    from macroeco.utils.workflow import Workflow
 
-# Loop through each dataset specified in params and run analysis. If data_path 
-# is not a parameter, the loop below will run once with an empty string for
-# data_path.
-for data_path, output_ID, params in wf.single_datasets():
+    # Begin by creating a Workflow object
+    wf = Workflow()
 
-    y = params['x'] + 1
+    # Loop through each dataset specified in params and run analysis. If
+    # data_path is not a parameter, the loop below will run once with an empty
+    # string for data_path.
+    for data_path, output_ID, params in wf.single_datasets():
 
-    with open(wf.output_path + output_ID + '_results.txt', 'w') as file:
-        file.write('Results\n\n')
-        file.write('Data Path: %s\n\n' % data_path)
-        file.write('Parameters: %s\n\n' % str(params))
-        file.write('y = %f\n\n' % y)
+        y = params['x'] + 1
 
-    logging.info('Completed analysis %s' % output_ID)
+        with open(wf.output_path + output_ID + '_results.txt', 'w') as file:
+            file.write('Results\n\n')
+            file.write('Data Path: %s\n\n' % data_path)
+            file.write('Parameters: %s\n\n' % str(params))
+            file.write('y = %f\n\n' % y)
+
+        logging.info('Completed analysis %s' % output_ID)
