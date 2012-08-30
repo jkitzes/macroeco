@@ -48,7 +48,7 @@ operation of this script.'''
 
 required_params = {'x': 'A sample numeric value'}
 
-if __name__ == 'main':
+if __name__ == '__main__':
 
     # TODO: Can future division be imported here, or needs to be at start?
     import logging
