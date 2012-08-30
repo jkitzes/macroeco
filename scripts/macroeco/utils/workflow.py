@@ -62,10 +62,7 @@ class Workflow:
         self.script_name = os.path.split(script_path)[-1]
 
         # Store output directory path - contains params file, log, results
-        # TODO: If dir does not exist, create it? What if low level typo?
-        # TODO: Make more robust to non-absolute path entries
-        output_path = (os.path.abspath(os.path.join(os.getcwd(), 
-                                                    sys.argv[1])) + '/')
+        output_path = (os.path.abspath(os.getcwd()) + '/')
         self.output_path = output_path
 
         # Prepare logger
