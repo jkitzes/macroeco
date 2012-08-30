@@ -24,9 +24,6 @@ from distributions import *
 
 import scipy.optimize 
 import scipy.special
-import math as m
-import scipy.integrate as integrate
-import sys
 
 
 __author__ = "Mark Wilber"
@@ -38,7 +35,7 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
-class Compare_Distr(object):
+class CompareDistribution(object):
     '''
     Comparison object allows a list of data to any number of distributions
 
@@ -143,7 +140,8 @@ class Compare_Distr(object):
             dist.fit(self.data_list)
             #NOTE: Need to make sure this is implemented
             #Different Identifier?
-            rads_dict[dist.__str__().split('.')[1].split(' ')[0] + str(i)] = dist.rad()
+            rads_dict[dist.__str__().split('.')[1].split(' ')[0] + str(i)] \
+                        = dist.rad()
         return rads_dict
 
     def compare_cdfs(self):
@@ -171,7 +169,44 @@ class Compare_Distr(object):
             cdfs_dict[dist.__str__().split('.')[1].split(' ')[0] + str(i)] =\
                         dist.cdf(self.data_list) 
         return cdfs_dict
+    
+#
+    def compare_LRT(self, null_mdl):
+        '''
+        Performs a likelihood ratio test (LRT) on the distributions with in
+        self.dist_list with the parameter nll_mdl as the null model. While this
+        function will generate output on non-nested models, the models must be
+        nested for the output to be meaningful.
 
+        Parameters
+        ----------
+        null_mdl : distribution object
+            The null distribution object to use in the LRT.
+
+        Returns
+        -------
+        : dict
+            A dictionary with keywords 'null_model, alternative model.' Each
+            keyword references a list of length len(self.data_list) which
+            contains tuples that contain the output of the function
+            likelihood_ratio_test.  The LRT is performed on each data set in
+            self.data_list for each given model pair.
+
+        '''
+        LRT_list = {}
+        null_mdl.fit(self.data_list)
+        null_nlls = null_mdl.nll(self.data_list)
+        for i, dist in enumerate(self.dist_list):
+            dist.fit(self.data_list)
+            alt_nlls = dist.nll(self.data_list)
+            k = dist.par_num - null_mdl.par_num
+            df = np.repeat(k, len(alt_nlls))
+            lrt = likelihood_ratio_test(null_nlls, alt_nlls, df)
+            comp_kw = \
+                null_mdl.__str__().split('.')[1].split(' ')[0] + ", " + \
+                dist.__str__().split('.')[1].split(' ')[0] + str(i)
+            LRT_list[comp_kw] = lrt
+        return LRT_list
 
 def empirical_cdf(emp_data):
     '''
@@ -188,10 +223,7 @@ def empirical_cdf(emp_data):
         An empirical cdf
     '''
 
-    try:
-        len(emp_data); emp_data = np.array(emp_data)
-    except:
-        emp_data = np.array([emp_data])
+    emp_data = cnvrt_to_arrays(emp_data)[0]
     unq_vals = np.unique(emp_data)
     leng = len(emp_data)
     cdf = np.empty(len(emp_data))
@@ -219,14 +251,7 @@ def aic(neg_L, k):
    : float
         AIC for a given model
     '''
-    try:
-        len(neg_L); neg_L = np.array(neg_L)
-    except:
-        neg_L = np.array([neg_L])
-    try:
-        len(k); k = np.array(k)
-    except:
-        k = np.array([k])
+    neg_L, k = cnvrt_to_arrays(neg_L, k)
     assert len(k) == len(neg_L)
     aic = (2 * neg_L) + (2 * k)
     return aic
@@ -250,18 +275,7 @@ def aicc(neg_L, k, n):
         AICc for a given models
 
     '''
-    try:
-        len(n); n = np.array(n)
-    except:
-        n = np.array([n])
-    try:
-        len(k); k = np.array(k)
-    except:
-        k = np.array([k])
-    try:
-        len(neg_L); neg_L = np.array(neg_L)
-    except:
-        neg_L = np.array([neg_L])
+    neg_L, k, n = cnvrt_to_arrays(neg_L, k, n)
     assert len(neg_L) == len(k) and len(neg_L) == len(n) and len(k) == len(n),\
             "neg_L, k, and n must all have the same length"
     aic_value = aic(neg_L, k)
@@ -288,9 +302,7 @@ def aic_weights(aic_values):
 
     '''
 
-    #NOTE: Check length of aic_values
-    if type(aic_values) == float or type(aic_values) == int:
-        raise ValueError("Parameter must be array-like object")
+    aic_values = cnvrt_to_arrays(aic_values)
     aic_values = np.array(aic_values)
     minimum = np.min(aic_values) 
     delta = np.array([x - minimum for x in aic_values])
@@ -316,38 +328,55 @@ def ks_two_sample(data1, data2):
         (D-statistic, two-sided p-value)
 
     '''
-    
+    data1, data2 = cnvrt_to_arrays(data1, data2) 
     data1 = np.array(data1)
     data2 = np.array(data2)
     return stats.ks_2samp(data1, data2)
 
-def likelihood_ratio_test(neg_LL_null, neg_LL_alt, df):
+def likelihood_ratio_test(nll_null, nll_alt, df_list):
     '''
     This functions compares of two nested models using the likelihood ratio
     test.
 
     Parameters
     ----------
-    neg_LL_null : float
+    nll_null : array-like object
         The negative log-likelihood of the null model
-    neg_LL_alt : float
+    nll_alt : array-like object
         The negative log-likelihood of the alternative model
-    df : int
+    df_list : array-like object
         the degrees of freedom calulated as (number of free parameters in
         alternative model) - (number of free parameters in null model)
     
     Returns
     -------
-    : tuple
+    : list of tuples
         (test_statistic, p-value)
 
     Notes
     -----
     The LRT only applies to nested models.  
     '''
+    
+    nll_null, nll_alt, df_list = cnvrt_to_arrays(nll_null, nll_alt, df_list)
+    assert len(nll_null) == len(nll_alt) and len(nll_null) == len(df_list) and\
+           len(nll_alt) == len(df_list), "nll_null, nll_alt, and df_list " + \
+                                          "must have the same length"
+    test_stat = 2 * nll_null - (2 * nll_alt)
+    return [(ts, stats.chisqprob(ts, df)) for ts, df in zip(test_stat, df_list)]
 
-    test_stat = 2 * neg_LL_null - (2 * neg_LL_alt)
-    return (test_stat, stats.chisqprob(test_stat, df))
+def cnvrt_to_arrays(*args):
+    '''
+    Converts all args to np.arrays
+    '''
+    arg_list = []
+    for arg in args:
+        try:
+            len(arg); arg = np.array(arg)
+        except:
+            arg = np.array([arg])
+        arg_list.append(arg)
+    return tuple(arg_list)
 
 
 ##TEST CLASSES, REMOVE BEFORE RELEASE##
