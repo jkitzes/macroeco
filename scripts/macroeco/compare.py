@@ -22,10 +22,6 @@ import numpy as np
 import scipy.stats as stats
 from distributions import *
 
-import scipy.optimize 
-import scipy.special
-
-
 __author__ = "Mark Wilber"
 __copyright__ = "Copyright 2012, Regents of University of California"
 __credits__ = "John Harte"
@@ -83,9 +79,8 @@ class CompareDistribution(object):
             #NOTE: What about 'a' parameter?  Does the object already have
             #it?
             dist.fit(self.data_list)
-            nlls = dist.nll(self.data_list)
+            nlls = nll(dist.pmf(self.data_list)[0])
             #NOTE: dist.par_num is the number of parameters that
-            #distribution has. Need to make this an attribute
             k = np.repeat(dist.par_num, len(nlls))
             if crt:
                 obs = np.array([len(data) for data in self.data_list])
@@ -138,7 +133,6 @@ class CompareDistribution(object):
         rads_dict['obs'] = self.data_list
         for i, dist in enumerate(self.dist_list):
             dist.fit(self.data_list)
-            #NOTE: Need to make sure this is implemented
             #Different Identifier?
             rads_dict[dist.__str__().split('.')[1].split(' ')[0] + str(i)] \
                         = dist.rad()
@@ -167,7 +161,7 @@ class CompareDistribution(object):
             dist.fit(self.data_list)
             #Might need to reference dist differently...
             cdfs_dict[dist.__str__().split('.')[1].split(' ')[0] + str(i)] =\
-                        dist.cdf(self.data_list) 
+                        dist.cdf(self.data_list)[0] 
         return cdfs_dict
     
 #
@@ -195,10 +189,10 @@ class CompareDistribution(object):
         '''
         LRT_list = {}
         null_mdl.fit(self.data_list)
-        null_nlls = null_mdl.nll(self.data_list)
+        null_nlls = nll(null_mdl.pmf(self.data_list)[0])
         for i, dist in enumerate(self.dist_list):
             dist.fit(self.data_list)
-            alt_nlls = dist.nll(self.data_list)
+            alt_nlls = nll(dist.pmf(self.data_list)[0])
             k = dist.par_num - null_mdl.par_num
             df = np.repeat(k, len(alt_nlls))
             lrt = likelihood_ratio_test(null_nlls, alt_nlls, df)
@@ -207,6 +201,23 @@ class CompareDistribution(object):
                 dist.__str__().split('.')[1].split(' ')[0] + str(i)
             LRT_list[comp_kw] = lrt
         return LRT_list
+
+def nll(pdist):
+    '''
+    Parameters
+    ----------
+    pdist : list of arrays
+        List of pmf values on which to compute the negative log-likelihood
+
+    Returns
+    -------
+    :list
+        List of nll values
+
+    '''
+    return [-sum(np.log(dist)) for dist in pdist]
+
+    
 
 def empirical_cdf(emp_data):
     '''
@@ -301,8 +312,7 @@ def aic_weights(aic_values):
     best model in comparison to the other models
 
     '''
-
-    aic_values = cnvrt_to_arrays(aic_values)
+    aic_values = cnvrt_to_arrays(aic_values)[0]
     aic_values = np.array(aic_values)
     minimum = np.min(aic_values) 
     delta = np.array([x - minimum for x in aic_values])
@@ -379,230 +389,6 @@ def cnvrt_to_arrays(*args):
     return tuple(arg_list)
 
 
-##TEST CLASSES, REMOVE BEFORE RELEASE##
-class RootError(Exception):
-    '''Error if no root or multiple roots exist for the equation generated
-    for specified values of S and N'''
-
-    def __init__(self, value=None):
-        Exception.__init__(self)
-        self.value = value
-    def __str__(self):
-        return '%s' % self.value
-
-class DownscaleError(Exception):
-    '''Catch downscale errors'''
-    def __init__(self, value=None):
-        Exception.__init__(self)
-        self.value = value
-    def __str__(self):
-        return '%s' % self.value
-
-class Distribution(object):
-
-    def __init__(self, **kwargs):
-        '''
-        Generic constructor
-
-        **kwargs : keyword parameters for distribution
-
-        '''
-        self.params = kwargs
-    
-    #Better option than lower bound?
-    def cdf(self, n_list, lower_bound=1):
-        '''
-        Cumulative distribution function.  Determined by summing pmf
-
-        Parameters
-        ----------
-        n : int, float or array-like object
-            Values at which to calculate the cdf
-
-        Returns
-        -------
-        : ndarray (1D)
-            Returns array with cdf values for the given values of n.
-
-        '''
-        S_list = self.params.get('S', None)
-        N_list = self.params.get('N', None) 
-        assert S_list != None, "S parameter not given"
-        assert N_list != None, "N parameter not given"
-        cdf_list = []
-        for n, S, N in zip(n_list, S_list, N_list):
-            try:
-                len(n); n = np.array(n)
-            except:
-                n = np.array([n])
-            max_n = np.max(n)
-            self.params['S'] = [S]
-            self.params['N'] = [N]
-            cdf = np.cumsum(self.pmf([np.arange(lower_bound, max_n + 1)]))
-            cdf_list.append(np.array([cdf[x - lower_bound] for x in n]))
-        self.params['S'] = S_list
-        self.params['N'] = N_list
-        return cdf_list
-
-    def rad(self):
-        '''
-        Rank abundance distribution. Calculated using pmf
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        : ndarray (1D)
-            Returns and array of length S with the expected abundances given
-            pmf
-
-        '''
-        S_list = self.params.get('S', None)
-        N_list = self.params.get('N', None) 
-        assert S_list != None, "S parameter not given"
-        assert N_list != None, "N parameter not given"
-        rad_list = []
-        for S, N in zip(S_list, N_list):
-            self.params['S'] = [S]
-            self.params['N'] = [N]
-            full_pmf = self.pmf([np.arange(1, N + 1)])[0]
-            rad_list.append(make_rank_abund(full_pmf, S))
-        self.params['S'] = S_list
-        self.params['N'] = N_list
-        return rad_list
-
-    def fit(self, data_list, sad=True):
-        '''
-        Generic fit to sad or ssads
-
-        Parameters
-        ----------
-        data : list of np.arrays objects
-            Data used to calculate fit
-        sad : bool
-            If True, calculate S and N parameter, else only calculate N.
-
-        Return
-        ------
-        None
-        '''
-        #Might not be the best check here
-        if sad:
-            self.params['N'] = [np.sum(data) for data in data_list]
-            self.params['S'] = [len(data) for data in data_list]
-            return self
-        else:
-            self.params['N'] = [len(data) for data in data_list]
-            return self
-
-    def nll(self, n_list):
-        '''
-        Calcuates the negative log-likelihood for a given distribution
-
-        Parameters
-        ----------
-        n : array-like object
-            Values for which to calculate nll
-
-        Returns
-        : float
-            Negative log-likelihood for given values
-
-        '''
-        pmfs = self.pmf(n_list)
-        return [-sum(np.log(pmf)) for pmf in pmfs]
-
-class lgsr(Distribution):
-    '''
-    Fisher's log series distribution (Fisher et al. 1943, Hubbel 2001).
-
-    Methods
-    -------
-    pmf(n, param_out); S and N parameters passed into __init__
-        Probability mass function
-    cdf(n); S and N parameters passed into __init__
-        Cumulative distribution function
-    rad(); S and N parameters passed into __init__
-        Rank abundance distribution
-
-    Parameters
-    ----------
-    S : int
-        Total number of species in landscape
-    N : int
-        Total number of indviduals in landscape
-
-    Notes
-    -----
-    S and N are passed into the constructor (__init__) as keyword arguments.
-    Example: lgsr(S=34, N=345)
-
-    '''
-    def __init__(self, **kwargs):
-        self.params = kwargs
-        self.par_num = 1
-        
-    def pmf(self, n_list, param_out=False):
-        '''
-        Probability mass function of Fisher log series generated with S and N.
-
-        Parameters
-        ----------
-        n : int, float or array-like object
-            Abundances at which to calculate the pmf
-        
-        Passed into __init__
-        ---------------------
-        S : int
-            Total number of species in landscape
-        N : int
-            Total number of indviduals in landscape
-
-        Returns
-        -------
-        : ndarray (1D)
-            Returns array with pmf for values for the given values n. If 
-            param_out = True, returns the array as well as the parameter 
-            estimates.
-
-        Notes
-        -----
-        Multiplying the pmf by S yields the predicted number of species
-        with a given abundance.
-
-        '''
-        S_list = self.params.get('S', None)
-        N_list = self.params.get('N', None) 
-        assert S_list != None, "S parameter not given"
-        assert N_list != None, "N parameter not given"
-        assert len(n_list) == len(S_list), "n_list must be the same length as S"
-        pmf_list = []
-        for n, S, N in zip(n_list, S_list, N_list):
-            assert S < N, "S must be less than N"
-            assert S > 1, "S must be greater than 1"
-            assert N > 0, "N must be greater than 0"
-            try:
-                len(n); n = np.array(n)
-            except:
-                n = np.array([n])
-            assert np.max(n) <= N, "Maximum n cannot be greater than N"
-
-            start = -2
-            stop = 1 - 1e-10
-    
-            eq = lambda x, S, N: (((N/x) - N) * (-(np.log(1 - x)))) - S
-    
-            x = scipy.optimize.brentq(eq, start, stop, args=(S,N), disp=True)
-            pmf = stats.logser.pmf(n, x)
-
-    
-            if param_out == True:
-                pmf_list.append((pmf, {'x' : x}))
-            else:
-                pmf_list.append(pmf)
-        return pmf_list
 
 
 
