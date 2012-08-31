@@ -124,12 +124,10 @@ def results(environ, start_response):
     #    log.write( dt.strftime("%Y %I:%M%p UTC")+" :\t"
     #               + spath + "\t" + str(dfiles) +'\n') #TODO: use logger
     spath = os.path.dirname(os.path.abspath(__file__))
-    print 'spath:', spath
     spath = os.path.join(spath, 'scripts', scriptname)
-
     dpath = ' '.join(fields['data'])
     callstring = ' '.join(["python", spath, dpath])
-    print callstring
+    print 'Firing off this command: \n', callstring
     subprocess.Popen(callstring, cwd = fields['output'][0], shell=False, stdin=None, stdout=None, close_fds=True)
 
     # Should this be an iterator? (see StackOverflow); yield Starting... , then status?

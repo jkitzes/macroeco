@@ -18,10 +18,9 @@ operation of this script.</p>
 <input type="text" name="run-name"> Run name for this set of parameters <br />
 </p>
 
-<h3>Inputs and outputs:</h3>
-<p>Output directory (Problem: file browser literally wants a file) <input type="text" name="output"></p>
+<h3>Data set:</h3>
 
-<p>Data set (Problem: file browser is designed to upload file; returns a socket!) <input type="text" name="data"</p>
+<p><input type="text" name="data">Path and filename of data to analyze</p>
 
 <p><font size="Large"><input type="submit" value="Run" /></font></p>
 </form>
