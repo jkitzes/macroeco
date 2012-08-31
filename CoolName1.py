@@ -36,8 +36,9 @@ from string import Template
 # Could subclass BaseWSGI instead of running as a script,
 # but it doesn't gain anything (and is self-ish). 
 
-localport = 8000 #NOTE: this number is hardcoded into CoolName1.html
+localport = 8000 # WARNING:  hardcoded into CoolName1.html
 layout = Template(open('CoolName1.txt').read())
+output_path = '.'
 
 def CoolName1_app(environ, start_response):
     '''
@@ -117,7 +118,7 @@ def setup_script(environ, start_response):
 def results(environ, start_response):
     print environ
     fields = cgi.parse_qs(environ['QUERY_STRING'])
-    scriptname = environ['HTTP_REFERER'].split('/')[-1]+".py"
+    scriptname = environ['HTTP_REFERER'].split('/')[-1]+".py" #TODO: ok on Windows?
     start_response('200 OK', [('Content-Type', 'text/html')])
     #    with open("logfile.txt","a") as log:
     #    log.write( dt.strftime("%Y %I:%M%p UTC")+" :\t"
@@ -127,23 +128,45 @@ def results(environ, start_response):
     spath = os.path.join(spath, 'scripts', scriptname)
 
     dpath = ' '.join(fields['data'])
-    callstring = ["python", spath, dpath]
+    callstring = ' '.join(["python", spath, dpath])
     print callstring
     subprocess.Popen(callstring, cwd = fields['output'][0], shell=False, stdin=None, stdout=None, close_fds=True)
 
-    # TUrn this into an iterator! (stackoverflow); yield Starting... , then status?
+    # Should this be an iterator? (see StackOverflow); yield Starting... , then status?
     # possibly list of files written to output?
     
-    return layout.safe_substitute(maincontent = "<h2>Running %s</h2><p>Parameters:  %s</p>"%(scriptname,str(fields)), localport = localport)
+    return layout.safe_substitute(maincontent = "<h2>Running %s</h2><p>Parameters:  %s</p><p>Call: %s</p>"%(scriptname,str(fields),callstring), localport = localport)
+
+def dir_to_link(dirstring):
+    o = Template('''<a href="results?output=$value">$pretty</a><br />''')
+    p = dirstring.rstrip()
+    return o.safe_substitute(value=p, pretty = p)
 
 def project(environ, start_response):
-    '''Ask the user to browse to a parameters.xml file;
-    populate the list with the last 5 projects used,
-    or the demo projects.'''
+    '''Directories containing a parameters.xml file;
+    TODO ship the list with the contents of CoolName1.recent.'''
     RecentList = open("CoolName1.recent").readlines()
-        
     start_response('200 OK', [('Content-Type', 'text/html')])
-    return layout.safe_substitute(maincontent = fill, localport = localport)
+    if len(RecentList) > 5:
+        control = ' '.join(map(dir_to_link,RecentList[-5:]))
+    else:
+        control = ' '.join(map(dir_to_link,RecentList))
+    return layout.safe_substitute(maincontent =
+                                  "<h1>Choose project:</h1>%s"%control,
+                                   localport = localport)
+
+def run(environ, start_response):
+    '''Parse run elements out of parameters.xml;
+    offer a list of runs;
+    execute chosen runs as subprocesses.'''
+
+    try:
+        pf = open('parameters.xml', 'r')
+    except:
+        start_response('404 NOT FOUND', [('Content-Type', 'text/html')])
+        return layout.safe_substitute(maincontent = '<h1>No parameters.xml file</h1><p>We need a parameters.xml file in the project directory to set up and run the analyses. Examples are in the /projects/demos subdirectories of CoolName1. Project directory:<code>%s</code></p>'%output_path, localport=localport)
+
+    
     
 def NIY(environ, start_response):
     start_response('404 NOT FOUND', [('Content-Type', 'text/html')])
@@ -155,8 +178,9 @@ urls = [
     (r'^$', index), # Index of scripts.
     (r'css', css),  # CSS style file.
     (r'setup/(.+)$',setup_script), # Set up a script
-    (r'project', NIY), # Choose a parameters.xml file
+    (r'project', project), # Choose a parameters.xml file
                        # (and therefore an output directory)
+    (r'run', run), # Parse available runs out of the parameters.xml, offer
     (r'data/(.+)$', NIY), # Choose a dataset
     (r'documentation/?$', NIY), # Local documentation
     (r'results/?$', results) # Point to or display results (if any).
