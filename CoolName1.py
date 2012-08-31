@@ -125,8 +125,7 @@ def results(environ, start_response):
     #               + spath + "\t" + str(dfiles) +'\n') #TODO: use logger
     spath = os.path.dirname(os.path.abspath(__file__))
     spath = os.path.join(spath, 'scripts', scriptname)
-    dpath = ' '.join(fields['data'])
-    callstring = ' '.join(["python", spath, dpath])
+    callstring = ' '.join(["python", spath])
     print 'Firing off this command: \n', callstring
     subprocess.Popen(callstring, cwd = fields['output'][0], shell=False, stdin=None, stdout=None, close_fds=True)
 
