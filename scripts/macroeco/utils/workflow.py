@@ -26,8 +26,8 @@ __maintainer__ = "Chloe Lewis"
 __email__ = "chlewis@berkeley.edu"
 __status__ = "Development"
 
-paramfile = 'parameters.xml'  # Name of parameter file found in output dir
-logfile   = 'logfile.txt'  # Name of logfile to save in output dir
+paramfile = 'parameters.xml'  # Parameter file found in output dir
+logfile   = 'logfile.txt'  # Logfile to save in output dir
 
 
 class Workflow:
@@ -62,11 +62,13 @@ class Workflow:
         self.script_name = os.path.split(script_path)[-1]
 
         # Store output directory path - contains params file, log, results
-        output_path = (os.path.abspath(os.getcwd()) + '/')
+        # TODO: If dir does not exist, create it? What if low level typo?
+        # TODO: Make more robust to non-absolute path entries
+        output_path = os.getcwd()
         self.output_path = output_path
 
         # Prepare logger
-        logging.basicConfig(filename=self.output_path + logfile, 
+        logging.basicConfig(filename=logfile, 
                             level=logging.INFO, format=('%(asctime)s | '
                             '%(levelname)s | %(filename)s:%(lineno)d | '
                             '%(message)s'), datefmt='%H:%M:%S')
@@ -75,7 +77,7 @@ class Workflow:
 
         # Get parameters from file, including data paths
         assert type(required_params) == type({})
-        self.parameters = Parameters(self.script_name, output_path, 
+        self.parameters = Parameters(self.script_name,  
                                      required_params)
         self.interactive = self.parameters.interactive
 
@@ -128,15 +130,14 @@ class Workflow:
         
 class Parameters:
     '''
-    Load parameters from parameter file at output_path and make available as 
-    self.params. Checks that all required_params are present and loaded.
+    Load parameters from parameter file in current working directory
+    and make available as self.params.
+    Checks that all required_params are present and loaded.
 
     Arguments
     ---------
     script_name : string
         Name of script originating the workflow
-    output_path : string
-        Path to output directory
     required_params : dictionary
         Parameters needed for analysis, in form of 
         'parameter_name':'short_description'. All of these parameters must be 
@@ -156,16 +157,17 @@ class Parameters:
         
     '''
     
-    def __init__(self, script_name, output_path, required_params):
+    def __init__(self, script_name, required_params):
 
         # Store initial attributes
         self.script_name = script_name
         self.interactive = False
         self.params = {}
+        output_path = os.getcwd()
 
         # Check that parameter file exists, if not use default values
         try:
-            pf = open(output_path + paramfile, 'r')
+            pf = open(paramfile, 'r')
             pf.close()
         except IOError:
             logging.info(('No parameter file found at %s, proceeding without '
@@ -174,9 +176,9 @@ class Parameters:
             self.interactive = False
             return
 
-        # Read parameter file
-        logging.info('Reading parameters from %s' % (output_path + paramfile))
-        self.read_from_xml(output_path)
+# Read parameter file
+        logging.info('Reading parameters from %s' %paramfile)
+        self.read_from_xml()
 
         # Check that all required parameters present in all runs
         if not self.required_params_present(required_params):
@@ -187,7 +189,7 @@ class Parameters:
         self.eval_params()
 
          
-    def read_from_xml(self, output_path):
+    def read_from_xml(self):
         ''' Read parameters from xml file into self.params dictionary. '''
 
         # Define class for checking keys
@@ -204,17 +206,15 @@ class Parameters:
         # Try to open paramfile from output_path
         # TODO: Integration test
         try:
-            pml = etree.parse(output_path + paramfile, parser=parser).getroot() 
+            pml = etree.parse(paramfile, parser=parser).getroot() 
         except etree.ParseError:
-            logging.error('ParseError trying to read %s' % (output_path + 
-                                                            paramfile))
+            logging.error('ParseError trying to read %s' % paramfile)
         except:
             logging.error(sys.exc_info()[0])
         
         # Create params dictionary
         if len(pml) == 0:  # Error if no analyses in param file
-            raise IOError('Parameter file %s contains no valid analyses' % 
-                          (output_path + paramfile))
+            raise IOError('Parameter file %s contains no valid analyses' % paramfile)
 
         for analysis in pml:  # Loop analyses looking for script_name
             if analysis.get('script_name') == self.script_name:

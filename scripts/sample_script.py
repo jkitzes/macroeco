@@ -19,10 +19,10 @@ dictionary in which entries are 'parameter_name':'short_description'.
 Logging - To log the progress of the script, use logging.info('My message'), 
 where info may be replaced by other words to signify logging level (see Python 
 docs). By default, debug will print only to console and other levels will write 
-to logfile.txt in the output directory.
+to logfile.txt in the current working directory.
 
-GUI Compatibility - For compatibility with the html GUI, the strings 
-'gui_name', 'summary' and 'explanation' should be defined at script-level.
+GUI Compatibility - The GUI needs the script-level variables
+                    'gui_name', 'summary', and 'explanation'.
 
 '''
 
@@ -60,7 +60,7 @@ if __name__ == '__main__':
 
         y = params['x'] + 1
 
-        with open(wf.output_path + output_ID + '_results.txt', 'w') as file:
+        with open(output_ID + '_results.txt', 'w') as file:
             file.write('Results\n\n')
             file.write('Data Path: %s\n\n' % data_path)
             file.write('Parameters: %s\n\n' % str(params))
