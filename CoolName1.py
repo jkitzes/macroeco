@@ -102,6 +102,15 @@ def index(environ, start_response):
     explanation = '''<p>CoolName1 can analyze ecological data in several ways; see 
                    Scripts page for explanations. Demo projects, which you can
                    apply to your own data, are listed in the Projects page. </p>
+                   <p>Your results will be added to the Projects page as well. This                   application runs on your home computer, and your data and
+                   results remain private.</p>
+                   <p>You can also run any of these scripts from the command-line,                    or write your own scripts using our mathematical and helper
+                   functions.</p>
+                   <p>Contact the CoolName1 team at <a href=
+                   "mailto:CoolName1@berkeley.edu">CoolName1</a>.</p>'''
+    return layout.safe_substitute(maincontent = explanation, localport = localport)
+
+def scripts(environ, start_response):
     '''Returns a HTML page indexing the scripts and
     giving their summaries.'''
     start_response('200 OK', [('Content-Type', 'text/html')])
@@ -121,18 +130,19 @@ def setup_script(environ, start_response):
     return layout.safe_substitute(maincontent = fill, localport = localport)
 
 def results(environ, start_response):
+    '''Run a script. Project directory and script passed in HTML request;
+    if script has required parameters, including data,
+    they must be defined in parameters.xml in the project directory.'''
     print environ
     fields = cgi.parse_qs(environ['QUERY_STRING'])
     scriptname = environ['HTTP_REFERER'].split('/')[-1]+".py" #TODO: ok on Windows?
     start_response('200 OK', [('Content-Type', 'text/html')])
-    #    with open("logfile.txt","a") as log:
-    #    log.write( dt.strftime("%Y %I:%M%p UTC")+" :\t"
-    #               + spath + "\t" + str(dfiles) +'\n') #TODO: use logger
+
     spath = os.path.dirname(os.path.abspath(__file__))
     spath = os.path.join(spath, 'scripts', scriptname)
     callstring = ' '.join(["python", spath])
     print 'Firing off this command: \n', callstring
-    subprocess.Popen(callstring, cwd = fields['output'][0], shell=False, stdin=None, stdout=None, close_fds=True)
+    subprocess.Popen('python /Users/chlewis/Documents/macroeco/scripts/sample_script.py', cwd = '/Users/chlewis/Documents/macroeco/projects/sample_script', shell=False, stdin=None, stdout=None, close_fds=True)
 
     # Should this be an iterator? (see StackOverflow); yield Starting... , then status?
     # possibly list of files written to output?
@@ -142,7 +152,9 @@ def results(environ, start_response):
 def dir_to_link(dirstring):
     o = Template('''<a href="results?output=$value">$pretty</a><br />''')
     p = dirstring.rstrip()
-    return o.safe_substitute(value=p, pretty = p)
+    mpath = os.path.dirname(os.path.abspath(__file__))
+    v = os.path.abspath(os.path.join(mpath, p))
+    return o.safe_substitute(value=v, pretty = p)
 
 def project(environ, start_response):
     '''Directories containing a parameters.xml file;
@@ -177,7 +189,8 @@ def NIY(environ, start_response):
 # WSGI parses URLs, using them like arguments even if
 # they look like paths. Nb: needs to be after function defs. 
 urls = [
-    (r'^$', index), # Index of scripts.
+    (r'^$', index), # Homepage.
+    (r'scripts', scripts), #Index of scripts
     (r'css', css),  # CSS style file.
     (r'setup/(.+)$',setup_script), # Set up a script
     (r'project', project), # Choose a parameters.xml file
