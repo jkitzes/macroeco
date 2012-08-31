@@ -97,6 +97,11 @@ def css(environ, start_response):
     return c
 
 def index(environ, start_response):
+    '''Home page: explains what to do with CoolName1.'''
+    start_response('200 OK', [('Content-Type', 'text/html')])
+    explanation = '''<p>CoolName1 can analyze ecological data in several ways; see 
+                   Scripts page for explanations. Demo projects, which you can
+                   apply to your own data, are listed in the Projects page. </p>
     '''Returns a HTML page indexing the scripts and
     giving their summaries.'''
     start_response('200 OK', [('Content-Type', 'text/html')])
