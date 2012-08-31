@@ -22,6 +22,9 @@ import unittest
 from distributions import *
 import numpy as np
 
+#TODO:  Need to rerun tests with new fit functions.  Note that tgeo fgeo and
+#need to call super in there fit functions
+
 class TestDistributions(unittest.TestCase):
     '''Test the functions within sad_distr.py'''
 
