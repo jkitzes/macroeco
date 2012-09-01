@@ -120,7 +120,7 @@ class Workflow:
             # Loop through each dataset and yield values for dataset and run
             for data_path in self.parameters.params[run_name]['data_paths']:
                 abs_data_path = os.path.abspath(os.path.join(self.output_path, 
-                                                             data_path)) + '/'
+                                                             data_path))# + '/'
                 output_ID = '_'.join([self.script_name, clean_name(data_path), 
                                       run_name])
                 logging.info('Beginning %s' % output_ID)

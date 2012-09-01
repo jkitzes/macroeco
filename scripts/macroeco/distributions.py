@@ -419,6 +419,8 @@ class logser(Distribution):
         self.min_supp = 1
         self.par_num = 1
 
+    def __str__(self):
+        return 'logser'
 
     @doc_inherit
     def pmf(self, n):
@@ -501,8 +503,10 @@ class logser_ut(Distribution):
         self.params = kwargs
         self.min_supp = 1
         self.par_num = 0
-
-
+    
+    def __str__(self):
+        return 'logser_ut'
+        
     @doc_inherit
     def pmf(self, n):
 
@@ -584,6 +588,9 @@ class plognorm(Distribution):
         self.min_supp = 1
         #Number of parameters distribution has
         self.par_num = 2
+
+    def __str__(self):
+        return 'plognorm'
     
     @doc_inherit
     def pmf(self, n):
@@ -667,7 +674,6 @@ class plognorm(Distribution):
         self.params['mu'] = mu_list
         self.params['sigma'] = sigma_list
         return self
-        
 
 class plognorm_lt(Distribution):
     '''
@@ -701,6 +707,9 @@ class plognorm_lt(Distribution):
         self.min_supp = 1
         #Number of parameters distribution has
         self.par_num = 2
+
+    def __str__(self):
+        return 'plognorm_lt'
 
     @doc_inherit
     def pmf(self, n):

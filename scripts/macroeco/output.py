@@ -1,17 +1,14 @@
 #!/usr/bin/python
 
-'''This module provides functions for outputting results of macroeco analyses'''
+'''This module provides functions for outputting results of macroeco 
+analyses'''
+
 
 from __future__ import division
 import matplotlib.pyplot as plt
 import numpy as np
 import logging
-from macroeco.workflow import Workflow, loggername
-from macroeco import sad_analysis
-from macroeco import form_func
-from macroeco import predict_sad
-from scipy.interpolate import UnivariateSpline
-import os
+#from macroeco.utils.form_func import output_form
 
 __author__ = "Mark Wilber"
 __copyright__ = "Copyright 2012, Regents of the University of California"
@@ -21,8 +18,115 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
-module_logger = logging.getLogger(loggername)
+class sadOutput(object):
+    '''
+    This formats and outputs SAD analyses
 
+    '''
+
+    def __init__(self, out_dir):
+        '''
+        Parameters
+        ----------
+        out_dir : string
+            Output directory of object
+        '''
+        self.out_dir = out_dir
+
+    def write_summary_table(self, smry, criteria=None):
+        '''
+        Parameters
+        ----------
+        smry : dict
+            A dictionary as returned by the fucntion compare_summary within
+            the CompareDistribution class
+
+        Notes
+        -----
+        Writes out a formatted txt file to self.out_dir 
+
+        '''
+        logging.info('Writing summary table')
+        tot_sad = len(smry['obs']['balls'])
+        if criteria != None:
+            assert len(criteria) == tot_sad, "len(criteria) must  equal" + \
+                                      " number of sads under consideration"
+        for i in xrange(tot_sad):
+            fout = open(self.out_dir + '_summary_table' + str(i) + '.txt', 'w')
+            if criteria != None:
+                fout.write('CRITERIA: ' + str(criteria[i]) + '\n\n')
+            else:
+                fout.write('CRITERIA: NONE -- SAD ' + str(i) + '\n\n')
+            ob = smry['obs']
+            fout.write('EMPIRICAL VALUES:\n' + 'S = ' + str(ob['urns'][i]) + 
+                    '\nN = ' + str(ob['balls'][i]) + '\nObserved Nmax= ' + 
+                    str(ob['max'][i]) + '\nObserved Rarity = ' +
+                    str(ob['tot_min'][i]) + '\n\n')
+            for kw in smry.iterkeys():
+                if kw != 'obs':
+                    dt= smry[kw]
+                    fout.write('PREDICTED DISTRIBUTION : ' + kw + '\nS = ' +
+                    str(dt['urns'][i]) + '\nN = ' + str(dt['balls'][i]) + 
+                    '\nAIC = ' + str(dt['aic'][i]) + '\nAIC_weight = ' +
+                    str(dt['aic_w'][i]) +'\nPredicted Nmax= ' + 
+                    str(dt['max'][i]) + '\nPredicted Rarity = ' + 
+                    str(dt['tot_min'][i]) + '\n\n')
+            fout.close()
+
+    def plot_rads(self, rads, criteria=None):
+        '''
+        Plotting the observed and predicted rank abundance distributions
+
+        Parameters
+        ----------
+        rads : dict
+            A dictionary that is returned from the function compare_rads in the
+            CompareDistribution class. 
+
+        Notes
+        -----
+        Saves RAD plots to given out_dir.  Saves as many plots as there are
+        SADs.
+
+        '''
+        tot_sad = len(rads['obs'])
+        if criteria != None:
+            assert len(criteria) == tot_sad, "len(criteria) must  equal" + \
+                                      " number of sads under consideration"
+        for i in xrange(tot_sad):
+            legend = []
+            for kw in rads.iterkeys():
+                dt = rads[kw][i]
+                plt.plot(np.arange(1, len(dt) + 1), np.sort(dt)[::-1], 
+                                        '-o')
+                legend.append(kw)
+            plt.legend(tuple(legend), loc='best')
+            if criteria != None:
+                plt.title('SAD criteria: ' + str(criteria[i]))
+            else:
+                plt.title('SAD: plot number ' + str(i))
+            plt.semilogy()
+            plt.ylabel('log(abundance)')
+            plt.xlabel('rank')
+            logging.info('Saving figure ' + self.out_dir + '_rank_abundance_' 
+                            + str(i))
+            plt.savefig(self.out_dir + '_rank_abundance_' + str(i))
+            plt.clf()
+
+
+           
+            
+            
+                        
+
+            
+
+
+        
+
+
+
+"""
 def sad_cdf_obs_pred_plot(sad, outputID, params={}, interactive=False):
     '''Makes a plot of observed vs predicted cdf values
     based on the given sad
@@ -457,4 +561,4 @@ def jitter(x, y, jitter_scale=0.001):
     return jitt_x, jitt_y
 
 
-
+"""

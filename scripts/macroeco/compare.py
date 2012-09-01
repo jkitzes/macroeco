@@ -31,28 +31,58 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
+#NOTE: This needs to be updated when more distributions are ready!
+dist_dict  = {'logser' : logser(), 'plognorm' : plognorm(),\
+              'logser_ut' : logser_ut(), 'plognorm_lt' : plognorm_lt()} 
+
+
 class CompareDistribution(object):
     '''
     Comparison object allows a list of data to any number of distributions
 
-
-    Examples
-    --------
-
     '''
-
-    def __init__(self, data_list, dist_list):
+    
+    #TODO: Error Checking
+    def __init__(self, data_list, dist_list, clean=False, patch=False):
         '''
         Parameters
         ----------
-        data_list : list
+        data_list : list or tuple output from Patch object
             List of np.arrays containing data
         dist_list : list
-            List of distribution objects that are already
+            List of distribution objects or list of distribution names
+        patch : True
+            If True, expects data_list to be input from the sad or ssad method
+            in Patch.  If false, expects a list of iterables
+        clean : bool
+            If true, removes zeros from data_list.  Necessary for SAD
+            comparisons.
 
         '''
-        self.data_list = [np.array(data) for data in data_list]
-        self.dist_list = dist_list
+        if patch:
+            self.items = data_list[0]
+            self.criteria = []
+            self.data_list = []
+            for obj in data_list[1]:
+                self.criteria.append(obj[0])
+                self.data_list.append(obj[1])
+        else:
+            self.data_list = [np.array(data) for data in data_list]
+            self.criteria = None
+        if clean:
+            dlist = []
+            for data in self.data_list:
+                dlist.append(data[np.where((data != 0))[0]])
+            self.data_list = dlist
+
+        if np.all([type(dist) == str for dist in dist_list]):
+            self.dist_list = np.empty(len(dist_list), dtype=object)
+            for kw in list(dist_dict.viewkeys()):
+                self.dist_list[np.where((kw == np.array(dist_list)))[0]] = \
+                                dist_dict[kw]
+            self.dist_list = list(self.dist_list)
+        else:
+            self.dist_list = dist_list
 
     def compare_aic(self, crt=False):
         '''
@@ -103,14 +133,15 @@ class CompareDistribution(object):
 
         Returns
         -------
-        : list
-            a list ofarrays with each array having length equal to the number
-            of models proposed and the length of the list is the lenth of 
-            self.data_lists
+        : tuple
+            first element is a list of arrays with each array having length 
+            equal to the number of models proposed and the length of the list 
+            is the lenth of self.data_lists.  Second element is the out of the
+            compare_aic method. 
 
         '''
         aic_vals = self.compare_aic(crt=crt)
-        return [aic_weights(mods_aic) for mods_aic in aic_vals]
+        return [aic_weights(mods_aic) for mods_aic in aic_vals], aic_vals
     
     #Maybe return a dict instead?
     def compare_rads(self):
@@ -134,8 +165,7 @@ class CompareDistribution(object):
         for i, dist in enumerate(self.dist_list):
             dist.fit(self.data_list)
             #Different Identifier?
-            rads_dict[dist.__str__().split('.')[1].split(' ')[0] + str(i)] \
-                        = dist.rad()
+            rads_dict[get_name(dist)] = dist.rad()
         return rads_dict
 
     def compare_cdfs(self):
@@ -160,8 +190,7 @@ class CompareDistribution(object):
         for i, dist in enumerate(self.dist_list):
             dist.fit(self.data_list)
             #Might need to reference dist differently...
-            cdfs_dict[dist.__str__().split('.')[1].split(' ')[0] + str(i)] =\
-                        dist.cdf(self.data_list)[0] 
+            cdfs_dict[get_name(dist)] = dist.cdf(self.data_list)[0] 
         return cdfs_dict
     
 #
@@ -196,11 +225,48 @@ class CompareDistribution(object):
             k = dist.par_num - null_mdl.par_num
             df = np.repeat(k, len(alt_nlls))
             lrt = likelihood_ratio_test(null_nlls, alt_nlls, df)
-            comp_kw = \
-                null_mdl.__str__().split('.')[1].split(' ')[0] + ", " + \
-                dist.__str__().split('.')[1].split(' ')[0] + str(i)
+            comp_kw = get_name(null_mdl) + ", " + get_name(dist)
             LRT_list[comp_kw] = lrt
         return LRT_list
+
+    def summary(self, mins=10, crt=False):
+        '''
+        Summarizes the given datasets and the predicted rads. Looks at
+        total balls sampled ('balls'), number of urns ('urns'), the max balls
+        in a given urn ('max'), number of urns with less than MIN balls ('tot
+        <= MIN'), and the fit of the the distributions in self.dist_list to the
+        data in self.data_list
+
+        Parameters
+        ----------
+        mins : int
+            Bins with balls less than or equal to 10
+        crt : bool
+            If True, corrected AIC, if False, not
+
+        Returns
+        -------
+        : dict
+            Dictionary of dictionaries of length self.dist_list + 1.  Each
+            sub-dictionary other than 'obs' contains the keywords balls, urns,
+            max, tot <= MIN, and aic
+
+        '''
+        summary = {}
+        rads = self.compare_rads()
+        for kw in rads.iterkeys():
+            summary[kw] = {}
+            summary[kw]['balls'] = [np.sum(data) for data in rads[kw]]
+            summary[kw]['urns'] = [len(data) for data in rads[kw]]
+            summary[kw]['max'] = [np.max(data) for data in rads[kw]]
+            summary[kw]['tot_min'] = [sum(data <= mins) for data in 
+                                                                rads[kw]]
+        aic_vals = self.compare_aic_weights(crt=crt)
+        names = [get_name(dist) for dist in self.dist_list]
+        for i, nm in enumerate(names):
+            summary[nm]['aic'] = list(np.array(aic_vals[1]).T)[i]
+            summary[nm]['aic_w'] = list(np.array(aic_vals[0]).T)[i]
+        return summary
 
 def nll(pdist):
     '''
@@ -251,9 +317,9 @@ def aic(neg_L, k):
 
     Parameters
     ----------
-    neg_L : float
+    neg_L : array-like object
         The negative log likelihood of a model
-    k : float
+    k : array-like object
         The number of parameters of a model
     
     
@@ -263,7 +329,7 @@ def aic(neg_L, k):
         AIC for a given model
     '''
     neg_L, k = cnvrt_to_arrays(neg_L, k)
-    assert len(k) == len(neg_L)
+    assert len(k) == len(neg_L), "neg_L and k must have the same length"
     aic = (2 * neg_L) + (2 * k)
     return aic
 
@@ -388,7 +454,8 @@ def cnvrt_to_arrays(*args):
         arg_list.append(arg)
     return tuple(arg_list)
 
-
-
-
-
+def get_name(obj):
+    '''
+    Return the name of the object
+    '''
+    return obj.__str__()
