@@ -62,7 +62,6 @@ class Workflow:
         self.script_name = os.path.split(script_path)[-1]
 
         # Store output directory path - contains params file, log, results
-        # TODO: If dir does not exist, create it? What if low level typo?
         # TODO: Make more robust to non-absolute path entries
         output_path = os.getcwd()
         self.output_path = output_path
@@ -86,16 +85,16 @@ class Workflow:
         '''
         Generator that yields data files and descriptive parameters.
 
-        Special parameter 'data_paths' is a list of locations of data files to 
+        Special parameter 'data_path' is a list of locations of data files to 
         use for analysis - if present, map of sites will be generated for each 
         run.
 
         Yields
         ------
         data_path : string
-            Full path to data to analyze
+            Path[s] to data to analyze, relative to current working directory
         output_ID : string
-            Concatenates script and dataset identifiers
+            Concatenates script, run, and dataset identifiers
         run_params : dict
             Dictionary of parameters for each script_name and run
         '''
@@ -109,18 +108,19 @@ class Workflow:
 
             # Check if data_paths in params. If not, add one empty data_path
             # for the loop below. If so, make a map.
-            if 'data_paths' not in self.parameters.params[run_name].keys():
+            if len(self.parameters.data_path) == 0:
                 logging.debug(('No data paths given for run %s, no map of '
                               'sites created') % run_name)
-                self.parameters.params[run_name]['data_paths'] = ['']
+                self.parameters.data_path[run_name] = ['']
             else:
                 pass
                 #make_map(self.parameters.params['data_paths'])
                 
             # Loop through each dataset and yield values for dataset and run
-            for data_path in self.parameters.params[run_name]['data_paths']:
+            print self.parameters.data_path
+            for data_path in self.parameters.data_path[run_name]:
                 abs_data_path = os.path.abspath(os.path.join(self.output_path, 
-                                                             data_path))# + '/'
+                                                             data_path))
                 output_ID = '_'.join([self.script_name, clean_name(data_path), 
                                       run_name])
                 logging.info('Beginning %s' % output_ID)
@@ -157,13 +157,15 @@ class Parameters:
         
     '''
     
-    def __init__(self, script_name, required_params):
+    def __init__(self, script_name, required_params, output_path=False):
 
         # Store initial attributes
         self.script_name = script_name
         self.interactive = False
         self.params = {}
-        output_path = os.getcwd()
+        self.data_path = {}
+        if not output_path:
+            output_path = os.getcwd()
 
         # Check that parameter file exists, if not use default values
         try:
@@ -173,6 +175,7 @@ class Parameters:
             logging.info(('No parameter file found at %s, proceeding without '
                           'parameters') % output_path)
             self.params[''] = {}
+            self.data_path[''] = {}
             self.interactive = False
             return
 
@@ -184,7 +187,7 @@ class Parameters:
         if not self.required_params_present(required_params):
             raise IOError('Required parameters missing')
         logging.info('Parameters: %s' % str(self.params))
-
+        logging.info('Data: %s' % str(self.data_path))
         # Evaluate param values into appropriate types
         self.eval_params()
 
@@ -239,11 +242,14 @@ class Parameters:
                         run_name = 'run' + str(run_counter)
                         run_counter += 1
                     self.params[run_name] = {}
+                    self.data_path[run_name] = []
                     for elt in run.getchildren():  # Loop params in run
                         if elt.tag == 'param':
                             param = elt.get('name')
                             value = elt.get('value')
                             self.params[run_name][param] = value
+                        if elt.tag == 'data':
+                            self.data_path[run_name].append(elt.text)
 
                             
     def required_params_present(self, req_params):

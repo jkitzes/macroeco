@@ -49,6 +49,7 @@ if __name__ == '__main__':
     # TODO: Can future division be imported here, or needs to be at start?
     import logging
     from macroeco.utils.workflow import Workflow
+    from csv import reader
 
     # Begin by creating a Workflow object
     wf = Workflow()
@@ -58,11 +59,13 @@ if __name__ == '__main__':
     # string for data_path.
     for data_path, output_ID, params in wf.single_datasets():
 
+        data_headers = reader(open(data_path)).next()
         y = params['x'] + 1
 
         with open(output_ID + '_results.txt', 'w') as file:
             file.write('Results\n\n')
             file.write('Data Path: %s\n\n' % data_path)
+            file.write('Data Headers: %s\n\n' % data_headers)
             file.write('Parameters: %s\n\n' % str(params))
             file.write('y = %f\n\n' % y)
 

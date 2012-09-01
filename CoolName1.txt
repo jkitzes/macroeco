@@ -16,8 +16,10 @@ media="screen" />
 	</div>
 	<div id="navigation">
 		<ul>
-		        <li><a href="/">Start</a></li>
-			<li><a href="/documentation">Documentation</a></li>
+		        <li><a href="/">Introduction</a></li>
+			<li><a href="/projects">Projects</a></li>
+			<li><a href="/scripts">Scripts</a></li>
+                	<li><a href="https://github.com/macroeco/macroeco/wiki">Documentation</a></li>
 		</ul>
 	</div>
 	<div id="content">
