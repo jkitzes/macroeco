@@ -157,14 +157,15 @@ class Parameters:
         
     '''
     
-    def __init__(self, script_name, required_params):
+    def __init__(self, script_name, required_params, output_path=False):
 
         # Store initial attributes
         self.script_name = script_name
         self.interactive = False
         self.params = {}
         self.data_path = {}
-        output_path = os.getcwd()
+        if not output_path:
+            output_path = os.getcwd()
 
         # Check that parameter file exists, if not use default values
         try:

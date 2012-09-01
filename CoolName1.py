@@ -18,7 +18,6 @@ import subprocess
 import glob, cgi
 from datetime import datetime
 
-
 __author__ = "Chloe Lewis"
 __copyright__ = "Copyright 2012, Regents of the University of California"
 __credits__ = []
@@ -135,22 +134,25 @@ def results(environ, start_response):
     they must be defined in parameters.xml in the project directory.'''
     print environ
     fields = cgi.parse_qs(environ['QUERY_STRING'])
-    scriptname = environ['HTTP_REFERER'].split('/')[-1]+".py" #TODO: ok on Windows?
+    #scriptname = environ['HTTP_REFERER'].split('/')[-1]+".py" #TODO: ok on Windows?
+    scriptname = fields['script'][0]
+    output_path = fields['output'][0]
     start_response('200 OK', [('Content-Type', 'text/html')])
 
     spath = os.path.dirname(os.path.abspath(__file__))
     spath = os.path.join(spath, 'scripts', scriptname)
-    callstring = ' '.join(["python", spath])
-    print 'Firing off this command: \n', callstring
-    subprocess.Popen('python /Users/chlewis/Documents/macroeco/scripts/sample_script.py', cwd = '/Users/chlewis/Documents/macroeco/projects/sample_script', shell=False, stdin=None, stdout=None, close_fds=True)
+
+    #process_output = file('results.tmp','w') 
+    subprocess.Popen(['python',spath],
+                      cwd=output_path, shell=False, stdin=None,
+                      stdout=None, close_fds=True)
 
     # Should this be an iterator? (see StackOverflow); yield Starting... , then status?
-    # possibly list of files written to output?
-    
-    return layout.safe_substitute(maincontent = "<h2>Running %s</h2><p>Parameters:  %s</p><p>Call: %s</p>"%(scriptname,str(fields),callstring), localport = localport)
+
+    return layout.safe_substitute(maincontent = '''<h2>Running %s</h2><p>Results stored in: %s</p>'''%(scriptname,output_path), localport = localport)
 
 def dir_to_link(dirstring):
-    o = Template('''<a href="results?output=$value">$pretty</a><br />''')
+    o = Template('''<a href="results?output=$value&script=sample_script.py">$pretty</a><br />''')
     p = dirstring.rstrip()
     mpath = os.path.dirname(os.path.abspath(__file__))
     v = os.path.abspath(os.path.join(mpath, p))
@@ -179,6 +181,8 @@ def run(environ, start_response):
     except:
         start_response('404 NOT FOUND', [('Content-Type', 'text/html')])
         return layout.safe_substitute(maincontent = '<h1>No parameters.xml file</h1><p>We need a parameters.xml file in the project directory to set up and run the analyses. Examples are in the /projects/demos subdirectories of CoolName1. Project directory:<code>%s</code></p>'%output_path, localport=localport)
+    
+    
 
     
     
