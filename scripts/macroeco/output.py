@@ -18,7 +18,7 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
-class sadOutput(object):
+class SADOutput(object):
     '''
     This formats and outputs SAD analyses
 

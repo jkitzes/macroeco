@@ -458,4 +458,4 @@ def get_name(obj):
     '''
     Return the name of the object
     '''
-    return obj.__str__()
+    return obj.__class__.__name__

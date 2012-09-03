@@ -26,19 +26,18 @@ if __name__ == '__main__':
     from macroeco.utils.workflow import Workflow
     from macroeco.empirical import Patch
     import macroeco.compare as comp
-    from macroeco.output import sadOutput
+    from macroeco.output import SADOutput
 
     wf = Workflow()
-    
     
     for data_path, output_ID, params in wf.single_datasets():
         patch = Patch(data_path, subset=params['subset'])
         sad = patch.sad(params['criteria'])
         cmpr = comp.CompareDistribution(sad, params['dist_list'], patch=True,
                                                                 clean=True)
-        sout = sadOutput(output_ID)
+        sout = SADOutput(output_ID)
         sout.write_summary_table(cmpr.summary(), criteria=cmpr.criteria)
-        #sout.plot_rads(cmpr.compare_rads(), criteria=cmpr.criteria)
+        sout.plot_rads(cmpr.compare_rads(), criteria=cmpr.criteria)
         logging.info('Completed analysis %s' % output_ID)
 
 
