@@ -130,7 +130,7 @@ class Curve(object):
     Attributes
     ----------
     params : dict
-        Contains all keyword arguments used to initialize distribution object 
+        Contains all keyword arguments used to initialize distribution object
 
     Methods
     -------
@@ -195,7 +195,11 @@ class Distribution(object):
     Attributes
     ----------
     params : dict
-        Contains all keyword arguments used to initialize distribution object 
+        Contains all keyword arguments used to initialize distribution object
+    min_supp : int
+        Minimum support for distribution, usually 0 or 1
+    par_num : int
+        Number of free parameters of distribution, used for AIC calculations
 
     Methods
     -------
@@ -228,6 +232,7 @@ class Distribution(object):
         # methods can inherit this docstring.
         pass
 
+        # TODO: Check that all params are same length
 
     def pmf(self, n):
         '''
@@ -236,9 +241,8 @@ class Distribution(object):
         Parameters
         ----------
         n : int, float or array-like object
-            Values at which to calculate pmf. Note that only one 
-            pmf may be given, not a list, no matter how long other required 
-            parameter lists are.
+            Values at which to calculate pmf. May be a list of same length as 
+            parameters, or single iterable.
 
         Returns
         -------
@@ -262,9 +266,8 @@ class Distribution(object):
         Parameters
         ----------
         n : int, float or array-like object
-            Values at which to calculate cdf. Note that only one pmf may be 
-            given, not a list, no matter how long other required parameter 
-            lists are.
+            Values at which to calculate cdf. May be a list of same length as 
+            parameters, or single iterable.
 
         Returns
         -------
@@ -276,14 +279,16 @@ class Distribution(object):
         See class docstring for more specific information on this distribution.
         '''
 
-        size = len(make_array(list(self.params.viewvalues())[0]))
-        n = check_n(n, size)
-        max_n = [np.max(nt) for nt in n]# Get largest value in n
+        # Expand n argument if needed, assumes all params same length
+        n = expand_n(n, len(self.params.values()[0]))
+
+        # Calculate pmfs
+        max_n = [np.max(tn) for tn in n]
         n_in = [np.arange(self.min_supp, i + 1) for i in max_n]
-        # Calculate cdf
-        cdf = []
         pmf_list, var = self.pmf(n_in)
 
+        # Calculate cdfs
+        cdf = []
         for tpmf, tn in zip(pmf_list, n):
             full_cdf = np.cumsum(tpmf)
             tcdf = np.array([full_cdf[x - self.min_supp] for x in tn])
@@ -318,16 +323,17 @@ class Distribution(object):
         assert S[0] != None, 'Cannot calculate RAD - no S parameter'
 
         # TODO: Add error or warning if N too large for memory
+
+        # Calculate pmfs, going up to N for upper limit
+        n_arrays = [np.arange(self.min_supp, i + 1) for i in N]
+        pmf, var = self.pmf(n_arrays)
+        
         # Calculate rad
         rad = []
-        for tS, tN in zip(S, N):
-            self.params['n_samp'] = [tS]
-            self.params['tot_obs'] = [tN]
-            full_pmf = self.pmf(np.arange(1, tN + 1))[0][0]
-            trad = make_rank_abund(full_pmf, tS)
+        for tS, tN, tpmf in zip(S, N, pmf):
+            trad = make_rank_abund(tpmf, tS)
             rad.append(trad)
-        self.params['n_samp'] = S
-        self.params['tot_obs'] = N
+
         return rad
 
 
@@ -348,17 +354,18 @@ class Distribution(object):
         '''
 
         # By default, loop through ndarrays in data and extract n_samp
-        # ("urns") and tot_obs ("balls") for each one.
+        # and tot_obs for each one.
 
         n_samp = []
         tot_obs = []
         
-        for tarray in data:
-            n_samp.append(len(tarray))
-            tot_obs.append(np.sum(tarray))
+        for tdata in data:
+            n_samp.append(len(tdata))
+            tot_obs.append(np.sum(tdata))
 
         self.params['n_samp'] = n_samp
         self.params['tot_obs'] = tot_obs
+
         return self
 
 
@@ -412,16 +419,11 @@ class logser(Distribution):
     and tot_obs = mean.
     '''
 
-    @doc_inherit
     def __init__(self, **kwargs):
         self.params = kwargs
         self.min_supp = 1
         self.par_num = 1
 
-    def __str__(self):
-        return 'logser'
-
-    @doc_inherit
     def pmf(self, n):
         
         # Get parameters
@@ -433,18 +435,15 @@ class logser(Distribution):
         if N[0] is None:
             N = make_array(self.params.get('N', None))
 
-        n = check_n(n, len(S))
-        n_max = [np.max(nt) for nt in n]
+        n = expand_n(n, len(S))
 
         # Validate parameters
-        #assert type(n) != type([]), 'n must be one array, not a list of arrays'
         assert len(S) == len(N), 'Length of S and N must be the same'
         assert S[0] != None, 'S parameter not given'
         assert N[0] != None, 'N parameter not given'
         assert np.all(S < N), 'S must be less than N'
         assert np.all(S > 1), 'S must be greater than 1'
         assert np.all(N > 0), 'N must be greater than 0'
-        assert np.all(n_max <= N), "Maximum n cannot be greater than N"
 
         # Calculate pmf
         stop = 1 - 1e-10
@@ -468,6 +467,7 @@ class logser(Distribution):
     
 
 class logser_ut(Distribution):
+    __doc__ = Distribution.__doc__ + \
     '''
     Description
     -----------
@@ -497,16 +497,11 @@ class logser_ut(Distribution):
     stop value of the brentq optimizer is 2.
     '''
  
-    @doc_inherit
     def __init__(self, **kwargs):
         self.params = kwargs
         self.min_supp = 1
-        self.par_num = 0
-    
-    def __str__(self):
-        return 'logser_ut'
+        self.par_num = 2
         
-    @doc_inherit
     def pmf(self, n):
 
         # Get parameters
@@ -518,8 +513,7 @@ class logser_ut(Distribution):
         if N[0] is None:
             N = make_array(self.params.get('N', None))
 
-        n = check_n(n, len(S))
-        n_max = [np.max(nt) for nt in n]
+        n = expand_n(n, len(S))
 
         # Validate parameters
         assert len(S) == len(N), 'Length of S and N must be the same'
@@ -528,20 +522,18 @@ class logser_ut(Distribution):
         assert np.all(S < N), 'S must be less than N'
         assert np.all(S > 1), 'S must be greater than 1'
         assert np.all(N > 0), 'N must be greater than 0'
-        assert np.all(n_max <= N), "Maximum n cannot be greater than N"
 
         # Calculate pmf
         start = 0.3
         stop = 2
         flmax = sys.float_info[0]
-        eq = lambda x, k, N, S: sum(x ** k / float(N) * S) -  sum((x ** k) / k)
+        eq = lambda x,k,N,S: sum(x ** k / float(N) * S) -  sum((x ** k) / k)
 
         pmf = []
         var = {}
         var['x'] = []
 
         for tS, tN, tn in zip(S, N, n):
-            # TODO: MW: What is min flmax statement doing?
             k = np.linspace(1, tN, num=tN)
             tx = scipy.optimize.brentq(eq, start,
                                        min((flmax/tS)**(1/float(tN)), stop), 
@@ -553,19 +545,21 @@ class logser_ut(Distribution):
    
         return pmf, var
 
+
 class plognorm(Distribution):
+    __doc__ = Distribution.__doc__ + \
     '''
     Poisson log-normal distribution (Bulmer 1974)
 
     Parameters
     ----------
     mu : float
-        the mu parameter of the poisson log normal
+        The mu parameter of the poisson log normal
     sigma : float
-        the sigma parameter of the poisson log normal
-    S or n_samp : int or iterable
+        The sigma parameter of the poisson log normal
+    S or n_samp : int or iterable (optional)
         Total number of species / samples
-    N or tot_obs: int or iterable
+    N or tot_obs: int or iterable (optional)
         Total number of individuals / observations
 
     Vars
@@ -575,106 +569,107 @@ class plognorm(Distribution):
 
     Notes
     -----
-    This fuction was adopted directly from the VGAM package in R by Mark
-    Wilber. The VGAM R package was adopted directly from Bulmer (1974).
-        
-
+    The pmf method was adopted directly from the VGAM package in R by Mark
+    Wilber. The VGAM R package was adopted directly from Bulmer (1974). The fit 
+    function was adapted from Ethan White's pln_solver function in 
+    weecology.
     '''
 
-    @doc_inherit
     def __init__(self, **kwargs):
         self.params = kwargs
         self.min_supp = 1
-        #Number of parameters distribution has
         self.par_num = 2
-
-    def __str__(self):
-        return 'plognorm'
     
-    @doc_inherit
     def pmf(self, n):
-        mu_list = make_array(self.params.get('mu', None))
-        sigma_list = make_array(self.params.get('sigma',  None))
-        assert mu_list != None; "mu paramater not given"
-        assert sigma_list != None; "sigma parameter not given"
-        assert len(mu_list) == len(sigma_list), "Length of mu and sigma" +\
-                                                    " must be the same"
-        n = check_n(n, len(mu_list))
-        n_unq_list = [np.unique(nt) for nt in n]
-        pmf_list = []
-        var = {}
-        var['mu, sigma'] = []
-        for mu, sigma, n_unq, fn in zip(mu_list, sigma_list, n_unq_list, n):
-            if sigma**2 <= 0 or mu <= 0: #Parameters could be negative
-                pmf = np.repeat(1e-120, len(n_unq))
+
+        # TODO: Allow mu to be calculated from S and N
+
+        # Get parameters
+        mu = make_array(self.params.get('mu', None))
+        sigma = make_array(self.params.get('sigma',  None))
+
+        # Validate parameters
+        assert mu != None, 'mu paramater not given'
+        assert sigma != None, 'sigma parameter not given'
+        assert len(mu) == len(sigma), 'Length of mu and sigma must be the same'
+
+        n = expand_n(n, len(mu))
+        n_uniq = [np.unique(tn) for tn in n]  # Speed up by calc for uniq vals
+
+        # Calculate pmf, no intermediate vars
+        pmf = []
+
+        eq = lambda t,x,mu,sigma: np.exp(t*x - np.exp(t) - 0.5*((t-mu) / 
+                                                                sigma)**2)
+
+        for tmu, tsigma, tn_uniq, tn in zip(mu, sigma, n_uniq, n):
+            
+            # If mu negative, pmf 0
+            if tmu <= 0:
+                pmf = np.repeat(1e-120, len(tn_uniq))
+
+            # Calculate unique pmf values
             else:
-                #TODO: Throwing overflow warning but not affecting result
-                eq = lambda t, x: np.exp(t * x - np.exp(t) - 0.5*((t - mu) / \
-                                                                    sigma)**2)
-                pmf = np.empty(len(n_unq), dtype=np.float)
-                for i, g in enumerate(n_unq):
+                # TODO: Throwing overflow warning but not affecting result
+                tpmf_uniq = np.empty(len(tn_uniq), dtype=np.float)
+                for i, g in enumerate(tn_uniq):
                     if g <= 170:
-                        integral = integrate.quad(eq, -np.inf, np.inf, args=(g))[0]
-                        norm = np.exp((-0.5 * m.log(2 * m.pi * sigma**2) -\
-                                                m.lgamma(g + 1)))
-                        pmf[i] = norm * integral
+                        integ = integrate.quad(eq, -np.inf, np.inf, 
+                                               args=(g,tmu,tsigma))[0]
+                        norm = np.exp(-0.5 * m.log(2 * m.pi * tsigma**2) -
+                                                m.lgamma(g + 1))
+                        tpmf_uniq[i] = norm * integ
                     else:
-                        z = (m.log(g) - mu) / sigma
-                        pmf[i] = (1 + (z**2 + m.log(g) - mu - 1) / (2 * g * 
-                             sigma**2)) * np.exp(-0.5 * z**2) / (m.sqrt(2 *\
-                             m.pi) * sigma * g)   
-            #Get full pmf again
-            pmf_full = np.empty(len(fn))
-            for i, g in enumerate(n_unq):
-                pmf_full[np.where(fn == g)[0]] = pmf[i]
-            pmf_list.append(pmf_full)
-            var['mu, sigma'].append((mu, sigma))
+                        z = (m.log(g) - tmu) / tsigma
+                        tpmf_uniq[i] = ((1 + (z**2 + m.log(g) - tmu - 1) /
+                                   (2 * g * tsigma**2)) * np.exp(-0.5 * z**2) /
+                                    (m.sqrt(2 * m.pi) * tsigma * g))
 
-        return pmf_list, var     
-    
-    def fit(self, data_list):
-        '''
-        Maximum likelihood Estimates for Poisson log normal
+            # Expand to full pmf
+            tpmf = np.empty(len(tn))
+            for i, g in enumerate(tn_uniq):
+                tpmf[np.where(tn == g)[0]] = tpmf_uniq[i]
 
-        Parameter
-        ---------
-        data : list of array-like object
-            The observed abundances which will be fit to a poisson lognormal
+            pmf.append(tpmf)
 
-        Returns
-        -------
-        None
+        return pmf, None     
 
-        Notes
-        -----
-        This function was adapted from Ethan White's pln_solver function in 
-        weecology.
+    def fit(self, data):
 
-        '''
-        #TODO: Check that it is a list of iterables
-        data_list = [np.array(data) for data in data_list]
-        mu_list = []
-        sigma_list = []
+        # TODO: Check that it is a list of arrays
+
+        # Check data
+        data = [np.array(data) for data in data]
+
+        # Calculate and store parameters
+        temp_mu = []
+        temp_sigma = []
         self.params['n_samp'] = []
         self.params['tot_obs'] = []
-        for data in data_list:
-            mu0 = np.mean(np.log(data))
-            sigma0 = np.std(np.log(data), ddof=1)
+
+        for tdata in data:
+            mu0 = np.mean(np.log(tdata))  # Starting guesses for mu and sigma
+            sigma0 = np.std(np.log(tdata), ddof=1)
+
             def pln_func(x):
                 self.params['mu'] = x[0]
                 self.params['sigma'] = x[1]
-                return -sum(np.log(self.pmf(data)[0][0]))
-            mu, sigma = scipy.optimize.fmin(pln_func, x0 = [mu0, sigma0],
-                                            disp=0)
-            mu_list.append(mu)
-            sigma_list.append(sigma)
-            self.params['n_samp'].append(len(data))
-            self.params['tot_obs'].append(np.sum(data))
-        self.params['mu'] = mu_list
-        self.params['sigma'] = sigma_list
-        return self
+                return -sum(np.log(self.pmf(tdata)[0][0]))
 
-class plognorm_lt(Distribution):
+            mu, sigma = scipy.optimize.fmin(pln_func, x0=[mu0, sigma0],
+                                            disp=0)
+            temp_mu.append(mu)
+            temp_sigma.append(sigma)
+
+            self.params['n_samp'].append(len(tdata))
+            self.params['tot_obs'].append(np.sum(tdata))
+
+        self.params['mu'] = temp_mu
+        self.params['sigma'] = temp_sigma
+
+
+class plognorm_lt(plognorm):
+    __doc__ = Distribution.__doc__ + \
     '''
     Lower truncated Poisson lognormal (Bulmer 1974)
 
@@ -684,9 +679,9 @@ class plognorm_lt(Distribution):
         the mu parameter of the poisson log normal
     sigma : float
         the sigma parameter of the poisson log normal
-    S or n_samp : int or iterable
+    S or n_samp : int or iterable (optional)
         Total number of species / samples
-    N or tot_obs: int or iterable
+    N or tot_obs: int or iterable (optional)
         Total number of individuals / observations
 
     Vars
@@ -696,77 +691,32 @@ class plognorm_lt(Distribution):
 
     Notes
     -----
-    This fuction was adopted directly from the VGAM package in R by Mark
-    Wilber. The VGAM R package was adopted directly from Bulmer (1974).
+    The pmf method was adopted directly from the VGAM package in R by Mark
+    Wilber. The VGAM R package was adopted directly from Bulmer (1974). The fit 
+    function was adapted from Ethan White's pln_solver function in weecology.
+
+    Truncation calculation based on Bulmer Eq. A1.
     '''
 
-    @doc_inherit
-    def __init__(self, **kwargs):
-        self.params = kwargs
-        self.min_supp = 1
-        #Number of parameters distribution has
-        self.par_num = 2
-
-    def __str__(self):
-        return 'plognorm_lt'
-
-    @doc_inherit
     def pmf(self, n):
-        mu_list = make_array(self.params.get('mu', None))
-        sigma_list = make_array(self.params.get('sigma',  None))
-        assert mu_list != None; "mu paramater not given"
-        assert sigma_list != None; "sigma parameter not given"
-        assert len(mu_list) == len(sigma_list), "Length of mu and sigma" +\
-                                                    " must be the same"
-        plgn = plognorm(mu=mu_list, sigma=sigma_list)
-        untr_pmf, var = plgn.pmf(n)
-        pmf0 = plgn.pmf(0)[0]
-        #Truncating based on Bulmer eq. A1
-        tr_pmf = [(pt / (1 - p0)) for pt, p0 in zip(untr_pmf, pmf0)]
-        return tr_pmf, var 
-            
-    def fit(self, data_list):
-        '''
-        Maximum likelihood estimates for truncated poisson log normal
 
-        Parameter
-        ---------
-        sad : array-like object
-            The observed abundances
+        # Get parameters
+        mu = make_array(self.params.get('mu', None))
+        sigma = make_array(self.params.get('sigma',  None))
 
-        Returns
-        -------
-        : dict
-            The maximum likelihood estimates of mu and sigma
+        # Validate parameters
+        assert mu != None, 'mu paramater not given'
+        assert sigma != None, 'sigma parameter not given'
+        assert len(mu) == len(sigma), 'Length of mu and sigma must be the same'
 
-        Notes
-        -----
-        This function was adapted from Ethan White's pln_solver function in 
-        weecology.
-        '''
-        #TODO: Replicating code, how can we refactor?
-        #TODO: Check that it is a list of iterables
-        data_list = [np.array(data) for data in data_list]
-        mu_list = []
-        sigma_list = []
-        self.params['n_samp'] = []
-        self.params['tot_obs'] = []
-        for data in data_list:
-            mu0 = np.mean(np.log(data))
-            sigma0 = np.std(np.log(data), ddof=1)
-            def pln_func(x):
-                self.params['mu'] = x[0]
-                self.params['sigma'] = x[1]
-                return -sum(np.log(self.pmf(data)[0][0]))
-            mu, sigma = scipy.optimize.fmin(pln_func, x0 = [mu0, sigma0],
-                                            disp=0)
-            mu_list.append(mu)
-            sigma_list.append(sigma)
-            self.params['n_samp'].append(len(data))
-            self.params['tot_obs'].append(np.sum(data))
-        self.params['mu'] = mu_list
-        self.params['sigma'] = sigma_list
-        return self
+        # Calculate pmf, using plognorm as aid
+        reg_plog = plognorm(mu=mu, sigma=sigma)
+        reg_pmf, reg_var = reg_plog.pmf(n)
+        reg_pmf0, reg_var0 = reg_plog.pmf(0)
+
+        trunc_pmf = [(pr / (1 - p0)) for pr, p0 in zip(reg_pmf, reg_pmf0)]
+
+        return trunc_pmf, None 
 
     
 class mete_lgsr_approx(Distribution):
@@ -879,118 +829,6 @@ class mete_lgsr_approx(Distribution):
         else:
             return pmf
 
-
-class trun_neg_binom(Distribution):
-    '''
-    Zero-truncated negative binomial distribution .  
-    Because this distribution has infinite support the fit the cdf fron 1:N 
-    will be less than one.
-    Methods
-    -------
-    pmf(n, param_out=False); S, N, and k parameters passed into __init__
-        Probability mass function
-    cdf(n);  S, N, and k parameters passed into __init__
-        Cumulative distribution function
-    rad(); S, N, and k parameters passed into __init__
-        Rank abundance distribution
-    fit(sad, guess_for_k=1)
-        Maximum likelihood fitting for neg_binom
-
-    Parameters
-    ----------
-    S : int
-        Total number of species in landscape
-    N : int
-        Total number of individuals in landscape
-    k : int
-        Aggregation parameter
-
-    Notes
-    -----
-    S, N, and k are passed into the constructor (__init__) as keyword 
-    arguments. Example: trun_neg_binom(S=34, N=345, k=1)
-
-
-
-    '''
-    
-    def pmf(self, n, param_out=False):
-        '''
-        Probablity mass function of the negative binomial generated with S and
-        N
-
-        Parameters
-        ----------
-        n : int, float or array-like object
-            Abundances at which to calculate the pmf
-
-        Passed into __init__
-        ---------------------
-        S : int
-            Total number of species in landscape
-        N : int
-            Total number of individuals in landscape
-        k : int
-            Aggregation parameter
-
-        Returns
-        -------
-        : ndarray (1D)
-            Returns array with pmf for values for the given values n. If 
-            param_out = True, returns the array as well as the parameter 
-            estimates.
-
-        '''
-        S = self.params.get('S', None)
-        N = self.params.get('N', None)
-        k = self.params.get('k', None)
-        assert S != None, "S parameter not given"
-        assert N != None, "N parameter not given"
-        assert k != None, "k parameter not given"
-        assert S < N, "S must be less than N"
-        assert S > 1, "S must be greater than 1"
-        assert N > 0, "N must be greater than 0"
-        try:
-            len(n); n = np.array(n)
-        except:
-            n = np.array([n])
-        assert np.max(n) <= N, "Maximum n must be less than or equal to N"
-
-        mu = float(N) / S
-        p = 1 / (mu / k + 1)  # See Bolker book Chapt 4
-        pmf = stats.nbinom.pmf(n, k, p)
-        pmf = pmf / (1 - stats.nbinom.pmf(0, k, p)) #Truncation
-
-        if param_out == True:
-            return (pmf, {'k' : k, 'p' : p})
-        else:
-            return pmf   
-        
-    def fit(self, sad, guess_for_k=1):
-        '''
-        Fits the truncated negative binomial to the given sad
-
-        Parameters
-        ----------
-        sad : array-like object
-            Observed species abundances 
-        guess_for_k : float
-            Default parameter for the approximate k given the data
-
-        Returns
-        -------
-        None
-
-        '''
-        def nll_nb(k, sad):
-            self.params['k'] = k
-            self.params['N'] = np.sum(sad)
-            self.params['S'] = len(sad)
-            return -sum(np.log(self.pmf(sad)))
-        mlek = scipy.optimize.fmin(nll_nb, np.array([guess_for_k]), args=\
-                                   (sad,), disp=0)[0]
-        self.params['k'] = mlek
-        super(trun_neg_binom, self).fit(sad)
 
 #
 # Curves
@@ -2622,34 +2460,31 @@ class SAR(object):
             sar.append(sum(S * sad * np.array(p_pres_list)))
         return np.array(sar)
 
+
 def make_array(n):
-    '''Cast n as array, regardless of whether originally iterable or not.'''
-    try:
-        len(n)
-        new_n = np.array(n)
-    except:
-        new_n = np.array([n])
-
-    return new_n
-
-def check_n(n, size):
-    '''
-    Check and convert n if necessary
-    '''
-    if hasattr(n, '__iter__'):
-        if hasattr(n[0], '__iter__'):
-            if len(n) != size:
-                raise TypeError("If n is a list of iterables, it must be" +\
-                                " the same length as an entry in self.params")
-            else:
-                new_n = [np.array(nt) for nt in n]
-        else:
-            new_n = [np.copy(n) for i in xrange(size)]
+    '''Cast n as iterable array.'''
+    if np.iterable(n):
+        return np.array(n)
     else:
+        return np.array([n])
+
+
+def expand_n(n, size):
+    '''Check dimensions of n and expand to match size if necessary.'''
+    if np.iterable(n) and np.iterable(n[0]):  # If n is iterable of iterables
+        if len(n) != size:
+            raise TypeError('If n is a list of iterables, list must be ' +
+                                'the same length as parameter lists')
+        else:
+            new_n = [np.array(tn) for tn in n]
+    
+    elif np.iterable(n):  # If n is iterable of non-iterables
+        new_n = [np.array(np.copy(n)) for i in xrange(size)]
+
+    else:  # If n is not iterable
         new_n = [np.array([n]) for i in xrange(size)]
 
     return new_n
-
 
 
 def make_rank_abund(pmf, S):
@@ -2836,19 +2671,3 @@ def _generate_areas_(anchor_area, upscale, downscale):
         areas[i] = areas[i - 1] * 2
 
     return areas
-
-
-
-
-
-
-
-
-
-        
-
-
-
-
-
-
