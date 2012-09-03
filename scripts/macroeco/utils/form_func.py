@@ -321,7 +321,7 @@ def fractionate(datayears, wid_len, step, col_names):
 
     step : tuple
         The step (or stride length) of the cell width and length 
-        (tuple: (x_step, y_step)). It shouldbe given in terms of meters. Also,
+        (tuple: (x_step, y_step)). It should be given in terms of meters. Also,
         called precision.
 
     col_names : list 
@@ -366,7 +366,8 @@ def add_data_fields(data_list, fields, values):
 
     values : list
         List of tuples corresponding to fields.  Must be same length as fields.
-        These values are added to the new field.
+        These values are added to the new field. Length of tuple should only be 
+        length of data sets.
 
     Returns 
     -------
