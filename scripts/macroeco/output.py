@@ -8,7 +8,7 @@ from __future__ import division
 import matplotlib.pyplot as plt
 import numpy as np
 import logging
-#from macroeco.utils.form_func import output_form
+from macroeco.utils.form_func import output_form, add_field
 
 __author__ = "Mark Wilber"
 __copyright__ = "Copyright 2012, Regents of the University of California"
@@ -90,21 +90,20 @@ class SADOutput(object):
 
         '''
         tot_sad = len(rads['obs'])
+        recs = make_rec_from_dict(rads, tot_sad)
         if criteria != None:
             assert len(criteria) == tot_sad, "len(criteria) must  equal" + \
                                       " number of sads under consideration"
-        for i in xrange(tot_sad):
-            legend = []
-            for kw in rads.iterkeys():
-                dt = rads[kw][i]
-                plt.plot(np.arange(1, len(dt) + 1), np.sort(dt)[::-1], 
-                                        '-o')
-                legend.append(kw)
-            plt.legend(tuple(legend), loc='best')
+        for i, data in enumerate(recs):
+            names = data.dtype.names
+            for nm in names:
+                plt.plot(np.arange(1, len(data) + 1), np.sort(data[nm])[::-1],\
+                                   '-o')
+            plt.legend(names, loc='best')
             if criteria != None:
-                plt.title('SAD criteria: ' + str(criteria[i]))
+                plt.title('RAD criteria: ' + str(criteria[i]))
             else:
-                plt.title('SAD: plot number ' + str(i))
+                plt.title('RAD: plot number ' + str(i))
             plt.semilogy()
             plt.ylabel('log(abundance)')
             plt.xlabel('rank')
@@ -112,6 +111,82 @@ class SADOutput(object):
                             + str(i))
             plt.savefig(self.out_dir + '_rank_abundance_' + str(i))
             plt.clf()
+            output_form(recs[i], self.out_dir + '_rank_abundance_' + str(i))
+    
+    def plot_cdfs(self, cdfs, obs_sads, criteria=None):
+        '''
+
+        Plots observed vs predicted cdfs and returns a csv file with values
+        used for plotting.
+
+
+        Parameters
+        ----------
+        cdfs : dict
+            A dictionary that is returned from the function compare_cdfs in the
+            CompareDistribution class. 
+
+        obs_sads : list
+            A list of arrays.  The observed sad(s)
+
+        '''
+        tot_sad = len(cdfs['obs'])
+        recs = make_rec_from_dict(cdfs, tot_sad)
+        if criteria != None:
+            assert len(criteria) == tot_sad, "len(criteria) must  equal" + \
+                                      " number of sads under consideration"
+        for i, data in enumerate(recs):
+            names = data.dtype.names
+            for nm in names:
+                plt.plot(np.sort(obs_sads[i]), np.sort(data[nm]), '-o')
+            plt.legend(names, loc='best')
+            if criteria != None:
+                plt.title('CDF criteria: ' + str(criteria[i]))
+            else:
+                plt.title('CDF: plot number ' + str(i))
+            plt.semilogx()
+            plt.ylabel('cumulative probability')
+            plt.xlabel('abundance')
+            logging.info('Saving figure ' + self.out_dir + '_cdf_plot_' 
+                            + str(i))
+            plt.savefig(self.out_dir + '_cdf_plot_' + str(i))
+            plt.clf()
+            n_rec = add_field(data, [('n', np.int)])
+            n_rec['n'] = obs_sads[i]
+            output_form(n_rec, self.out_dir + '_cdf_plot_' + str(i)) 
+
+
+
+def make_rec_from_dict(dist_dict, num, dt=np.float):
+    '''
+    Parameters
+    ----------
+    dist_dict : dict
+        A dictionary with each keyword referencing a list of arrays
+
+    num : int
+        Number of rec_arrays to return in list
+
+    '''
+    recs = []
+    names = list(dist_dict.viewkeys())
+    dtype = zip(names, np.repeat(dt, len(names)))
+    for i in xrange(num):
+        temp = np.empty(len(dist_dict[names[0]][i]), dtype=dtype)
+        for kw in dist_dict.iterkeys():
+            temp[kw] = dist_dict[kw][i]
+        recs.append(temp)
+    return recs
+
+
+
+
+
+
+
+
+
+
 
 
            
@@ -188,333 +263,6 @@ def sad_cdf_obs_pred_plot(sad, outputID, params={}, interactive=False):
     module_logger.debug('Plot and csv saved to cwd')
 
     if interactive:
-        plt.show()
-    else:
-        plt.clf()
-
-def sad_rank_abund_plot(sad, outputID, params={}, interactive=False):
-    '''Makes a plot of observed vs predicted rank abundance curves based
-    on given sad
-
-    Parameters
-    ----------
-    sad : ndarray
-        SAD
-    outputID : string
-        The name of the saved plot
-    params : dict
-        If empty uses default values, if not incorporates given params
-        into params into dict
-    interactive : bool
-        If True, figure is shown in interactive window.  
-        If false, no figure is shown.
-
-    Notes
-    -----
-    Saves plot to current working directory. Default distribution to graph
-    is METE. Need top specify in parameters.xml if another distribution is
-    desired.
-
-
-    '''
-    prm = {'distr':'mete', 'logx':False, 'logy':True}
-    if len(params) != 0:
-        inter = set(params.viewkeys()).intersection(set(prm.viewkeys()))
-        if len(inter) != 0:
-            module_logger.debug('Setting parameters ' + str(inter))
-            for key in inter:
-                if key is 'logx' or key is 'logy':
-                    prm[key] = eval(params[key])
-                else:
-                    prm[key] = params[key]
-    #With support [1,N]
-    obs_pred_abund = sad_analysis.get_obs_pred_abund(sad, prm['distr'])
-    rank = np.arange(1, len(sad) + 1)
-    plt.plot(rank, obs_pred_abund['predicted'][::-1], 'o-', color='gray')
-    plt.plot(rank, obs_pred_abund['observed'][::-1], 'o-', color='black')
-    plt.title('Observed and predicted rank abundance plot')
-    plt.xlabel('Rank')
-    plt.ylabel('Abundance')
-    plt.legend(('Predicted', 'Observed'), loc='best')
-    if prm['logx']:
-        plt.semilogx()
-        plt.xlabel('log(Rank)')
-    if prm['logy']:
-        plt.semilogy()
-        plt.ylabel('log(Abundance)')
-    plt.savefig(outputID + '_rank_abund')
-    form_func.output_form(obs_pred_abund, outputID + '_rank_abund.csv')
-    module_logger.debug('Plot and csv saved to cwd')
-
-    if interactive:
-        plt.show()
-    else:
-        plt.clf()
-
-
-def obs_pred_rarity(sad, outputID, params={}, interactive=False):
-    '''Makes a bar graph of observed and predicted rarity
-
-     Parameters
-    ----------
-    sad : ndarray
-        SAD
-    outputID : string
-        The name of the saved plot
-    params : dict
-        If empty uses default values, if not incorporates given params
-        into params into dict
-    interactive : bool
-        If True, figure is shown in interactive window.  
-        If False, no figure is shown.
-
-    Notes
-    -----
-    Saves plot to current working directory. Default distribution to graph
-    is METE. Need top specify in parameters.xml if another distribution is
-    desired.
-
-    '''
-    prm = {'distr':'mete', 'rarity':10}
-    if len(params) != 0:
-        inter = set(params.viewkeys()).intersection(set(prm.viewkeys()))
-        if len(inter) != 0:
-            module_logger.debug('Setting parameters ' + str(inter))
-            for key in inter:
-                if key is 'rarity':
-                    prm[key] = eval(params[key])
-                else:
-                    prm[key] = params[key]
-    #TODO: remove ticks from plots!
-    obs_pred = sad_analysis.get_obs_and_pred_rarity(sad, prm['distr'], n=prm['rarity'])
-    x = np.array([0.5,1.5])
-    plt.bar(x, list(obs_pred), width=0.5, color='gray')
-    plt.xticks(x + 0.25, ('Obs', 'Pred'))
-    plt.ylabel('Number of species less than ' + str(prm['rarity']))
-    plt.ylim(0, max(obs_pred) + .25*(max(obs_pred)))
-    plt.text(.75 - .05, obs_pred[0] + 0.5, "n = " + str(obs_pred[0]))
-    plt.text(1.75 - .05, obs_pred[1] + 0.5, "n = " + str(obs_pred[1]))
-    plt.title("Observed vs. predicted rarity")
-    plt.savefig(outputID + '_rarity')
-    
-    if interactive:
-        plt.show()
-    else:
-        plt.clf()
-
-def obs_pred_Nmax(sad, outputID, params={}, interactive=False):
-    '''Makes a bar graph of obeserved and predicted N max
-
-     Parameters
-    ----------
-    sad : ndarray
-        SAD
-    outputID : string
-        The name of the saved plot
-    params : dict
-        If empty uses default values, if not incorporates given params
-        into params into dict
-    interactive : bool
-        If True, figure is shown in interactive window.  
-        If False, no figure is shown.
-
-    Notes
-    -----
-    Saves plot to current working directory. Default distribution to graph
-    is METE. Need top specify in parameters.xml if another distribution is
-    desired.
-
-    '''
-    prm = {'distr':'mete'}
-    if len(params) != 0:
-        inter = set(params.viewkeys()).intersection(set(prm.viewkeys()))
-        if len(inter) != 0:
-            module_logger.debug('Setting parameters ' + str(inter))
-            for key in inter:
-                prm[key] = params[key]
-
-    #TODO: remove ticks from plots! Add param manipulations
-    obs_pred = sad_analysis.get_obs_and_pred_Nmax(sad, prm['distr'])
-    x = np.array([0.5,1.5])
-    plt.bar(x, list(obs_pred), width=0.5, color='gray')
-    plt.xticks(x + 0.25, ('Obs', 'Pred'))
-    plt.ylabel('Nmax of SAD')
-    plt.ylim(0, max(obs_pred) + .25 * (max(obs_pred)))
-    plt.text(.75 - .05, obs_pred[0] + 0.5, "n = " + str(obs_pred[0]))
-    plt.text(1.75 - .05, obs_pred[1] + 0.5, "n = " + str(obs_pred[1]))
-    plt.title("Observed vs. predicted N max")
-    plt.savefig(outputID + '_Nmax')
-    
-    if interactive:
-        plt.show()
-    else:
-        plt.clf()
-
-def common_plot(cmn_arrays, outputID, params={}, interactive=False):
-    '''To be used directly with get_common_arrays() in cmn_analysis
-    This function creates a plot of chi-squared as a function of D.
-
-    Parameters
-    ----------
-    cmn_arrays : list
-        list of structured arrays as outputed by get_common_arrays() in 
-        cmn_analysis.py
-    outputID : string
-        The name of the saved plot
-    params : dict
-        If empty uses default values, if not incorporates given params
-        into params into dict
-    interactive : bool
-        If True, figure is shown in interactive window.  
-        If False, no figure is shown.
-
-    '''
-    areas = []
-
-    for data in cmn_arrays:
-        x = data['dist']
-        y = data['cmn']
-        s = UnivariateSpline(x, y)
-        xs = np.linspace(np.min(x), np.max(x), num=100*len(x))
-        ys = s(xs)
-        plt.plot(xs, ys)
-        plt.plot(x, y)
-        areas.append("Area = " + str(data['area'][0]) + " (spline)")
-        areas.append("Area = " + str(data['area'][0]) + " (raw)")
-
-    plt.xlabel('Distance')
-    plt.ylabel('Commonality')
-    plt.legend(tuple(areas), loc='best', prop={'size':9})
-    plt.title('Commonality and distance')
-    plt.savefig(outputID + "_commonality")
-    for i, data in enumerate(cmn_arrays):
-        form_func.output_form(data, outputID + '_ ' + str(eval(params['grid'])[i]))
-    module_logger.debug('Commonality plot and csv files saved')
-    
-    if interactive:
-        plt.show()
-    else:
-        plt.clf()
-
-def common_plot_save(cmn, outputID, params={}, areas=[], interactive=False):
-    '''Generates plots of commonality as a function of distance.
-    In addition, saves csv files containing the commonality data.
-
-    Parameters
-    ----------
-    cmn_arrays : list
-        list of structured arrays as outputed by get_common_arrays() in 
-        cmn_analysis.py
-    outputID : string
-        The name of the saved plot and data
-    params : dict
-        If empty uses default values, if not incorporates given params
-        into params into dict
-    interactive : bool
-        If True, figure is shown in interactive window.  
-        If False, no figure is shown.
-
-    Notes
-    -----
-    Saves a data and plot to current working directory
-
-
-    '''
-    #Getting different symbols for scatter plot
-    def_col = ['black','grey', 'white', 'red', 'green', 'yellow', 'purple', 'orange']
-    color = []
-    for i in xrange(len(cmn)):
-        col = np.random.random_sample(3)
-        color.append(col)
-
-    areas = []
-    for i, strc in enumerate(cmn): #iterating through each area
-        trun_s = strc
-        if i < len(def_col):
-            plt.scatter(trun_s['dist'], trun_s['cmn'],\
-                                color=def_col[i], edgecolors='black')
-        else:
-            plt.scatter(trun_s['dist'], trun_s['cmn'],\
-                                color=color[i], edgecolors='black')
-        areas.append('Area = ' + str(trun_s['area'][0]))
-        form_func.output_form(strc, outputID + '_unique_area_' + str(i))
-    plt.xlabel("Distance")
-    plt.ylabel("Commonality")
-    plt.title("Commonality plotted as a function of distance")
-    plt.legend(tuple(areas), loc='best', prop={'size':9})
-    plt.savefig(outputID + '_D_linear')
-    plt.xlabel("log(Distance)")
-    plt.semilogx()
-    plt.savefig(outputID + '_D_linearlog')
-    module_logger.debug("Plots and csv's saved to " + os.getcwd())
-    if interactive:
-        plt.show()
-    else:
-        plt.clf()
-
-def write_summary_table(sad, outputID, distributions, params={}):
-    '''Writes and saves a summary table of relevant sad values.
-    Provides both empirical and predicted values for the sad.
-
-    Parameters
-    ----------
-    sad : array-like object
-        SAD
-    outputID : string
-        Name of the output file
-    distributions : list
-        A list of SAD distributions. See predict_sad.py for complete list
-        Summary values are given for each distribution in the list
-    params : dictionary
-        Dictionary of additional parameters
-    interactive : bool
-    
-
-   Notes
-   -----
-   Saves a summary file to the current working directory.
-    '''
-    for i, distr in enumerate(distributions):
-        summary = sad_analysis.get_values_for_sad(sad, distr)
-        if i == 0:
-            fout = open(outputID + '_summary.txt', 'w')
-            fout.write('EMPIRICAL VALUES:\n' + 'S = ' + str(summary['S']) + '\nN = '\
-                    + str(summary['N']) + '\nObserved Nmax = ' + str(summary['Nmax_obs'])\
-                    + '\nObserved Rarity = ' + str(summary['rarity_obs'])\
-                    + '\n\nPREDICTED VALUES:\n' + 'Distribution = ' + str(summary['distr']['name'])\
-                    + '\nParameters = ' + str(summary['distr']['params'])\
-                    + '\nNegative Log-likelihood = ' + str(summary['distr']['nll'])\
-                    + '\nAICc = ' + str(summary['distr']['AICc'])\
-                    + '\nPredicted Nmax = ' + str(summary['distr']['Nmax_pred'])\
-                    + '\nPredicted Rarity = ' + str(summary['distr']['rarity_pred']))
-        else:
-            fout.write('\n\nPREDICTED VALUES:\n' + 'Distribution = ' + str(summary['distr']['name'])\
-                    + '\nParameters = ' + str(summary['distr']['params'])\
-                    + '\nNegative Log-likelihood = ' + str(summary['distr']['nll'])\
-                    + '\nAICc = ' + str(summary['distr']['AICc'])\
-                    + '\nPredicted Nmax = ' + str(summary['distr']['Nmax_pred'])\
-                    + '\nPredicted Rarity = ' + str(summary['distr']['rarity_pred']))
-
-
-    fout.close()
-
-def plot_sar(sar_array, ID, params={}, interactive=False):
-    '''Plots observed vs predicted sar saves data to csv
-
-    sar_array -- structured array generated from get_obs_pred_sar()
-
-
-    '''
-    plt.plot(sar_array['area'], sar_array['obs'], '-o')
-    plt.plot(sar_array['area'], sar_array['pred'], '-o')
-    plt.xlabel('Area')
-    plt.ylabel('Species Number')
-    plt.title('Observed and predicted (mete) SARs')
-    plt.legend(('Observed', 'Predicted'), loc='best')
-    plt.savefig(ID + 'SAR')
-    form_func.output_form(sar_array, ID + 'SAR')
-    
-    if interactive == True:
         plt.show()
     else:
         plt.clf()
