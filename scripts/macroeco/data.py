@@ -114,8 +114,9 @@ class DataTable:
                 value = (value,)
 
             for this_value in value:
-                this_valid = eval('self.table[key]' + this_value)
-                valid = np.logical_and(valid, this_valid)
+                if this_value != '==all':
+                    this_valid = eval("self.table[key]" + this_value)
+                    valid = np.logical_and(valid, this_valid)
 
         subtable = self.table[valid]
         return subtable

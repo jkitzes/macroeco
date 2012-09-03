@@ -30,6 +30,7 @@ if __name__ == '__main__':
 
     wf = Workflow()
     
+    
     for data_path, output_ID, params in wf.single_datasets():
         patch = Patch(data_path, subset=params['subset'])
         sad = patch.sad(params['criteria'])
@@ -37,8 +38,9 @@ if __name__ == '__main__':
                                                                 clean=True)
         sout = sadOutput(output_ID)
         sout.write_summary_table(cmpr.summary(), criteria=cmpr.criteria)
-        sout.plot_rads(cmpr.compare_rads(), criteria=cmpr.criteria)
+        #sout.plot_rads(cmpr.compare_rads(), criteria=cmpr.criteria)
         logging.info('Completed analysis %s' % output_ID)
+
 
 
 

@@ -218,7 +218,6 @@ class Parameters:
         # Create params dictionary
         if len(pml) == 0:  # Error if no analyses in param file
             raise IOError('Parameter file %s contains no valid analyses' % paramfile)
-
         for analysis in pml:  # Loop analyses looking for script_name
             if analysis.get('script_name') == self.script_name:
 

@@ -84,7 +84,8 @@ class Patch:
 
             Value has a different meaning depending on column type:
             - metric - number of divisions of data along this axis, int/float
-            - categorical - 'split' calculates each category separately
+            - categorical - 'split' calculates each category separately,
+              'whole' takes the entire column.
         
         Returns
         -------
@@ -168,8 +169,13 @@ class Patch:
             # Get levels of categorial or metric data
             if value == 'split':  # Categorial
                 levels = np.unique(self.data_table.table[key])
+                try:
+                    [eval(str(x)) for x in levels]
+                except:
+                    levels = np.array(['''"''' + x + '''"''' for x in levels])
                 levels_str = ['==' + str(x) for x in levels]
-
+            elif value == 'whole':
+                levels_str = ['==all']
             else:  # Metric
 
                 # TODO: Make sure divisions equal if count (like LBRI), if true 
