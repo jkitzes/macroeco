@@ -325,7 +325,7 @@ class Distribution(object):
         # TODO: Add error or warning if N too large for memory
 
         # Calculate pmfs, going up to N for upper limit
-        n_arrays = [np.arange(self.min_supp, i + 1) for i in N]
+        n_arrays = [np.arange(self.min_supp, 1*(i + 1)) for i in N]
         pmf, var = self.pmf(n_arrays)
         
         # Calculate rad
@@ -606,7 +606,7 @@ class plognorm(Distribution):
             
             # If mu negative, pmf 0
             if tmu <= 0:
-                pmf = np.repeat(1e-120, len(tn_uniq))
+                tpmf_uniq = np.repeat(1e-120, len(tn_uniq))
 
             # Calculate unique pmf values
             else:
