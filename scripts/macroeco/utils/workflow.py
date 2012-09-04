@@ -80,12 +80,23 @@ class Workflow:
             format = logging.Formatter('%(levelname)-8s %(message)s')
             console.setFormatter(format)
             logging.getLogger('').addHandler(console)
+       
+            def excepthook(*args):  # Catch errors to log
+                logging.getLogger().error('Error', exc_info=args)
+        else:
+            def excepthook(*args):  # Catch errors to log + stderr
+                logging.getLogger().error('Error', exc_info=args)
+                sys.__excepthook__(*args)  # Show err in console if clog False
+
+        sys.excepthook = excepthook  # Define error handler as above
+
+        logging.captureWarnings(True)  # Catch warnings
         
-        logging.captureWarnings(True)
         logging.debug('Creating workflow object')
 
         # Get parameters from file, including data paths
-        assert type(required_params) == type({})
+        assert type(required_params) == type({}), ('Required params must be a' 
+                                                   ' dict.')
         self.parameters = Parameters(self.script_name,  
                                      required_params)
         self.interactive = self.parameters.interactive
@@ -221,9 +232,9 @@ class Parameters:
         try:
             pml = etree.parse(paramfile, parser=parser).getroot() 
         except etree.ParseError:
-            logging.error('ParseError trying to read %s' % paramfile)
+            raise IOError('ParseError trying to read %s' % paramfile)
         except:
-            logging.error(sys.exc_info()[0])
+            raise
         
         # Create params dictionary
         if len(pml) == 0:  # Error if no analyses in param file
