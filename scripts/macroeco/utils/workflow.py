@@ -57,7 +57,7 @@ class Workflow:
         If parameters are needed, sets of parameter values are named runs
     '''
 
-    def __init__(self, required_params={}, clog = False):
+    def __init__(self, required_params={}, clog=False):
 
         # Store script name from command line call
         script_path, script_extension = os.path.splitext(sys.argv[0])
@@ -74,7 +74,7 @@ class Workflow:
                             '%(levelname)s | %(filename)s:%(lineno)d | '
                             '%(message)s'), datefmt='%H:%M:%S')
 
-        if console_log:    # Add console logging
+        if clog:  # Add console logging
             console = logging.StreamHandler()
             console.setLevel(logging.INFO)
             format = logging.Formatter('%(levelname)-8s %(message)s')
