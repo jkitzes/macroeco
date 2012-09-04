@@ -52,7 +52,7 @@ if __name__ == '__main__':
     from csv import reader
 
     # Begin by creating a Workflow object
-    wf = Workflow(clog=True)
+    wf = Workflow(clog=True, required_params=required_params)
 
     # Loop through each dataset specified in params and run analysis. If
     # data_path is not a parameter, the loop below will run once with an empty
@@ -69,4 +69,4 @@ if __name__ == '__main__':
             file.write('Parameters: %s\n\n' % str(params))
             file.write('y = %f\n\n' % y)
 
-        logging.info('Completed analysis %s' % output_ID)
+        logging.info('Completed analysis %s\n' % output_ID)

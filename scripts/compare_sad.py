@@ -57,7 +57,7 @@ if __name__ == '__main__':
         sout.plot_rads(cmpr.compare_rads(), criteria=cmpr.criteria)
         sout.plot_cdfs(cmpr.compare_cdfs(), cmpr.data_list,
                         criteria=cmpr.criteria)
-        logging.info('Completed analysis %s' % output_ID)
+        logging.info('Completed analysis %s\n' % output_ID)
 
 
 
