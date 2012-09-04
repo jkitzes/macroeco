@@ -45,7 +45,7 @@ if __name__ == '__main__':
     import macroeco.compare as comp
     from macroeco.output import SADOutput
 
-    wf = Workflow()
+    wf = Workflow(clog=True)
     
     for data_path, output_ID, params in wf.single_datasets():
         patch = Patch(data_path, subset=params['subset'])

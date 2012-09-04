@@ -52,7 +52,7 @@ if __name__ == '__main__':
     from csv import reader
 
     # Begin by creating a Workflow object
-    wf = Workflow()
+    wf = Workflow(clog=True)
 
     # Loop through each dataset specified in params and run analysis. If
     # data_path is not a parameter, the loop below will run once with an empty

@@ -42,6 +42,8 @@ class Workflow:
         present in params file in output directory, or analysis will not run. 
         This argument is empty only when no data or parameters are required for 
         a script to run.
+    clog : bool
+        Whether to log to console in addition to file, False by default
         
     Attributes
     ----------
@@ -55,7 +57,7 @@ class Workflow:
         If parameters are needed, sets of parameter values are named runs
     '''
 
-    def __init__(self, required_params={}):
+    def __init__(self, required_params={}, clog = False):
 
         # Store script name from command line call
         script_path, script_extension = os.path.splitext(sys.argv[0])
@@ -67,12 +69,19 @@ class Workflow:
         self.output_path = output_path
 
         # Prepare logger
-        logging.basicConfig(filename=logfile, 
+        logging.basicConfig(filename=logfile,   # Add file logging
                             level=logging.INFO, format=('%(asctime)s | '
                             '%(levelname)s | %(filename)s:%(lineno)d | '
                             '%(message)s'), datefmt='%H:%M:%S')
 
-        logging.info('Creating workflow object')
+        if console_log:    # Add console logging
+            console = logging.StreamHandler()
+            console.setLevel(logging.INFO)
+            format = logging.Formatter('%(levelname)-8s %(message)s')
+            console.setFormatter(format)
+            logging.getLogger('').addHandler(console)
+
+        logging.debug('Creating workflow object')
 
         # Get parameters from file, including data paths
         assert type(required_params) == type({})
@@ -117,7 +126,6 @@ class Workflow:
                 #make_map(self.parameters.params['data_paths'])
                 
             # Loop through each dataset and yield values for dataset and run
-            print self.parameters.data_path
             for data_path in self.parameters.data_path[run_name]:
                 abs_data_path = os.path.abspath(os.path.join(self.output_path, 
                                                              data_path))
@@ -217,7 +225,8 @@ class Parameters:
         
         # Create params dictionary
         if len(pml) == 0:  # Error if no analyses in param file
-            raise IOError('Parameter file %s contains no valid analyses' % paramfile)
+            raise IOError('Parameter file %s contains no valid analyses' % 
+                          paramfile)
         for analysis in pml:  # Loop analyses looking for script_name
             if analysis.get('script_name') == self.script_name:
 
