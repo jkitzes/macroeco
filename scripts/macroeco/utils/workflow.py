@@ -187,7 +187,7 @@ class Parameters:
             self.interactive = False
             return
 
-# Read parameter file
+        # Read parameter file
         logging.info('Reading parameters from %s' %paramfile)
         self.read_from_xml()
 
@@ -196,6 +196,7 @@ class Parameters:
             raise IOError('Required parameters missing')
         logging.info('Parameters: %s' % str(self.params))
         logging.info('Data: %s' % str(self.data_path))
+
         # Evaluate param values into appropriate types
         self.eval_params()
 
@@ -229,6 +230,9 @@ class Parameters:
                           paramfile)
         for analysis in pml:  # Loop analyses looking for script_name
             if analysis.get('script_name') == self.script_name:
+
+                if 'version' in analysis.attrib:  # Set version
+                    vers = analysis.get('version')
 
                 if 'interactive' in analysis.attrib:  # Set interactive
                     ia = analysis.get('interactive')
