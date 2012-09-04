@@ -80,7 +80,8 @@ class Workflow:
             format = logging.Formatter('%(levelname)-8s %(message)s')
             console.setFormatter(format)
             logging.getLogger('').addHandler(console)
-
+        
+        logging.captureWarnings(True)
         logging.debug('Creating workflow object')
 
         # Get parameters from file, including data paths
