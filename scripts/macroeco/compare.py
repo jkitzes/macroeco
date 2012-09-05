@@ -32,8 +32,13 @@ __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
 #NOTE: This needs to be updated when more distributions are ready!
-dist_dict  = {'logser' : logser(), 'plognorm' : plognorm(),\
-              'logser_ut' : logser_ut(), 'plognorm_lt' : plognorm_lt()} 
+dist_dict  = {'logser' : logser(), 'plognorm' : plognorm(),
+              'logser_ut' : logser_ut(), 'logser_ut_appx' : logser_ut_appx(),
+              'plognorm_lt' : plognorm_lt(), 'sugihara': sugihara(),
+              'broken_stick' : broken_stick(), 'geo_ser' : geo_ser(),
+              'lognorm' : lognorm(), 'binm' : binm(), 'pois' : pois(), 'nbd' :
+              nbd(), 'fnbd' : fnbd(), 'geo' : geo(), 'fgeo' : fgeo(), 'tgeo' :
+              tgeo()} 
 
 
 class CompareDistribution(object):
@@ -143,7 +148,6 @@ class CompareDistribution(object):
         aic_vals = self.compare_aic(crt=crt)
         return [aic_weights(mods_aic) for mods_aic in aic_vals], aic_vals
     
-    #Maybe return a dict instead?
     def compare_rads(self):
         '''
         Compares rank abundance distributions for all data in data_list and to
