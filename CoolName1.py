@@ -17,6 +17,7 @@ import sys, os, logging, re
 import subprocess
 import glob, cgi
 from datetime import datetime
+import webbrowser
 
 __author__ = "Chloe Lewis"
 __copyright__ = "Copyright 2012, Regents of the University of California"
@@ -238,6 +239,7 @@ Open this URL in your browser:
 http://localhost:%s
 
 '''%localport
+webbrowser.open('http://localhost:' + str(localport))
 httpd.serve_forever()
 httpd.handle_request()
 
