@@ -57,11 +57,12 @@ class Workflow:
         If parameters are needed, sets of parameter values are named runs
     '''
 
-    def __init__(self, required_params={}, clog=False):
+    def __init__(self, required_params={}, clog=False, svers=None):
 
         # Store script name from command line call
         script_path, script_extension = os.path.splitext(sys.argv[0])
         self.script_name = os.path.split(script_path)[-1]
+        self.script_vers = svers
 
         # Store output directory path - contains params file, log, results
         # TODO: Make more robust to non-absolute path entries
@@ -97,7 +98,7 @@ class Workflow:
         # Get parameters from file, including data paths
         assert type(required_params) == type({}), ('Required params must be a' 
                                                    ' dict.')
-        self.parameters = Parameters(self.script_name,  
+        self.parameters = Parameters(self.script_name, self.script_vers,
                                      required_params)
         self.interactive = self.parameters.interactive
 
@@ -177,10 +178,12 @@ class Parameters:
         
     '''
     
-    def __init__(self, script_name, required_params, output_path=False):
+    def __init__(self, script_name, script_vers, required_params, 
+                 output_path=False):
 
         # Store initial attributes
         self.script_name = script_name
+        self.script_vers = script_vers
         self.interactive = False
         self.params = {}
         self.data_path = {}
@@ -245,6 +248,11 @@ class Parameters:
 
                 if 'version' in analysis.attrib:  # Set version
                     vers = analysis.get('version')
+                    if self.script_vers:  # If got script_vers, check
+                        if float(vers) != float(self.script_vers):
+                            logging.warning(('Script version does not match ' 
+                                             'version in parameters. '
+                                             'Continuing, but may fail.'))
 
                 if 'interactive' in analysis.attrib:  # Set interactive
                     ia = analysis.get('interactive')
