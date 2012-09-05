@@ -326,7 +326,7 @@ class Distribution(object):
         # Calculate rad
         rad = []
         for tS, tN, tpmf in zip(S, N, pmf):
-            trad = make_rank_abund(tpmf, tS)
+            trad = make_rank_abund(tpmf, tS, min_supp=self.min_supp)
             rad.append(trad)
 
         return rad
@@ -395,7 +395,6 @@ class Distribution(object):
                                             ' tot_obs/N must be ' + 'the same'
         assert n_samp[0] != None, 'n_samp/S parameter not given'
         assert tot_obs[0] != None, 'tot_obs/N parameter not given'
-        assert np.all(n_samp < tot_obs), 'n_samp/S must be less than tot_obs/N'
         assert np.all(n_samp > 1), 'n_samp/S must be greater than 1'
         assert np.all(tot_obs > 0), 'tot_obs/N must be greater than 0'
     
@@ -468,7 +467,8 @@ class logser(Distribution):
         
         # Get parameters
         S, N, n = self.get_params(n=n)
-
+        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
+        
         # Calculate pmf
         stop = 1 - 1e-10
         start = -2
@@ -532,6 +532,7 @@ class logser_ut(Distribution):
 
         # Get parameters
         S, N, n = self.get_params(n=n)
+        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
 
         # Calculate pmf
         start = 0.3
@@ -830,12 +831,12 @@ class logser_ut_appx(Distribution):
     def pmf(self, n, root=2):
         # Get parameters
         S, N, n = self.get_params(n=n)
+        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
 
         start = 0.3
         stop = 1 - 1e-10
         eq = lambda x, S, N: (((-m.log(x))*(m.log(-1/(m.log(x))))) - 
                                                                 (float(S)/N))
-
         pmf = []
         var = {}
         var['x'] = []
@@ -849,8 +850,8 @@ class logser_ut_appx(Distribution):
                 xmax = scipy.optimize.fmin(eq1, .5, disp=0)[0]
                 ymax = eq(xmax, tS, tN)
                 if ymax > 0:
-                    logging.debug("Notice: More than one root. Using root %s" %
-                                                                    (root))
+                    print "Notice: More than one root %s. Using root %s" %\
+                                            (self.__class__.__name__, root)
                     if root == 1:
                         x = scipy.optimize.brentq(eq, start, xmax, args=(tS,
                                                                 tN), disp=True)
@@ -859,7 +860,7 @@ class logser_ut_appx(Distribution):
                                                                 tN), disp=True)
                 if ymax < 0:
                     raise RootError('No solution to constraint equation with '
-                                                  + ' given values of S and N') 
+                                                  + 'given values of S and N') 
             g = -1/np.log(x)
             tpmf = (1/np.log(g)) * ((x**tn)/tn)
             var['x'].append(x)
@@ -881,6 +882,19 @@ class geo_ser(Distribution):
         The fraction of resources that each species acquires. Range is 
         (0, 1].
 
+    Var
+    ----
+    k : list of floats
+        k parameter of geometric series
+    S : list of ints
+        S parameters of geometric series
+    
+    Notes
+    -----
+    The support of this distribution is from [1, N] where N is the total number
+    of individuals/observations. The intrinsic behavior of this distribution
+    in addition to the support leads to the empirical cdf summing to one before
+    the geo_ser cdf. 
 
     '''
 
@@ -891,6 +905,28 @@ class geo_ser(Distribution):
         self.par_num = 2
 
     #TODO:  Need to derive the pmf for the Geometric series
+    @doc_inherit
+    def pmf(self, n):
+        S, N, n = self.get_params(n=n)
+        k = make_array(self.params.get('k', None))
+        assert k[0] != None, "k parameter not given"
+        assert np.all(k > 0) and np.all(k <= 1), "k must be between on the " +\
+                                                            "interval (0, 1]"
+        pmf = []
+        var = {}
+        var['k'] = []
+        var['S'] = []
+        #Equation from May (1975)
+        eq = lambda x, k: (1 / x) * (1 / np.log(1 / (1 - k)))
+        for tS, tN, tk, tn in zip(S, N, k, n):
+            sumg = sum(eq(np.arange(1, tN + 1), tk))
+            tpmf = eq(tn, tk) / sumg
+            pmf.append(tpmf)
+            var['k'].append(tk)
+            var['S'].append(tS)
+        return pmf, var
+
+
     @doc_inherit
     def rad(self):
         # Get parameters
@@ -911,9 +947,10 @@ class geo_ser(Distribution):
     def fit(self, data):
 
         super(geo_ser, self).fit(data)
+        S = self.params['n_samp']; N = self.params['tot_obs']
+        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
         self.params['k'] = []
-        for tdata, tS, tN in zip(data, self.params['n_samp'],
-                                                    self.params['tot_obs']):
+        for tdata, tS, tN in zip(data, S, N):
             tNmin = np.min(tdata)
             #Equation from May (1975)
             eq = lambda x: (((x / (1 - x)) * ((1 - x) ** tS / (1 - (1 - x) ** 
@@ -945,7 +982,7 @@ class broken_stick(Distribution):
     def __init__(self, **kwargs):
         self.params = kwargs
         self.min_supp = 1
-        self.num_par = 1
+        self.par_num = 1
 
     #TODO:  PMF is not quite summing to one
     @doc_inherit
@@ -953,6 +990,7 @@ class broken_stick(Distribution):
 
         # Get parameters
         S, N, n = self.get_params(n=n) 
+        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
         
         eq = lambda x, S, N: ((S - 1) / N) * (1 - (x / N)) ** (S - 2)
         pmf = []
@@ -960,7 +998,7 @@ class broken_stick(Distribution):
         var['S'] = []
 
         for tS, tN, tn in zip(S, N, n):
-            tpmf = eq(n, tS, tN)
+            tpmf = eq(tn, tS, tN)
             pmf.append(tpmf)
             var['S'].append(tS)
 
@@ -979,6 +1017,7 @@ class broken_stick(Distribution):
 
         '''
         S, N = self.get_params()
+        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
         rad = []
         for tS, tN in zip(S, N):
             trad = np.empty(tS)
@@ -1121,6 +1160,7 @@ class sugihara(Distribution):
     def rad(self, sample_size=10000):
         
         S, N = self.get_params()
+        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
         rad = []
         for tS, tN in zip(S, N):
             total = []
@@ -1940,7 +1980,7 @@ def expand_n(n, size):
     return new_n
 
 
-def make_rank_abund(pmf, S):
+def make_rank_abund(pmf, n_samp, min_supp=1):
     '''
     Convert any pmf into a rank abundance curve for S species using cumulative 
     distribution function.
@@ -1949,8 +1989,8 @@ def make_rank_abund(pmf, S):
     ----------
     pmf : ndarray
         Probability of observing a species from 1 to length pmf individs.
-    S : int
-        Total number of species in landscape
+    n_samp : int
+        Total number of samples 
 
     Returns
     -------
@@ -1963,20 +2003,21 @@ def make_rank_abund(pmf, S):
 
     '''
 
-    S_points = np.arange(1/(2*S), 1, 1/S)
-    S_abunds = np.zeros(S)
-
-    sad_pmf_w_zero = np.array([0] + list(pmf)) # Add 0 to start of pmf
-    cum_sad_pmf_w_zero = np.cumsum(sad_pmf_w_zero)
+    points = np.arange(1/(2*n_samp), 1, 1/n_samp)
+    counts = np.zeros(n_samp)
     
-    for cutoff in cum_sad_pmf_w_zero:
-        greater_thans = (S_points >= cutoff)
-        S_abunds[greater_thans] += 1
+    if min_supp == 1:
+        pmf = np.array([0] + list(pmf)) # Add 0 to start of pmf
+    cum_pmf = np.cumsum(pmf)
+    
+    for cutoff in cum_pmf:
+        greater_thans = (points >= cutoff)
+        counts[greater_thans] += 1
 
-        if not greater_thans.any():  # If no greater thans, done with all S
+        if not greater_thans.any():  # If no greater thans, done with samples
             break
     
-    return S_abunds
+    return counts
 
 
 def canonical_lognorm_pmf(r, S, param_ret=False):

@@ -110,10 +110,8 @@ class CompareDistribution(object):
         '''
         aic_vals = []
         for dist in self.dist_list:
-            #NOTE: Is distribution object already fit? Let's say not
-            #NOTE: What about 'a' parameter?  Does the object already have
-            #it?
             dist.fit(self.data_list)
+
             nlls = nll(dist.pmf(self.data_list)[0])
             #NOTE: dist.par_num is the number of parameters that
             k = np.repeat(dist.par_num, len(nlls))
@@ -124,11 +122,13 @@ class CompareDistribution(object):
                 aic_vals.append(aic(nlls, k))
         return list(np.array(aic_vals).T)
 
-    def compare_aic_weights(self, crt=False):
+    def compare_aic_measures(self, crt=False):
         '''
-        Compare AIC weights across the different models. Output is a list of
-        arrays with each array having length equal to the number of models
-        proposed and the length of the list is the lenth of self.data_lists
+        Compare AIC weights, delta_AIC, and AIC values across the different 
+        models. Output is a three item tuple where each item is a list of 
+        arrays with each array having length equal to the number of models 
+        proposed and the length of the list is the lenth of self.data_lists.
+        See Returns for tuple description.
         
         Parameters
         ----------
@@ -141,12 +141,19 @@ class CompareDistribution(object):
         : tuple
             first element is a list of arrays with each array having length 
             equal to the number of models proposed and the length of the list 
-            is the lenth of self.data_lists.  Second element is the out of the
+            is the lenth of self.data_lists.  Second element is are the delta
+            AIC values in the same format as the first tuple object. The third
+            object are the AIC values in the same the output of the 
             compare_aic method. 
 
         '''
         aic_vals = self.compare_aic(crt=crt)
-        return [aic_weights(mods_aic) for mods_aic in aic_vals], aic_vals
+        aic_wghts = []; delta_aic = []
+        for mods_aic in aic_vals:
+            taic_wghts, tdelta_aic = aic_weights(mods_aic)
+            aic_wghts.append(taic_wghts)
+            delta_aic.append(tdelta_aic)
+        return aic_wghts, delta_aic, aic_vals
     
     def compare_rads(self):
         '''
@@ -193,7 +200,6 @@ class CompareDistribution(object):
         cdfs_dict['obs'] = [empirical_cdf(data) for data in self.data_list]
         for i, dist in enumerate(self.dist_list):
             dist.fit(self.data_list)
-            #Might need to reference dist differently...
             cdfs_dict[get_name(dist)] = dist.cdf(self.data_list)[0] 
         return cdfs_dict
     
@@ -265,10 +271,11 @@ class CompareDistribution(object):
             summary[kw]['max'] = [np.max(data) for data in rads[kw]]
             summary[kw]['tot_min'] = [sum(data <= mins) for data in 
                                                                 rads[kw]]
-        aic_vals = self.compare_aic_weights(crt=crt)
+        aic_vals = self.compare_aic_measures(crt=crt)
         names = [get_name(dist) for dist in self.dist_list]
         for i, nm in enumerate(names):
-            summary[nm]['aic'] = list(np.array(aic_vals[1]).T)[i]
+            summary[nm]['aic'] = list(np.array(aic_vals[2]).T)[i]
+            summary[nm]['aic_d'] = list(np.array(aic_vals[1]).T)[i]
             summary[nm]['aic_w'] = list(np.array(aic_vals[0]).T)[i]
         return summary
 
@@ -373,8 +380,9 @@ def aic_weights(aic_values):
     
     Returns
     -------
-    : np.ndarray
-        Array containing the relative AIC weights
+    : tuple
+        First element contains the relative AIC weights, second element
+        contains the delta AIC values.
 
     Notes
     -----
@@ -388,7 +396,7 @@ def aic_weights(aic_values):
     delta = np.array([x - minimum for x in aic_values])
     values = np.exp(-delta / 2)
     weights = np.array([x / sum(values) for x in values])
-    return weights
+    return weights, delta
 
 def ks_two_sample(data1, data2):
     '''Function uses the Kolomogrov-Smirnov two-sample test to determine if the

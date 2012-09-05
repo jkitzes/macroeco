@@ -67,7 +67,8 @@ class SADOutput(object):
                     dt= smry[kw]
                     fout.write('PREDICTED DISTRIBUTION : ' + kw + '\nS = ' +
                     str(dt['urns'][i]) + '\nN = ' + str(dt['balls'][i]) + 
-                    '\nAIC = ' + str(dt['aic'][i]) + '\nAIC_weight = ' +
+                    '\nAIC = ' + str(dt['aic'][i]) + '\nDelta_AIC = ' +
+                    str(dt['aic_d'][i]) + '\nAIC_weight = ' +
                     str(dt['aic_w'][i]) +'\nPredicted Nmax= ' + 
                     str(dt['max'][i]) + '\nPredicted Rarity = ' + 
                     str(dt['tot_min'][i]) + '\n\n')
