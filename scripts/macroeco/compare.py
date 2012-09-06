@@ -40,10 +40,12 @@ dist_dict  = {'logser' : logser(), 'plognorm' : plognorm(),
               nbd(), 'fnbd' : fnbd(), 'geo' : geo(), 'fgeo' : fgeo(), 'tgeo' :
               tgeo()} 
 
+sar_dict = {'METE_sar' : METE_sar(), 'powerlaw' : powerlaw()}
+
 
 class CompareDistribution(object):
     '''
-    Comparison object allows a list of data to any number of distributions
+    Comparison object compares a list of data to any number of distributions
 
     '''
     
@@ -281,10 +283,77 @@ class CompareDistribution(object):
 
 class CompareSARCurve(object):
     '''
-    '''
-    pass
-    
+    Object allows comparison between sar curve objects
 
+    '''
+    
+    def __init__(self, sar_list, curve_list, full_sad):
+        '''
+        NOTE: Requiring the full_sad makes this function a lot less flexible.
+        Maybe we shouldn't do that.  Maybe just give N and S.  Should we get
+        the anchor area from the a_list?
+
+        Parameters
+        ----------
+        sar_list : list of tuples or list of outputs from Patch().sar
+            A list of tuples where each tuple contains two array-like objects
+            of the same length.  The first element in the tuple is the
+            area list and the second element is the species count for the sar.
+            The maximum area in the area list should be the anchor area from
+            which the full_sad was generated.
+        curve_list : list
+            A list of SARCurve objects or list of SARCurve object names (str)
+        full_sad : list of array-like objects
+            List of complete sads.  Each sad corresponds to an element in
+            sar_list. 
+        patch : bool
+            If True, sar_list should be list of outputs from Patch().sar method
+        '''
+        assert len(sar_list) == len(full_sad), "sar_list and full_sad must " \
+                                              + " be the same length"
+        self.full_sad = [np.array(sad) for sad in full_sad]
+        self.a_list = []
+        self.sar_list = []
+        for sar in sar_list:
+            self.a_list.append(np.array(sar[0]))
+            self.sar_list.append(np.array(sar[1]))
+
+        if np.all([type(cur) == str for cur in curve_list]):
+            self.curve_list = np.empty(len(curve_list), dtype=object)
+            for kw in list(sar_dict.viewkeys()):
+                self.curve_list[np.where((kw == np.array(curve_list)))[0]] = \
+                                sar_dict[kw]
+            self.curve_list = list(self.curve_list)
+        else:
+            self.curve_list = curve_list
+
+        self.full_sad = [np.array(sad) for sad in full_sad]
+
+    def compare_curves(self):
+        '''
+        Method generates predicted SAR curves from the given observed data and
+        curve objects for comparison
+
+        Returns
+        -------
+        : list of dicts
+            The list is the same length self.sar_list and each dictionary is
+            the length of self.curve_list + 1.  Each keyword in a dictionary
+            references either the observed SAR ('obs') or the SAR generate by
+            one of the curve objects. 
+        '''
+        pred_sar = []
+        for sar, a, sad in zip(self.sar_list, self.a_list, self.full_sad):
+            psar = {}
+            psar['obs'] = np.array(zip(sar, a), dtype=[('species', np.float),
+                                        ('area', np.float)])
+            for cur in self.curve_list:
+                cur.fit((a, sar), sad)
+                psar[get_name(cur)] = cur.vals(a, np.max(a))
+            for kw in psar.iterkeys():
+                psar[kw].sort(order='area')
+            pred_sar.append(psar)
+        return pred_sar
 
 def nll(pdist):
     '''

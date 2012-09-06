@@ -13,7 +13,6 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
-#TODO: Need to fill out docstrings and all that good stuff
 gui_name = '''SAD Analysis'''
 
 summary = '''Compares a dataset's observed sad(s) against theoretical sads'''

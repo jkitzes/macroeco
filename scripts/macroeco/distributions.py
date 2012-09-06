@@ -12,12 +12,12 @@ SAD
 - `geo_series' -- Geometric series distribution (Motomura 1932)
 - `broken_stick` -- McArthur's broken stick distribution (May 1975)
 - `plognorm` -- Poisson log-normal (Bulmer 1974)
-- `trun_plognorm` -- Truncated poisson log-normal (Bulmer 1974)
-- `lognorm_pmf` -- Lognormal distribution
+- `plognorm_lt` -- Truncated poisson log-normal (Bulmer 1974)
+- `lognorm` -- Lognormal distribution
 - `canonical_lognormal_pmf` -- Preston's canonical lognormal parameterized by
   May (1975)
 - `sugihara` -- Sugihara's sequential breakage model (Sugihara 1980)
-- `mete_lgsr_approx` -- METE log series using approximation (Harte 2011)
+- `logser_ut_appx` -- METE log series using approximation (Harte 2011)
 
 SAR
 - `mete_sar` - METE sar functions (Harte 2011)
@@ -187,10 +187,11 @@ class SARCurve(object):
 
     def fit(self, data, full_sad):
         '''
+        This fit method fills the required parameters for an SARCurve object.
 
         Parameters
         ----------
-        data : array-like object
+        data :  tuple of array-like objects
             data conatains two array-like object.  The first is a list of areas
             and the second is a list of species numbers corresponding to those
             areas.
@@ -1910,7 +1911,6 @@ class powerlaw(SARCurve):
         assert S != None, "S parameter not given"
         assert z != None, "z parameter not given"
         t_areas = make_array(t_areas)
-        t_areas = np.concatenate((np.array([anch]), t_areas))
         output_array = np.empty(len(t_areas), dtype=[('species', np.float),
                                                      ('area', np.float)])
         output_array['area'] = t_areas

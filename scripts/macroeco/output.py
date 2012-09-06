@@ -154,9 +154,62 @@ class SADOutput(object):
             plt.clf()
             n_rec = add_field(data, [('n', np.int)])
             n_rec['n'] = obs_sads[i]
-            output_form(n_rec, self.out_dir + '_cdf_plot_' + str(i)) 
+            output_form(n_rec, self.out_dir + '_cdf_plot_' + str(i))
 
+class SAROutput(object):
+    '''
+    This object interacts with CompareSARCurves
+    '''
 
+    def __init__(self, out_dir):
+        '''
+        Parameters
+        ----------
+        out_dir : string
+            Output directory of object
+        '''
+        self.out_dir = out_dir
+
+    def plot_sars(self, sars, names=[]):
+        '''
+        Plots observed vs predicted sars
+
+        Parameters
+        ----------
+        sars : list of dicts
+            The output of CompareSARCurve method compare_curves
+
+        names : list or strings
+            If not None, names is a list of the same length as sars.  Gives the
+            desired names for the plots.
+
+        '''
+
+        if len(names) != 0:
+            assert len(names) == len(sars); "Length of names must equal" + \
+                                            "length of sars"
+        for i, sar in enumerate(sars):
+            legend = []
+            for kw in sar.iterkeys():
+                legend.append(kw)
+                if kw == 'obs':
+                    plt.plot(sar[kw]['area'], sar[kw]['species'], '-o')
+                else:
+                    plt.plot(sar[kw]['area'], sar[kw]['species'])
+                output_form(sar[kw], self.out_dir + '_SAR_plot_' + str(i) + '_'
+                                                                          + kw)
+            plt.loglog()
+            plt.legend(tuple(legend), loc='best')
+            plt.xlabel('log(Area)')
+            plt.ylabel('log(Species Number)')
+            if len(names) != 0:
+                plt.title(names[i])
+            else:
+                plt.title('SAR plot %i' % (i))
+            logging.info('Saving figure ' + self.out_dir + '_SAR_plot_' 
+                            + str(i))
+            plt.savefig(self.out_dir + '_SAR_plot_' + str(i))
+            plt.clf()
 
 def make_rec_from_dict(dist_dict, num, dt=np.float):
     '''
