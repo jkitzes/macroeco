@@ -13,7 +13,6 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
-#TODO: Need to fill out docstrings and all that good stuff
 gui_name = '''SAD Analysis'''
 
 summary = '''Compares a dataset's observed sad(s) against theoretical sads'''
@@ -22,7 +21,7 @@ explantion = '''This script takes in a dataset(s) and a list of distributions
 to which the observed dataset(s)'s sads will be compared.  The required
 parameters for this script are the following: 
 
-'subset' : How one would like toinitially subset his data (see DataTable 
+'subset' : How one would like to initially subset his data (see DataTable 
 class docstring). 
 
 'criteria' : How one would like to divide her dataset when caluculating the 

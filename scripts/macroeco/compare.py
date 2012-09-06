@@ -40,10 +40,12 @@ dist_dict  = {'logser' : logser(), 'plognorm' : plognorm(),
               nbd(), 'fnbd' : fnbd(), 'geo' : geo(), 'fgeo' : fgeo(), 'tgeo' :
               tgeo()} 
 
+sar_dict = {'METE_sar' : METE_sar(), 'powerlaw' : powerlaw()}
+
 
 class CompareDistribution(object):
     '''
-    Comparison object allows a list of data to any number of distributions
+    Comparison object compares a list of data to any number of distributions
 
     '''
     
@@ -110,10 +112,8 @@ class CompareDistribution(object):
         '''
         aic_vals = []
         for dist in self.dist_list:
-            #NOTE: Is distribution object already fit? Let's say not
-            #NOTE: What about 'a' parameter?  Does the object already have
-            #it?
             dist.fit(self.data_list)
+
             nlls = nll(dist.pmf(self.data_list)[0])
             #NOTE: dist.par_num is the number of parameters that
             k = np.repeat(dist.par_num, len(nlls))
@@ -124,11 +124,13 @@ class CompareDistribution(object):
                 aic_vals.append(aic(nlls, k))
         return list(np.array(aic_vals).T)
 
-    def compare_aic_weights(self, crt=False):
+    def compare_aic_measures(self, crt=False):
         '''
-        Compare AIC weights across the different models. Output is a list of
-        arrays with each array having length equal to the number of models
-        proposed and the length of the list is the lenth of self.data_lists
+        Compare AIC weights, delta_AIC, and AIC values across the different 
+        models. Output is a three item tuple where each item is a list of 
+        arrays with each array having length equal to the number of models 
+        proposed and the length of the list is the lenth of self.data_lists.
+        See Returns for tuple description.
         
         Parameters
         ----------
@@ -141,12 +143,19 @@ class CompareDistribution(object):
         : tuple
             first element is a list of arrays with each array having length 
             equal to the number of models proposed and the length of the list 
-            is the lenth of self.data_lists.  Second element is the out of the
+            is the lenth of self.data_lists.  Second element is are the delta
+            AIC values in the same format as the first tuple object. The third
+            object are the AIC values in the same the output of the 
             compare_aic method. 
 
         '''
         aic_vals = self.compare_aic(crt=crt)
-        return [aic_weights(mods_aic) for mods_aic in aic_vals], aic_vals
+        aic_wghts = []; delta_aic = []
+        for mods_aic in aic_vals:
+            taic_wghts, tdelta_aic = aic_weights(mods_aic)
+            aic_wghts.append(taic_wghts)
+            delta_aic.append(tdelta_aic)
+        return aic_wghts, delta_aic, aic_vals
     
     def compare_rads(self):
         '''
@@ -193,7 +202,6 @@ class CompareDistribution(object):
         cdfs_dict['obs'] = [empirical_cdf(data) for data in self.data_list]
         for i, dist in enumerate(self.dist_list):
             dist.fit(self.data_list)
-            #Might need to reference dist differently...
             cdfs_dict[get_name(dist)] = dist.cdf(self.data_list)[0] 
         return cdfs_dict
     
@@ -265,12 +273,87 @@ class CompareDistribution(object):
             summary[kw]['max'] = [np.max(data) for data in rads[kw]]
             summary[kw]['tot_min'] = [sum(data <= mins) for data in 
                                                                 rads[kw]]
-        aic_vals = self.compare_aic_weights(crt=crt)
+        aic_vals = self.compare_aic_measures(crt=crt)
         names = [get_name(dist) for dist in self.dist_list]
         for i, nm in enumerate(names):
-            summary[nm]['aic'] = list(np.array(aic_vals[1]).T)[i]
+            summary[nm]['aic'] = list(np.array(aic_vals[2]).T)[i]
+            summary[nm]['aic_d'] = list(np.array(aic_vals[1]).T)[i]
             summary[nm]['aic_w'] = list(np.array(aic_vals[0]).T)[i]
         return summary
+
+class CompareSARCurve(object):
+    '''
+    Object allows comparison between sar curve objects
+
+    '''
+    
+    def __init__(self, sar_list, curve_list, full_sad):
+        '''
+        NOTE: Requiring the full_sad makes this function a lot less flexible.
+        Maybe we shouldn't do that.  Maybe just give N and S.  Should we get
+        the anchor area from the a_list?
+
+        Parameters
+        ----------
+        sar_list : list of tuples or list of outputs from Patch().sar
+            A list of tuples where each tuple contains two array-like objects
+            of the same length.  The first element in the tuple is the
+            area list and the second element is the species count for the sar.
+            The maximum area in the area list should be the anchor area from
+            which the full_sad was generated.
+        curve_list : list
+            A list of SARCurve objects or list of SARCurve object names (str)
+        full_sad : list of array-like objects
+            List of complete sads.  Each sad corresponds to an element in
+            sar_list. 
+        patch : bool
+            If True, sar_list should be list of outputs from Patch().sar method
+        '''
+        assert len(sar_list) == len(full_sad), "sar_list and full_sad must " \
+                                              + " be the same length"
+        self.full_sad = [np.array(sad) for sad in full_sad]
+        self.a_list = []
+        self.sar_list = []
+        for sar in sar_list:
+            self.a_list.append(np.array(sar[0]))
+            self.sar_list.append(np.array(sar[1]))
+
+        if np.all([type(cur) == str for cur in curve_list]):
+            self.curve_list = np.empty(len(curve_list), dtype=object)
+            for kw in list(sar_dict.viewkeys()):
+                self.curve_list[np.where((kw == np.array(curve_list)))[0]] = \
+                                sar_dict[kw]
+            self.curve_list = list(self.curve_list)
+        else:
+            self.curve_list = curve_list
+
+        self.full_sad = [np.array(sad) for sad in full_sad]
+
+    def compare_curves(self):
+        '''
+        Method generates predicted SAR curves from the given observed data and
+        curve objects for comparison
+
+        Returns
+        -------
+        : list of dicts
+            The list is the same length self.sar_list and each dictionary is
+            the length of self.curve_list + 1.  Each keyword in a dictionary
+            references either the observed SAR ('obs') or the SAR generate by
+            one of the curve objects. 
+        '''
+        pred_sar = []
+        for sar, a, sad in zip(self.sar_list, self.a_list, self.full_sad):
+            psar = {}
+            psar['obs'] = np.array(zip(sar, a), dtype=[('species', np.float),
+                                        ('area', np.float)])
+            for cur in self.curve_list:
+                cur.fit((a, sar), sad)
+                psar[get_name(cur)] = cur.vals(a, np.max(a))
+            for kw in psar.iterkeys():
+                psar[kw].sort(order='area')
+            pred_sar.append(psar)
+        return pred_sar
 
 def nll(pdist):
     '''
@@ -373,8 +456,9 @@ def aic_weights(aic_values):
     
     Returns
     -------
-    : np.ndarray
-        Array containing the relative AIC weights
+    : tuple
+        First element contains the relative AIC weights, second element
+        contains the delta AIC values.
 
     Notes
     -----
@@ -388,7 +472,7 @@ def aic_weights(aic_values):
     delta = np.array([x - minimum for x in aic_values])
     values = np.exp(-delta / 2)
     weights = np.array([x / sum(values) for x in values])
-    return weights
+    return weights, delta
 
 def ks_two_sample(data1, data2):
     '''Function uses the Kolomogrov-Smirnov two-sample test to determine if the
