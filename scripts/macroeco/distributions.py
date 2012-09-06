@@ -95,8 +95,7 @@ import scipy.special
 import math as m
 import scipy.integrate as integrate
 import sys
-from docinherit import DocInherit
-#from macroeco.utils.docinherit import DocInherit
+from macroeco.utils.docinherit import DocInherit
 
 doc_inherit = DocInherit
 
@@ -875,7 +874,7 @@ class logser_ut_appx(Distribution):
                 xmax = scipy.optimize.fmin(eq1, .5, disp=0)[0]
                 ymax = eq(xmax, tS, tN)
                 if ymax > 0:
-                    print "Notice: More than one root %s. Using root %s" %\
+                    print "Notice: More than one root in %s. Using root %s" %\
                                             (self.__class__.__name__, root)
                     if root == 1:
                         x = scipy.optimize.brentq(eq, start, xmax, args=(tS,
@@ -1919,6 +1918,80 @@ class powerlaw(SARCurve):
         output_array['species'] = p_law(t_areas)
         return output_array   
 
+class gen_sar(SARCurve):
+    '''
+    A generic sar function the utilizes the relationship between the sad
+        and the ssad to generate the sar.  Can take any combination of sad and
+        ssad. 
+
+        Parameters
+        ----------
+        sad : sad distribution object
+            Species abundance distribution, should sum to 1 or nearly so. Support 
+            must be >= 1 (ie, no P(0) at start)
+        S : int or float
+            Number of species in landscape
+        a_list : list
+            List of area fractions at which to calculate SAD
+        ssad : ssad distribution object
+            Spatial abundance distribution object distributions module. N and a
+            parameters are filled in the function.  Any additional parameters
+            to a ssad distribution object need to be filled before the object
+            is passed. See examples 
+    '''
+    #NOTE: Might be making this too limiting be forcing an sad object in.
+    #Just going to do it for now
+    def __init__(self, sad, ssad, **kwargs):
+        '''
+        Generic sar must take in a sad and ssad distribution object upon
+        instantiation
+
+        '''
+        self.sad = sad
+        self.ssad = ssad
+        self.params = kwargs
+
+    def vals(self, t_areas, anch):
+        '''
+        '''
+        sad = self.params.get('sad_pmf', None)
+        assert sad != None, "params['sad_pmf'] does not exist.  Try fitting" \
+                    + " gen_sar object or initialize self.params['sad_pmf']"
+        ssad = self.ssad
+        S = self.params.get('S', None)
+        assert S != None, "S parameter not given"
+        sar = []
+        N_range = np.arange(1, len(sad) + 1)
+        ssad.params['tot_obs'] = N_range
+        a_list = np.array(t_areas) / anch
+        for i, a in enumerate(a_list):
+            assert a < 1, "a must be less than 1"
+            ssad.params['n_samp'] = np.repeat(1 / a, len(N_range))
+            p_pres_list = [1 - absnt[0] for absnt in ssad.pmf(0)[0]]
+            sar.append(sum(S * sad * np.array(p_pres_list)))
+        return np.array(zip(sar, t_areas), dtype=[('species', np.float), 
+                                                  ('area', np.float)])
+
+    def fit(self, data, full_sad):
+        '''
+        This fit method fills the required parameters for an SARCurve object.
+
+        Parameters
+        ----------
+        data :  tuple of array-like objects
+            data contains two array-like object.  The first is a list of areas
+            and the second is a list of species numbers corresponding to those
+            areas.
+        full_sad : array-like object
+            The full_sad at the anchor area
+
+        '''
+        super(gen_sar, self).fit(data, full_sad)
+        self.sad.fit([full_sad])
+        self.params['sad_pmf'] = self.sad(np.arange(1, self.params['N'] + 
+                                                                    1))[0][0]
+        
+
 class SAR(object):
     '''
     This class contains different functions for examining an SAR.  All \
@@ -1932,40 +2005,6 @@ class SAR(object):
     def __init__(self, **kwargs):
         self.params = kwargs
 
-    def power_law(self, area_list, S, anchor_area, z):
-        '''
-        Generate a power law SAR with a given z for some S at an anchor area
-
-        Parameters
-        ----------
-        area_list : array-like object
-            An array-like object containing SAR areas to be computed
-        S : int
-            Total number of species at the given anchor area
-        anchor_area : float
-            The area which contains S species
-        z : int
-            The power of the power law
-    
-        Returns
-        -------
-        : structured np.array
-            A structured np.array with dtype=[('species', np.float),
-            ('area', np.float)]. 
-    
-        '''
-        try:
-            len(area_list); area_list = np.array(area_list)
-        except:
-            area_list = np.array([area_list])
-        area_list = np.concatenate((np.array([anchor_area]), area_list))
-        output_array = np.empty(len(area_list), dtype=[('species', np.float),\
-                                                     ('area', np.float)])
-        output_array['area'] = area_list
-        c = S / (anchor_area ** z)
-        p_law = lambda x: c * (x ** z)
-        output_array['species'] = p_law(area_list)
-        return output_array
 
     def predict_sar(self, sad, S, a_list, ssad):
         '''

@@ -26,8 +26,6 @@ class TestMetadataWriter(unittest.TestCase):
         os.remove('meta1.csv')
 
     def test_metawriter(self):
-        '''
-        '''
         mt = MetaWriter('meta1.csv')
         att = [('row', {'maximum' : '2', 'minimum' : '0', 'precision' :\
                         '0.1'}), ('column', {'maximum' : '45', 'minimum' :\
