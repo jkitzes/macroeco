@@ -279,6 +279,13 @@ class CompareDistribution(object):
             summary[nm]['aic_w'] = list(np.array(aic_vals[0]).T)[i]
         return summary
 
+class CompareSARCurve(object):
+    '''
+    '''
+    pass
+    
+
+
 def nll(pdist):
     '''
     Parameters

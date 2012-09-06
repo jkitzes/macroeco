@@ -95,7 +95,6 @@ import scipy.special
 import math as m
 import scipy.integrate as integrate
 import sys
-import logging
 from docinherit import DocInherit
 #from macroeco.utils.docinherit import DocInherit
 
@@ -111,8 +110,6 @@ __email__ = "jkitzes@berkeley.edu"
 __status__ = "Development"
 
 #TODO: Add truncated log-normal?
-#TODO: Which distributions should have param_out?
-#TODO: Check test_distributions and account for changes 
 
 # TODO: For all subclass inits - what to do if fit method later tries to
 # overwrite these? Error, do it with warning?
@@ -123,7 +120,7 @@ __status__ = "Development"
 # ----------------------------------------------------------------------------
 
 
-class Curve(object):
+class SARCurve(object):
     '''
     Class for curves. Curves are quantitative predictions with no requirement 
     to sum to one, such as SAR's.
@@ -160,7 +157,7 @@ class Curve(object):
         # methods can inherit this docstring.
         pass
 
-    def val(self, n):
+    def vals(self, n):
         '''
         Value of curve method.
 
@@ -187,6 +184,33 @@ class Curve(object):
         # This method does nothing, but exists so that derived class pmf
         # methods can inherit this docstring.
         pass
+
+    def fit(self, data, full_sad):
+        '''
+
+        Parameters
+        ----------
+        data : array-like object
+            data conatains two array-like object.  The first is a list of areas
+            and the second is a list of species numbers corresponding to those
+            areas.
+        full_sad : array-like object
+            The full_sad at the anchor area
+
+        '''
+        
+        #Assertion statements
+        assert len(data) == 2, "data must contain two objects"
+        assert len(data[0]) == len(data[1]), "Area and species number " + \
+                                        "arrays must be of the same length"
+        full_sad = make_array(full_sad)
+        self.params['S'] = len(full_sad)
+        self.params['N'] = sum(full_sad)
+        self.params['z'] = stats.linregress(np.log(data[0]),
+                                                    np.log(data[1]))[0]
+
+
+        
 
 
 class Distribution(object):
@@ -1684,18 +1708,14 @@ class tgeo(Distribution):
 
         return pmf, var
 
-class METE_sar(object):
+class METE_sar(SARCurve):
     '''
+    Description
+    -----------
     This class explores the METE generated SAR
 
-    Methods
-    -------
-    mete_sar_method1(anchor_area, upscale=0, downscale=0, target_area=None)
-    univ_curve(num_iter=10)
-
-
-    Parameters passed to __init__
-    ------------------------------
+    Parameters
+    ----------
     S : int
         Total number of species at the given anchor area
     N : int
@@ -1703,42 +1723,30 @@ class METE_sar(object):
 
     Notes
     -----
-    S and N should be passed as keyword arguments to the constructor.
-    Example: Mete_sar(S=34, N=235)
-
+    This class uses method 1 in Harte (2011) to calculate the SAR
+    
     '''
 
     def __init__(self, **kwargs):
         self.params = kwargs
-    
-    def mete_sar_method1(self, anchor_area, upscale=0, downscale=0,\
-                     target_area=None):
+
+    def vals(self, t_areas, anch, upscale=0, downscale=0):
         '''
         Predict the universal SAR curve for the given S and N found at 
         the given anchor scale
 
         Parameters
         ----------
-        anchor_area : float
-            The area from which the SAR will be upscaled or downscaled.
+        t_areas : array-like or None
+            Target areas for which to calculate SAR
+        anch : float
+            The anchor area from which the SAR will be upscaled or downscaled.
         upscale : int
             Number of iterations up from the anchor scale.  Each iteration 
-            doubles the previous area.
+            doubles the previous area. Only active if t_areas is None.
         downscale : int
             Number of iterations down from the anchor scale. Each iteration 
-            halves the previous area.
-        target_area : float
-            The desired area for the species-area relationship.  If not None, 
-            this keyword argument overrides the upscale and downscale 
-            arguements.
-
-        Passed to __init__
-        -------------------
-        S : int
-            Total number of species at the given anchor area
-        N : int
-            Total number of individuals at the given anchor area
-
+            halves the previous area. Only active if t_areas is None.
 
         Returns
         -------
@@ -1747,12 +1755,14 @@ class METE_sar(object):
 
         Notes
         -----
-        This function uses equations 3, 7, 8, and 9 found in Harte et al. 
-        (2009). When possible, the approximation 
-        sum(x**n / n) ~= log(1 / log( 1/x)) was used to decrease runtime.  
-    
-    
+        With this method of the METE SAR, one cannot calculate the SAR at exact
+        areas.  Rather this method iterates up and down by powers of 2.
+        Therefore, the output of this function will contain all the SAR
+        calcutions in between ~min(t_areas) ~max(t_areas).
+
+
         '''
+        #Get and check params
         S = self.params.get('S', None)
         N = self.params.get('N', None)
         assert S != None, "S parameter not given"
@@ -1760,22 +1770,29 @@ class METE_sar(object):
         assert S < N, "S must be less than N"
         assert S > 1, "S must be greater than 1"
         assert N > 0, "S must be greater than 0"
-        if target_area != None:
-            if target_area == anchor_area:
+        if not np.iterable(t_areas):
+            raise TypeError('t_areas is not an array-like object')
+        
+        if t_areas != None:
+            mint = np.min(t_areas)
+            maxt = np.max(t_areas)
+            if mint == anch and maxt == anch: 
                 upscale = 0; downscale = 0
-            elif target_area > anchor_area:
-                upscale = np.int(np.ceil(np.log2(target_area / anchor_area)))
+            elif (mint > anch or mint == anch) and maxt > anch:
+                upscale = np.int(np.ceil(np.log2(maxt / anch)))
                 downscale = 0
-            elif target_area < anchor_area:
-                downscale = np.int(np.ceil(np.abs(np.log2(target_area /\
-                                                      anchor_area)))) 
+            elif mint < anch and (maxt < anch or maxt == anch):
+                downscale = np.int(np.ceil(np.abs(np.log2(mint / anch)))) 
                 upscale = 0
+            elif mint < anch and maxt > anch:
+                upscale = np.int(np.ceil(np.log2(maxt / anch)))
+                downscale = np.int(np.ceil(np.abs(np.log2(mint / anch)))) 
     
         if upscale == 0 and downscale == 0:
-            return np.array((S, anchor_area), dtype=[('species', np.float),\
+            return np.array((S, anch), dtype=[('species', np.float),
                                                 ('area', np.float)])
-        areas = _generate_areas_(anchor_area, upscale, downscale)
-        sar = np.empty(len(areas), dtype=[('species', np.float),\
+        areas = _generate_areas_(anch, upscale, downscale)
+        sar = np.empty(len(areas), dtype=[('species', np.float),
                                       ('area', np.float)])
         sar['area'] = areas
         if upscale != 0: 
@@ -1784,6 +1801,7 @@ class METE_sar(object):
             sar['species'][:downscale + 1] =\
                                    _downscale_sar_(areas[:downscale + 1], N, S)
         return sar
+   
 
     def univ_curve(self, num_iter=10):
         '''
@@ -1793,14 +1811,7 @@ class METE_sar(object):
         ----------
         num_iter : int
             Number of iterations.
-            WARNING: Running more than 10 ten begins to take along time
-
-        Passed into __init__
-        --------------------
-        S : int
-            Total number of species at the given anchor area
-        N : int
-            Total number of individuals at the given anchor area
+            WARNING: Running more than 10 ten begins to take along time 
     
         Returns
         -------
@@ -1813,8 +1824,8 @@ class METE_sar(object):
         This function calculates the universal SAR curve.  Different ratios
         of N/S will only put you at different places along the same curve. 
         Iterations of more than 15 take a long time. The equations used in this
-        function were taken from Harte et al. (2009) and Harte (2011). This uses 
-        method 1 in Harte (2011)
+        function were taken from Harte et al. (2009) and Harte (2011). This 
+        uses method 1 in Harte (2011)
 
         '''
         
@@ -1825,10 +1836,9 @@ class METE_sar(object):
         assert S < N, "S must be less than N"
         assert S > 1, "S must be greater than 1"
         assert N > 0, "S must be greater than 0"
-        num_ind = np.empty(num_iter + 1)
-        spp = np.empty(num_iter + 1)
-        univ_SAR = np.empty(num_iter + 1, dtype=[('z', np.float),\
-                                             ('N/S', np.float)])
+        num_ind = np.empty(num_iter + 1); spp = np.empty(num_iter + 1)
+        univ_SAR = np.empty(num_iter + 1, dtype=[('z', np.float),
+                                                        ('N/S', np.float)])
         #From Harte et al. (2009)
         z = lambda beta: 1 / (np.log(2) * np.log(1 / beta))
 
@@ -1861,6 +1871,53 @@ class METE_sar(object):
                 spp[i] = S2A
                 univ_SAR['N/S'][i] = N2A / S2A
         return univ_SAR
+
+class powerlaw(SARCurve):
+    '''
+    Description
+    -----------
+    A power law curve to describe an SAR
+
+    Parameters
+    ----------
+    t_areas : array-like object
+        An array-like object containing SAR areas to be computed
+    S : int
+        Total number of species at the given anchor area
+    anch : float
+        The area which contains S species
+    z : int
+        The power of the power law
+
+    '''
+
+    def __init__(self, **kwargs):
+        self.params = kwargs
+    
+    def vals(self, t_areas, anch):
+        '''
+        Generate a power law SAR with a given z for some S at an anchor area
+    
+        Returns
+        -------
+        : structured np.array
+            A structured np.array with dtype=[('species', np.float),
+            ('area', np.float)]. 
+    
+        '''
+        z = self.params.get('z', None)
+        S = self.params.get('S', None)
+        assert S != None, "S parameter not given"
+        assert z != None, "z parameter not given"
+        t_areas = make_array(t_areas)
+        t_areas = np.concatenate((np.array([anch]), t_areas))
+        output_array = np.empty(len(t_areas), dtype=[('species', np.float),
+                                                     ('area', np.float)])
+        output_array['area'] = t_areas
+        c = S / (anch ** z)
+        p_law = lambda x: c * (x ** z)
+        output_array['species'] = p_law(t_areas)
+        return output_array   
 
 class SAR(object):
     '''
@@ -1944,14 +2001,13 @@ class SAR(object):
         '''
         sar = []
         N_range = np.arange(1, len(sad) + 1)
+        ssad.params['tot_obs'] = N_range
         for i, a in enumerate(a_list):
             assert a < 1, "a must be less than 1"
-            p_pres_list = []
-            for n in N_range:
-                ssad.params['N'] = n; ssad.params['a'] = a
-                p_pres_list.append(1 - ssad.pmf(0)[0])
+            ssad.params['n_samp'] = np.repeat(1 / a, len(N_range))
+            p_pres_list = [1 - absnt[0] for absnt in ssad.pmf(0)[0]]
             sar.append(sum(S * sad * np.array(p_pres_list)))
-        return np.array(sar)
+        return sar
 
 
 def make_array(n):
