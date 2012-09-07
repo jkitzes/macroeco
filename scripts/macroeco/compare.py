@@ -31,7 +31,7 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
-#NOTE: This needs to be updated when more distributions are ready!
+#NOTE: This needs to be updated when more distributions/sars are ready!
 dist_dict  = {'logser' : logser(), 'plognorm' : plognorm(),
               'logser_ut' : logser_ut(), 'logser_ut_appx' : logser_ut_appx(),
               'plognorm_lt' : plognorm_lt(), 'sugihara': sugihara(),
@@ -40,7 +40,11 @@ dist_dict  = {'logser' : logser(), 'plognorm' : plognorm(),
               nbd(), 'fnbd' : fnbd(), 'geo' : geo(), 'fgeo' : fgeo(), 'tgeo' :
               tgeo()} 
 
-sar_dict = {'METE_sar' : METE_sar(), 'powerlaw' : powerlaw()}
+sar_dict = {'METE_sar' : METE_sar(), 'powerlaw' : powerlaw(), 'logser_ut_tgeo':
+            logser_ut_tgeo(), 'logser_ut_fgeo' : logser_ut_fgeo(),
+            'logser_ut_binm' : logser_ut_binm(), 'plognorm_lt_binm' :
+            plognorm_lt_binm(), 'plognorm_lt_tgeo' : plognorm_lt_tgeo(),
+            'plognorm_lt_fgeo' : plognorm_lt_fgeo()}
 
 
 class CompareDistribution(object):

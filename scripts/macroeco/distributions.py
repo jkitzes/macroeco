@@ -95,7 +95,8 @@ import scipy.special
 import math as m
 import scipy.integrate as integrate
 import sys
-from macroeco.utils.docinherit import DocInherit
+from docinherit import DocInherit
+#from macroeco.utils.docinherit import DocInherit
 
 doc_inherit = DocInherit
 
@@ -1879,16 +1880,12 @@ class powerlaw(SARCurve):
     A power law curve to describe an SAR
 
     Parameters
-    ----------
-    t_areas : array-like object
-        An array-like object containing SAR areas to be computed
+    ---------- 
     S : int
         Total number of species at the given anchor area
-    anch : float
-        The area which contains S species
     z : int
         The power of the power law
-
+    
     '''
 
     def __init__(self, **kwargs):
@@ -1897,6 +1894,15 @@ class powerlaw(SARCurve):
     def vals(self, t_areas, anch):
         '''
         Generate a power law SAR with a given z for some S at an anchor area
+
+        Parameters
+        ----------
+        t_areas : array-like object
+            List of areas at which to calculate the SAR
+        anch : float
+            The anchor area. The anchor area is the largest possible area of
+            the study site.  The area from which self.params['S'] and
+            self.params['N'] are calculated.
     
         Returns
         -------
@@ -1921,28 +1927,38 @@ class powerlaw(SARCurve):
 class gen_sar(SARCurve):
     '''
     A generic sar function the utilizes the relationship between the sad
-        and the ssad to generate the sar.  Can take any combination of sad and
-        ssad. 
+    and the ssad to generate the sar.  Can take any combination of sad and
+    ssad. 
 
-        Parameters
-        ----------
-        sad : sad distribution object
-            Species abundance distribution, should sum to 1 or nearly so. Support 
-            must be >= 1 (ie, no P(0) at start)
-        S : int or float
-            Number of species in landscape
-        a_list : list
-            List of area fractions at which to calculate SAD
-        ssad : ssad distribution object
-            Spatial abundance distribution object distributions module. N and a
-            parameters are filled in the function.  Any additional parameters
-            to a ssad distribution object need to be filled before the object
-            is passed. See examples 
+    Parameters
+    ----------
+    S : float
+        Total number of species at the anchor area
+    N : float
+        Total number of individuals at the anchor area
+
+    Notes
+    -----
+    In order to use gen_sar method vals(), self.params['sad_pmf'] must exist.
+    Running gen_sar method fit() fills self.params['sad_pmf'] or it can be
+    filled manually.  Generic sar can only downscale.  
+
     '''
     #NOTE: Might be making this too limiting be forcing an sad object in.
     #Just going to do it for now
     def __init__(self, sad, ssad, **kwargs):
         '''
+
+        Parameters
+        ----------
+        sad : a sad distribution object
+            A distribution object with minimum support equal to 1. pmf of sad
+            from 1 to N should sum to approximately 1.
+        ssad : a ssad distribution object
+            A distribution object with minimum support equal to 0.
+
+        Notes
+        -----
         Generic sar must take in a sad and ssad distribution object upon
         instantiation
 
@@ -1953,6 +1969,22 @@ class gen_sar(SARCurve):
 
     def vals(self, t_areas, anch):
         '''
+
+        Parameters
+        ----------
+        t_areas : array-like object
+            List of areas at which to calculate the SAR
+        anch : float
+            The anchor area. The anchor area is the largest possible area of
+            the study site.  The area from which self.params['S'] and
+            self.params['N'] are calculated.
+
+        Returns
+        -------
+        : structured np.array
+            A structured np.array with dtype=[('species', np.float),
+            ('area', np.float)]. 
+
         '''
         sad = self.params.get('sad_pmf', None)
         assert sad != None, "params['sad_pmf'] does not exist.  Try fitting" \
@@ -1965,9 +1997,13 @@ class gen_sar(SARCurve):
         ssad.params['tot_obs'] = N_range
         a_list = np.array(t_areas) / anch
         for i, a in enumerate(a_list):
-            assert a < 1, "a must be less than 1"
-            ssad.params['n_samp'] = np.repeat(1 / a, len(N_range))
-            p_pres_list = [1 - absnt[0] for absnt in ssad.pmf(0)[0]]
+            if not a <= 1:
+                raise ValueError("a must be less than or equal to 1")
+            if a == 1:
+                p_pres_list = np.repeat(1, len(N_range))
+            else:
+                ssad.params['n_samp'] = np.repeat(1 / a, len(N_range))
+                p_pres_list = [1 - absnt[0] for absnt in ssad.pmf(0)[0]]
             sar.append(sum(S * sad * np.array(p_pres_list)))
         return np.array(zip(sar, t_areas), dtype=[('species', np.float), 
                                                   ('area', np.float)])
@@ -1988,66 +2024,88 @@ class gen_sar(SARCurve):
         '''
         super(gen_sar, self).fit(data, full_sad)
         self.sad.fit([full_sad])
-        self.params['sad_pmf'] = self.sad(np.arange(1, self.params['N'] + 
+        self.params['sad_pmf'] = self.sad.pmf(np.arange(1, self.params['N'] + 
                                                                     1))[0][0]
-        
-
-class SAR(object):
+class logser_ut_tgeo(gen_sar):
     '''
-    This class contains different functions for examining an SAR.  All \
-    METE-related SAR functions can be found in Mete_SAR class.
+    Generic sar: 
+    SAD : Truncated logseries (logser_ut)
+    SSAD: Truncated geometric (tgeo)
 
-    Methods
-    -------
-    power_law(area_list, S, anchor_area, z)
-
+    See class gen_sar for more information
     '''
     def __init__(self, **kwargs):
         self.params = kwargs
+        self.sad = logser_ut()
+        self.ssad = tgeo()
+
+class logser_ut_fgeo(gen_sar):
+    '''
+    Generic sar: 
+    SAD : Truncated logseries (logser)
+    SSAD: Finite geometric (fgeo)
+
+    See class gen_sar for more information
+    '''
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.sad = logser_ut()
+        self.ssad = fgeo()
+
+class logser_ut_binm(gen_sar):
+    '''
+    Generic sar: 
+    SAD : Truncated logseries (logser)
+    SSAD: Binomial (binm)
+
+    See class gen_sar for more information
+    '''
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.sad = logser_ut()
+        self.ssad = binm()
+
+class plognorm_lt_binm(gen_sar):
+    '''
+    Generic sar: 
+    SAD : Truncated Poisson lognormal (plognorm_lt)
+    SSAD: Binomial (binm)
+
+    See class gen_sar for more information
+    '''
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.sad = plognorm_lt()
+        self.ssad = binm()
+
+class plognorm_lt_tgeo(gen_sar):
+    '''
+    Generic sar: 
+    SAD : Truncated Poisson lognormal (plognorm_lt)
+    SSAD: Truncated geometric (tgeo)
+
+    See class gen_sar for more information
+    '''
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.sad = plognorm_lt()
+        self.ssad = tgeo()
+
+class plognorm_lt_fgeo(gen_sar):
+    '''
+    Generic sar: 
+    SAD : Truncated Poisson lognormal (plognorm_lt)
+    SSAD: Finite geometric (fgeo)
+
+    See class gen_sar for more information
+    '''
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.sad = plognorm_lt()
+        self.ssad = fgeo()
 
 
-    def predict_sar(self, sad, S, a_list, ssad):
-        '''
-        A generic sar function the utilizes the relationship between the sad
-        and the ssad to generate the sar.  Can take any combination of sad and
-        ssad. 
-
-        Parameters
-        ----------
-        sad : ndarray
-            Species abundance distribution, should sum to 1 or nearly so. Support 
-            must be >= 1 (ie, no P(0) at start)
-        S : int or float
-            Number of species in landscape
-        a_list : list
-            List of area fractions at which to calculate SAD
-        ssad : ssad distribution object
-            Spatial abundance distribution object distributions module. N and a
-            parameters are filled in the function.  Any additional parameters
-            to a ssad distribution object need to be filled before the object
-            is passed. See examples 
-
-        Notes
-        -----
-        Example
         
-        #Fill k parameter before passing
-        sar1 = SAR().predict_sar(sad, S, [.1,.2,.3,.4,.5], nbd(k=.3))
-
-        #No parameters to fill in tgeo. N and a are filled in function
-        sar2 = SAR().predict_sar(sad, S, [.1,.2,.6], tgeo())
-
-        '''
-        sar = []
-        N_range = np.arange(1, len(sad) + 1)
-        ssad.params['tot_obs'] = N_range
-        for i, a in enumerate(a_list):
-            assert a < 1, "a must be less than 1"
-            ssad.params['n_samp'] = np.repeat(1 / a, len(N_range))
-            p_pres_list = [1 - absnt[0] for absnt in ssad.pmf(0)[0]]
-            sar.append(sum(S * sad * np.array(p_pres_list)))
-        return sar
-
 
 def make_array(n):
     '''Cast n as iterable array.'''
