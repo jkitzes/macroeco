@@ -18,10 +18,13 @@ SAD
   May (1975)
 - `sugihara` -- Sugihara's sequential breakage model (Sugihara 1980)
 - `logser_ut_appx` -- METE log series using approximation (Harte 2011)
+- `nbd_lt` - Lower truncated negative binomial
 
 SAR
-- `mete_sar` - METE sar functions (Harte 2011)
-- `SAR` - General non-METE sar functions
+- `METE_sar` - METE sar functions (Harte 2011)
+- `powerlaw` - Power law sar
+- `gen_sar` - A generic sar that supports any sad and ssad distribution.  Six
+  unique sars are derived classes from gen_sar.  More can be made.
 
 SSAD
 - `binm` - Binomial distribution (Random Placement Model)
@@ -35,12 +38,13 @@ SSAD
 
 Misc Functions
 --------------
-- `make_array` -- convert single value or iterable into ndarray
-- `make_rank_abund` -- convert any SAD pmf into a rank abundance curve
+- `make_array` 
+- `make_rank_abund` 
 - `_ln_choose`
 - `_downscale_sar_`
 - `_upscale_sar_`
 - `_generate_areas_`
+- `expand_n`
 
 References
 ----------
@@ -95,8 +99,8 @@ import scipy.special
 import math as m
 import scipy.integrate as integrate
 import sys
-from docinherit import DocInherit
-#from macroeco.utils.docinherit import DocInherit
+#from docinherit import DocInherit
+from macroeco.utils.docinherit import DocInherit
 
 doc_inherit = DocInherit
 
@@ -1210,7 +1214,6 @@ class sugihara(Distribution):
             rad.append(tN * means)
         return rad
 
-
 class binm(Distribution):
     __doc__ = Distribution.__doc__ + \
     ''' 
@@ -1368,8 +1371,26 @@ class nbd(Distribution):
         self.min_supp = 0
         self.par_num = 2
     
-    @doc_inherit
     def pmf(self, n):
+        '''
+        Probability mass function method.
+
+        Parameters
+        ----------
+        n : int, float or array-like object
+            Values at which to calculate pmf. May be a list of same length as 
+            parameters, or single iterable.
+
+        Returns
+        -------
+        pmf : list of ndarrays
+            List of 1D arrays of probability of observing sample n.
+        vars : dict containing lists of floats
+            Intermediate parameter variables calculated for pmf, as 
+            dict.
+
+        See class docstring for more specific information on this distribution.
+        '''
         
         n_samp, tot_obs, n = self.get_params(n=n)
         k = make_array(self.params.get('k', None))
@@ -1388,8 +1409,25 @@ class nbd(Distribution):
             var['k'].append(tk)
         return pmf, var 
 
-    @doc_inherit
     def cdf(self, n):
+        '''
+        Cumulative distribution method.  
+
+        Parameters
+        ----------
+        n : int, float or array-like object
+            Values at which to calculate cdf. May be a list of same length as 
+            parameters, or single iterable.
+
+        Returns
+        -------
+        cdf : list of ndarrays
+            List of 1D arrays of probability of observing sample n.
+        vars : dict containing lists of floats
+            Intermediate parameter variables calculated for cdf, as dict.
+
+        See class docstring for more specific information on this distribution.
+        '''
 
         n_samp, tot_obs, n = self.get_params(n=n)
         k = make_array(self.params.get('k', None))
@@ -1447,6 +1485,54 @@ class nbd(Distribution):
         self.params['n_samp'] = n_samp
         self.params['tot_obs'] = tot_obs
         return self
+
+class nbd_lt(nbd):
+    '''
+    Description
+    -----------
+    Zero Truncated Negative Binomial
+
+    Parameters
+    ----------
+    tot_obs : int or array-like object
+        Total number of individuals in landscape
+    n_samp : int or array-like object
+        Number of bins/cells sampled.
+    k : int
+        Aggregation parameter
+
+    Var
+    ---
+    Parameterization differs for different forms of the nbd.  We use the
+    standard ecological form as described by Ben Bolker. Parameters 'a' (1 /
+    n_samp), 'tot_obs', and k are used to derive the nbd parameter p (see code
+    for details).  Parameters k and p are used to generate distribution.
+        
+    k : list of floats
+        k parameter of nbd
+    p : list of floats 
+        p parameters of nbd
+
+    '''
+
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.min_supp = 1
+        self.par_num = 2
+    
+    @doc_inherit
+    def pmf(self, n):
+        n_samp, tot_obs, n = self.get_params(n=n)
+        k = make_array(self.params.get('k', None))
+        assert k[0] != None, "k parameter not given"
+
+        reg_nbd = nbd(n_samp=n_samp, tot_obs=tot_obs, k=k)
+        reg_pmf, reg_var = reg_nbd.pmf(n)
+        reg_pmf0, reg_var0 = reg_nbd.pmf(0)
+
+        trunc_pmf = [(pr / (1 - p0)) for pr, p0 in zip(reg_pmf, reg_pmf0)]
+
+        return trunc_pmf, reg_var         
 
 class fnbd(Distribution):
     __doc__ = Distribution.__doc__ + \
@@ -1710,6 +1796,7 @@ class tgeo(Distribution):
         return pmf, var
 
 class METE_sar(SARCurve):
+    __doc__ = Distribution.__doc__ + \
     '''
     Description
     -----------
@@ -1727,7 +1814,8 @@ class METE_sar(SARCurve):
     This class uses method 1 in Harte (2011) to calculate the SAR
     
     '''
-
+    
+    @doc_inherit
     def __init__(self, **kwargs):
         self.params = kwargs
 
@@ -1874,6 +1962,7 @@ class METE_sar(SARCurve):
         return univ_SAR
 
 class powerlaw(SARCurve):
+    __doc__ = Distribution.__doc__ + \
     '''
     Description
     -----------
@@ -1888,6 +1977,7 @@ class powerlaw(SARCurve):
     
     '''
 
+    @doc_inherit
     def __init__(self, **kwargs):
         self.params = kwargs
     
@@ -1925,6 +2015,7 @@ class powerlaw(SARCurve):
         return output_array   
 
 class gen_sar(SARCurve):
+    __doc__ = Distribution.__doc__ + \
     '''
     A generic sar function the utilizes the relationship between the sad
     and the ssad to generate the sar.  Can take any combination of sad and
@@ -2011,6 +2102,8 @@ class gen_sar(SARCurve):
     def fit(self, data, full_sad):
         '''
         This fit method fills the required parameters for an SARCurve object.
+        For the gen_sar object, the fit method will fill self.params['sad_pmf']
+        which is required by the vals function. 
 
         Parameters
         ----------
@@ -2026,6 +2119,10 @@ class gen_sar(SARCurve):
         self.sad.fit([full_sad])
         self.params['sad_pmf'] = self.sad.pmf(np.arange(1, self.params['N'] + 
                                                                     1))[0][0]
+###########################
+#---Generic SAR classes---#
+###########################
+
 class logser_ut_tgeo(gen_sar):
     '''
     Generic sar: 
