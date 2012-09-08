@@ -8,17 +8,14 @@ Classes
 
 '''
 from wsgiref.simple_server import make_server, demo_app
-#import xml.etree.ElementTree as etree
+import xml.etree.ElementTree as etree
 import sys, os, logging, re
-#from matplotlib.mlab import csv2rec
-#from mpl_toolkits.basemap import Basemap
-#import matplotlib.pyplot as plt
-#import metadata as metadata
 import subprocess
 import glob, cgi
 from datetime import datetime
 import webbrowser
 from numpy.random import random
+
 
 __author__ = "Chloe Lewis"
 __copyright__ = "Copyright 2012, Regents of the University of California"
@@ -41,6 +38,7 @@ localport = 8000 # WARNING:  hardcoded into CoolName1.html
 macroeco_root = os.path.dirname(os.path.abspath(__file__))
 gui_path = os.path.join(macroeco_root, 'gui')
 layout = Template(open(os.path.join(gui_path,'CoolName1.txt')).read())
+layout_no_nav = Template(open(os.path.join(gui_path,'CoolName1_no_nav.txt')).read())
 css_file = open(os.path.join(gui_path,'CoolName1.css')).read()
 
 output_path = '.'
@@ -155,37 +153,75 @@ def setup_all(environ, start_response):
     '''Present scripts and recent project directories to user;
     user chooses script, project, and data.'''
     start_response('200 OK', [('Content-Type', 'text/html')])
-    scripts = open(os.path.join(gui_path,'script_list.txt')).read()
     RecentList = open(os.path.join(gui_path, 'CoolName1.recent')).readlines()
     projects = ' '.join(map(dir_to_radio,RecentList))
     proc_number = new_procID()    
-    fill = '''<form name="setup_all" action="results" target="_blank{!s}" method="get">
-           <h1>Available scripts:</h1>
-           <p>{!s}</p>
+    fill = '''<form name="setup_all" action="run" method="get">
            <h1>Recent project directories:</h1>
            <p>{!s}</p>
-           <p>Demo projects already specify data.</p>
-           <input type="submit" value="Run" />
-           <input type="hidden" name="procID" value={!s} />
-           </form>'''.format(proc_number, scripts, projects, proc_number)
+           <p><input type="submit" value="Check parameters" />
+           </p></form>'''.format(projects)
     return layout.safe_substitute(maincontent = fill, localport = localport)
+
+def paramfile_to_checkboxes(paramfile_path):
+    '''Parses the scripts available in a param-file
+       Returns HTML checkbox controls.
+
+       Reproduces most of macroeco.utils.workflow.Parameters;
+       TODO: factor that out.'''
+    # parse scripts and their run details out of parameters.xml
+    class AllEntities:
+        def __getitem__(self, key):
+            return key
+    parser = etree.XMLParser()
+    parser.parser.UseForeignDTD(True)
+    parser.entity = AllEntities()
+    try:
+        pf = open(paramfile_path, 'r')
+        pf.close()
+    except:
+        print 'Could not open paramfile'
+        
+    pml = etree.parse(paramfile_path, parser=parser).getroot()
+
+    scripts = ''
+    chkbx = Template('''<h3><input type="checkbox" name="script" value="$scriptname" /> $scriptname </h3><p> $runs</p>''')
+
+    for analysis in pml:
+        scriptname = analysis.get('script_name')
+        params = ''
+        for run in analysis.getchildren():
+            params = params + '<h4>{!s}</h4>'.format(run.get('name'))
+            for elt in run.getchildren():
+                if elt.tag == 'param':
+                    params = params + '<em>{!s}</em>: {!s}<br />'.format(elt.get('name'), elt.get('value'))
+                if elt.tag == 'data':
+                    params = params + 'Data: {!s}<br />'.format(elt.text)
+        scripts = scripts + (chkbx.safe_substitute(scriptname = scriptname, runs= params)) 
+    # present scripts as checkbox options
+    return scripts 
 
 def run(environ, start_response):
     '''Parse run elements out of parameters.xml;
     offer a list of runs;
     execute chosen runs as subprocesses.'''
-    later = '''           <h1>Data:</h1>
-           <p>Enter the path relative to the project directory.</p>
-           <p><input type=text name="data">
-'''
+
     fields = cgi.parse_qs(environ['QUERY_STRING'])
-    print fields
+    ppath =  fields['project'][0]
+    parfile = os.path.join(ppath,'parameters.xml')
+    print ppath
     try:
-        pf = open('parameters.xml', 'r')
-        print pf.read()
+        pf = open(parfile, 'r')
+        pf.close()
     except:
         start_response('404 NOT FOUND', [('Content-Type', 'text/html')])
-        return layout.safe_substitute(maincontent = '<h1>No parameters.xml file</h1><p>We need a parameters.xml file in the project directory to set up and run the analyses. Examples are in the /projects/demos subdirectories of CoolName1. Project directory:<code>%s</code></p>'%output_path, localport=localport)
+        return layout.safe_substitute(maincontent = '<h1>No parameters.xml file</h1><p>We need a parameters.xml file in the project directory to set up and run the analyses. Attempted project directory:<code>%s</code></p><p>Examples are in the /projects/* subdirectories of CoolName1. </p>'%ppath, localport=localport)
+
+    fill = '<p>Choose one or more scripts to run. All the parameter sets shown for a script will be run. To change parameters, edit<br /> <code>{!s}</code></p><form  method="get" action="results" target=_blank>'.format(parfile) + paramfile_to_checkboxes(parfile) + '<input type="submit" value="Run" /><input type="hidden" name="project" value="{!s}" /></form>'.format(ppath)
+    
+    start_response('200 OK', [('Content-Type', 'text/html')])
+    return layout.safe_substitute(maincontent=fill,
+                                  localport=localport)
  
 
 def results(environ, start_response):
@@ -194,8 +230,7 @@ def results(environ, start_response):
     they must be defined in parameters.xml in the project directory.'''
     #print environ
     fields = cgi.parse_qs(environ['QUERY_STRING'])
-    print fields
-    #scriptname = environ['HTTP_REFERER'].split('/')[-1]+".py" #TODO: ok on Windows?
+    #    print fields
     try:
         scriptname = fields['script'][0]
     except:
@@ -204,10 +239,7 @@ def results(environ, start_response):
         output_path = fields['project'][0]
     except:
         logging.error('No project directory specified')
-    try:
-        procID = fields['procID'][0]
-    except:
-        logging.warning('No process ID')
+
     start_response('200 OK', [('Content-Type', 'text/html')])
 
     spath = os.path.join(macroeco_root, 'scripts', scriptname+'.py')
@@ -216,17 +248,14 @@ def results(environ, start_response):
     p = subprocess.Popen(['python',spath],
                       cwd=output_path, shell=False, stdin=None,
                       stdout=None, close_fds=True)
-    print type(p)
-    processes[procID] = p    
+
     # Should this be an iterator? (see StackOverflow); yield Starting... , then status?
-
-    return layout.safe_substitute(maincontent = '''<h2>Running %s</h2>
+    return layout_no_nav.safe_substitute(maincontent = '''<h2>Running %s</h2>
                     <p>Results stored in: %s</p>
-                    <p>Stop process: <form action="kill/%s">
-                    <input type="submit" value="Cancel" />
-                    </form> </p>
-                    '''%(scriptname,output_path,procID), localport = localport)
-
+                    <p>Details in logfile.txt there and in the terminal window that started with CoolName1.</p>
+                    <p>This window is just to remind you of the directory. Safe to close. </p>
+                    '''%(scriptname,output_path), localport = localport)
+    
 def kill(environ, start_response):
     '''Terminates a specific subprocess.'''
     args = environ['myapp.url_args']
