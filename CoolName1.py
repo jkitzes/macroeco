@@ -185,10 +185,11 @@ def paramfile_to_checkboxes(paramfile_path):
     pml = etree.parse(paramfile_path, parser=parser).getroot()
 
     scripts = ''
-    chkbx = Template('''<h3><input type="checkbox" name="script" value="$scriptname" /> $scriptname </h3><p> $runs</p>''')
+    chkbx = Template('''<h3><input type="checkbox" name="script" value="$scriptname" /> $scriptlink </h3><p> $runs</p>''')
 
     for analysis in pml:
         scriptname = analysis.get('script_name')
+        scriptlink = '<a href="explanation?script={!s}">{!s}</a>'.format(scriptname, scriptname)
         params = ''
         for run in analysis.getchildren():
             params = params + '<h4>{!s}</h4>'.format(run.get('name'))
@@ -197,7 +198,7 @@ def paramfile_to_checkboxes(paramfile_path):
                     params = params + '<em>{!s}</em>: {!s}<br />'.format(elt.get('name'), elt.get('value'))
                 if elt.tag == 'data':
                     params = params + 'Data: {!s}<br />'.format(elt.text)
-        scripts = scripts + (chkbx.safe_substitute(scriptname = scriptname, runs= params)) 
+        scripts = scripts + (chkbx.safe_substitute(scriptname = scriptname,scriptlink=scriptlink, runs= params)) 
     # present scripts as checkbox options
     return scripts 
 
@@ -253,7 +254,7 @@ def results(environ, start_response):
     return layout_no_nav.safe_substitute(maincontent = '''<h2>Running %s</h2>
                     <p>Results stored in: %s</p>
                     <p>Details in logfile.txt there and in the terminal window that started with CoolName1.</p>
-                    <p>This window is just to remind you of the directory. Safe to close. </p>
+                    <p>This window is just to remind you of the directory. Closing this window won't stop the script. </p>
                     '''%(scriptname,output_path), localport = localport)
     
 def kill(environ, start_response):
