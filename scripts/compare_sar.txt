@@ -1,4 +1,4 @@
-<p>This script takes in a dataset(s) and list of curves to which
+<p>This script takes in a dataset(s) and list of curves to which
 compare the observed datasets SAR will be compared.  The required parameters
 for the script are the following:
 </p><p>
