@@ -1,28 +1,3 @@
-<h1>Sample Script Setup</h1>
+<h1>Sample Script</h1>
 <p>This is a longer description of script actions, as long as neccessary, that gives a detailed description of the purpose and 
 operation of this script.</p>
-
-<h2>Data-analysis setup:</h2>
-<form method="GET" action="/results">
-<h3>Parameter setup:</h3>
-<p><input type="text" name="x" width=5> A numeric value x <br />
-<input type="text" name="label"> A text value for a label <br />
-<select name="independent"> 
-  <option value="temp">Temperature</option>
-  <option value="h2o">H2O</option>
-  <option value="density">Density</option>
-  <option value="N">Nitrogen</option>
-</select> Choose one of a fixed set of options <br />
-
-<h3>Run name:</h3>
-<input type="text" name="run-name"> Run name for this set of parameters <br />
-</p>
-
-<h3>Data set:</h3>
-
-<p><input type="text" name="data">Path and filename of data to analyze</p>
-
-<p><font size="Large"><input type="submit" value="Run" /></font></p>
-</form>
-
-

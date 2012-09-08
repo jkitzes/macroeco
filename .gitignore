@@ -12,6 +12,6 @@
 *.pyc
 tags
 .#*
-projects/BOUNDS/*
+projects/sample_script/*results.txt
 code/convert_mat_to_xy.pyc
 logfile.txt
