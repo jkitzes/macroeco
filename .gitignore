@@ -15,3 +15,6 @@ tags
 projects/sample_script/*results.txt
 code/convert_mat_to_xy.pyc
 logfile.txt
+projects/compare_sad/*0.png
+projects/compare_sad/*0.csv
+projects/compare_sad/*0.txt
