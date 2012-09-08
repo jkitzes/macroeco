@@ -14,12 +14,12 @@ __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
 #TODO: Need to fill out docstrings and all that good stuff
-gui_name = '''SAR Analysis'''
+gui_name = '''Species-Area Relationship'''
 
-summary = '''Compares a dataset's observed sar against theoretical sars'''
+summary = '''Compares a dataset's observed SAR against theoretical SARs'''
 
-explantion = '''This script takes in a dataset(s) and list of curves to which
-compare the observed datasets sad will be compared.  The required parameters
+explanation = '''This script takes in a dataset(s) and list of curves to which
+compare the observed datasets SAR will be compared.  The required parameters
 for the script are the following:
 
 'subset' : How one would like to initially subset his data (see DataTable 
