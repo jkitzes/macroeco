@@ -1,4 +1,4 @@
-<h1>SAD Analysis</h1>
+<h1>Species-Area Distribution Analysis</h1>
 <p>This script takes in a dataset(s) and a list of distributions
 to which the observed dataset(s)'s SADs will be compared.  The required
 parameters for this script are the following: 
