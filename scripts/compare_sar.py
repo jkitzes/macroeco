@@ -32,9 +32,9 @@ sar analysis. e.g. ('x', 'y')
 specify the divisions one would like to make in order to generate the sar.  A
 division of (1,1) indicates the whole plot.
 
-'sar_criteria' : This parameter is a dictionary that specifies which column is
-the data set is the column is species counts and which column is the column
-with species names. e.g. {'spp' : 'species', 'spp_count' : 'count'.  In this case,
+'sar_criteria' : This parameter is a dictionary that specifies which column in
+the data set is the column of species counts and which column is the column
+of species names. E.g. {'spp' : 'species', 'spp_count' : 'count'}. In this case,
 column name 'spp' is the species column and column 'spp_count' is the count
 column. See Patch method sar() for more info.
 
