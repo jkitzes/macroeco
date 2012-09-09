@@ -193,14 +193,14 @@ class SAROutput(object):
             for kw in sar.iterkeys():
                 legend.append(kw)
                 if kw == 'obs':
-                    plt.plot(sar[kw]['area'], sar[kw]['species'], '-o')
+                    plt.plot(sar[kw]['area'], sar[kw]['items'], '-o')
                 else:
-                    plt.plot(sar[kw]['area'], sar[kw]['species'])
+                    plt.plot(sar[kw]['area'], sar[kw]['items'])
                 output_form(sar[kw], self.out_dir + '_SAR_plot_' + str(i) + '_'
                                                                           + kw)
             plt.loglog()
             plt.legend(tuple(legend), loc='best')
-            plt.xlabel('log(Area)')
+            plt.xlabel('log(Area Fraction)')
             plt.ylabel('log(Species Number)')
             if len(names) != 0:
                 plt.title(names[i])

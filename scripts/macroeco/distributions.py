@@ -124,7 +124,7 @@ __status__ = "Development"
 # ----------------------------------------------------------------------------
 
 
-class SARCurve(object):
+class Curve(object):
     '''
     Class for curves. Curves are quantitative predictions with no requirement 
     to sum to one, such as SAR's.
@@ -196,9 +196,9 @@ class SARCurve(object):
         Parameters
         ----------
         data :  tuple of array-like objects
-            data conatains two array-like object.  The first is a list of areas
-            and the second is a list of species numbers corresponding to those
-            areas.
+            data conatains two array-like object.  The first is a list of area
+            fractions (area / anchor area) and the second is a list of
+            species/items numbers corresponding to those area fractions.
         full_sad : array-like object
             The full_sad at the anchor area
 
@@ -211,12 +211,7 @@ class SARCurve(object):
         full_sad = make_array(full_sad)
         self.params['S'] = len(full_sad)
         self.params['N'] = sum(full_sad)
-        self.params['z'] = stats.linregress(np.log(data[0]),
-                                                    np.log(data[1]))[0]
-
-
-        
-
+        return self
 
 class Distribution(object):
     '''
@@ -856,8 +851,31 @@ class logser_ut_appx(Distribution):
         self.min_supp = 1
         self.par_num = 0
     
-    @doc_inherit
     def pmf(self, n, root=2):
+        """
+        Probability mass function method.
+
+        Parameters
+        ----------
+        n : int, float or array-like object
+            Values at which to calculate pmf. May be a list of same length as 
+            parameters, or single iterable.
+        root : int (1 or 2)
+            There are often two roots (solutions) in the solution for the
+            lagrange multiplier in this pmf.  root 2 is the root typically used
+            in calculations and is the default.  If root=1, the first root will
+            be used and this is not a true pmf. 
+
+        Returns
+        -------
+        pmf : list of ndarrays
+            List of 1D arrays of probability of observing sample n.
+        vars : dict containing lists of floats
+            Intermediate parameter variables calculated for pmf, as 
+            dict.
+
+        See class docstring for more specific information on this distribution.
+        """
         # Get parameters
         S, N, n = self.get_params(n=n)
         assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
@@ -879,8 +897,8 @@ class logser_ut_appx(Distribution):
                 xmax = scipy.optimize.fmin(eq1, .5, disp=0)[0]
                 ymax = eq(xmax, tS, tN)
                 if ymax > 0:
-                    print "Notice: More than one root in %s. Using root %s" %\
-                                            (self.__class__.__name__, root)
+                    #print "Notice: More than one root in %s. Using root %s" %\
+                                            #(self.__class__.__name__, root)
                     if root == 1:
                         x = scipy.optimize.brentq(eq, start, xmax, args=(tS,
                                                                 tN), disp=True)
@@ -1230,8 +1248,8 @@ class binm(Distribution):
 
     Var
     ---
-    a : list of floats
-        a parameter of is equal to 1 / n_samp, the 'p' parameter of the
+    p : list of floats
+        p parameter of is equal to 1 / n_samp, the 'p' parameter of the
         binomial distribution
     tot_obs : list of ints
         tot_obs is the N parameter of the binomial distribution
@@ -1256,12 +1274,12 @@ class binm(Distribution):
         
         pmf = []
         var = {}
-        var['a'] = []
+        var['p'] = []
         var['tot_obs'] = []
         for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
             ta = 1 / tn_samp
             pmf.append(stats.binom.pmf(tn, ttot_obs, ta))
-            var['a'].append(ta)
+            var['p'].append(ta)
             var['tot_obs'].append(ttot_obs)
         return pmf, var
     
@@ -1271,12 +1289,12 @@ class binm(Distribution):
 
         cdf = []
         var = {}
-        var['a'] = []
+        var['p'] = []
         var['tot_obs'] = []
         for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
             ta = 1 / tn_samp
             cdf.append(stats.binom.cdf(tn, ttot_obs, ta))
-            var['a'].append(ta)
+            var['p'].append(ta)
             var['tot_obs'].append(ttot_obs)
         return cdf, var
 
@@ -1552,8 +1570,8 @@ class fnbd(Distribution):
 
     Var
     ---
-    a : list of floats
-        a parameter is 1 / n_samp
+    p : list of floats
+        p parameter is 1 / n_samp
     k : list of floats
         k parameter is aggregation parameter
 
@@ -1580,7 +1598,7 @@ class fnbd(Distribution):
         
         pmf = []
         var = {}
-        var['a'] = []
+        var['p'] = []
         var['k'] = []
 
         for tn_samp, ttot_obs, tk, tn in zip(n_samp, tot_obs, k, n):
@@ -1590,7 +1608,7 @@ class fnbd(Distribution):
             ta = 1 / tn_samp
             tpmf = ln_L(tn, ttot_obs, ta, tk) # Already log
             pmf.append(np.exp(tpmf))
-            var['a'].append(ta)
+            var['p'].append(ta)
             var['k'].append(tk)
         return pmf, var
     
@@ -1649,8 +1667,8 @@ class geo(Distribution):
 
     Var
     ---
-    a :  list of floats
-        a parameter is equal to 1 / n_samp
+    p :  list of floats
+        p parameter is equal to 1 / n_samp
 
     '''
     
@@ -1667,7 +1685,7 @@ class geo(Distribution):
         k = np.repeat(1, len(n_samp))
         pmf, nvar = nbd(tot_obs=tot_obs, n_samp=n_samp, k=k).pmf(n)
         var = {}
-        var['a'] = 1 / n_samp
+        var['p'] = 1 / n_samp
         return pmf, var
     
     @doc_inherit
@@ -1677,7 +1695,7 @@ class geo(Distribution):
         k = np.repeat(1, len(n_samp))
         cdf, nvar = nbd(tot_obs=tot_obs, n_samp=n_samp, k=k).cdf(n)
         var = {}
-        var['a'] = 1 / n_samp
+        var['p'] = 1 / n_samp
         return cdf, var
         
 class fgeo(Distribution):
@@ -1697,7 +1715,7 @@ class fgeo(Distribution):
 
     Var
     ---
-    a : list of floats
+    p : list of floats
         a parameter is equal to 1 / n_samp
 
     Notes
@@ -1720,7 +1738,7 @@ class fgeo(Distribution):
         k = np.repeat(1, len(n_samp))
         pmf, nvar = fnbd(tot_obs=tot_obs, n_samp=n_samp, k=k).pmf(n)
         var = {}
-        var['a'] = nvar['a']
+        var['p'] = nvar['p']
         return pmf, var
     
     @doc_inherit
@@ -1730,7 +1748,7 @@ class fgeo(Distribution):
         k = np.repeat(1, len(n_samp))
         cdf, nvar = fnbd(tot_obs=tot_obs, n_samp=n_samp, k=k).cdf(n)
         var = {}
-        var['a'] = nvar['a']
+        var['p'] = nvar['p']
         return cdf, var
 
 class tgeo(Distribution):
@@ -1795,7 +1813,7 @@ class tgeo(Distribution):
 
         return pmf, var
 
-class METE_sar(SARCurve):
+class mete_sar_iter(Curve):
     __doc__ = Distribution.__doc__ + \
     '''
     Description
@@ -1805,9 +1823,9 @@ class METE_sar(SARCurve):
     Parameters
     ----------
     S : int
-        Total number of species at the given anchor area
+        Total number of species at the anchor area
     N : int
-        Total number of individuals at the given anchor area
+        Total number of individuals at the anchor area
 
     Notes
     -----
@@ -1819,35 +1837,33 @@ class METE_sar(SARCurve):
     def __init__(self, **kwargs):
         self.params = kwargs
 
-    def vals(self, t_areas, anch, upscale=0, downscale=0):
+    def vals(self, a_list, upscale=0, downscale=0):
         '''
         Predict the universal SAR curve for the given S and N found at 
         the given anchor scale
 
         Parameters
         ----------
-        t_areas : array-like or None
+        a_list : array-like or None
             Target areas for which to calculate SAR
-        anch : float
-            The anchor area from which the SAR will be upscaled or downscaled.
         upscale : int
             Number of iterations up from the anchor scale.  Each iteration 
-            doubles the previous area. Only active if t_areas is None.
+            doubles the previous area. Only active if a_list is None.
         downscale : int
             Number of iterations down from the anchor scale. Each iteration 
-            halves the previous area. Only active if t_areas is None.
+            halves the previous area. Only active if a_list is None.
 
         Returns
         -------
         : 1D structured np.array
-            The structured array has fields 'species' and 'area'
+            The structured array has fields 'items' and 'area'
 
         Notes
         -----
         With this method of the METE SAR, one cannot calculate the SAR at exact
         areas.  Rather this method iterates up and down by powers of 2.
         Therefore, the output of this function will contain all the SAR
-        calcutions in between ~min(t_areas) ~max(t_areas).
+        calcutions in between ~min(a_list) ~max(a_list).
 
 
         '''
@@ -1859,12 +1875,13 @@ class METE_sar(SARCurve):
         assert S < N, "S must be less than N"
         assert S > 1, "S must be greater than 1"
         assert N > 0, "S must be greater than 0"
-        if not np.iterable(t_areas):
-            raise TypeError('t_areas is not an array-like object')
+        if not np.iterable(a_list) and a_list is not None:
+            raise TypeError('a_list is not an array-like object')
         
-        if t_areas != None:
-            mint = np.min(t_areas)
-            maxt = np.max(t_areas)
+        anch = 1
+        if a_list != None:
+            mint = np.min(a_list)
+            maxt = np.max(a_list)
             if mint == anch and maxt == anch: 
                 upscale = 0; downscale = 0
             elif (mint > anch or mint == anch) and maxt > anch:
@@ -1878,16 +1895,16 @@ class METE_sar(SARCurve):
                 downscale = np.int(np.ceil(np.abs(np.log2(mint / anch)))) 
     
         if upscale == 0 and downscale == 0:
-            return np.array((S, anch), dtype=[('species', np.float),
+            return np.array((S, anch), dtype=[('items', np.float),
                                                 ('area', np.float)])
         areas = _generate_areas_(anch, upscale, downscale)
-        sar = np.empty(len(areas), dtype=[('species', np.float),
+        sar = np.empty(len(areas), dtype=[('items', np.float),
                                       ('area', np.float)])
         sar['area'] = areas
         if upscale != 0: 
-            sar['species'][downscale:] = _upscale_sar_(areas[downscale:], N, S)
+            sar['items'][downscale:] = _upscale_sar_(areas[downscale:], N, S)
         if downscale != 0:
-            sar['species'][:downscale + 1] =\
+            sar['items'][:downscale + 1] =\
                                    _downscale_sar_(areas[:downscale + 1], N, S)
         return sar
    
@@ -1900,7 +1917,7 @@ class METE_sar(SARCurve):
         ----------
         num_iter : int
             Number of iterations.
-            WARNING: Running more than 10 ten begins to take along time 
+            WARNING: Running more than 10 begins to take along time 
     
         Returns
         -------
@@ -1961,7 +1978,7 @@ class METE_sar(SARCurve):
                 univ_SAR['N/S'][i] = N2A / S2A
         return univ_SAR
 
-class powerlaw(SARCurve):
+class powerlaw(Curve):
     __doc__ = Distribution.__doc__ + \
     '''
     Description
@@ -1970,10 +1987,11 @@ class powerlaw(SARCurve):
 
     Parameters
     ---------- 
-    S : int
-        Total number of species at the given anchor area
+    c : int
+        intercept of the loglog power law.  If passing in area fractions, c can
+        be considered S at the anchor scale.
     z : int
-        The power of the power law
+        Slope of the loglog power law
     
     '''
 
@@ -1981,40 +1999,45 @@ class powerlaw(SARCurve):
     def __init__(self, **kwargs):
         self.params = kwargs
     
-    def vals(self, t_areas, anch):
+    @doc_inherit
+    def vals(self, a_list):
         '''
-        Generate a power law SAR with a given z for some S at an anchor area
+        Generate a power law SAR with a given z and c.
 
         Parameters
         ----------
-        t_areas : array-like object
-            List of areas at which to calculate the SAR
-        anch : float
-            The anchor area. The anchor area is the largest possible area of
-            the study site.  The area from which self.params['S'] and
-            self.params['N'] are calculated.
+       a_list : array-like object
+            List of area fractions.
     
         Returns
         -------
         : structured np.array
-            A structured np.array with dtype=[('species', np.float),
+            A structured np.array with dtype=[('items', np.float),
             ('area', np.float)]. 
     
         '''
         z = self.params.get('z', None)
-        S = self.params.get('S', None)
-        assert S != None, "S parameter not given"
+        c = self.params.get('c', None)
         assert z != None, "z parameter not given"
-        t_areas = make_array(t_areas)
-        output_array = np.empty(len(t_areas), dtype=[('species', np.float),
+        assert c != None, "c parameter not given"
+        a_list = make_array(a_list)
+        output_array = np.empty(len(a_list), dtype=[('items', np.float),
                                                      ('area', np.float)])
-        output_array['area'] = t_areas
-        c = S / (anch ** z)
+        output_array['area'] = a_list
         p_law = lambda x: c * (x ** z)
-        output_array['species'] = p_law(t_areas)
-        return output_array   
+        output_array['items'] = p_law(a_list)
+        return output_array
+    
+    @doc_inherit
+    def fit(self, data, full_sad):
 
-class gen_sar(SARCurve):
+        super(powerlaw, self).fit(data, full_sad)
+        reg = stats.linregress(np.log(data[0]), np.log(data[1]))
+        self.params['z'] = reg[0]
+        self.params['c'] = np.exp(reg[1])
+        return self
+
+class gen_sar(Curve):
     __doc__ = Distribution.__doc__ + \
     '''
     A generic sar function the utilizes the relationship between the sad
@@ -2058,23 +2081,19 @@ class gen_sar(SARCurve):
         self.ssad = ssad
         self.params = kwargs
 
-    def vals(self, t_areas, anch):
+    def vals(self, a_list):
         '''
 
         Parameters
         ----------
-        t_areas : array-like object
-            List of areas at which to calculate the SAR
-        anch : float
-            The anchor area. The anchor area is the largest possible area of
-            the study site.  The area from which self.params['S'] and
-            self.params['N'] are calculated.
+        a_list : array-like object
+            List of area fractions at which to calculate the SAR
 
         Returns
         -------
         : structured np.array
-            A structured np.array with dtype=[('species', np.float),
-            ('area', np.float)]. 
+            A structured np.array with dtype=[('items', np.float),
+            ('area', np.float)]. Items can be species.
 
         '''
         sad = self.params.get('sad_pmf', None)
@@ -2086,7 +2105,6 @@ class gen_sar(SARCurve):
         sar = []
         N_range = np.arange(1, len(sad) + 1)
         ssad.params['tot_obs'] = N_range
-        a_list = np.array(t_areas) / anch
         for i, a in enumerate(a_list):
             if not a <= 1:
                 raise ValueError("a must be less than or equal to 1")
@@ -2094,11 +2112,12 @@ class gen_sar(SARCurve):
                 p_pres_list = np.repeat(1, len(N_range))
             else:
                 ssad.params['n_samp'] = np.repeat(1 / a, len(N_range))
+                #import pdb; pdb.set_trace()
                 p_pres_list = [1 - absnt[0] for absnt in ssad.pmf(0)[0]]
             sar.append(sum(S * sad * np.array(p_pres_list)))
-        return np.array(zip(sar, t_areas), dtype=[('species', np.float), 
+        return np.array(zip(sar, a_list), dtype=[('items', np.float), 
                                                   ('area', np.float)])
-
+    
     def fit(self, data, full_sad):
         '''
         This fit method fills the required parameters for an SARCurve object.
@@ -2108,17 +2127,19 @@ class gen_sar(SARCurve):
         Parameters
         ----------
         data :  tuple of array-like objects
-            data contains two array-like object.  The first is a list of areas
-            and the second is a list of species numbers corresponding to those
-            areas.
+            data contains two array-like object.  The first is a list of area
+            fractions and the second is a list of species/items numbers 
+            corresponding to those areas.
         full_sad : array-like object
-            The full_sad at the anchor area
+            The full_sad at the anchor area (species/items counts)
 
         '''
         super(gen_sar, self).fit(data, full_sad)
         self.sad.fit([full_sad])
         self.params['sad_pmf'] = self.sad.pmf(np.arange(1, self.params['N'] + 
                                                                     1))[0][0]
+        return self
+
 ###########################
 #---Generic SAR classes---#
 ###########################
@@ -2200,9 +2221,6 @@ class plognorm_lt_fgeo(gen_sar):
         self.params = kwargs
         self.sad = plognorm_lt()
         self.ssad = fgeo()
-
-
-        
 
 def make_array(n):
     '''Cast n as iterable array.'''

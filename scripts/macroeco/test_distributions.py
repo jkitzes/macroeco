@@ -48,6 +48,9 @@ class TestDistributions(unittest.TestCase):
         self.EWsar_up = np.array([23, 26.47, 30.11, 33.92, 37.89, 42.01])
         #N/S:  1000/100, 5000/100, 200/10
         self.EWslop = np.array([.3887, .2612, 0.3140])
+        self.sar = ([0.0004, 0.0025, 0.005, 0.01, 0.25, 1], [2.2356, 10.0175,
+        15.87, 24.32, 101.25, 155])
+        self.sad = np.arange(1, 156)
     
     def test_logser(self):
         self.assertRaises(AssertionError, logser(S=45, N=45).pmf, 1)
@@ -246,27 +249,34 @@ class TestDistributions(unittest.TestCase):
         self.assertTrue(len(dist.params['tot_obs']) == 4)
 
     
-    def test_mete_sar_method1(self):
-        sar = METE_sar(S=34, N=1122).mete_sar_method1(45, target_area=2)
-        spp = np.round(sar['species'], decimals=2)
+    def test_mete_sar_iter(self):
+        sar = mete_sar_iter(S=34, N=1122).vals([(2 / 45.0)])
+        spp = np.round(sar['items'], decimals=2)
         error = 0.001 * spp
         diff = np.abs(spp - self.EWsar_down)
         self.assertTrue(np.all(diff <= error))
-        sar = METE_sar(S=23, N=3400).mete_sar_method1(123, target_area=2000)
-        spp = np.round(sar['species'], decimals=2)
+        sar = mete_sar_iter(S=23, N=3400).vals([2000 / 123.0])
+        spp = np.round(sar['items'], decimals=2)
         error = 0.005 * spp
         diff = np.abs(spp - self.EWsar_up)
         self.assertTrue(np.all(diff <= error))
-        self.assertRaises(Exception, METE_sar(S=12, N=100).mete_sar_method1,\
-                                                100, downcale=8)
-        sar = METE_sar(S=34, N=1000).mete_sar_method1(200, upscale=4, \
-                                                                downscale=6)
+        self.assertRaises(Exception, mete_sar_iter(S=12, N=100).vals,
+                                                None, downcale=8)
+        sar = mete_sar_iter(S=34, N=1000).vals(None, upscale=4, downscale=6)
         self.assertTrue(len(sar) == 11)
+        sar = mete_sar_iter().fit(self.sar, self.sad)
+        self.assertTrue(sar.params['S'] == 155)
+        self.assertTrue(sar.params['N'] == sum(np.arange(1, 156)))
+        sar.vals([.4,3,1,.8])
+
 
     def test_power_law(self):
-        sar = SAR().power_law([34, 56, 112, 12, 78], 23, 98, 0.25)
-        self.assertTrue(len(sar) == 6)
-        #Not much else to test here...
+        sar = powerlaw().fit(self.sar, self.sad)
+        g = sar.vals([1])
+        self.assertTrue(np.round(g['items'][0], decimals=3) == 199.808)
+        sar.params['c']; sar.params['z']
+        self.assertTrue(sar.params['S'] == 155)
+        self.assertTrue(sar.params['N'] == sum(np.arange(1, 156)))
 
     def test_universal_sar(self):
         '''Interesting test results.  EW and our functions agree that using
@@ -276,15 +286,25 @@ class TestDistributions(unittest.TestCase):
         into this'''
         
         answ = []
-        answ.append(METE_sar(S=100, N=1000).univ_curve(num_iter=0)['z'][0])
-        answ.append(METE_sar(S=100, N=5000).univ_curve(num_iter=0)['z'][0])
-        answ.append(METE_sar(S=10, N=200).univ_curve(num_iter=0)['z'][0])
+        answ.append(mete_sar_iter(S=100, N=1000).univ_curve(num_iter=0)['z'][0])
+        answ.append(mete_sar_iter(S=100, N=5000).univ_curve(num_iter=0)['z'][0])
+        answ.append(mete_sar_iter(S=10, N=200).univ_curve(num_iter=0)['z'][0])
         answ = np.array(answ)
         #Using different methods to calculate so use error
         error = 0.05 * answ
         diff = np.abs(self.EWslop - answ)
         self.assertTrue(np.all(diff <= error))
-    
 
-if __name__ == '__main__':
-    unittest.main()
+    def test_gen_sar(self):
+        '''Testing that this actually works'''
+
+        sar = gen_sar(logser(), geo()).fit(self.sar, self.sad)
+        g = sar.vals([.001,.04, .5, 1])
+        self.assertTrue(np.round(g['items'][3], decimals=0) == 155)
+        sar2 = gen_sar(logser(), geo())
+        sar2.params['S'] = sar.params['S']
+        sar2.params['N'] = sar.params['N']
+        sar2.params['sad_pmf'] = sar.params['sad_pmf']
+        s1 = sar.vals([.5]); s2 = sar2.vals([0.5])
+        self.assertTrue(s1['items'][0] == s2['items'][0])
+
