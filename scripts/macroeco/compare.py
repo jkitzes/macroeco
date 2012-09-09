@@ -40,11 +40,11 @@ dist_dict  = {'logser' : logser(), 'plognorm' : plognorm(),
               nbd(), 'fnbd' : fnbd(), 'geo' : geo(), 'fgeo' : fgeo(), 'tgeo' :
               tgeo()} 
 
-sar_dict = {'METE_sar' : METE_sar(), 'powerlaw' : powerlaw(), 'logser_ut_tgeo':
-            logser_ut_tgeo(), 'logser_ut_fgeo' : logser_ut_fgeo(),
-            'logser_ut_binm' : logser_ut_binm(), 'plognorm_lt_binm' :
-            plognorm_lt_binm(), 'plognorm_lt_tgeo' : plognorm_lt_tgeo(),
-            'plognorm_lt_fgeo' : plognorm_lt_fgeo()}
+sar_dict = {'mete_sar_iter' : mete_sar_iter(), 'powerlaw' : powerlaw(), 
+            'logser_ut_tgeo': logser_ut_tgeo(), 'logser_ut_fgeo' : 
+            logser_ut_fgeo(), 'logser_ut_binm' : logser_ut_binm(), 
+            'plognorm_lt_binm' : plognorm_lt_binm(), 'plognorm_lt_tgeo' : 
+            plognorm_lt_tgeo(), 'plognorm_lt_fgeo' : plognorm_lt_fgeo()}
 
 
 class CompareDistribution(object):
@@ -291,7 +291,7 @@ class CompareSARCurve(object):
 
     '''
     
-    def __init__(self, sar_list, curve_list, full_sad):
+    def __init__(self, sar_list, curve_list, full_sad, max_a=True):
         '''
         NOTE: Requiring the full_sad makes this function a lot less flexible.
         Maybe we shouldn't do that.  Maybe just give N and S.  Should we get
@@ -310,8 +310,8 @@ class CompareSARCurve(object):
         full_sad : list of array-like objects
             List of complete sads.  Each sad corresponds to an element in
             sar_list. 
-        patch : bool
-            If True, sar_list should be list of outputs from Patch().sar method
+        max_a : bool
+            If max_a is True, compare sets all areas to fractions in area_list.
         '''
         assert len(sar_list) == len(full_sad), "sar_list and full_sad must " \
                                               + " be the same length"
@@ -319,7 +319,10 @@ class CompareSARCurve(object):
         self.a_list = []
         self.sar_list = []
         for sar in sar_list:
-            self.a_list.append(np.array(sar[0]))
+            if max_a:
+                self.a_list.append(np.array(sar[0]) / max(np.array(sar[0])))
+            else:
+                self.a_list.append(np.array(sar[0]))
             self.sar_list.append(np.array(sar[1]))
 
         if np.all([type(cur) == str for cur in curve_list]):
@@ -349,11 +352,11 @@ class CompareSARCurve(object):
         pred_sar = []
         for sar, a, sad in zip(self.sar_list, self.a_list, self.full_sad):
             psar = {}
-            psar['obs'] = np.array(zip(sar, a), dtype=[('species', np.float),
+            psar['obs'] = np.array(zip(sar, a), dtype=[('items', np.float),
                                         ('area', np.float)])
             for cur in self.curve_list:
                 cur.fit((a, sar), sad)
-                psar[get_name(cur)] = cur.vals(a, np.max(a))
+                psar[get_name(cur)] = cur.vals(a)
             for kw in psar.iterkeys():
                 psar[kw].sort(order='area')
             pred_sar.append(psar)

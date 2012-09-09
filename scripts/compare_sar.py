@@ -36,17 +36,17 @@ division of (1,1) indicates the whole plot.
 the data set is the column is species counts and which column is the column
 with species names. e.g. {'spp' : 'species', 'spp_count' : 'count'.  In this case,
 column name 'spp' is the species column and column 'spp_count' is the count
-column. See Patch method sar() for more info
+column. See Patch method sar() for more info.
 
 'curve_list' : A list with the name of the SARCurve objects that will be
 compared to the empirical SAR.  If none are given, the empirical SAR is just
 plotted on its own.
 
-'names' : List with the desired name of the plot
+'names' : List with the desired name of the plot.
 
 For each dataset, this script generates a log-log sar plot with the empirical
 and theoretical SARs plotted and csv files containing all of the data used to
-make the plot
+make the plot.
 
 '''
 if __name__ == '__main__':
@@ -75,10 +75,11 @@ if __name__ == '__main__':
         sar = patch.sar(params['div_cols'], params['div_list'],
                                                     params['sar_criteria'])
         cmpr = comp.CompareSARCurve([sar], params['curve_list'],
-                                                                [sad[1][0][1]])
+                                                        [sad[1][0][1]])
         srout = SAROutput(output_ID)
         srout.plot_sars(cmpr.compare_curves(), names=params['names'])
         logging.info('Completed analysis %s\n' % output_ID)
+    logging.info("Completed 'compare_sar' script")
 
 
 

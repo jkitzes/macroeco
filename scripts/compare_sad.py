@@ -57,6 +57,7 @@ if __name__ == '__main__':
         sout.plot_cdfs(cmpr.compare_cdfs(), cmpr.data_list,
                         criteria=cmpr.criteria)
         logging.info('Completed analysis %s\n' % output_ID)
+    logging.info("Completed 'compare_sad.py' script")
 
 
 
