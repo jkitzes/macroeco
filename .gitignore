@@ -18,3 +18,5 @@ logfile.txt
 projects/compare_sad/*0.png
 projects/compare_sad/*0.csv
 projects/compare_sad/*0.txt
+projects/compare_sar/*.png
+projects/compare_sar/*.csv

@@ -14,12 +14,12 @@ __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
 #TODO: Need to fill out docstrings and all that good stuff
-gui_name = '''SAR Analysis'''
+gui_name = '''Species-Area Relationship'''
 
-summary = '''Compares a dataset's observed sar against theoretical sars'''
+summary = '''Compares a dataset's observed SAR against theoretical SARs'''
 
-explantion = '''This script takes in a dataset(s) and list of curves to which
-compare the observed datasets sad will be compared.  The required parameters
+explanation = '''This script takes in a dataset(s) and list of curves to which
+compare the observed datasets SAR will be compared.  The required parameters
 for the script are the following:
 
 'subset' : How one would like to initially subset his data (see DataTable 
@@ -32,9 +32,9 @@ sar analysis. e.g. ('x', 'y')
 specify the divisions one would like to make in order to generate the sar.  A
 division of (1,1) indicates the whole plot.
 
-'sar_criteria' : This parameter is a dictionary that specifies which column is
-the data set is the column is species counts and which column is the column
-with species names. e.g. {'spp' : 'species', 'spp_count' : 'count'.  In this case,
+'sar_criteria' : This parameter is a dictionary that specifies which column in
+the data set is the column of species counts and which column is the column
+of species names. E.g. {'spp' : 'species', 'spp_count' : 'count'}. In this case,
 column name 'spp' is the species column and column 'spp_count' is the count
 column. See Patch method sar() for more info.
 
