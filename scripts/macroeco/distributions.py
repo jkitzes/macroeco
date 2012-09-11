@@ -21,7 +21,7 @@ SAD
 - `nbd_lt` - Lower truncated negative binomial
 
 SAR
-- `METE_sar` - METE sar functions (Harte 2011)
+- `mete_sar_iter` - METE sar functions (Harte 2011)
 - `powerlaw` - Power law sar
 - `gen_sar` - A generic sar that supports any sad and ssad distribution.  Six
   unique sars are derived classes from gen_sar.  More can be made.
@@ -31,7 +31,6 @@ SSAD
 - `pois` - Poisson distribution
 - `nbd` - Negative binomial distribution
 - `fnbd` - Finite negative binomial (Zillio and He 2010)
-- `cnbd` - Conditional negative binomial distribution (Conlisk et al 2007b)
 - `geo` - Geometric distribution
 - `fgeo` - Finite geometric distribution (Zillio and He 2010)
 - `tgeo` - Truncated geometric distribution (Harte et al. 2008)
