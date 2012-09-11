@@ -1,3 +1,3 @@
 <h1>Sample Script</h1>
-<p>This is a longer description of script actions, as long as neccessary, that gives a detailed description of the purpose and 
+<p>This is a longer description of script actions, as long as necessary, that gives a detailed description of the purpose and 
 operation of this script.</p>

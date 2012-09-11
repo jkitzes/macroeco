@@ -64,7 +64,7 @@ class CompareDistribution(object):
             List of distribution objects or list of distribution names
         patch : True
             If True, expects data_list to be input from the sad or ssad method
-            in Patch.  If false, expects a list of iterables
+            in Patch.  If False, expects a list of iterables
         clean : bool
             If true, removes zeros from data_list.  Necessary for SAD
             comparisons.
