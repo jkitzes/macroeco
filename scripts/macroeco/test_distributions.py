@@ -19,26 +19,23 @@ Weecology functions from https://github.com/weecology/macroecotools.
 '''
 
 import unittest
-from distributions import *
+from macroeco.distributions import *
 import numpy as np
 
-#TODO:  Need to rerun tests with new fit functions. 
+# TODO: Need to add fit functions to tests with new fit functions. 
+
+# TODO: Do we need to test rad's? Against what?
 
 class TestDistributions(unittest.TestCase):
     '''Test the functions within sad_distr.py'''
 
     def setUp(self):
-        
         self.abund_list = []
         self.abund_list.append(np.array([1,1,2,3,4,4,7,12]))
         self.abund_list.append(np.array([1,1,1,1,1,2]))
         self.abund_list.append(np.array([3,2,2,1,5,6,4,5,7]))
         self.abund_list.append(np.array([1,1,4,5,7,89,100]))
-        #R output from function dpolono in VGAM package
-        self.R = [0.8453224, 1.951546, 1.040038, 0.3102524]
-        #Simulated values in A. J. Baczkowski 1997 paper 
-        self.sugi = [.4761, .1962, .1180, .0751, .0499, .0337, .0226, .0148,\
-                     .0090, .0047]
+
         #Testing against weecology function: N=1122, S=34, target_area=2
         #Anchor_area=45
         #There will be some differences because we are using approximations
@@ -51,56 +48,36 @@ class TestDistributions(unittest.TestCase):
         self.sar = ([0.0004, 0.0025, 0.005, 0.01, 0.25, 1], [2.2356, 10.0175,
         15.87, 24.32, 101.25, 155])
         self.sad = np.arange(1, 156)
+
     
     def test_logser(self):
+        # Test error raising
         self.assertRaises(AssertionError, logser(S=45, N=45).pmf, 1)
         self.assertRaises(AssertionError, logser(S=234, N=67).pmf, 1)
         self.assertRaises(AssertionError, logser(S=34, N=0).pmf, 1)
-        #Test against value in Fisher's paper Fisher et al. 1943
+
+        # Test pmf against value in Fisher's paper Fisher et al. 1943
         pmf, var = logser(S=240, N=15609).pmf(1)
         self.assertTrue(np.round(var['p'][0], decimals=4) == 0.9974)
+
+        # Test cdf reaches 1
         cdf = np.round(logser(S=45, N=1200).cdf(1200)[0][0][0], decimals=1)
         self.assertTrue(cdf == 1)
-    
-     
-    #Should test against ethans psolver
-    def test_plognorm(self):
-        for i, sad in enumerate(self.abund_list):
-            log_abund = np.log(sad)
-            mu = np.mean(log_abund)
-            var = np.var(log_abund, ddof=1)
-            sigma = var**0.5
-            pmf = sum(plognorm(mu=mu, sigma=sigma).pmf(sad)[0][0])
-            diff1 = np.round(self.R[i], decimals=5) - np.round(pmf, decimals=5)
-            self.assertTrue(abs(diff1) == 0)
-        self.assertTrue(sum(np.round(plognorm(mu=-3,sigma=-3).\
-                                     pmf([1,2,3,4,5])[0][0], decimals=3)) == 0) 
-        plognorm().fit([self.abund_list[0]])
-        N = sum(self.abund_list[0]); S = len(self.abund_list[0])
-        plognorm(S=S, N=N, mu=2, sigma=2).cdf(5)
 
-    
-    def test_plognorm_lt(self):
-        N = sum(self.abund_list[0]); S = len(self.abund_list[0])
-        plognorm_lt(S=[S,S+2], N=[N, N+2], mu=[2,3], sigma=[2,3]).cdf(5)
-        plognorm_lt(mu=2, sigma=2).pmf([2,3,4,5,23])
-        plognorm_lt().fit([self.abund_list[0]])
-        plognorm_lt(mu=10, sigma=1).cdf(45)
-        EW_fit = {'mu' :.90, 'sigma' : 2.18}
-        sad = [1,1,1,1,2,3,5,6,12,13,15,23,45,67,112]
-        dist = plognorm_lt().fit([sad])
-        mu = dist.params['mu'][0]; sigma = dist.params['sigma'][0]
-        self.assertTrue(EW_fit['mu'] == np.round(mu, decimals=2))
-        self.assertTrue(EW_fit['sigma'] == np.round(sigma, decimals=2))
-    
-    
+        # TODO: Test known value of cdf
+
+
     def test_logser_ut(self):
+        # Test error raising
         self.assertRaises(AssertionError, logser_ut(S=45, N=45).pmf, 1)
         self.assertRaises(AssertionError, logser_ut(S=234, N=67).pmf, 1)
         self.assertRaises(AssertionError, logser_ut(S=34, N=0).pmf, 1)
+
+        # Test that pmf is correct length
         pmf = logser_ut(S=34, N=567).pmf(np.arange(1, 568))[0][0]
         self.assertTrue(len(pmf) == 567)
-        #Testing that values equal values from John's book (Harte 2011)
+
+        # Test that values equal values from John's book (Harte 2011)
         pmf, x = logser_ut(S=4, N=4 * 4).pmf(1)
         self.assertTrue(np.round(-np.log(x['x'][0]), decimals=4) == 0.0459)
         pmf, x = logser_ut(S=4, N=2**4 * 4).pmf(1)
@@ -111,14 +88,19 @@ class TestDistributions(unittest.TestCase):
         self.assertTrue(np.round(-np.log(x['x'][0]), decimals=6) == 0.000413)
         pmf, x = logser_ut(S=64, N=2**12 * 64).pmf(1)
         self.assertTrue(np.round(-np.log(x['x'][0]), decimals=7) == 0.0000228)
+
+        # TODO: Test cdf. Below appear to do nothing.
         logser_ut(S=64, N=1000).rad()
         logser_ut(S=64, N=1000).cdf((1,1,2,4,5,7,12))
 
+
     def test_logser_ut_appx(self):
+        # Test error raising
         self.assertRaises(AssertionError, logser_ut_appx(S=45, N=45).pmf, 1)
         self.assertRaises(AssertionError, logser_ut_appx(S=234, N=67).pmf, 1)
         self.assertRaises(AssertionError, logser_ut_appx(S=34, N=0).pmf, 1)
-        #Testing that values = values from John's book (Harte 2011)
+
+        # Test that values equal values from John's book (Harte 2011)
         pmf, x = logser_ut_appx(S=4, N=4 * 4).pmf(1)
         self.assertTrue(np.round(-np.log(x['x'][0]), decimals=3) == 0.116)
         pmf, x = logser_ut_appx(S=4, N=2**4 * 4).pmf(1)
@@ -128,68 +110,150 @@ class TestDistributions(unittest.TestCase):
         pmf, x = logser_ut_appx(S=16, N=2**8 * 16).pmf(1)
         self.assertTrue(np.round(-np.log(x['x'][0]), decimals=6) == 0.000516)
         pmf, x = logser_ut_appx(S=64, N=2**12 * 64).pmf(1)
-        self.assertTrue(np.round(-np.log(x['x'][0]), decimals=7) == 0.0000229 or\
+        self.assertTrue(np.round(-np.log(x['x'][0]), decimals=7) == 0.0000229
+                        or
                         np.round(-np.log(x['x'][0]), decimals=7) == 0.0000228)
+
+        # TODO: Test cdf. Below appear to do nothing.
         logser_ut_appx(S=64, N=1000).rad()
         logser_ut_appx(S=64, N=1000).cdf((1,1,2,4,5,7,12))
-    
+        
      
-    def test_sugihara_rank_abund(self):
-        #Testing against A. J. Baczkowski 1997 paper values
-        #Passes with 2% error regularly. Being conservative with 5% error
-        ps = sugihara(S=10, N=400).rad(sample_size=20000)[0] / 400
-        error = .05 * ps
-        diff = np.array(self.sugi) - ps
-        ind = np.abs(diff) <= error
-        self.assertTrue(np.all(ind))
-    
-    def test_geo_ser(self):
-        #Using data from Magurran (1998)
-        obs_sad = [370,210,120,66,35,31,15,9,3,2,1]
-        mag_pred_sad = [387.6, 213.8, 117.8, 64.5, 35.5, 19.8, 10.7, 6.2, 3.3,\
-                        1.8, 1.0]
-        dist = geo_ser().fit([obs_sad])
-        gk = dist.params['k'][0]
-        self.assertTrue(np.round(gk, decimals=3) == 0.449)
-        geo_sad = np.round(geo_ser(S=len(obs_sad), N=sum(obs_sad), k=.449).\
-                           rad(), decimals=1)[0]
-        diff = np.floor(np.array(mag_pred_sad)) - np.floor(geo_sad)
-        self.assertTrue(np.all(diff == 0))
-        dist = geo_ser().fit(self.abund_list)
-        self.assertTrue(len(dist.params['k']) == 4)
-    
-    def test_broken_stick(self):
-        #Using data from Magurran (1998)
-        self.assertRaises(TypeError, broken_stick(S=12, N=111).pmf,[[2],[3]])
-        obs_sad = [103,115,13,2,67,36,51,8,6,61,10,21,7,65,4,49,92,37,16,6,23,\
-                   9,2,6,5,4,1,3,1,9,2]
-        expt = [1.077, 1.040, 1.004, .970, .937, .904, .873, .843, .814,\
-                    .786, .759, .732, .707, .683, .659, .636]
-        S = len(obs_sad)
-        N = sum(obs_sad)
-        bs = np.round(broken_stick(S=S, N=N).pmf(np.arange(1, 17))[0][0] * S,\
-                      decimals=3)
-        diff = np.array(expt) - bs
-        self.assertTrue(np.all(diff == 0))
-        broken_stick(S=23, N=500).cdf([1,2,500])
-        broken_stick(S=23, N=500).rad()
-        broken_stick().fit(self.abund_list)
+    def test_plognorm(self):
+        # TODO: Should test against Ethans psolver
 
+        # R output from function dpolono in VGAM package
+        R = [0.8453224, 1.951546, 1.040038, 0.3102524]
+
+        # Test known values of pmf from R against our results
+        for i, sad in enumerate(self.abund_list):
+            log_abund = np.log(sad)
+            mu = np.mean(log_abund)
+            var = np.var(log_abund, ddof=1)
+            sigma = var**0.5
+            pmf = sum(plognorm(mu=mu, sigma=sigma).pmf(sad)[0][0])
+            diff1 = np.round(R[i], decimals=5) - np.round(pmf, decimals=5)
+            self.assertTrue(abs(diff1) == 0)
+
+        # Test pmf is zero when mu or sigma negative
+        self.assertTrue(sum(np.round(plognorm(mu=-3,sigma=3).\
+                                     pmf([1,2,3,4,5])[0][0], decimals=3)) == 0) 
+        self.assertTrue(sum(np.round(plognorm(mu=3,sigma=-3).\
+                                     pmf([1,2,3,4,5])[0][0], decimals=3)) == 0)
+
+        # TODO: @MW - What does the following do here?
+        plognorm().fit([self.abund_list[0]])
+        N = sum(self.abund_list[0])
+        S = len(self.abund_list[0])
+        plognorm(S=S, N=N, mu=2, sigma=2).cdf(5)
+
+    
+    def test_plognorm_lt(self):
+        # TODO: No test below - should test pmf and cdf, at minimum
+
+        N = sum(self.abund_list[0])
+        S = len(self.abund_list[0])
+        plognorm_lt(S=[S,S+2], N=[N, N+2], mu=[2,3], sigma=[2,3]).cdf(5)
+        plognorm_lt(mu=2, sigma=2).pmf([2,3,4,5,23])
+        plognorm_lt().fit([self.abund_list[0]])
+        plognorm_lt(mu=10, sigma=1).cdf(45)
+
+        # Test fit against Ethan White results
+        EW_fit = {'mu' :.90, 'sigma' : 2.18}
+        sad = [1,1,1,1,2,3,5,6,12,13,15,23,45,67,112]
+        dist = plognorm_lt().fit([sad])
+        mu = dist.params['mu'][0]
+        sigma = dist.params['sigma'][0]
+        self.assertTrue(EW_fit['mu'] == np.round(mu, decimals=2))
+        self.assertTrue(EW_fit['sigma'] == np.round(sigma, decimals=2))
+    
+    
     def test_lognorm(self):
+
+        # Test pmf against R output
         r_output = [0.1210, .0806, .0601, 0.0476, 0.0391, .0331,  0.0285,\
                     0.0249, 0.0221, 0.0197]
         lnorm = np.round(lognorm(mu=2, sigma=2).pmf(np.arange(1,11))[0][0],
                                                                     decimals=4)
         diff = r_output - lnorm
         self.assertTrue(np.all(diff == 0))
+
+        # TODO: Below doesn't do anything - test cdf and fit
         lognorm().fit([self.abund_list[0]])
-        N=sum(self.abund_list[0]); S=len(self.abund_list[0])
+        N=sum(self.abund_list[0])
+        S=len(self.abund_list[0])
         lognorm(N=N, S=S, mu=2, sigma=5).rad()
         lognorm(mu=1.5, sigma=3.45).cdf([1,1,4,5,12])
+
+        # Test fit parameter length is correct
+        # TODO: Test fit
         dist = lognorm().fit(self.abund_list)
         dist.pmf(3)
         dist.pmf([[3],[4],[5],[6]])
-        self.assertTrue(len(dist.params['mu']) == 4)
+        self.assertTrue(len(dist.params['mu']) == 4) 
+
+      
+    def test_geo_ser(self):
+        # TODO: Test pmf, cdf
+
+        # Data from Magurran (1998)
+        obs_sad = [370,210,120,66,35,31,15,9,3,2,1]
+        mag_pred_sad = [387.6, 213.8, 117.8, 64.5, 35.5, 19.8, 10.7, 6.2, 3.3,\
+                        1.8, 1.0]
+
+        # Test fit
+        dist = geo_ser().fit([obs_sad])
+        gk = dist.params['k'][0]
+        self.assertTrue(np.round(gk, decimals=3) == 0.449)
+
+        # Test rad
+        geo_sad = np.round(geo_ser(S=len(obs_sad), N=sum(obs_sad), k=.449).\
+                           rad(), decimals=1)[0]
+        diff = np.floor(np.array(mag_pred_sad)) - np.floor(geo_sad)
+        self.assertTrue(np.all(diff == 0))
+
+        # Test length of var is correct
+        dist = geo_ser().fit(self.abund_list)
+        self.assertTrue(len(dist.params['k']) == 4)
+
+    
+    def test_broken_stick(self):
+        # TODO: Why should this throw error? Describe test -        
+        self.assertRaises(TypeError, broken_stick(S=12, N=111).pmf,[[2],[3]])
+
+        # Data from Magurran (1998)
+        obs_sad = [103,115,13,2,67,36,51,8,6,61,10,21,7,65,4,49,92,37,16,6,23,\
+                   9,2,6,5,4,1,3,1,9,2]
+        expt = [1.077, 1.040, 1.004, .970, .937, .904, .873, .843, .814,\
+                    .786, .759, .732, .707, .683, .659, .636]
+
+        # Test pmf
+        S = len(obs_sad)
+        N = sum(obs_sad)
+        bs = np.round(broken_stick(S=S, N=N).pmf(np.arange(1, 17))[0][0] * S,\
+                      decimals=3)
+        diff = np.array(expt) - bs
+        self.assertTrue(np.all(diff == 0))
+
+        # TODO: Test rad and cdf - below does nothing
+        broken_stick(S=23, N=500).cdf([1,2,500])
+        broken_stick(S=23, N=500).rad()
+        broken_stick().fit(self.abund_list)
+    
+    
+    def test_sugihara(self):
+        # Data from A. J. Baczkowski 1997
+        sugi = [.4761, .1962, .1180, .0751, .0499, .0337, .0226, .0148,\
+                     .0090, .0047]
+
+        # Test rad
+        # Passes with 2% error regularly. Being conservative with 5% error
+        ps = sugihara(S=10, N=400).rad(sample_size=20000)[0] / 400
+        error = .05 * ps
+        diff = np.array(sugi) - ps
+        ind = np.abs(diff) <= error
+        self.assertTrue(np.all(ind))
+
      
     def test_binm(self):
         dist = binm(tot_obs=8123, n_samp=10)
@@ -307,4 +371,3 @@ class TestDistributions(unittest.TestCase):
         sar2.params['sad_pmf'] = sar.params['sad_pmf']
         s1 = sar.vals([.5]); s2 = sar2.vals([0.5])
         self.assertTrue(s1['items'][0] == s2['items'][0])
-
