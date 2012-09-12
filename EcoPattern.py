@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 '''
-CoolName1 runs a local webserver to allow a browser interface to the Macroeco scripts.
+EcoPattern runs a local webserver to allow a browser interface to the Macroeco scripts.
 
 
 '''
@@ -32,18 +32,18 @@ from string import Template
 # Could subclass BaseWSGI instead of running as a script,
 # but it doesn't gain anything (and is self-ish).
 
-localport = 8000 # NOTE:  hardcoded into CoolName1.txt
+localport = 8000 # NOTE:  hardcoded into EcoPattern.txt
 macroeco_root = os.path.dirname(os.path.abspath(__file__))
 gui_path = os.path.join(macroeco_root, 'gui')
-layout = Template(open(os.path.join(gui_path,'CoolName1.txt')).read())
-layout_no_nav = Template(open(os.path.join(gui_path,'CoolName1_no_nav.txt')).read())
-css_file = open(os.path.join(gui_path,'CoolName1.css')).read()
+layout = Template(open(os.path.join(gui_path,'EcoPattern.txt')).read())
+layout_no_nav = Template(open(os.path.join(gui_path,'EcoPattern_no_nav.txt')).read())
+css_file = open(os.path.join(gui_path,'EcoPattern.css')).read()
 output_path = '.'
 processes = {}
 
-def CoolName1_app(environ, start_response):
+def EcoPattern_app(environ, start_response):
     '''
-    Runs CoolName1 on a local web server; access through
+    Runs EcoPattern on a local web server; access through
     http://localhost:%d
 
 
@@ -69,9 +69,9 @@ def css(environ, start_response):
     return css_file
 
 def index(environ, start_response):
-    '''Home page: explains what to do with CoolName1.'''
+    '''Home page: explains what to do with EcoPattern.'''
     start_response('200 OK', [('Content-Type', 'text/html')])
-    explanation = '''<p>CoolName1 can analyze ecological data in several ways,
+    explanation = '''<p>EcoPattern can analyze ecological data in several ways,
                    using scripts we have written and tested. Input parameters and
                    output files are stored together in a Project directory so you
                    always have a record of how each result was generated. </p>
@@ -83,8 +83,8 @@ def index(environ, start_response):
                    <p>You can also run any of these scripts from the command-line,
                    or write your own scripts using our mathematical and helper
                    functions.</p>
-                   <p>Contact the CoolName1 team at <a href=
-                   "mailto:CoolName1@berkeley.edu">CoolName1</a>.</p>'''
+                   <p>Contact the EcoPattern team at <a href=
+                   "mailto:EcoPattern@berkeley.edu">EcoPattern</a>.</p>'''
     return layout.safe_substitute(maincontent = explanation,
                                   localport = localport)
 
@@ -184,7 +184,7 @@ def run(environ, start_response):
               <h1>No parameters.xml file</h1><p>We need a parameters.xml file in
               the project directory to set up and run the analyses. Attempted
               project directory:<code>%s</code></p><p>Examples are in the
-              /projects/* subdirectories of CoolName1. </p>
+              /projects/* subdirectories of EcoPattern. </p>
               '''.format(ppath),
                                       localport = localport)
 
@@ -250,7 +250,7 @@ def results(environ, start_response):
                     <h2>Running {!s}</h2>
                     <p>Results stored in: {!s}</p>
                     <p>Details in logfile.txt there and in the terminal window
-                    that started with CoolName1.</p>
+                    that started with EcoPattern.</p>
                     <p>This window is just to remind you of the directory. Closing
                     this window won't stop the script. </p>
                     '''.format(scriptname,output_path),
@@ -309,7 +309,7 @@ def project(environ, start_response):
                '''.format(radios)
     else:
         fill = '''
-               <p>No CoolName1 projects found.</p>
+               <p>No EcoPattern projects found.</p>
                <p>We need parameters.xml files in subdirectories of </p>
                <p><code>{!s}</code></p>
                '''.format(ppath)
@@ -372,10 +372,10 @@ def simple_app(environ, start_response):
 # Try this if the app fails and it might be the webservice itself:
 #httpd = make_server('', localport, simple_app)
 
-httpd = make_server('', localport, CoolName1_app)
+httpd = make_server('', localport, EcoPattern_app)
 print '''
 
-The CoolName1 engine is running now.
+The EcoPattern engine is running now.
 
 Look for this site in your browser:
 
