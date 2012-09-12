@@ -208,16 +208,34 @@ def results(environ, start_response):
     if script has required parameters, including data,
     they must be defined in parameters.xml in the project directory.'''
     #print environ
-    fields = cgi.parse_qs(environ['QUERY_STRING'])
+    try:
+        fields = cgi.parse_qs(environ['QUERY_STRING'])
+    except:
+        start_response('404 NOT FOUND', [('Content-Type', 'text/html')])
+        return layout_no_nav.safe_substitute(maincontent='''
+                     <p>No run chosen; please check at least one run for this
+                     script.</p>''',
+                                      localport=localport)
+
+        
     #    print fields
     try:
         scriptname = fields['script'][0]
     except:
         logging.error('No script specified')
+        start_response('404 NOT FOUND', [('Content-Type', 'text/html')])
+        return layout_no_nav.safe_substitute(maincontent='''
+                     <p>No script chosen; please check at least one script for this
+                     project.</p>''',
+                                      localport=localport)
     try:
         output_path = fields['project'][0]
     except:
         logging.error('No project directory specified')
+        start_response('404 NOT FOUND', [('Content-Type', 'text/html')])
+        return layout_no_nav.safe_substitute(maincontent='''
+                     <p>No project chosen; please specify a directory.</p>''',
+                                      localport=localport)
 
     start_response('200 OK', [('Content-Type', 'text/html')])
 
