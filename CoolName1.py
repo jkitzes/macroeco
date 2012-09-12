@@ -3,8 +3,6 @@
 '''
 CoolName1 runs a local webserver to allow a browser interface to the Macroeco scripts.
 
-Classes
--------
 
 '''
 from wsgiref.simple_server import make_server, demo_app
@@ -32,15 +30,14 @@ from wsgiref.simple_server import make_server
 from string import Template
 
 # Could subclass BaseWSGI instead of running as a script,
-# but it doesn't gain anything (and is self-ish). 
+# but it doesn't gain anything (and is self-ish).
 
-localport = 8000 # WARNING:  hardcoded into CoolName1.html
+localport = 8000 # NOTE:  hardcoded into CoolName1.txt
 macroeco_root = os.path.dirname(os.path.abspath(__file__))
 gui_path = os.path.join(macroeco_root, 'gui')
 layout = Template(open(os.path.join(gui_path,'CoolName1.txt')).read())
 layout_no_nav = Template(open(os.path.join(gui_path,'CoolName1_no_nav.txt')).read())
 css_file = open(os.path.join(gui_path,'CoolName1.css')).read()
-
 output_path = '.'
 processes = {}
 
@@ -65,35 +62,6 @@ def CoolName1_app(environ, start_response):
             return callback(environ, start_response)
 
     return NIY(environ, start_response)
-
-
-def make_pretty_lists():
-    '''Makes a list of script GUI names and summaries
-    from the .py files in the ./scripts directory.
-        Also makes up the forms describing each script, while we're there.'''
-    # formatting for each line
-    entry = Template('<p><a href="setup/$link">$GUI_name</a> $summary</p>')
-    scriptlist = ''
-    
-    # list of .py modules
-    for module in os.listdir("scripts"): #structure-dependent
-        if module[:-11] == '__init__.py' or module[-3:] != '.py':
-            break
-        modname = module[:-3]
-        print 'modname:', modname
-        current_module = __import__('scripts.%s'%modname) 
-        print current_module
-        # script descriptors get prettied up and stored
-        # in the home-page list 
-        each = entry(modname, modname.GUI_name, modname.summary)
-        scriptlist.append(each)
-
-        #and in the description & form page for each script
-
-        #save out separate d & f page as scripts/modname.txt
-        del module
-        
-    #save pretty list as script_list.txt
         
 def css(environ, start_response):
     '''Read in the CSS file that styles our GUI.'''
@@ -149,27 +117,8 @@ def new_procID():
         old = pID'''
     return 1
 
-def setup_all(environ, start_response):
-    '''Present scripts and recent project directories to user;
-    user chooses script, project, and data.'''
-    start_response('200 OK', [('Content-Type', 'text/html')])
-    RecentList = open(os.path.join(gui_path, 'CoolName1.recent')).readlines()
-    projects = ' '.join(map(dir_to_radio,RecentList))
-    proc_number = new_procID()    
-    fill = '''<form name="setup_all" action="run" method="get">
-           <h1>Recent project directories:</h1>
-           <p>{!s}</p>
-           <p><input type="submit" value="Check parameters" />
-           </p></form>'''.format(projects)
-    return layout.safe_substitute(maincontent = fill, localport = localport)
 
-def paramfile_to_checkboxes(paramfile_path):
-    '''Parses the scripts available in a param-file
-       Returns HTML checkbox controls.
-
-       Reproduces most of macroeco.utils.workflow.Parameters;
-       TODO: factor that out.'''
-    # parse scripts and their run details out of parameters.xml
+def xml_root(paramfile_path):
     class AllEntities:
         def __getitem__(self, key):
             return key
@@ -182,10 +131,22 @@ def paramfile_to_checkboxes(paramfile_path):
     except:
         print 'Could not open paramfile'
         
-    pml = etree.parse(paramfile_path, parser=parser).getroot()
+    return etree.parse(paramfile_path, parser=parser).getroot()
+
+
+def paramfile_to_checkboxes(paramfile_path):
+    '''Parses the scripts available in a param-file
+       Returns HTML checkbox controls.
+
+       Reproduces most of macroeco.utils.workflow.Parameters;
+       TODO: factor that out.'''
+    # parse scripts and their run details out of parameters.xml
+    pml = xml_root(paramfile_path)
 
     scripts = ''
-    chkbx = Template('''<h3><input type="checkbox" name="script" value="$scriptname" /> $scriptlink </h3><p> $runs</p>''')
+    chkbx = Template('''<h3>
+                       <input type="checkbox" name="script" value="$scriptname" />
+                       $scriptlink </h3><p> $runs</p>''')
 
     for analysis in pml:
         scriptname = analysis.get('script_name')
@@ -195,10 +156,13 @@ def paramfile_to_checkboxes(paramfile_path):
             params = params + '<h4>{!s}</h4>'.format(run.get('name'))
             for elt in run.getchildren():
                 if elt.tag == 'param':
-                    params = params + '<em>{!s}</em>: {!s}<br />'.format(elt.get('name'), elt.get('value'))
+                    params = '''{!s}<em>{!s}</em>: {!s}<br />
+                             '''.format(params, elt.get('name'), elt.get('value'))
                 if elt.tag == 'data':
                     params = params + 'Data: {!s}<br />'.format(elt.text)
-        scripts = scripts + (chkbx.safe_substitute(scriptname = scriptname,scriptlink=scriptlink, runs= params)) 
+        scripts = scripts + (chkbx.safe_substitute(scriptname = scriptname,
+                                                   scriptlink=scriptlink,
+                                                   runs= params)) 
     # present scripts as checkbox options
     return scripts 
 
@@ -216,13 +180,27 @@ def run(environ, start_response):
         pf.close()
     except:
         start_response('404 NOT FOUND', [('Content-Type', 'text/html')])
-        return layout.safe_substitute(maincontent = '<h1>No parameters.xml file</h1><p>We need a parameters.xml file in the project directory to set up and run the analyses. Attempted project directory:<code>%s</code></p><p>Examples are in the /projects/* subdirectories of CoolName1. </p>'%ppath, localport=localport)
+        return layout.safe_substitute(maincontent = '''
+              <h1>No parameters.xml file</h1><p>We need a parameters.xml file in
+              the project directory to set up and run the analyses. Attempted
+              project directory:<code>%s</code></p><p>Examples are in the
+              /projects/* subdirectories of CoolName1. </p>
+              '''.format(ppath),
+                                      localport = localport)
 
-    fill = '<p>Choose one or more scripts to run. All the parameter sets shown for a script will be run. To change parameters, edit<br /> <code>{!s}</code></p><form  method="get" action="results" target=_blank>'.format(parfile) + paramfile_to_checkboxes(parfile) + '<input type="submit" value="Run" /><input type="hidden" name="project" value="{!s}" /></form>'.format(ppath)
+    fill = '''
+           <p>Choose one or more scripts to run. All the parameter sets shown for
+           a script will be run. To change parameters, edit<br /> <code>{!s}</code>
+           </p><form  method="get" action="results" target=_blank>
+           {!s}
+           <input type="submit" value="Run" />
+           <input type="hidden" name="project" value="{!s}" />
+           </form>
+           '''.format(parfile, paramfile_to_checkboxes(parfile), (ppath))
     
     start_response('200 OK', [('Content-Type', 'text/html')])
-    return layout.safe_substitute(maincontent=fill,
-                                  localport=localport)
+    return layout.safe_substitute(maincontent = fill,
+                                  localport = localport)
  
 
 def results(environ, start_response):
@@ -245,17 +223,20 @@ def results(environ, start_response):
 
     spath = os.path.join(macroeco_root, 'scripts', scriptname+'.py')
 
-    #process_output = file('results.tmp','w') 
     p = subprocess.Popen(['python',spath],
                       cwd=output_path, shell=False, stdin=None,
                       stdout=None, close_fds=True)
 
     # Should this be an iterator? (see StackOverflow); yield Starting... , then status?
-    return layout_no_nav.safe_substitute(maincontent = '''<h2>Running %s</h2>
-                    <p>Results stored in: %s</p>
-                    <p>Details in logfile.txt there and in the terminal window that started with CoolName1.</p>
-                    <p>This window is just to remind you of the directory. Closing this window won't stop the script. </p>
-                    '''%(scriptname,output_path), localport = localport)
+    return layout_no_nav.safe_substitute(maincontent = '''
+                    <h2>Running {!s}</h2>
+                    <p>Results stored in: {!s}</p>
+                    <p>Details in logfile.txt there and in the terminal window
+                    that started with CoolName1.</p>
+                    <p>This window is just to remind you of the directory. Closing
+                    this window won't stop the script. </p>
+                    '''.format(scriptname,output_path),
+                                         localport = localport)
     
 def kill(environ, start_response):
     '''Terminates a specific subprocess.'''
@@ -268,33 +249,55 @@ def kill(environ, start_response):
                                       localport = localport)
     processes[procID].kill()
     #subprocess.Popen.terminate()
+
+def pfile_to_radio(pfile):
+    '''Given the path to a parameters.xml, return an HTML radio control'''
     
-def dir_to_radio(dirstring):
     o = Template('''<input type=radio name="project" value=$value />
                      $pretty<br />''')
+
+    pml = xml_root(pfile)
+    prettyname = pml.get('name')
+    if prettyname == None:
+        print 'No project name in ', pfile, ' using directory name'
+        prettyname = pfile.split(os.sep)[-2]
+    
+        
+        
+    return o.safe_substitute(value = os.path.split(pfile)[0], pretty = prettyname)
+    #    else:
+    #       return link w/dir name only
+    #skip it (mention at command line? at bottom of page?)
+    
     p = dirstring.rstrip()
     v = os.path.abspath(os.path.join(macroeco_root, p))
     return o.safe_substitute(value=v, pretty = p)
-
-def dir_to_link(dirstring):
-    o = Template('''<a href="results?output=$value">
-                     $pretty</a><br />''')
-    p = dirstring.rstrip()
-    v = os.path.abspath(os.path.join(macroeco_root, p))
-    return o.safe_substitute(value=v, pretty = p)
-
+    
 def project(environ, start_response):
-    '''Directories containing a parameters.xml file;
-    TODO ship the list with the contents of CoolName1.recent.'''
-    RecentList = open("CoolName1.recent").readlines()
+    ''' Pretty link to each ./project/* containing a parameters.xml.'''
+    # for each ./project/*/parameters.xml:
+    ppath = os.path.join("projects")
+
+    pfiles = glob.glob(os.path.join(ppath,'*','parameters.xml'))
     start_response('200 OK', [('Content-Type', 'text/html')])
-    if len(RecentList) > 11:
-        control = ' '.join(map(dir_to_radio,RecentList[-10:]))
+
+    if pfiles:
+        radios = ' '.join(map(pfile_to_radio,pfiles))
+        fill = '''
+               <form method='get' action='run'>
+               {!s}
+               <input type='submit' value='Check parameters'>
+               </form>
+               '''.format(radios)
     else:
-        control = ' '.join(map(dir_to_radio,RecentList))
-    return layout.safe_substitute(maincontent =
-                                  "<h1>Choose project:</h1>%s"%control,
-                                   localport = localport)
+        fill = '''
+               <p>No CoolName1 projects found.</p>
+               <p>We need parameters.xml files in subdirectories of </p>
+               <p><code>{!s}</code></p>
+               '''.format(ppath)
+
+    return layout.safe_substitute(maincontent = fill,
+                                  localport = localport)
 
 def explanation(environ, start_response):
     '''Display the long explanation of the script.'''
@@ -302,17 +305,15 @@ def explanation(environ, start_response):
     scriptname = cgi.parse_qs(environ['QUERY_STRING'])['script'][0]
     spath = os.path.join(gui_path, scriptname+'.txt')
     fill = open(spath).read()
-    return layout.safe_substitute(maincontent=fill,
+    return layout.safe_substitute(maincontent = fill,
                                   localport = localport)
-
-    
-    
-
-    
     
 def NIY(environ, start_response):
     start_response('404 NOT FOUND', [('Content-Type', 'text/html')])
-    return ['Not Found or Not Implemented Yet']
+    return layout.safe_substitute(maincontent='''
+                                  <h1>Unfamiliar request</h1>
+                                  <p>Please check the URL.''',
+                                  localport = localport)
 
 # WSGI parses URLs, using them like arguments even if
 # they look like filesystem paths. Nb: this declaration needs
@@ -321,7 +322,7 @@ urls = [
     (r'^$', index), # Homepage.
     (r'scripts', scripts), #Index of scripts
     (r'css', css),  # CSS style file.
-    (r'setup',setup_all), # Choose script, directory, data
+    (r'setup', setup_script), # Fill out an asklist into a parameters.xml file
     (r'project', project), # Choose a parameters.xml file
                        # (and therefore an output directory)
     (r'run', run), # Parse available runs out of the parameters.xml,
@@ -352,15 +353,13 @@ def simple_app(environ, start_response):
 
 # Try this if the app fails and it might be the webservice itself:
 #httpd = make_server('', localport, simple_app)
-# make_pretty_lists()
-# print('Trying to open entry page in browser...')
-# subprocess.Popen("CoolName1.html", cwd='.', shell=False, stdin=None, stdout=None, close_fds=True)
+
 httpd = make_server('', localport, CoolName1_app)
 print '''
 
 The CoolName1 engine is running now.
 
-Open this URL in your browser:
+Look for this site in your browser:
 
 http://localhost:{!s}
 
