@@ -300,8 +300,7 @@ def explanation(environ, start_response):
     '''Display the long explanation of the script.'''
     start_response('200 OK', [('Content-Type', 'text/html')])
     scriptname = cgi.parse_qs(environ['QUERY_STRING'])['script'][0]
-    spath = os.path.dirname(os.path.abspath(__file__))
-    spath = os.path.join(spath, 'scripts', scriptname+'.txt')
+    spath = os.path.join(gui_path, scriptname+'.txt')
     fill = open(spath).read()
     return layout.safe_substitute(maincontent=fill,
                                   localport = localport)
