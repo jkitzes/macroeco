@@ -114,7 +114,7 @@ class Workflow:
         Yields
         ------
         data_path : string
-            Path[s] to data to analyze, relative to current working directory
+            Path to data to analyze, relative to current working directory
         output_ID : string
             Concatenates script, run, and dataset identifiers
         run_params : dict
@@ -170,11 +170,16 @@ class Parameters:
     ----------
     script_name : string
         Name of script originating the workflow
+    script_vers : string
+        Version of script originating the workflow
     interactive : bool
         Whether the script can pause for user interaction
     params : dict
         Dictionary of dictionaries, with each outer key a run name and each 
         outer value a dictionary of parameter names and values for each run.
+    data_path : dict
+        Dictonarity where keys are run names and values are lists of data paths 
+        associated with each run.
         
     '''
     
@@ -319,6 +324,7 @@ class Parameters:
 def make_map(datalist, mapname=None, whole_globe=False):
     '''
     Makes a map of all sites in analysis.
+    Makes a map of all sites in run.
 
     Parameter
     ---------
