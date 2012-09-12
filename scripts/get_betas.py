@@ -15,9 +15,9 @@ __status__ = "Development"
 
 gui_name = '''Get Betas'''
 
-summary = '''Get the Lagrange multiplier 'beta' for a given set of S and N'''
+summary = '''Calculate the Lagrange multiplier 'beta' for a given set of S and N.'''
 
-explantion = '''This script takes in a csv file with columns 'S' and 'N' and
+explanation = '''This script takes in a csv file with columns 'S' and 'N' and
 calculates the beta parameter associated with each 'S' and 'N' pair.  The beta
 parameter is present in the METE logseries (see logser_ut and logser_ut_appx
 classes) and can be calculated with or without an approximation. 
