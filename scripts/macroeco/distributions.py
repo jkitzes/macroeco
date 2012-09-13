@@ -98,8 +98,8 @@ import scipy.special
 import math as m
 import scipy.integrate as integrate
 import sys
-#from docinherit import DocInherit
-from macroeco.utils.docinherit import DocInherit
+from docinherit import DocInherit
+#from macroeco.utils.docinherit import DocInherit
 
 doc_inherit = DocInherit
 
@@ -548,7 +548,7 @@ class logser_ut(Distribution):
     def __init__(self, **kwargs):
         self.params = kwargs
         self.min_supp = 1
-        self.par_num = 2
+        self.par_num = 0 #Number of parameters
 
     @doc_inherit    
     def pmf(self, n):
@@ -2264,6 +2264,332 @@ class plognorm_lt_fgeo(gen_sar):
         self.params = kwargs
         self.sad = plognorm_lt()
         self.ssad = fgeo()
+
+#########################
+## Energy Distributions##
+#########################
+
+#TODO: Another base class for continuous distributions?
+#Should not inherit Distribution
+class psi(Distribution):
+    '''
+    The community energy distribution (psi) described in Harte (2011)
+
+    Parameters
+    ----------
+    S or n_samp : int or iterable
+        Total number of species / samples
+    N or tot_obs: int or iterable
+        Total number of individuals / observations
+    E : int or iterable
+        Total energy output of community
+
+    Var
+    ---
+    beta : list of floats
+        The beta lagrange multiplier
+    l2 : list of floats
+        The lambda2 lagrange multiplier
+
+    Notes
+    -----
+    All other lagrange multipliers can be calculated from beta and l2.
+
+    '''
+
+
+    def __init__(self, **kwargs):
+        '''
+        Initialize distribution object.
+
+        Stores keyword arguments as params attribute and defines minimum 
+        support for distribution.
+
+        Parameters
+        ----------
+        kwargs : comma separate list of keyword arguments
+            Parameters needed for distribution. Stored in dict as params 
+            attribute.
+
+        See class docstring for more specific information on this distribution.
+        '''
+    
+        self.params = kwargs
+        self.min_supp = 1
+
+
+    def pdf(self, e):
+        '''
+        The probability density function for the community energy distribution.
+        This distribution is described by Harte (2011).
+
+        Parameters
+        ----------
+        e : int or array-like object
+            The values at which to calculate the pdf
+
+        Returns
+        -------
+        : tuple
+            A tuple of two objects.  The fist object is a dict that has
+            keywords 'beta' and 'l2'.  These keywords look up arrays that have
+            the same length as self.params['N'].  The second object is a list 
+            of arrays with the same length as the parameters in self.params.
+            The members of the arrays are the pdf calculates as the given
+            values of e. 
+
+        '''
+        #Get and check parameters
+        S, N, e = self.get_params(n=e)
+        E = make_array(self.params.get('E', None))
+        assert E[0] != None, 'E parameter not given'
+        assert np.all(E > N), 'E must be greater than N'
+
+        start = 0.3
+        stop = 2
+        flmax = sys.float_info[0]
+        eq = lambda x,k,N,S: sum(x ** k / float(N) * S) -  sum((x ** k) / k)
+
+        pdf = []
+        var = {}
+        var['beta'] = []
+        var['l2'] = []
+
+        for tS, tN, tE, te in zip(S, N, E, e):
+            k = np.linspace(1, N, num=N)
+            tx = scipy.optimize.brentq(eq, start,
+                                       min((flmax/tS)**(1/float(tN)), stop), 
+                                       args = (k, tN, tS), disp=True)
+            tbeta = -np.log(tx)
+            tl2 = float(tS) / (tE - tN) # Harte (2011) 7.26
+            tl1 = tbeta - tl2
+            tsigma = tl1 + (tE * tl2)
+
+            norm = (float(tS) / (tl2 * tN)) * (((np.exp(-tbeta) - \
+                    np.exp(-tbeta*(tN + 1))) / (1 - np.exp(-tbeta))) - \
+                    ((np.exp(-tsigma) - np.exp(-tsigma*(tN + 1))) / \
+                    (1 - np.exp(-tsigma)))) #Harte (2011) 7.22
+
+            #Notation from E.W.
+            exp_neg_gamma = np.exp(-(tbeta + (te - 1) * tl2))
+
+            tpdf = (float(tS) / (tN * norm)) * ((exp_neg_gamma  / \
+                    (1 - exp_neg_gamma)**2) - ((exp_neg_gamma**tN / \
+                    (1 - exp_neg_gamma)) * (tN + (exp_neg_gamma / \
+                    (1 - exp_neg_gamma)))))
+                    # Harte (2011) 7.24
+            pdf.append(tpdf)
+            var['beta'].append(tbeta)
+            var['l2'].append(tl2)
+        
+        return pdf, var
+    
+    def red(self):
+        '''
+        Rank energy distribution derived from the psi distribution.  Predicts
+        energy values for entire community (N individuals). 
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        : list
+            A list of arrays containing the rank energy distribution for a
+            given set of S, N, and E.  The length of the list is the same
+            length as self.params['N']. 
+
+        '''
+
+        S, N = self.get_params()
+        E = make_array(self.params.get('E', None))
+        assert E[0] != None, 'E parameter not given'
+        assert np.all(E > N), 'E must be greater than N'
+
+        start = 0.3
+        stop = 2
+        flmax = sys.float_info[0]
+        eq = lambda x,k,N,S: sum(x ** k / float(N) * S) -  sum((x ** k) / k)
+
+        n_arrays = [np.arange(1, i + 1) for i in N]
+        prad = lambda beta, r, N, l1, l2: (1 / l2) * np.log(((beta * N) + \
+                                  r - 0.5) / (r - 0.5)) - (l1 / l2)
+
+        rad = []
+        for tS, tN, tE, tn, in zip(S, N, E, n_arrays):
+
+            k = np.linspace(1, N, num=N)
+            tx = scipy.optimize.brentq(eq, start,
+                                       min((flmax/tS)**(1/float(tN)), stop), 
+                                       args = (k, tN, tS), disp=True)
+            tbeta = -np.log(tx)
+            tl2 = float(tS) / (tE - tN) # Harte (2011) 7.26
+            tl1 = tbeta - tl2
+
+            trad = prad(tbeta, tn, tN, tl1, tl2)
+            rad.append(trad)
+
+        return rad
+
+#TODO: Theta should inherit a different base class
+class theta(Distribution):
+    '''
+    The species specific energy distribution (theta) as described by Harte
+    (2011).
+
+    Parameters
+    ----------
+    S or n_samp : int or iterable
+        Total number of species / samples
+    N or tot_obs: int or iterable
+        Total number of individuals / observations
+    E : int or iterable
+        Total energy output of community
+    n : int or iterable
+        Number of individuals in a given species
+
+    '''
+
+    def __init__(self, **kwargs):
+        '''
+        Initialize distribution object.
+
+        Stores keyword arguments as params attribute and defines minimum 
+        support for distribution.
+
+        Parameters
+        ----------
+        kwargs : comma separate list of keyword arguments
+            Parameters needed for distribution. Stored in dict as params 
+            attribute.
+
+        See class docstring for more specific information on this distribution.
+        '''
+
+        self.params = kwargs
+        self.min_supp = 1
+
+    def pdf(self, e):
+        '''
+        Probaility density function for the species specific energy
+        distribution.
+
+        Parameters
+        ----------
+        e : int or array-like object
+            The values at which to calculate the pdf
+
+        Returns
+        -------
+        : tuple
+            A tuple of two objects.  The fist object is a dict that has
+            keyword 'l2'.  This keyword looks up an array that has
+            the same length as self.params['N'].  The second object is a list 
+            of arrays with the same length as the parameters in self.params.
+            The members of the arrays are the pdf calculates as the given
+            values of e. 
+            
+        '''
+        S, N, e = self.get_params(n=e)
+        E = make_array(self.params.get('E', None))
+        n = make_array(self.params.get('n', None))
+        assert E[0] != None, 'E parameter not given'
+        assert np.all(E > N), 'E must be greater than N'
+        assert np.all(n <= N), 'n must be less than or equal to N'
+
+        pdf = []
+        var = {}
+        var['l2'] = []
+
+        for tS, tN, tE, tn, te in zip(S, N, E, n, e):
+
+            tl2 = float(tS) / (tE - tN)
+            tpdf = (tn * tl2 * np.exp(-tl2 * tn * te)) / (np.exp(-tl2 * tn)\
+                                - np.exp(-tl2 * tn * tE)) #Harte (2011) 7.25
+
+            pdf.append(tpdf)
+            var['l2'].append(tl2)
+        
+        return pdf, var
+
+    def red(self):
+        '''
+        Rank energy distribution for species specific energy distribution.
+        Predicts energy values for every individual in a given species with
+        abundance n. 
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        : list
+            A list of arrays containing the rank energy distribution for a
+            given set of S, N, E, n.  The length of the list is the same
+            length as self.params['N']. 
+
+        '''
+
+        S, N = self.get_params()
+        E = make_array(self.params.get('E', None))
+        n = make_array(self.params.get('n', None))
+        assert E[0] != None, 'E parameter not given'
+        assert np.all(E > N), 'E must be greater than N'
+        assert np.all(n <= N), 'n must be less than or equal to N'
+        
+        n_arrays = [np.arange(1, i + 1) for i in n]
+
+        pred = lambda r, n, l2 : 1 + (1 / (l2 * n)) * np.log( n / (r - 0.5))
+        red = []
+        for tS, tN, tE, tn, tn_arr in zip(S, N, E, n, n_arrays):
+           
+           tl2 = float(tS) / (tE - tN)
+           tred = pred(tn_arr, tn, tl2)
+           red.append(tred)
+
+        return red
+
+
+
+
+
+
+        
+
+
+    
+
+
+
+            
+
+
+
+
+
+
+        
+
+
+
+
+
+
+
+
+
+
+        
+
+
+
+        
+        
+        
+
+
 
 def make_array(n):
     '''Cast n as iterable array.'''
