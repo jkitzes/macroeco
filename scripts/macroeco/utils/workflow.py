@@ -360,11 +360,11 @@ def make_map(data_paths, run_name, whole_globe=False):
     # Set map_name
     map_name = 'map_' + run_name + '.png'
 
-    # Check if map with this run_name already exists - if so, log and return
+    # TODO: Check if run_name is unique
+    # Check if map with this run_name already exists
     if os.path.isfile(map_name):
-        logging.debug('Map with this run name already exists, no additional ' +
-                      'map for this run was created')
-        return False
+        logging.debug('Map with this run name already exists. New map ' + 
+                      'overwriting old one.')
 
     # Get lat, long, and name of each data set
     lats = []
