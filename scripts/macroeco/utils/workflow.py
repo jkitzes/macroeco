@@ -206,7 +206,8 @@ class Parameters:
             return
 
         # Read parameter file
-        logging.info('Reading parameters from %s' %paramfile)
+        logging.info('Reading parameters from %s' % output_path + '/' + 
+                     paramfile)
         self.read_from_xml()
 
         # Check that all required parameters present in all runs
