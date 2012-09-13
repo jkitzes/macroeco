@@ -374,14 +374,22 @@ def make_map(data_paths, run_name, whole_globe=False):
 
     for path in data_paths:
         x = path[:-3]+'xml'
-        fname, fext = os.path.splitext(os.path.split(path)[-1])
-        names.append(fname[:4])  # First 4 letters of data set name
+        
+        try:
+            meta = Metadata(x, {})
+            bounds = meta.get_physical_coverage()
+            lats.append(bounds[0])
+            lons.append(bounds[1])
+            
+            fname, fext = os.path.splitext(os.path.split(path)[-1])
+            names.append(fname[:4])  # First 4 letters of data set name
+        except:
+            logging.info('No location data found in %s, no map point '
+                         'added.' % x)
 
-        meta = Metadata(x, {})
-        bounds = meta.get_physical_coverage()
-        lats.append(bounds[0])
-        lons.append(bounds[1])
-
+    # If no valid location data, return without making a map
+    if len(names) == 0:
+        return False
 
     # Set up map
     logging.debug('Creating map for run %s' % run_name)
