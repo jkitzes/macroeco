@@ -342,6 +342,7 @@ class Distribution(object):
         S, N = self.get_params()
 
         # TODO: Add error or warning if N too large for memory
+        # FIX: Python throws a MemoryError when it runs out of RAM.
 
         # Calculate pmfs, going up to N for upper limit
         n_arrays = [np.arange(self.min_supp, 1*(i + 1)) for i in N]
@@ -374,6 +375,15 @@ class Distribution(object):
 
         # By default, loop through ndarrays in data and extract n_samp
         # and tot_obs for each one.
+
+        #Check data argument
+        if type(data) != type([]):
+            raise TypeError('Data must be a list of iterables')
+        if not np.all(np.array([np.iterable(dt) for dt in data])):
+            raise TypeError('Objects in data must be iterable')
+        
+        #Convert data argument to arrays
+        data = [np.array(data) for data in data]
 
         n_samp = []
         tot_obs = []
@@ -580,6 +590,8 @@ class logser_ut(Distribution):
         return pmf, var
 
     # TODO: Add exact cdf from JK dissertation
+    # FIX: For saving computational time?  Cumulative sums of pmfs are the
+    # exact cdfs...need to check that the analytical cdf is faster.
 
 
 class logser_ut_appx(Distribution):
@@ -815,7 +827,12 @@ class plognorm(Distribution):
         See class docstring for more specific information on this distribution.
         '''
 
-        # TODO: Check that data is a list of arrays
+        # TODO: Check that data is a list of iterables
+        # FIX: Check that data is list and objects in data are iterable 
+        if type(data) != type([]):
+            raise TypeError('Data must be a list of iterables')
+        if not np.all(np.array([np.iterable(dt) for dt in data])):
+            raise TypeError('Objects in data must be iterable')
 
         # Check data
         data = [np.array(data) for data in data]
@@ -975,6 +992,8 @@ class lognorm(Distribution):
     '''
 
     # TODO: MW - what about using exact equation for cdf/quantile function?
+    # FIX:  To JK from MW: Refactored lognorm with scipy function for pdf and
+    # cdf
     
     @doc_inherit
     def __init__(self, **kwargs):
@@ -1000,16 +1019,47 @@ class lognorm(Distribution):
         pmf = []
         for tmu, tsigma, tn in zip(mu, sigma, n):
             # TODO: Why divided by tn?
-            tpmf = stats.norm.pdf(np.log(tn), loc=tmu, scale=tsigma) / tn
+            # FIX: In the way I had it coded previously, you had to divide by
+            # tn to get the correct answer (See Wikipedia page of lognormal). I
+            # have now coded it using scipy.
+            tpmf = stats.lognorm.pdf(tn, tsigma, scale=np.exp(tmu))
             pmf.append(tpmf)
 
         return pmf, None
+
+    @doc_inherit
+    def cdf(self, n):
+
+        # Get parameters
+        mu = make_array(self.params.get('mu', None))
+        sigma = make_array(self.params.get('sigma',  None))
+        n = expand_n(n, len(mu))
+
+        # Validate parameters
+        assert mu[0] != None, 'mu paramater not given'
+        assert sigma[0] != None, 'sigma parameter not given'
+        assert len(mu) == len(sigma), 'Length of mu and sigma must be the same'
+
+        #Calculate cdf
+        cdf = []
+        for tmu, tsigma, tn in zip(mu, sigma, n):
+            tcdf = stats.lognorm.cdf(tn, tsigma, scale=np.exp(tmu))
+            cdf.append(tcdf)
+
+        return cdf, None
 
     
     @doc_inherit
     def fit(self, data):
 
         # TODO: Should this be done in all fit methods?
+        # Fix:  Implemented checking of data argument in base class
+
+        if type(data) != type([]):
+            raise TypeError('Data must be a list of iterables')
+        if not np.all(np.array([np.iterable(dt) for dt in data])):
+            raise TypeError('Objects in data must be iterable')
+
         # Process data
         data = [np.array(data) for data in data]
 
@@ -1066,11 +1116,15 @@ class geo_ser(Distribution):
     Equation for pmf and fit from May (1975).
     
     The support of this distribution is from [1, N] where N is the total number
-    of individuals/observations. The intrinsic behavior of this distribution
-    in addition to the support leads to the empirical cdf summing to one before
-    the geo_ser cdf.
+    of individuals/observations. Therefore, the cdf of this function is one at
+    N.  The empirical cdf of observed data reaches one at N - S + 1 (if not
+    sooner) and therefore comparisons of geo_ser cdfs and empirical cdfs will
+    often deviate near as n approaches N - S + 1 (if not sooner). 
+    
+    
     '''
     # TODO: @MW - Last sentence of docstring hard to understand - clarify.
+    # FIX: Clarified!
 
 
     @doc_inherit
@@ -1164,6 +1218,8 @@ class broken_stick(Distribution):
         self.params = kwargs
         self.min_supp = 1
         self.par_num = 1  # TODO: Should this be 2?
+                          # FIX:  May (1975) p. 114 says the broken stick has
+                          # only 1 parameter, S. 
 
 
     @doc_inherit
@@ -1221,18 +1277,27 @@ class sugihara(Distribution):
 
     Notes
     -----
-    As S gets large, we will start to under sample some of the possible 
-    breakage sequences and this model begins to fail. Adapted from Sugihara
-    (1980).
+    This is a sampled rank abundance distribution.  It is not derived
+    analytically.
+
+    As S gets bigger, the number of possible breakage sequences for a given
+    set of species will increase factorially.  To address this issue, one 
+    should increase the number of samples via the parameter sample_size (in
+    the rad method) to sample all possible breakage sequences. However, for S
+    greater than 20 it is computationally difficult to sample all possible
+    breakage sequences and one must realize that the resulting rank
+    abundance distribution may not be a perfect representation of sequential
+    breaking.  
 
     The rad method has an additional optional argument for sample_size, which 
-    is set to 10000 by default.
+    is set to 10000 by default. 
 
     '''
     # TODO: Explain in docstring that this is sampled, not exact
     # TODO: Back-derive pmf?
     # TODO: Make Error/Warning if pmf or cdf called
     # TODO: Can the docstring be clarified? What is "large"?
+    # Fix: Addressed most of these issues in the doc string.
     
     @doc_inherit
     def __init__(self, **kwargs):
