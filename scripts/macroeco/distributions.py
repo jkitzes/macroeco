@@ -3,7 +3,7 @@
 '''
 Macroecological distributions and curves.
 
-Distributions
+DiscreteDistributions
 -------------
 
 SAD
@@ -98,8 +98,8 @@ import scipy.special
 import math as m
 import scipy.integrate as integrate
 import sys
-from docinherit import DocInherit
-#from macroeco.utils.docinherit import DocInherit
+#from docinherit import DocInherit
+from macroeco.utils.docinherit import DocInherit
 
 doc_inherit = DocInherit
 
@@ -119,7 +119,7 @@ __status__ = "Development"
 
 
 # ----------------------------------------------------------------------------
-# Define base classes Curve, Distribution, and custom errors
+# Define base classes Curve, DiscreteDistribution, and custom errors
 # ----------------------------------------------------------------------------
 
 
@@ -213,7 +213,7 @@ class Curve(object):
         return self
 
 
-class Distribution(object):
+class DiscreteDistribution(object):
     '''
     Class for statistical distributions.
 
@@ -459,12 +459,12 @@ class DownscaleError(Exception):
 
 
 # ----------------------------------------------------------------------------
-# Distributions
+# DiscreteDistributions
 # ----------------------------------------------------------------------------
 
 
-class logser(Distribution):
-    __doc__ = Distribution.__doc__ + \
+class logser(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     Description
     -----------
@@ -523,8 +523,8 @@ class logser(Distribution):
     # TODO: Add custom method for cdf based on equation
     
 
-class logser_ut(Distribution):
-    __doc__ = Distribution.__doc__ + \
+class logser_ut(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     Description
     -----------
@@ -594,8 +594,8 @@ class logser_ut(Distribution):
     # exact cdfs...need to check that the analytical cdf is faster.
 
 
-class logser_ut_appx(Distribution):
-    __doc__ = Distribution.__doc__ + \
+class logser_ut_appx(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     Description
     -----------
@@ -685,8 +685,8 @@ class logser_ut_appx(Distribution):
         return pmf, var
 
 
-class plognorm(Distribution):
-    __doc__ = Distribution.__doc__ + \
+class plognorm(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     Poisson log-normal distribution (Bulmer 1974)
 
@@ -867,7 +867,7 @@ class plognorm(Distribution):
 
 
 class plognorm_lt(plognorm):
-    __doc__ = Distribution.__doc__ + \
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     Lower truncated Poisson lognormal (Bulmer 1974)
 
@@ -959,8 +959,8 @@ class plognorm_lt(plognorm):
     # TODO: Write cdf method based on cdf of plognorm, similar to above
 
 
-class lognorm(Distribution):
-    __doc__ = Distribution.__doc__ + \
+class lognorm(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     Description
     ------------
@@ -1092,8 +1092,8 @@ class lognorm(Distribution):
         return self
 
 
-class geo_ser(Distribution):
-    __doc__ = Distribution.__doc__ + \
+class geo_ser(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     Geometric series distribution (Motomura 1932 and Magurran 1988).
 
@@ -1178,7 +1178,7 @@ class geo_ser(Distribution):
     def fit(self, data):
 
         # Get parameters
-        super(geo_ser, self).fit(data)  # Run Distribution.fit method
+        super(geo_ser, self).fit(data)  # Run DiscreteDistribution.fit method
         S = self.params['n_samp']
         N = self.params['tot_obs']
         assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
@@ -1196,8 +1196,8 @@ class geo_ser(Distribution):
         return self
 
 
-class broken_stick(Distribution):
-    __doc__ = Distribution.__doc__ + \
+class broken_stick(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     McArthur's broken stick distribution (May 1975)
 
@@ -1261,12 +1261,12 @@ class broken_stick(Distribution):
         return rad
             
 
-class sugihara(Distribution):
-    __doc__ = Distribution.__doc__ + \
+class sugihara(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     Description
     -----------
-    Sugihara Rank Abundance Distribution (Sugihara 1980)
+    Sugihara Rank Abundance DiscreteDistribution (Sugihara 1980)
 
     Parameters
     ----------
@@ -1340,8 +1340,8 @@ class sugihara(Distribution):
         return rad
 
 
-class binm(Distribution):
-    __doc__ = Distribution.__doc__ + \
+class binm(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     ''' 
     Description
     -----------
@@ -1406,8 +1406,8 @@ class binm(Distribution):
             var['tot_obs'].append(ttot_obs)
         return cdf, var
 
-class pois(Distribution):
-    __doc__ = Distribution.__doc__ + \
+class pois(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     Description
     -----------
@@ -1461,8 +1461,8 @@ class pois(Distribution):
             var['mu'].append(tmu)
         return cdf, var
 
-class nbd(Distribution):
-    __doc__ = Distribution.__doc__ + \
+class nbd(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     Description
     -----------
@@ -1660,8 +1660,8 @@ class nbd_lt(nbd):
 
         return trunc_pmf, reg_var         
 
-class fnbd(Distribution):
-    __doc__ = Distribution.__doc__ + \
+class fnbd(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     Description
     -----------
@@ -1759,8 +1759,8 @@ class fnbd(Distribution):
         self.params['tot_obs'] = tot_obs
         return self
 
-class geo(Distribution):
-    __doc__ = Distribution.__doc__ + \
+class geo(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     Description
     -----------
@@ -1806,8 +1806,8 @@ class geo(Distribution):
         var['p'] = 1 / n_samp
         return cdf, var
         
-class fgeo(Distribution):
-    __doc__ = Distribution.__doc__ + \
+class fgeo(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     Description
     -----------
@@ -1859,8 +1859,8 @@ class fgeo(Distribution):
         var['p'] = nvar['p']
         return cdf, var
 
-class tgeo(Distribution):
-    __doc__ = Distribution.__doc__ + \
+class tgeo(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     Description
     -----------
@@ -1922,7 +1922,7 @@ class tgeo(Distribution):
         return pmf, var
 
 class mete_sar_iter(Curve):
-    __doc__ = Distribution.__doc__ + \
+    __doc__ = Curve.__doc__ + \
     '''
     Description
     -----------
@@ -2087,7 +2087,7 @@ class mete_sar_iter(Curve):
         return univ_SAR
 
 class powerlaw(Curve):
-    __doc__ = Distribution.__doc__ + \
+    __doc__ = Curve.__doc__ + \
     '''
     Description
     -----------
@@ -2146,7 +2146,7 @@ class powerlaw(Curve):
         return self
 
 class gen_sar(Curve):
-    __doc__ = Distribution.__doc__ + \
+    __doc__ = Curve.__doc__ + \
     '''
     A generic sar function the utilizes the relationship between the sad
     and the ssad to generate the sar.  Can take any combination of sad and
@@ -2335,8 +2335,168 @@ class plognorm_lt_fgeo(gen_sar):
 #########################
 
 #TODO: Another base class for continuous distributions?
-#Should not inherit Distribution
-class psi(Distribution):
+#Should not inherit DiscreteDistribution
+
+class EnergyDistribution(object):
+    '''
+    The base class for the energy distributions
+    '''
+
+    def __init__(self):
+        '''
+        Initialize distribution object.
+
+        Stores keyword arguments as params attribute and defines minimum 
+        support for distribution.
+
+        Parameters
+        ----------
+        kwargs : comma separate list of keyword arguments
+            Parameters needed for distribution. Stored in dict as params 
+            attribute.
+
+        See class docstring for more specific information on this distribution.
+        '''
+        # This method does nothing, but exists so that derived class init
+        # methods can inherit this docstring.
+        pass
+
+    def pdf(self, e):
+        '''
+        Probability density function method.
+
+        Parameters
+        ----------
+        e : int, float or array-like object
+            Values at which to calculate pmf. May be a list of same length as 
+            parameters, or single iterable.
+
+        Returns
+        -------
+        pdf : list of ndarrays
+            List of 1D arrays of probability of observing sample e.
+        vars : dict containing lists of floats
+            Intermediate parameter variables calculated for pmf, as 
+            dict.
+
+        See class docstring for more specific information on this distribution.
+        '''
+
+        pass
+
+    def cdf(self, e):
+        '''
+        Cumulative distribution method.  
+
+        Parameters
+        ----------
+        e : int, float or array-like object
+            Values at which to calculate cdf. May be a list of same length as 
+            parameters, or single iterable.
+
+        Returns
+        -------
+        cdf : list of ndarrays
+            List of 1D arrays of probability of observing sample e.
+        var : dict containing lists of floats
+            Intermediate parameter variables calculated for cdf, as dict.
+
+        See class docstring for more specific information on this distribution.
+        '''
+
+        pass
+
+    def red(self):
+        '''
+        Rank energy distribution of a given function.
+        
+        Returns
+        -------
+        red : list of ndarrays
+            List of 1D arrays of predicted energy for each individual in a
+            given community of species
+
+        See class docstring for more specific information on this distribution.
+
+        '''
+        
+        pass
+
+    def get_params(self, e=None):
+        '''
+        Gets and validates basic distribution parameters
+
+        Parameters
+        ----------
+        e : int, float or array-like object
+            Values at which to calculate pdf. May be a list of same length as 
+            parameters, or single iterable.
+
+        Returns
+        -------
+        : tuple
+            Validated S, N, E and n parameters
+ 
+        '''
+        S = make_array(self.params.get('S', None))
+        N = make_array(self.params.get('N', None))
+        E = make_array(self.params.get('E', None))
+
+        if e != None:
+            e = expand_n(e, len(S))
+
+        # Validate parameters
+        assert len(S) == len(N), 'Length of S and N must be the same'
+        assert len(E) == len(N), 'Length of E and N must be the same'
+        assert S[0] != None, 'S parameter not given'
+        assert N[0] != None, 'N parameter not given'
+        assert E[0] != None, 'E parameter not given'
+        assert np.all(S > 1), 'S must be greater than 1'
+        assert np.all(N > 0), 'N must be greater than 0'
+        assert np.all(E >= 1), 'E must be greater than or equal to 1' 
+    
+        if e != None:
+            return S, N, E, e
+        else:
+            return S, N, E
+
+    def fit(self, data):
+        '''
+        Fit the energy distribution to data
+        
+        Parameters
+        ----------
+        data : tuple
+            A tuple containing two objects.  The first object is a list of
+            iterables with each iterable containing an empirical community 
+            energy distribution.  The second object is a list of iterables with
+            each iterable containing an empirical sad.
+
+        '''
+
+        #Check data argument
+        if type(data) != type((1,)):
+            raise TypeError('Data must be a tuple of iterables')
+        if not np.all([np.iterable(dt) for dt in data]):
+            raise TypeError('Objects in data tuple must be iterable')
+        if not np.all([np.all([np.iterable(d) for d in dt]) for dt in data]):
+            raise TypeError("Iterable objects in data tuple must also contain"
+                            + " iterable objects")
+
+        E = [np.sum(np.array(edata)) for edata in data[0]]
+        N = []
+        S = []
+        for tdata in data[1]:
+            N.append(np.sum(np.array(tdata)))
+            S.append(len(np.array(tdata)))
+
+        self.params['E'] = E
+        self.params['N'] = N
+        self.params['S'] = S
+
+        return self
+
+class psi(EnergyDistribution):
     '''
     The community energy distribution (psi) described in Harte (2011)
 
@@ -2362,53 +2522,16 @@ class psi(Distribution):
 
     '''
 
-
+    @doc_inherit
     def __init__(self, **kwargs):
-        '''
-        Initialize distribution object.
 
-        Stores keyword arguments as params attribute and defines minimum 
-        support for distribution.
-
-        Parameters
-        ----------
-        kwargs : comma separate list of keyword arguments
-            Parameters needed for distribution. Stored in dict as params 
-            attribute.
-
-        See class docstring for more specific information on this distribution.
-        '''
-    
         self.params = kwargs
         self.min_supp = 1
 
-
+    @doc_inherit
     def pdf(self, e):
-        '''
-        The probability density function for the community energy distribution.
-        This distribution is described by Harte (2011).
-
-        Parameters
-        ----------
-        e : int or array-like object
-            The values at which to calculate the pdf
-
-        Returns
-        -------
-        : tuple
-            A tuple of two objects.  The fist object is a dict that has
-            keywords 'beta' and 'l2'.  These keywords look up arrays that have
-            the same length as self.params['N'].  The second object is a list 
-            of arrays with the same length as the parameters in self.params.
-            The members of the arrays are the pdf calculates as the given
-            values of e. 
-
-        '''
         #Get and check parameters
-        S, N, e = self.get_params(n=e)
-        E = make_array(self.params.get('E', None))
-        assert E[0] != None, 'E parameter not given'
-        assert np.all(E > N), 'E must be greater than N'
+        S, N, E, e = self.get_params(e=e)
 
         start = 0.3
         stop = 2
@@ -2421,7 +2544,7 @@ class psi(Distribution):
         var['l2'] = []
 
         for tS, tN, tE, te in zip(S, N, E, e):
-            k = np.linspace(1, N, num=N)
+            k = np.linspace(1, tN, num=tN)
             tx = scipy.optimize.brentq(eq, start,
                                        min((flmax/tS)**(1/float(tN)), stop), 
                                        args = (k, tN, tS), disp=True)
@@ -2449,28 +2572,10 @@ class psi(Distribution):
         
         return pdf, var
     
+    @doc_inherit
     def red(self):
-        '''
-        Rank energy distribution derived from the psi distribution.  Predicts
-        energy values for entire community (N individuals). 
 
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        : list
-            A list of arrays containing the rank energy distribution for a
-            given set of S, N, and E.  The length of the list is the same
-            length as self.params['N']. 
-
-        '''
-
-        S, N = self.get_params()
-        E = make_array(self.params.get('E', None))
-        assert E[0] != None, 'E parameter not given'
-        assert np.all(E > N), 'E must be greater than N'
+        S, N, E = self.get_params()
 
         start = 0.3
         stop = 2
@@ -2480,11 +2585,10 @@ class psi(Distribution):
         n_arrays = [np.arange(1, i + 1) for i in N]
         prad = lambda beta, r, N, l1, l2: (1 / l2) * np.log(((beta * N) + \
                                   r - 0.5) / (r - 0.5)) - (l1 / l2)
-
         rad = []
         for tS, tN, tE, tn, in zip(S, N, E, n_arrays):
 
-            k = np.linspace(1, N, num=N)
+            k = np.linspace(1, tN, num=tN)
             tx = scipy.optimize.brentq(eq, start,
                                        min((flmax/tS)**(1/float(tN)), stop), 
                                        args = (k, tN, tS), disp=True)
@@ -2497,8 +2601,7 @@ class psi(Distribution):
 
         return rad
 
-#TODO: Theta should inherit a different base class
-class theta(Distribution):
+class theta(EnergyDistribution):
     '''
     The species specific energy distribution (theta) as described by Harte
     (2011).
@@ -2514,53 +2617,24 @@ class theta(Distribution):
     n : int or iterable
         Number of individuals in a given species
 
+    Var
+    ---
+    l2 : list of floats
+        The lambda2 lagrange multiplier
+
     '''
 
-    def __init__(self, **kwargs):
-        '''
-        Initialize distribution object.
-
-        Stores keyword arguments as params attribute and defines minimum 
-        support for distribution.
-
-        Parameters
-        ----------
-        kwargs : comma separate list of keyword arguments
-            Parameters needed for distribution. Stored in dict as params 
-            attribute.
-
-        See class docstring for more specific information on this distribution.
-        '''
+    @doc_inherit
+    def __init__(self, **kwargs): 
 
         self.params = kwargs
         self.min_supp = 1
-
+    
+    @doc_inherit
     def pdf(self, e):
-        '''
-        Probaility density function for the species specific energy
-        distribution.
 
-        Parameters
-        ----------
-        e : int or array-like object
-            The values at which to calculate the pdf
-
-        Returns
-        -------
-        : tuple
-            A tuple of two objects.  The fist object is a dict that has
-            keyword 'l2'.  This keyword looks up an array that has
-            the same length as self.params['N'].  The second object is a list 
-            of arrays with the same length as the parameters in self.params.
-            The members of the arrays are the pdf calculates as the given
-            values of e. 
-            
-        '''
-        S, N, e = self.get_params(n=e)
-        E = make_array(self.params.get('E', None))
+        S, N, E, e = self.get_params(e=e)
         n = make_array(self.params.get('n', None))
-        assert E[0] != None, 'E parameter not given'
-        assert np.all(E > N), 'E must be greater than N'
         assert np.all(n <= N), 'n must be less than or equal to N'
 
         pdf = []
@@ -2578,32 +2652,14 @@ class theta(Distribution):
         
         return pdf, var
 
+    @doc_inherit
     def red(self):
-        '''
-        Rank energy distribution for species specific energy distribution.
-        Predicts energy values for every individual in a given species with
-        abundance n. 
 
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        : list
-            A list of arrays containing the rank energy distribution for a
-            given set of S, N, E, n.  The length of the list is the same
-            length as self.params['N']. 
-
-        '''
-
-        S, N = self.get_params()
-        E = make_array(self.params.get('E', None))
+        S, N, E = self.get_params()
         n = make_array(self.params.get('n', None))
-        assert E[0] != None, 'E parameter not given'
-        assert np.all(E > N), 'E must be greater than N'
+        assert n[0] != None, 'n parameter not given'
         assert np.all(n <= N), 'n must be less than or equal to N'
-        
+
         n_arrays = [np.arange(1, i + 1) for i in n]
 
         pred = lambda r, n, l2 : 1 + (1 / (l2 * n)) * np.log( n / (r - 0.5))
@@ -2616,45 +2672,63 @@ class theta(Distribution):
 
         return red
 
+    def fit(self, data):
+        '''
+        Fits empirical species energy distribution data
+
+        Parameters
+        ----------
+        data : tuple
+            A tuple of length 3.  The first object is a list of np.arrays
+            containing empirical species energy distributions.  The second
+            object is a list of np.arrays containing community energy
+            distributions, and the third object is a list of np.arrays
+            containing sads.
+
+        '''
+
+        #Check data argument
+        if type(data) != type((1,)):
+            raise TypeError('Data must be a tuple of iterables')
+        if not np.all([np.iterable(dt) for dt in data]):
+            raise TypeError('Objects in data tuple must be iterable')
+        if not np.all([np.all([np.iterable(d) for d in dt]) for dt in data]):
+            raise TypeError("Iterable objects in data tuple must also contain"
+                            + " iterable objects")
+
+        n = [len(np.array(ndata)) for ndata in data[0]]
+        E = [np.sum(np.array(edata)) for edata in data[1]]
+        N = []
+        S = []
+        for tdata in data[2]:
+            N.append(np.sum(np.array(tdata)))
+            S.append(len(np.array(tdata)))
+
+        self.params['E'] = E
+        self.params['N'] = N
+        self.params['S'] = S
+        self.params['n'] = n
+
+        return self
+
+         
+        
 
 
+        
+
+        
+         
 
 
 
         
 
-
-    
-
+        
 
 
+        
             
-
-
-
-
-
-
-        
-
-
-
-
-
-
-
-
-
-
-        
-
-
-
-        
-        
-        
-
-
 
 def make_array(n):
     '''Cast n as iterable array.'''

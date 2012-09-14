@@ -357,7 +357,7 @@ class Patch:
         
         Returns
         -------
-        result : dict
+        result : tuple
             List of tuples containing results, where first element is 
             dictionary of criteria for this calculation and second element is a 
             1D ndarray containing the energy measurement of each individual in
@@ -412,7 +412,7 @@ class Patch:
             the division specifications that generated the given species energy
             distributions.  The second object is a dict with a keyword
             corresponding to each species in the spp_list.  Each species
-            keyword looks up a np.array that contains the a given species
+            keyword looks up a np.array that contains the given species
             energy distribution.
 
         Note

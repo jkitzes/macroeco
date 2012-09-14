@@ -211,8 +211,125 @@ class SAROutput(object):
             plt.savefig(self.out_dir + '_SAR_plot_' + str(i))
             plt.clf()
 
+class PsiOutput(object):
+    '''
+    Class outputs community energy distributions by interacting with
+    ComparePsiEnergy
+    '''
+
+    def __init__(self, out_dir):
+        '''
+        Parameters
+        ----------
+        out_dir : string
+            Output directory of object
+        '''
+        self.out_dir = out_dir 
+
+    def plot_reds(self, reds, criteria=None):
+        '''
+        '''
+        tot_reds = len(reds['obs'])
+        recs = make_rec_from_dict(reds, tot_reds)
+        if criteria != None:
+            assert len(criteria) == tot_reds, "len(criteria) must  equal" + \
+                                      " number of reds under consideration"
+        for i, data in enumerate(recs):
+            names = data.dtype.names
+            for nm in names:
+                plt.plot(np.arange(1, len(data) + 1), np.sort(data[nm])[::-1],\
+                                   '-o')
+            plt.legend(names, loc='best')
+            if criteria != None:
+                plt.title('RED criteria: ' + str(criteria[i]))
+            else:
+                plt.title('RED: plot number ' + str(i))
+            plt.semilogx()
+            plt.ylabel('Energy')
+            plt.xlabel('log(rank)')
+            logging.info('Saving figure ' + self.out_dir + 'comm_rank_energy_' 
+                          + str(i))
+            plt.savefig(self.out_dir + 'comm_rank_energy_' + str(i))
+            plt.clf()
+            output_form(recs[i], self.out_dir + 'comm_rank_energy_' + str(i))
+
+
+class ThetaOutput(object):
+    '''
+    Class outputs species energy distributions by interacting with
+    CompareThetaEnergy
+
+    '''
+
+    def __init__(self, out_dir):
+        '''
+        Parameters
+        ----------
+        out_dir : string
+            Output directory of object
+        '''
+        self.out_dir = out_dir  
+
+    def plot_reds(self, reds, criteria=None):
+        '''
+        Saves plot and csv file with predicted and empirical rank energy data
+
+        Parameters
+        ----------
+        reds : tuple
+            The output from the CompareThetaEnergy.compare_reds method
+        criteria : list or None
+            A list of dicts with the criteria for divisions.  See Patch.sad
+
+        Output
+        ------
+        This method outputs both a plot and a csv that compare observed and
+        predicted species-level rank energy curves.  
+
+        '''
+        spp = reds[1]
+        tot_reds = len(reds[0]['obs'])
+        recs = make_rec_from_dict(reds[0], tot_reds)
+        if criteria != None:
+            assert len(criteria) == tot_reds, "len(criteria) must  equal" + \
+                                      " number of reds under consideration"
+        for i, data in enumerate(recs):
+            names = data.dtype.names
+            for nm in names:
+                plt.plot(np.arange(1, len(data) + 1), np.sort(data[nm])[::-1],\
+                                   '-o')
+            plt.legend(names, loc='best')
+            if spp != None:
+                if criteria != None:
+                    plt.title('Species Code: ' + str(spp[i]) + ' Criteria: ' +
+                        str(criteria[i]))
+                else:
+                    plt.title('Species Code: ' + str(spp[i]))           
+            elif spp == None:
+                if criteria != None:
+                    plt.title('Criteria: ' + str(criteria[i]))
+                else:
+                    plt.title('Plot number ' + str(i))
+            plt.semilogx()
+            plt.ylabel('Energy')
+            plt.xlabel('log(rank)')
+            logging.info('Saving figure ' + self.out_dir + 'spp_rank_energy_' 
+                          + str(i))
+            plt.savefig(self.out_dir + 'spp_rank_energy_' + str(i))
+            plt.clf()
+            output_form(recs[i], self.out_dir + 'spp_rank_energy_' + str(i))
+
+
+
+
+
+        
+
+
 def make_rec_from_dict(dist_dict, num, dt=np.float):
     '''
+    Makes a structured/rec array from a dictionary
+
     Parameters
     ----------
     dist_dict : dict
