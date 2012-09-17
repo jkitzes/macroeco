@@ -38,7 +38,7 @@ dist_dict  = {'logser' : logser(), 'plognorm' : plognorm(),
               'broken_stick' : broken_stick(), 'geo_ser' : geo_ser(),
               'lognorm' : lognorm(), 'binm' : binm(), 'pois' : pois(), 'nbd' :
               nbd(), 'fnbd' : fnbd(), 'geo' : geo(), 'fgeo' : fgeo(), 'tgeo' :
-              tgeo()} 
+              tgeo(), 'psi' : psi(), 'theta' : theta()} 
 
 sar_dict = {'mete_sar_iter' : mete_sar_iter(), 'powerlaw' : powerlaw(), 
             'logser_ut_tgeo': logser_ut_tgeo(), 'logser_ut_fgeo' : 
@@ -54,7 +54,7 @@ class CompareDistribution(object):
     '''
     
     #TODO: Error Checking
-    def __init__(self, data_list, dist_list, clean=False, patch=False):
+    def __init__(self, data_list, dist_list, clean=False, patch=None):
         '''
         Parameters
         ----------
@@ -62,21 +62,27 @@ class CompareDistribution(object):
             List of np.arrays containing data
         dist_list : list
             List of distribution objects or list of distribution names
-        patch : True
-            If True, expects data_list to be input from the sad or ssad method
-            in Patch.  If False, expects a list of iterables
+        patch : str
+            If 'sad', expects the output from the Patch.sad method and if
+            'ssad' expects the output from the Patch.ssad method. If None, 
+            expects a list of iterables.
         clean : bool
             If true, removes zeros from data_list.  Necessary for SAD
             comparisons.
 
         '''
-        if patch:
-            self.items = data_list[0]
+        if patch == 'sad':
+            self.spp_list = data_list[0]
             self.criteria = []
             self.data_list = []
             for obj in data_list[1]:
                 self.criteria.append(obj[0])
                 self.data_list.append(obj[1])
+        elif patch == 'ssad':
+            self.spp_list = list(data_list[1].viewkeys())
+            self.data_list = [np.array(data_list[1][nm]) for nm in
+                                                            self.spp_list]
+            self.criteria = data_list[0]
         else:
             self.data_list = [np.array(data) for data in data_list]
             self.criteria = None
@@ -119,7 +125,7 @@ class CompareDistribution(object):
             dist.fit(self.data_list)
 
             nlls = nll(dist.pmf(self.data_list)[0])
-            #NOTE: dist.par_num is the number of parameters that
+            #NOTE: dist.par_num is the number of parameters of distribution
             k = np.repeat(dist.par_num, len(nlls))
             if crt:
                 obs = np.array([len(data) for data in self.data_list])
@@ -147,9 +153,9 @@ class CompareDistribution(object):
         : tuple
             first element is a list of arrays with each array having length 
             equal to the number of models proposed and the length of the list 
-            is the lenth of self.data_lists.  Second element is are the delta
+            is the lenth of self.data_lists. The second element is the delta
             AIC values in the same format as the first tuple object. The third
-            object are the AIC values in the same the output of the 
+            object are the AIC values in the same format as the output of the 
             compare_aic method. 
 
         '''
@@ -170,7 +176,7 @@ class CompareDistribution(object):
         -------
         : dict
             Has len(self.dist_list) + 1.  All the distribution class names
-            passed to the constructor are key words as well 'obs' which
+            passed to the constructor are key words as well as 'obs' which
             references the observed data, self.data_list. Each keyword looks up
             a list of arrays.  Each list is len(self.data_list) long and
             contains the predicted rads for the empirical data sets for the
@@ -283,6 +289,9 @@ class CompareDistribution(object):
             summary[nm]['aic'] = list(np.array(aic_vals[2]).T)[i]
             summary[nm]['aic_d'] = list(np.array(aic_vals[1]).T)[i]
             summary[nm]['aic_w'] = list(np.array(aic_vals[0]).T)[i]
+            summary[nm]['par_num'] = np.repeat(self.dist_list[i].par_num,
+                                        len(list(np.array(aic_vals[2]).T)[i]))
+
         return summary
 
 class CompareSARCurve(object):
@@ -361,6 +370,222 @@ class CompareSARCurve(object):
                 psar[kw].sort(order='area')
             pred_sar.append(psar)
         return pred_sar
+
+# TODO: Change names of empirical energy distributions
+class ComparePsiEnergy(object):
+    '''
+    Class compares predicted community energy distributions to observed energy
+    distributions
+
+    '''
+
+    def __init__(self, data_list, dist_list, patch=False):
+        '''
+        Parameters
+        ----------
+        data_list : tuple of lists or output from Patch object
+            Tuple of length two. The first object in the tuple is a list of
+            np.arrays that are the empirical community energy distributions.
+            The second object is a list of np.arrays that are the empirical
+            sads. See patch argument for more information.
+        dist_list : list of strings or objects
+            Each string corresponds to a name of a psi distribution to which to
+            compare to the observed data. 
+        patch: bool
+            If True, expects a tuple of length 2 with the first object being
+            the output from Patch.comm_engy and the second element being the
+            output from Patch.sad. If False expects what argument data_list
+            describes. sads and energy should be made with the same criteria.
+        '''
+
+        if patch:
+            self.items = data_list[1][0]
+            self.sad_criteria = []
+            self.sad_list = []
+            for obj in data_list[1][1]:
+                self.sad_criteria.append(obj[0])
+                self.sad_list.append(obj[1])
+            self.eng_criteria = []
+            self.eng_list = []
+            for obj in data_list[0]:
+                self.eng_criteria.append(obj[0])
+                self.eng_list.append(obj[1])
+        else:
+            self.sad_list = [np.array(data) for data in data_list[1]]
+            self.sad_criteria = None
+            self.eng_list = [np.array(data) for data in data_list[0]]
+            self.eng_criteria = None
+            self.items = None
+
+        if np.all([type(dist) == str for dist in dist_list]):
+            self.dist_list = np.empty(len(dist_list), dtype=object)
+            for kw in list(dist_dict.viewkeys()):
+                self.dist_list[np.where((kw == np.array(dist_list)))[0]] = \
+                                dist_dict[kw]
+            self.dist_list = list(self.dist_list)
+        else:
+            self.dist_list = dist_list
+
+        assert len(self.sad_list) == len(self.eng_list), 'sad_list and' \
+                                        + ' eng_list must be the same length'
+
+    def compare_reds(self):
+        '''
+        Compare the rank energy distributions against the given distribution
+        list
+
+        Returns
+        -------
+        : dict
+            Has len(self.dist_list) + 1.  All the distribution class names
+            passed to the constructor are key words as well as 'obs' which
+            references the observed data. Each keyword looks up
+            a list of arrays.  Each list is len(self.eng_list) long and
+            contains the predicted reds for the empirical data sets for the
+            given distribution. 
+
+        '''
+
+        reds_dict = {}
+        reds_dict['obs'] = self.eng_list
+        for dist in self.dist_list:
+            dist.fit((self.eng_list, self.sad_list))
+            reds_dict[get_name(dist)] = dist.red()
+        return reds_dict
+
+    def summary(self):
+        pass
+
+class CompareThetaEnergy(object):
+    '''
+    Class compares predicted species level energy distributions to observed
+    species level energy distributions.
+
+    Attributes
+    ----------
+    self.sad_list : list
+        List of arrays containing sads
+    self.eng_list : list
+        List of arrays containing community energy data
+    self.speng_list : list
+        A list of arrays containing species level energy data
+    self.*_criteria : list
+        List of criteria used to yield corresponding empirical data. All
+        criteria attributes should be the same.
+    self.spp_list : list or None
+        Either a list of species names/codes or None
+
+    The length of all of these attributes should be equal if they are not None.
+
+
+    '''
+
+    def __init__(self, data_list, dist_list, patch=False):
+        '''
+        Parameters
+        ----------
+        data_list : tuple of lists or output from Patch object
+            Tuple of length three. The first object is a list np.arrays that
+            species energy distributions. The second object in the tuple is a 
+            list of np.arrays that are the empirical community energy 
+            distributions. The third object is a list of np.arrays that are the
+            empirical sads. See patch argument in this method for information
+            about Patch object output.
+        dist_list : list of strings or objects
+            Each string corresponds to a name of a psi distribution to which to
+            compare to the observed data. 
+        patch : bool
+            If True, expects a tuple of length 3 with the first object being
+            the complete output from Patch.sp_engy, the second object being
+            the output from Patch.comm_engy and the third element being the
+            output from Patch.sad. If False expects what argument data_list
+            describes. Empirical sads and energy distributions should be made 
+            with the same criteria.
+        '''
+
+        if patch:
+            # TODO: Check length of input objects!
+
+            #Sort species energy
+            self.speng_criteria = []
+            self.speng_list = []
+            self.spp_names = []
+            for obj in data_list[0]:
+                self.spp_names.append(list(obj[1].viewkeys()))
+                for kw in self.spp_names[-1]:
+                    self.speng_list.append(obj[1][kw])
+                    self.speng_criteria.append(obj[0])
+
+            #Sort community energy
+            self.eng_criteria = []
+            self.eng_list = []
+            for i, obj in enumerate(data_list[1]):
+                num = len(self.spp_names[i])
+                tcri = [obj[0] for i in xrange(num)]
+                self.eng_criteria += tcri
+                teng = [obj[1] for i in xrange(num)]
+                self.eng_list += teng
+
+            #Sort sad
+            self.sad_criteria = []
+            self.sad_list = []
+            for i, obj in enumerate(data_list[2][1]):
+                num = len(self.spp_names[i])
+                tcri = [obj[0] for i in xrange(num)]
+                self.sad_criteria += tcri
+                tsad = [obj[1] for i in xrange(num)]
+                self.sad_list += tsad
+            self.spp_names = list(np.array(self.spp_names).flatten())
+        else:
+            self.sad_list = [np.array(data) for data in data_list[2]]
+            self.sad_criteria = None
+            self.eng_list = [np.array(data) for data in data_list[1]]
+            self.eng_criteria = None
+            self.speng_list = [np.array(data) for data in data_list[0]]
+            self.speng_criteria = None
+            self.spp_names = None
+
+        if np.all([type(dist) == str for dist in dist_list]):
+            self.dist_list = np.empty(len(dist_list), dtype=object)
+            for kw in list(dist_dict.viewkeys()):
+                self.dist_list[np.where((kw == np.array(dist_list)))[0]] = \
+                                dist_dict[kw]
+            self.dist_list = list(self.dist_list)
+        else:
+            self.dist_list = dist_list
+
+
+        assert len(self.sad_list) == len(self.eng_list), 'sad_list and' \
+                                        + ' eng_list must be the same length'
+        assert len(self.speng_list) == len(self.eng_list), 'speng_list and ' \
+                                        + ' eng_list must be the same length'
+    
+    def compare_reds(self):
+        '''
+        Comparison of species level energy distributions
+
+        Returns
+        -------
+        : dict
+            Has len(self.dist_list) + 1.  All the distribution class names
+            passed to the constructor are key words as well as 'obs' which
+            references the observed data. Each keyword looks up
+            a list of arrays.  Each list is len(self.eng_list) long and
+            contains the predicted reds for the empirical data sets for the
+            given distribution. 
+        : list or None
+            Returns self.spp_names which could be a list of lists or None.
+            These names are the species names that correspond numerically with
+            the arrays in within each distribution.
+
+        '''
+        reds_dict = {}
+        reds_dict['obs'] = self.speng_list
+        for dist in self.dist_list:
+            dist.fit((self.speng_list, self.eng_list, self.sad_list))
+            reds_dict[get_name(dist)] = dist.red()
+
+        return reds_dict, self.spp_names
 
 def nll(pdist):
     '''

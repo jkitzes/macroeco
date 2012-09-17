@@ -92,19 +92,12 @@ eml.xsd"><dataset>
 </boundingCoordinates>
 </geographicCoverage></coverage>
 
-<dataTable><attributeList>
-
-<attribute><attributeName>x</attributeName>
-<precision>0.1</precision>
-<numericDomain><numberType>real</numberType>
-<bounds><minimum exclusive="false">0</minimum>
-<maximum exclusive="false">99.9</maximum></bounds>
-<type>metric</type>
-</numericDomain>
-</attribute>
-
-</attributeList></dataTable>
-</dataset></eml:eml>''')
+<dataTable><attributeList><attribute>
+<attributeName>y</attributeName><ordinal /></attribute><attribute>
+<attributeName>cell</attributeName><interval /></attribute><attribute>
+<attributeName>x</attributeName><interval><minimum>0.0</minimum>
+<maximum>99.9</maximum><precision>0.1</precision></interval></attribute>
+</attributeList></dataTable></dataset></eml:eml>''')
         self.xymeta.close()
 
     def tearDown(self):
@@ -117,13 +110,13 @@ eml.xsd"><dataset>
         xy1 = DataTable('xyfile1.csv')
         self.assertEqual(len(xy1.meta), 8)
         self.assertEqual(xy1.meta, {('x', 'maximum'): 99.9,
-                                    ('x', 'minimum'): 0,
+                                    ('x', 'minimum'): 0.0,
                                     ('x', 'precision'): 0.1,
-                                    ('x', 'type'): 'metric',
+                                    ('x', 'type'): 'interval',
                                     ('y', 'maximum'): None,
                                     ('y', 'minimum'): None,
                                     ('y', 'precision'): None,
-                                    ('y', 'type'): None})
+                                    ('y', 'type'): 'ordinal'})
 
     def test_physical_coverage(self):
         meta = Metadata('xyfile1.csv', [])

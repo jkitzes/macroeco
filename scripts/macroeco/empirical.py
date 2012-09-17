@@ -15,6 +15,8 @@ Patch Methods
 - `ear` -- calculate endemics-area relationship (grid or sample)
 - `comm` -- calculate commonality between sub-patches (grid)
 - `ssad` -- calculate species-level spatial abundance distrib (grid or sample)
+- `sp_engy` -- calculate species energy distribution (grid or sample)
+- `comm_engy` -- calculate the community energy distribution
 
 - `get_sp_centers` --
 - 'get_div_areas' -- return list of areas made by div_list
@@ -68,7 +70,8 @@ class Patch:
         self.data_table = DataTable(datapath)
         self.data_table.table = self.data_table.get_subtable(subset)
 
-
+    
+            
     def sad(self, criteria):
         '''
         Calculates an empirical species abundance distribution given criteria.
@@ -98,8 +101,7 @@ class Patch:
             1D ndarray of length species containing the abundance for each 
             species.
         '''
-
-        spp_list, spp_col, count_col, combinations = \
+        spp_list, spp_col, count_col, engy_col, mass, combinations = \
             self.parse_criteria(criteria)
 
         result = []
@@ -118,10 +120,39 @@ class Patch:
                     
             result.append((comb, np.array(sad_list)))
 
-        # TODO: Consider changing array to structured with spp name as field
-
         return spp_list, result
 
+    def ssad(self, criteria):
+        '''
+        Calculates empirical species-level spatial abundance distributions
+        given criteria.
+
+        Parameters
+        ----------
+        criteria : dict
+            See Patch.sad docstring
+
+        Returns
+        -------
+        : tuple
+            Returns a tuple with two objects.  The first object is an array of
+            dicts that correspond to the criteria used to generate each cell.
+            The length of the first object in equal to the number of divisions
+            specified.  The second object is a dictionary that has length
+            species and each keyword is a species.  Each species keyword looks
+            up an array with the ssad for the given species.  The array that
+            each keyword looks up is the same length as criteria. 
+
+
+        '''
+        spp_list, sad_out = self.sad(criteria)
+        combs, array_res = flatten_sad(sad_out)
+        ssad = {}
+        
+        for i, spp in enumerate(spp_list):
+            ssad[spp] = array_res[i,:]
+
+        return combs, ssad
 
     def parse_criteria(self, criteria):
         '''
@@ -130,8 +161,11 @@ class Patch:
         Parameters
         ----------
         criteria : dict
-            (See docstring for EPatch.sad)
-
+            (See docstring for Patch.sad)
+        energy : bool
+            If False, does not return an energy column, if True, returns an
+            energy column.
+            
         Returns
         -------
         spp_list : ndarray
@@ -151,6 +185,8 @@ class Patch:
         spp_list = None
         spp_col = None
         count_col = None
+        engy_col = None
+        mass_col = None
         combinations = []
 
         # Calculate all possible combinations of columns based on criteria
@@ -165,6 +201,12 @@ class Patch:
             if value == 'count':
                 count_col = key
                 continue
+            if value == 'energy':
+                engy_col = key
+                continue
+            if value == 'mass':
+                mass_col = key
+                continue
 
             # Get levels of categorial or metric data
             if value == 'split':  # Categorial
@@ -178,11 +220,8 @@ class Patch:
                 levels_str = ['==all']
             else:  # Metric
 
-                # TODO: Make sure divisions equal if count (like LBRI), if true 
-                # continuous (like BCI) let divisions be anything. Currently no 
-                # checking.
-                # TODO: Add support for sampling, if 'sample' in args, randomly 
-                # choose n start coords and store in levels
+                # TODO: Throw a warning if the data is not divisible by the
+                # divisions specified.
 
                 dmin = self.data_table.meta[(key, 'minimum')]
                 dmax = self.data_table.meta[(key, 'maximum')]
@@ -210,7 +249,10 @@ class Patch:
                     temp_comb += exist_recs
                 combinations = temp_comb
 
-        return spp_list, spp_col, count_col, combinations
+        if len(combinations) == 0:
+            combinations.append({})
+        
+        return spp_list, spp_col, count_col, engy_col, mass_col, combinations
 
 
     def sar(self, div_cols, div_list, criteria, form='sar'):
@@ -261,7 +303,7 @@ class Patch:
 
             # Get flattened sad for all criteria and this div
             spp_list, sad = self.sad(this_criteria)
-            flat_sad = flatten_sad(sad)
+            flat_sad = flatten_sad(sad)[1]
 
             # Store results
             if form == 'sar':
@@ -295,6 +337,122 @@ class Patch:
         # Return
         return areas, mean_result, full_result
 
+    def ied(self, criteria, normalize=True, exponent=0.75):
+        '''
+        Calculates the individual energy distribution for the entire community
+        given the criteria
+
+        Parameters
+        ----------
+        criteria : dict
+            Dictionary must have contain a key with the value 'energy'.  See
+            sad method for further requirements.
+        normalize : bool
+            If True, this distribution is normalized by dividing by the lowest
+            energy value within each element of criteria. If False, returns raw
+            energy values.
+        exponent : float
+            The exponent of the allometric scaling relationship if energy is
+            calculated from mass.
+
+        Returns
+        -------
+        result : tuple
+            List of tuples containing results, where first element is 
+            dictionary of criteria for this calculation and second element is a 
+            1D ndarray containing the energy measurement of each individual in
+            the subset.
+
+        Notes
+        -----
+        If count_col is None or is all ones, the entire energy column for each
+        subtable is returned.  Else, the average energy per individual,
+        repeated for each individual is returned. This is equivalent to the psi
+        distribution from Harte (2011).
+
+
+        '''
+        
+        spp_list, spp_col, count_col, engy_col, mass_col, combinations = \
+            self.parse_criteria(criteria)
+
+        if engy_col == None and mass_col == None:
+            raise ValueError("No energy or mass column given")
+        elif engy_col == None and mass_col != None:
+            mass = True
+            this_engy = mass_col
+        else:
+            mass = False
+            this_engy = engy_col
+
+        result = []
+        for comb in combinations:
+
+            subtable = self.data_table.get_subtable(comb)
+            
+            # If all counts are not 1
+            if count_col and (not np.all(subtable[count_col] == 1)):
+                energy = np.repeat((subtable[this_engy] /
+                        subtable[count_col]), subtable[count_col])
+                species = np.repeat(subtable[spp_col], subtable[count_col])
+            else:
+                energy = subtable[engy_col] 
+                species = subtable[spp_col]
+
+            # Convert mass to energy is mass is True
+            if mass:
+                energy = (energy ** exponent)
+                
+            # Normalizing energy
+            if normalize:
+                energy = energy / np.min(energy)
+            result.append((comb, energy, species))
+
+        return result
+
+    def sed(self, criteria, normalize=True, exponent=0.75):
+        '''
+        Calculates the species-level energy distribution for each given species
+        in the community.
+
+        Parameters
+        ----------
+        criteria : dict
+            Dictionary must have contain a key with the value 'energy'.  See
+            sad method for further requirements.
+
+        Returns
+        -------
+        result : list of tuples
+            Each tuple contains two objects.  The first object is a dict with
+            the division specifications that generated the given species energy
+            distributions.  The second object is a dict with a keyword
+            corresponding to each species in the spp_list.  Each species
+            keyword looks up a np.array that contains the given species
+            energy distribution.
+
+        Note
+        ----
+        This is equivalent to the theta distribution from Harte (2011).
+
+        '''
+        spp_list, spp_col, count_col, engy_col, mass_col, combinations = \
+            self.parse_criteria(criteria)
+
+        ied = self.ied(criteria, normalize=normalize, exponent=exponent)
+
+        result = []
+        for this_ied in ied:
+            this_criteria_sed = {}
+
+            for spp in spp_list:
+                spp_ind = (spp == this_ied[2])
+                this_spp_sed = this_ied[1][spp_ind]
+                this_criteria_sed[spp] = this_spp_sed
+
+            result.append((this_ied[0], this_criteria_sed))
+        
+        return result
 
 def flatten_sad(sad):
     '''
@@ -303,12 +461,13 @@ def flatten_sad(sad):
     in columns.
     '''
 
+    combs = [cmb[0] for cmb in sad]
     result = np.zeros((len(sad[0][1]), len(sad)))
 
     for i, tup in enumerate(sad):
         result[:,i] = tup[1]
 
-    return result
+    return combs, result
 
 
 def distance(pt1, pt2):
