@@ -2334,8 +2334,6 @@ class plognorm_lt_fgeo(gen_sar):
 ## Energy Distributions##
 #########################
 
-#TODO: Another base class for continuous distributions?
-#Should not inherit DiscreteDistribution
 
 class EnergyDistribution(object):
     '''
@@ -2497,6 +2495,7 @@ class EnergyDistribution(object):
         return self
 
 class psi(EnergyDistribution):
+    __doc__ = EnergyDistribution.__doc__ + \
     '''
     The community energy distribution (psi) described in Harte (2011)
 
@@ -2602,6 +2601,7 @@ class psi(EnergyDistribution):
         return rad
 
 class theta(EnergyDistribution):
+    __doc__ = EnergyDistribution.__doc__ + \
     '''
     The species specific energy distribution (theta) as described by Harte
     (2011).
@@ -2686,49 +2686,11 @@ class theta(EnergyDistribution):
             containing sads.
 
         '''
-
-        #Check data argument
-        if type(data) != type((1,)):
-            raise TypeError('Data must be a tuple of iterables')
-        if not np.all([np.iterable(dt) for dt in data]):
-            raise TypeError('Objects in data tuple must be iterable')
-        if not np.all([np.all([np.iterable(d) for d in dt]) for dt in data]):
-            raise TypeError("Iterable objects in data tuple must also contain"
-                            + " iterable objects")
-
+        super(theta, self).fit((data[1], data[2]))
         n = [len(np.array(ndata)) for ndata in data[0]]
-        E = [np.sum(np.array(edata)) for edata in data[1]]
-        N = []
-        S = []
-        for tdata in data[2]:
-            N.append(np.sum(np.array(tdata)))
-            S.append(len(np.array(tdata)))
-
-        self.params['E'] = E
-        self.params['N'] = N
-        self.params['S'] = S
         self.params['n'] = n
-
         return self
 
-         
-        
-
-
-        
-
-        
-         
-
-
-
-        
-
-        
-
-
-        
-            
 
 def make_array(n):
     '''Cast n as iterable array.'''

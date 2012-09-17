@@ -453,7 +453,21 @@ class CompareThetaEnergy(object):
 
     Attributes
     ----------
-    self.sad_list :
+    self.sad_list : list
+        List of arrays containing sads
+    self.eng_list : list
+        List of arrays containing community energy data
+    self.speng_list : list
+        A list of arrays containing species level energy data
+    self.*_criteria : list
+        List of criteria used to yield corresponding empirical data. All
+        criteria attributes should be the same.
+    self.spp_list : list or None
+        Either a list of species names/codes or None
+
+    The length of all of these attributes should be equal if they are not None.
+
+
     '''
 
     def __init__(self, data_list, dist_list, patch=False):
@@ -470,7 +484,7 @@ class CompareThetaEnergy(object):
         dist_list : list of strings or objects
             Each string corresponds to a name of a psi distribution to which to
             compare to the observed data. 
-        patch: bool
+        patch : bool
             If True, expects a tuple of length 3 with the first object being
             the complete output from Patch.sp_engy, the second object being
             the output from Patch.comm_engy and the third element being the
@@ -562,8 +576,6 @@ class CompareThetaEnergy(object):
             reds_dict[get_name(dist)] = dist.red()
 
         return reds_dict, self.spp_names
-
-        
 
 def nll(pdist):
     '''

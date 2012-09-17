@@ -101,8 +101,7 @@ class Patch:
             1D ndarray of length species containing the abundance for each 
             species.
         '''
-
-        spp_list, spp_col, count_col, combinations = \
+        spp_list, spp_col, count_col, engy_col, mass, combinations = \
             self.parse_criteria(criteria)
 
         result = []
@@ -121,14 +120,12 @@ class Patch:
                     
             result.append((comb, np.array(sad_list)))
 
-        # TODO: Consider changing array to structured with spp name as field
-
         return spp_list, result
 
     def ssad(self, criteria):
         '''
-        Calculates empirical spatial species abundance distributions given
-        criteria.
+        Calculates empirical species-level spatial abundance distributions
+        given criteria.
 
         Parameters
         ----------
@@ -159,7 +156,7 @@ class Patch:
 
         return np.array(combs), ssad
 
-    def parse_criteria(self, criteria, energy=False):
+    def parse_criteria(self, criteria):
         '''
         Parses criteria list to get all possible column combinations.
 
@@ -191,6 +188,7 @@ class Patch:
         spp_col = None
         count_col = None
         engy_col = None
+        mass = None
         combinations = []
 
         # Calculate all possible combinations of columns based on criteria
@@ -207,6 +205,11 @@ class Patch:
                 continue
             if value == 'energy':
                 engy_col = key
+                mass = False
+                continue
+            if value == 'mass':
+                engy_col = key
+                mass = True
                 continue
 
             # Get levels of categorial or metric data
@@ -221,11 +224,8 @@ class Patch:
                 levels_str = ['==all']
             else:  # Metric
 
-                # TODO: Make sure divisions equal if count (like LBRI), if true 
-                # continuous (like BCI) let divisions be anything. Currently no 
-                # checking.
-                # TODO: Add support for sampling, if 'sample' in args, randomly 
-                # choose n start coords and store in levels
+                # TODO: Throw a warning if the data is not divisible by the
+                # divisions specified.
 
                 dmin = self.data_table.meta[(key, 'minimum')]
                 dmax = self.data_table.meta[(key, 'maximum')]
@@ -252,15 +252,11 @@ class Patch:
                         rec[key] = level
                     temp_comb += exist_recs
                 combinations = temp_comb
-        
-        #Could append something more descriptive than an empty dict...
+
         if len(combinations) == 0:
             combinations.append({})
-
-        if energy == False:
-            return spp_list, spp_col, count_col, combinations
-        else:
-            return spp_list, spp_col, count_col, engy_col, combinations
+        
+        return spp_list, spp_col, count_col, engy_col, mass, combinations
 
 
     def sar(self, div_cols, div_list, criteria, form='sar'):
@@ -372,8 +368,8 @@ class Patch:
 
         '''
         
-        spp_list, spp_col, count_col, engy_col, combinations = \
-            self.parse_criteria(criteria, energy=True)
+        spp_list, spp_col, count_col, engy_col, mass, combinations = \
+            self.parse_criteria(criteria)
         if engy_col == None:
             raise ValueError("No energy column given") 
 
@@ -386,11 +382,21 @@ class Patch:
 
                 energy = np.repeat((subtable[engy_col] /
                         subtable[count_col]), subtable[count_col])
+                if mass:# Allometric scaling
+                    energy = (energy ** (0.75))
+                
+                # Normalizing energy
+                energy = energy / np.min(energy)
                 result.append((comb, energy))
 
             else:
-
-                result.append((comb, subtable[engy_col]))
+                energy = subtable[engy_col] 
+                if mass:
+                    energy = (energy ** (0.75))
+                
+                # Normalizing energy
+                energy = energy / np.min(energy)
+                result.append((comb, energy))
 
         return result
 
@@ -420,8 +426,8 @@ class Patch:
         This is equivalent to the theta distribution from Harte (2011).
 
         '''
-        spp_list, spp_col, count_col, engy_col, combinations = \
-            self.parse_criteria(criteria, energy=True)
+        spp_list, spp_col, count_col, engy_col, mass, combinations = \
+            self.parse_criteria(criteria)
         if engy_col == None:
             raise ValueError("No energy column given")
 
@@ -433,17 +439,30 @@ class Patch:
             sp_eng = {}
             for species in spp_list:
 
-                spp_subtable = subtable[subtable[spp_col] == species]
+                if count_col and (not np.all(subtable[count_col] == 1)):
+                    full_engy = subtable[engy_col] / subtable[count_col]        
 
-                if count_col and (not np.all(spp_subtable[count_col] == 1)):
-
-                    energy = np.repeat((spp_subtable[engy_col] /
-                        spp_subtable[count_col]), spp_subtable[count_col])
-                    sp_eng[species] = energy
+                    # Normalizing energy
+                    full_engy_norm = full_engy / np.min(full_engy)
+                    spp_engy = full_engy_norm[subtable[spp_col] == species]
+                    
+                    if mass: #Allometric scaling
+                        spp_engy = spp_engy ** (0.75)
+                    
+                    #Repeat counts with more than 1
+                    rep_spp_engy = np.repeat(spp_engy,
+                            subtable[count_col][subtable[spp_col] == species])
+                    sp_eng[species] = rep_spp_engy
 
                 else:
+                    #Normalizing energy
+                    full_engy = subtable[engy_col] / np.min(subtable[engy_col])
+                    spp_engy = full_engy[subtable[spp_col] == species]
 
-                    sp_eng[species] = spp_subtable[engy_col]
+                    if mass: #Allometic scaling
+                        spp_engy = spp_engy ** (0.75)
+
+                    sp_eng[species] = spp_engy
 
             result.append((comb, sp_eng))
 
