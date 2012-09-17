@@ -54,7 +54,7 @@ class CompareDistribution(object):
     '''
     
     #TODO: Error Checking
-    def __init__(self, data_list, dist_list, clean=False, patch=False):
+    def __init__(self, data_list, dist_list, clean=False, patch=None):
         '''
         Parameters
         ----------
@@ -62,21 +62,27 @@ class CompareDistribution(object):
             List of np.arrays containing data
         dist_list : list
             List of distribution objects or list of distribution names
-        patch : True
-            If True, expects data_list to be input from the sad or ssad method
-            in Patch.  If False, expects a list of iterables
+        patch : str
+            If 'sad', expects the output from the Patch.sad method and if
+            'ssad' expects the output from the Patch.ssad method. If None, 
+            expects a list of iterables.
         clean : bool
             If true, removes zeros from data_list.  Necessary for SAD
             comparisons.
 
         '''
-        if patch:
-            self.items = data_list[0]
+        if patch == 'sad':
+            self.spp_list = data_list[0]
             self.criteria = []
             self.data_list = []
             for obj in data_list[1]:
                 self.criteria.append(obj[0])
                 self.data_list.append(obj[1])
+        elif patch == 'ssad':
+            self.spp_list = list(data_list[1].viewkeys())
+            self.data_list = [np.array(data_list[1][nm]) for nm in
+                                                            self.spp_list]
+            self.criteria = data_list[0]
         else:
             self.data_list = [np.array(data) for data in data_list]
             self.criteria = None
@@ -119,7 +125,7 @@ class CompareDistribution(object):
             dist.fit(self.data_list)
 
             nlls = nll(dist.pmf(self.data_list)[0])
-            #NOTE: dist.par_num is the number of parameters that
+            #NOTE: dist.par_num is the number of parameters of distribution
             k = np.repeat(dist.par_num, len(nlls))
             if crt:
                 obs = np.array([len(data) for data in self.data_list])
@@ -147,9 +153,9 @@ class CompareDistribution(object):
         : tuple
             first element is a list of arrays with each array having length 
             equal to the number of models proposed and the length of the list 
-            is the lenth of self.data_lists.  Second element is are the delta
+            is the lenth of self.data_lists. The second element is the delta
             AIC values in the same format as the first tuple object. The third
-            object are the AIC values in the same the output of the 
+            object are the AIC values in the same format as the output of the 
             compare_aic method. 
 
         '''
@@ -283,6 +289,9 @@ class CompareDistribution(object):
             summary[nm]['aic'] = list(np.array(aic_vals[2]).T)[i]
             summary[nm]['aic_d'] = list(np.array(aic_vals[1]).T)[i]
             summary[nm]['aic_w'] = list(np.array(aic_vals[0]).T)[i]
+            summary[nm]['par_num'] = np.repeat(self.dist_list[i].par_num,
+                                        len(list(np.array(aic_vals[2]).T)[i]))
+
         return summary
 
 class CompareSARCurve(object):
@@ -362,6 +371,7 @@ class CompareSARCurve(object):
             pred_sar.append(psar)
         return pred_sar
 
+# TODO: Change names of empirical energy distributions
 class ComparePsiEnergy(object):
     '''
     Class compares predicted community energy distributions to observed energy

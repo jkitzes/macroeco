@@ -18,20 +18,30 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
-class SADOutput(object):
+class DistOutput(object):
     '''
-    This formats and outputs SAD analyses
+    This formats and outputs analyses on distributions
 
     '''
 
-    def __init__(self, out_dir):
+    def __init__(self, out_dir, name):
         '''
         Parameters
         ----------
         out_dir : string
             Output directory of object
+        name : string
+            Either 'sad' or 'ssad'. This argument dicatates how plots and files
+            are named in the output. 
         '''
+
         self.out_dir = out_dir
+        if name == 'sad':
+            self.urns = 'S'
+            self.balls = 'N'
+        if name == 'ssad':
+            self.urns = 'Cells'
+            self.balls = 'Individuals'
 
     def write_summary_table(self, smry, criteria=None):
         '''
@@ -40,6 +50,10 @@ class SADOutput(object):
         smry : dict
             A dictionary as returned by the fucntion compare_summary within
             the CompareDistribution class
+        criteria : array-like object
+            An array-like object in which contains either string or dicts that
+            tell how each dataset was generated.  Describes the subsetting of
+            an sad and the species ID of an ssad.
 
         Notes
         -----
@@ -50,26 +64,29 @@ class SADOutput(object):
         tot_sad = len(smry['obs']['balls'])
         if criteria != None:
             assert len(criteria) == tot_sad, "len(criteria) must  equal" + \
-                                      " number of sads under consideration"
+                                   " number of data arrays under consideration"
         for i in xrange(tot_sad):
-            fout = open(self.out_dir + '_summary_table' + str(i) + '.txt', 'w')
+            fout = open(self.out_dir + '_summary_table_' + str(i) + '.txt', 'w')
             if criteria != None:
                 fout.write('CRITERIA: ' + str(criteria[i]) + '\n\n')
             else:
-                fout.write('CRITERIA: NONE -- SAD ' + str(i) + '\n\n')
+                fout.write('CRITERIA: NONE ' + str(i) + '\n\n')
             ob = smry['obs']
-            fout.write('EMPIRICAL VALUES:\n' + 'S = ' + str(ob['urns'][i]) + 
-                    '\nN = ' + str(ob['balls'][i]) + '\nObserved Nmax= ' + 
+            fout.write('EMPIRICAL VALUES:\n' + self.urns + ' = ' + 
+                    str(ob['urns'][i]) + '\n' + self.balls + ' = ' + 
+                    str(ob['balls'][i]) + '\nObserved Nmax= ' + 
                     str(ob['max'][i]) + '\nObserved Rarity = ' +
                     str(ob['tot_min'][i]) + '\n\n')
             for kw in smry.iterkeys():
                 if kw != 'obs':
                     dt= smry[kw]
-                    fout.write('PREDICTED DISTRIBUTION : ' + kw + '\nS = ' +
-                    str(dt['urns'][i]) + '\nN = ' + str(dt['balls'][i]) + 
+                    fout.write('PREDICTED DISTRIBUTION : ' + kw + '\n' + 
+                    self.urns + ' = ' + str(dt['urns'][i]) + '\n' + 
+                    self.balls + ' = ' + str(dt['balls'][i]) + 
                     '\nAIC = ' + str(dt['aic'][i]) + '\nDelta_AIC = ' +
                     str(dt['aic_d'][i]) + '\nAIC_weight = ' +
-                    str(dt['aic_w'][i]) +'\nPredicted Nmax= ' + 
+                    str(dt['aic_w'][i]) + '\nNumber of Parameters = ' + 
+                    str(dt['par_num'][i]) + '\nPredicted Nmax = ' + 
                     str(dt['max'][i]) + '\nPredicted Rarity = ' + 
                     str(dt['tot_min'][i]) + '\n\n')
             fout.close()
@@ -94,7 +111,7 @@ class SADOutput(object):
         recs = make_rec_from_dict(rads, tot_sad)
         if criteria != None:
             assert len(criteria) == tot_sad, "len(criteria) must  equal" + \
-                                      " number of sads under consideration"
+                                   " number of data arrays under consideration"
         for i, data in enumerate(recs):
             names = data.dtype.names
             for nm in names:
@@ -135,7 +152,7 @@ class SADOutput(object):
         recs = make_rec_from_dict(cdfs, tot_sad)
         if criteria != None:
             assert len(criteria) == tot_sad, "len(criteria) must  equal" + \
-                                      " number of sads under consideration"
+                                   " number of data arrays under consideration"
         for i, data in enumerate(recs):
             names = data.dtype.names
             for nm in names:
