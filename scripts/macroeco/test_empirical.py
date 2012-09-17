@@ -250,7 +250,7 @@ d, 1, 1, 1''')
         'count', 'energy': 'energy'})
 
         self.assertTrue(pars[3] == 'energy')
-        self.assertTrue(pars[4] == False)
+        self.assertTrue(pars[4] == None)
 
         # Check that combinations in empty dict if no criteria given
         pars = self.pat5.parse_criteria({'spp_code': 'species', 'count':
@@ -289,52 +289,64 @@ d, 1, 1, 1''')
         self.assertTrue(sar[1][0] == 2)
 
     def test_ssad(self):
+        
+        # Check that ssad does not lose any individuals
         ssad = self.pat2.ssad({'spp_code': 'species', 'count': 'count'})
         sad = self.pat2.sad({'spp_code': 'species', 'count': 'count'})
         sum_ssad = np.array([sum(val) for val in ssad[1].itervalues()])
         self.assertTrue(sum(sad[1][0][1]) == sum(sum_ssad))
+        
+        ssad = self.pat6.ssad({'spp_code': 'species', 'count': 'count'})
+        sad = self.pat6.sad({'spp_code': 'species', 'count': 'count'})
+        sum_ssad = np.array([sum(val) for val in ssad[1].itervalues()])
+        self.assertTrue(sum(sad[1][0][1]) == sum(sum_ssad))
+
+        # Manual checks of correct ssad
         ssad = self.pat2.ssad({'spp_code': 'species', 'count': 'count', 'x':
                                             2, 'y': 2})
         self.assertTrue(set(ssad[1]['a']) == {1, 0, 1, 0})
         self.assertTrue(set(ssad[1]['b']) == {1, 4, 0, 1})
         self.assertTrue(set(ssad[1]['c']) == {0, 0, 3, 3})
         self.assertTrue(set(ssad[1]['d']) == {3, 1, 1, 1})
-        ssad = self.pat6.ssad({'spp_code': 'species', 'count': 'count'})
-        sad = self.pat6.sad({'spp_code': 'species', 'count': 'count'})
-        sum_ssad = np.array([sum(val) for val in ssad[1].itervalues()])
-        self.assertTrue(sum(sad[1][0][1]) == sum(sum_ssad))
+
         ssad = self.pat6.ssad({'spp_code': 'species', 'count': 'count', 'x' :
                                             2, 'y': 2})
         self.assertTrue(set(ssad[1]['a']) == {1, 0, 1, 0})
         self.assertTrue(set(ssad[1]['b']) == {1, 4, 0, 1})
         self.assertTrue(set(ssad[1]['c']) == {0, 0, 3, 3})
         self.assertTrue(set(ssad[1]['d']) == {3, 1, 1, 1})
-
-    def test_comm_engy(self):
-        eng = self.pat5.comm_engy({'spp_code': 'species', 'count': 'count',
+    
+    # TODO: Test mass columns
+    def test_ied(self):
+        
+        # Test correct length of result
+        eng = self.pat5.ied({'spp_code': 'species', 'count': 'count',
         'energy': 'energy'})
         self.assertTrue(len(eng[0][1]) == 6)
-        self.assertRaises(ValueError, self.pat5.comm_engy, 
+
+        # Test error if energy column is missing
+        self.assertRaises(ValueError, self.pat5.ied, 
                                 {'spp_code': 'species', 'count': 'count'})
 
-        # Test normalizing is working
-        eng = self.pat5.comm_engy({'spp_code': 'species', 'count': 'count',
+        # Test normalize is working
+        eng = self.pat5.ied({'spp_code': 'species', 'count': 'count',
                         'energy': 'energy', 'x': 2}) 
         self.assertTrue(np.array_equal(eng[1][1], np.array([1])))
         self.assertTrue(len(eng[0][1]) == 5)
 
-    def test_sp_engy(self):
+        # TODO: Test correct result without normalize
 
-        # Chck normalizing is working
-        eng = self.pat5.sp_engy({'spp_code': 'species', 'count': 'count',
+    def test_sed(self):
+
+        # Check correct result
+        eng = self.pat5.sed({'spp_code': 'species', 'count': 'count',
                                         'energy': 'energy'})
         self.assertTrue(np.array_equal(eng[0][1]['grt'],
                                                     np.array([1,1,4,6])))
         self.assertTrue(np.array_equal(eng[0][1]['rty'],
                                                     np.array([8,10])))
-        self.assertRaises(ValueError, self.pat5.sp_engy,{'spp_code': 'species'
-                                    , 'count': 'count'})
-        eng = self.pat5.sp_engy({'spp_code': 'species', 'count': 'count',
+
+        eng = self.pat5.sed({'spp_code': 'species', 'count': 'count',
                         'energy': 'energy', 'x': 2})
         self.assertTrue(np.array_equal(eng[1][1]['rty'], np.array([1])))
         self.assertTrue(len(eng[1][1]) == 2)

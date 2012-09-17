@@ -145,16 +145,14 @@ class Patch:
 
 
         '''
-        sad_out = self.sad(criteria)
+        spp_list, sad_out = self.sad(criteria)
+        combs, array_res = flatten_sad(sad_out)
         ssad = {}
-        combs = [cmb[0] for cmb in sad_out[1]]
+        
+        for i, spp in enumerate(spp_list):
+            ssad[spp] = array_res[i,:]
 
-        sub_sads = np.array([sad[1] for sad in sad_out[1]])
-
-        for i, spp in enumerate(sad_out[0]):
-            ssad[spp] = sub_sads[:,i]
-
-        return np.array(combs), ssad
+        return combs, ssad
 
     def parse_criteria(self, criteria):
         '''
@@ -188,7 +186,7 @@ class Patch:
         spp_col = None
         count_col = None
         engy_col = None
-        mass = None
+        mass_col = None
         combinations = []
 
         # Calculate all possible combinations of columns based on criteria
@@ -205,11 +203,9 @@ class Patch:
                 continue
             if value == 'energy':
                 engy_col = key
-                mass = False
                 continue
             if value == 'mass':
-                engy_col = key
-                mass = True
+                mass_col = key
                 continue
 
             # Get levels of categorial or metric data
@@ -256,7 +252,7 @@ class Patch:
         if len(combinations) == 0:
             combinations.append({})
         
-        return spp_list, spp_col, count_col, engy_col, mass, combinations
+        return spp_list, spp_col, count_col, engy_col, mass_col, combinations
 
 
     def sar(self, div_cols, div_list, criteria, form='sar'):
@@ -307,7 +303,7 @@ class Patch:
 
             # Get flattened sad for all criteria and this div
             spp_list, sad = self.sad(this_criteria)
-            flat_sad = flatten_sad(sad)
+            flat_sad = flatten_sad(sad)[1]
 
             # Store results
             if form == 'sar':
@@ -341,16 +337,24 @@ class Patch:
         # Return
         return areas, mean_result, full_result
 
-    def comm_engy(self, criteria):
+    def ied(self, criteria, normalize=True, exponent=0.75):
         '''
-        Calculates the empirical community energy distribution given criteria
+        Calculates the individual energy distribution for the entire community
+        given the criteria
 
         Parameters
         ----------
         criteria : dict
             Dictionary must have contain a key with the value 'energy'.  See
             sad method for further requirements.
-        
+        normalize : bool
+            If True, this distribution is normalized by dividing by the lowest
+            energy value within each element of criteria. If False, returns raw
+            energy values.
+        exponent : float
+            The exponent of the allometric scaling relationship if energy is
+            calculated from mass.
+
         Returns
         -------
         result : tuple
@@ -366,44 +370,50 @@ class Patch:
         repeated for each individual is returned. This is equivalent to the psi
         distribution from Harte (2011).
 
+
         '''
         
-        spp_list, spp_col, count_col, engy_col, mass, combinations = \
+        spp_list, spp_col, count_col, engy_col, mass_col, combinations = \
             self.parse_criteria(criteria)
-        if engy_col == None:
-            raise ValueError("No energy column given") 
+
+        if engy_col == None and mass_col == None:
+            raise ValueError("No energy or mass column given")
+        elif engy_col == None and mass_col != None:
+            mass = True
+            this_engy = mass_col
+        else:
+            mass = False
+            this_engy = engy_col
 
         result = []
         for comb in combinations:
 
             subtable = self.data_table.get_subtable(comb)
-
+            
+            # If all counts are not 1
             if count_col and (not np.all(subtable[count_col] == 1)):
-
-                energy = np.repeat((subtable[engy_col] /
+                energy = np.repeat((subtable[this_engy] /
                         subtable[count_col]), subtable[count_col])
-                if mass:# Allometric scaling
-                    energy = (energy ** (0.75))
-                
-                # Normalizing energy
-                energy = energy / np.min(energy)
-                result.append((comb, energy))
-
+                species = np.repeat(subtable[spp_col], subtable[count_col])
             else:
                 energy = subtable[engy_col] 
-                if mass:
-                    energy = (energy ** (0.75))
+                species = subtable[spp_col]
+
+            # Convert mass to energy is mass is True
+            if mass:
+                energy = (energy ** exponent)
                 
-                # Normalizing energy
+            # Normalizing energy
+            if normalize:
                 energy = energy / np.min(energy)
-                result.append((comb, energy))
+            result.append((comb, energy, species))
 
         return result
 
-    def sp_engy(self, criteria):
+    def sed(self, criteria, normalize=True, exponent=0.75):
         '''
-        Calculates the empirical energy distribution for each given species
-        in the community
+        Calculates the species-level energy distribution for each given species
+        in the community.
 
         Parameters
         ----------
@@ -426,48 +436,23 @@ class Patch:
         This is equivalent to the theta distribution from Harte (2011).
 
         '''
-        spp_list, spp_col, count_col, engy_col, mass, combinations = \
+        spp_list, spp_col, count_col, engy_col, mass_col, combinations = \
             self.parse_criteria(criteria)
-        if engy_col == None:
-            raise ValueError("No energy column given")
+
+        ied = self.ied(criteria, normalize=normalize, exponent=exponent)
 
         result = []
-        for comb in combinations:
+        for this_ied in ied:
+            this_criteria_sed = {}
 
-            subtable = self.data_table.get_subtable(comb)
+            for spp in spp_list:
+                spp_ind = (spp == this_ied[2])
+                this_spp_sed = this_ied[1][spp_ind]
+                this_criteria_sed[spp] = this_spp_sed
 
-            sp_eng = {}
-            for species in spp_list:
-
-                if count_col and (not np.all(subtable[count_col] == 1)):
-                    full_engy = subtable[engy_col] / subtable[count_col]        
-
-                    # Normalizing energy
-                    full_engy_norm = full_engy / np.min(full_engy)
-                    spp_engy = full_engy_norm[subtable[spp_col] == species]
-                    
-                    if mass: #Allometric scaling
-                        spp_engy = spp_engy ** (0.75)
-                    
-                    #Repeat counts with more than 1
-                    rep_spp_engy = np.repeat(spp_engy,
-                            subtable[count_col][subtable[spp_col] == species])
-                    sp_eng[species] = rep_spp_engy
-
-                else:
-                    #Normalizing energy
-                    full_engy = subtable[engy_col] / np.min(subtable[engy_col])
-                    spp_engy = full_engy[subtable[spp_col] == species]
-
-                    if mass: #Allometic scaling
-                        spp_engy = spp_engy ** (0.75)
-
-                    sp_eng[species] = spp_engy
-
-            result.append((comb, sp_eng))
-
+            result.append((this_ied[0], this_criteria_sed))
+        
         return result
-
 
 def flatten_sad(sad):
     '''
@@ -476,12 +461,13 @@ def flatten_sad(sad):
     in columns.
     '''
 
+    combs = [cmb[0] for cmb in sad]
     result = np.zeros((len(sad[0][1]), len(sad)))
 
     for i, tup in enumerate(sad):
         result[:,i] = tup[1]
 
-    return result
+    return combs, result
 
 
 def distance(pt1, pt2):
