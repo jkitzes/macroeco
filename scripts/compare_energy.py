@@ -33,8 +33,8 @@ if __name__ == '__main__':
     for data_path, output_ID, params in wf.single_datasets():
         patch = Patch(data_path, subset=params['subset'])
         sad = patch.sad(params['criteria'])
-        cmengy = patch.comm_engy(params['criteria'])
-        spengy = patch.sp_engy(params['criteria'])
+        cmengy = patch.ied(params['criteria'])
+        spengy = patch.sed(params['criteria'])
         cmprt = comp.CompareThetaEnergy((spengy, cmengy, sad),
                                             params['dist_list_theta'], patch=True)
         cmprp = comp.ComparePsiEnergy((cmengy, sad), params['dist_list_psi'],

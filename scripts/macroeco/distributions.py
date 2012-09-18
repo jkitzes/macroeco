@@ -2213,6 +2213,7 @@ class gen_sar(Curve):
         sar = []
         N_range = np.arange(1, len(sad) + 1)
         ssad.params['tot_obs'] = N_range
+
         for i, a in enumerate(a_list):
             if not a <= 1:
                 raise ValueError("a must be less than or equal to 1")
