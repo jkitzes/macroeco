@@ -3,7 +3,7 @@
 '''
 Macroecological distributions and curves.
 
-Distributions
+DiscreteDistributions
 -------------
 
 SAD
@@ -112,14 +112,14 @@ __maintainer__ = "Justin Kitzes and Mark Wilber"
 __email__ = "jkitzes@berkeley.edu"
 __status__ = "Development"
 
-#TODO: Add truncated log-normal?
+# TODO: Add truncated log-normal?
 
 # TODO: For all subclass inits - what to do if fit method later tries to
 # overwrite these? Error, do it with warning?
 
 
 # ----------------------------------------------------------------------------
-# Define base classes Curve, Distribution, and custom errors
+# Define base classes Curve, DiscreteDistribution, and custom errors
 # ----------------------------------------------------------------------------
 
 
@@ -212,7 +212,8 @@ class Curve(object):
         self.params['N'] = sum(full_sad)
         return self
 
-class Distribution(object):
+
+class DiscreteDistribution(object):
     '''
     Class for statistical distributions.
 
@@ -341,6 +342,7 @@ class Distribution(object):
         S, N = self.get_params()
 
         # TODO: Add error or warning if N too large for memory
+        # FIX: Python throws a MemoryError when it runs out of RAM.
 
         # Calculate pmfs, going up to N for upper limit
         n_arrays = [np.arange(self.min_supp, 1*(i + 1)) for i in N]
@@ -374,6 +376,15 @@ class Distribution(object):
         # By default, loop through ndarrays in data and extract n_samp
         # and tot_obs for each one.
 
+        #Check data argument
+        if type(data) != type([]):
+            raise TypeError('Data must be a list of iterables')
+        if not np.all(np.array([np.iterable(dt) for dt in data])):
+            raise TypeError('Objects in data must be iterable')
+        
+        #Convert data argument to arrays
+        data = [np.array(data) for data in data]
+
         n_samp = []
         tot_obs = []
         
@@ -385,6 +396,7 @@ class Distribution(object):
         self.params['tot_obs'] = tot_obs
 
         return self
+
 
     def get_params(self, n=None):
         '''
@@ -426,8 +438,6 @@ class Distribution(object):
         else:
             return n_samp, tot_obs
 
-        
-
 
 class RootError(Exception):
     '''Error if no or multiple roots exist when only one should exist.'''
@@ -449,12 +459,12 @@ class DownscaleError(Exception):
 
 
 # ----------------------------------------------------------------------------
-# Distributions
+# DiscreteDistributions
 # ----------------------------------------------------------------------------
 
 
-class logser(Distribution):
-    __doc__ = Distribution.__doc__ + \
+class logser(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     Description
     -----------
@@ -513,8 +523,8 @@ class logser(Distribution):
     # TODO: Add custom method for cdf based on equation
     
 
-class logser_ut(Distribution):
-    __doc__ = Distribution.__doc__ + \
+class logser_ut(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     Description
     -----------
@@ -548,7 +558,7 @@ class logser_ut(Distribution):
     def __init__(self, **kwargs):
         self.params = kwargs
         self.min_supp = 1
-        self.par_num = 2
+        self.par_num = 0 #Number of parameters
 
     @doc_inherit    
     def pmf(self, n):
@@ -579,9 +589,104 @@ class logser_ut(Distribution):
    
         return pmf, var
 
+    # TODO: Add exact cdf from JK dissertation
+    # FIX: For saving computational time?  Cumulative sums of pmfs are the
+    # exact cdfs...need to check that the analytical cdf is faster.
 
-class plognorm(Distribution):
-    __doc__ = Distribution.__doc__ + \
+
+class logser_ut_appx(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
+    '''
+    Description
+    -----------
+    Upper-truncated log series (Harte et al 2008, Harte 2011). Like Fisher's, 
+    but normalized to finite support.  Uses approximation from Harte (2011).
+
+    Parameters
+    ----------
+    S or n_samp : int or iterable
+        Total number of species / samples
+    N or tot_obs: int or iterable
+        Total number of individuals / observations
+   
+    Vars
+    ----
+    x : list of floats
+         exp(-beta) parameter
+        
+    Notes:
+    ------
+    This distribution is the truncated logseries described in Eq 7.32 of Harte 
+    2011. Eq. 7.30, the approximte equation, is used to solve for the Lagrange 
+    multiplier. This class is faster than the logser with no approximation.
+
+    Realistic values of x where x = e**(-beta) are in the range (1/e, 1). The 
+    start and stop parameters for the brentq procedure are set close to these 
+    values. However, x can occasionally be greater than one, so the maximum 
+    stop value of the brentq optimizer is 2.
+
+    The pmf method has an additional optional keyword argument 'roots'. In the 
+    approximation equation, there are two roots (solutions) in the solution for 
+    the lagrange multiplier.  Root 2 is the root typically used in calculations 
+    and is the default.  If root=1, the first root will be used and this is not 
+    a true pmf.
+    '''
+    
+    @doc_inherit
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.min_supp = 1
+        self.par_num = 0
+    
+    @doc_inherit
+    def pmf(self, n, root=2):
+
+        # Get parameters
+        S, N, n = self.get_params(n=n)
+        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
+
+        # Calculate pmf
+        start = 0.3
+        stop = 1 - 1e-10
+        eq = lambda x, S, N: (((-m.log(x))*(m.log(-1/(m.log(x))))) - 
+                                                                (float(S)/N))
+        pmf = []
+        var = {}
+        var['x'] = []
+
+        for tS, tN, tn in zip(S, N, n):
+            
+            # First try using brentq solver
+            try:
+                x = scipy.optimize.brentq(eq, start, stop, args=(tS, tN),
+                                                                    disp=True)
+            # If that fails, try a more complex decision tree
+            except ValueError:
+                eq1 = lambda x: -1 * eq(x, tS, tN)
+                xmax = scipy.optimize.fmin(eq1, .5, disp=0)[0]
+                ymax = eq(xmax, tS, tN)
+                if ymax > 0:
+                    if root == 1:
+                        x = scipy.optimize.brentq(eq, start, xmax, args=(tS,
+                                                                tN), disp=True)
+                    if root == 2:
+                        x = scipy.optimize.brentq(eq, xmax, stop, args=(tS,
+                                                                tN), disp=True)
+                if ymax < 0:
+                    raise RootError('No solution to constraint equation with '
+                                                  + 'given values of S and N') 
+
+            g = -1/np.log(x)
+            tpmf = (1/np.log(g)) * ((x**tn)/tn)
+
+            var['x'].append(x)
+            pmf.append(tpmf)
+
+        return pmf, var
+
+
+class plognorm(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     Poisson log-normal distribution (Bulmer 1974)
 
@@ -598,10 +703,7 @@ class plognorm(Distribution):
 
     Vars
     ----
-    mu : list of floats
-        mu parameter of the log-normal
-    sigma : list of floats
-        sigma parameter of the log-normal
+    None
 
     Notes
     -----
@@ -611,13 +713,30 @@ class plognorm(Distribution):
     weecology.
     '''
     
+    # @doc_inherit cannot be used here because of derived plognorm_lt
     def __init__(self, **kwargs):
+        '''
+        Initialize distribution object.
+
+        Stores keyword arguments as params attribute and defines minimum 
+        support for distribution.
+
+        Parameters
+        ----------
+        kwargs : comma separate list of keyword arguments
+            Parameters needed for distribution. Stored in dict as params 
+            attribute.
+
+        See class docstring for more specific information on this distribution.
+        '''
         self.params = kwargs
-        self.min_supp = 1
+        self.min_supp = 0
         self.par_num = 2
+
     
+    # @doc_inherit cannot be used here because of derived plognorm_lt
     def pmf(self, n):
-        """
+        '''
         Probability mass function method.
 
         Parameters
@@ -635,7 +754,7 @@ class plognorm(Distribution):
             dict.
 
         See class docstring for more specific information on this distribution.
-        """
+        '''
 
         # TODO: Allow mu to be calculated from S and N
 
@@ -687,8 +806,11 @@ class plognorm(Distribution):
 
             pmf.append(tpmf)
 
-        return pmf, None     
+        return pmf, None
+
+    # TODO: Is there a known cdf?
     
+    # @doc_inherit cannot be used here because of derived plognorm_lt
     def fit(self, data):
         '''
         Fit method.
@@ -705,8 +827,12 @@ class plognorm(Distribution):
         See class docstring for more specific information on this distribution.
         '''
 
-
-        # TODO: Check that it is a list of arrays
+        # TODO: Check that data is a list of iterables
+        # FIX: Check that data is list and objects in data are iterable 
+        if type(data) != type([]):
+            raise TypeError('Data must be a list of iterables')
+        if not np.all(np.array([np.iterable(dt) for dt in data])):
+            raise TypeError('Objects in data must be iterable')
 
         # Check data
         data = [np.array(data) for data in data]
@@ -736,11 +862,12 @@ class plognorm(Distribution):
 
         self.params['mu'] = temp_mu
         self.params['sigma'] = temp_sigma
+
         return self
 
 
 class plognorm_lt(plognorm):
-    __doc__ = Distribution.__doc__ + \
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     Lower truncated Poisson lognormal (Bulmer 1974)
 
@@ -757,10 +884,7 @@ class plognorm_lt(plognorm):
 
     Vars
     ----
-    mu : list of floats
-        mu parameter of the log-normal
-    sigma : list of floats
-        sigma parameter of the log-normal
+    None
 
     Notes
     -----
@@ -770,9 +894,31 @@ class plognorm_lt(plognorm):
 
     Truncation calculation based on Bulmer Eq. A1.
     '''
+
+    # @doc_inherit cannot be used here because class is derived from plognorm
+    def __init__(self, **kwargs):
+        '''
+        Initialize distribution object.
+
+        Stores keyword arguments as params attribute and defines minimum 
+        support for distribution.
+
+        Parameters
+        ----------
+        kwargs : comma separate list of keyword arguments
+            Parameters needed for distribution. Stored in dict as params 
+            attribute.
+
+        See class docstring for more specific information on this distribution.
+        '''
+        self.params = kwargs
+        self.min_supp = 1
+        self.par_num = 2
+        
     
+    # @doc_inherit cannot be used here because class is derived from plognorm
     def pmf(self, n):
-        """
+        '''
         Probability mass function method.
 
         Parameters
@@ -790,7 +936,8 @@ class plognorm_lt(plognorm):
             dict.
 
         See class docstring for more specific information on this distribution.
-        """
+        '''
+
         # Get parameters
         mu = make_array(self.params.get('mu', None))
         sigma = make_array(self.params.get('sigma',  None))
@@ -809,272 +956,11 @@ class plognorm_lt(plognorm):
 
         return trunc_pmf, None 
 
-
-class logser_ut_appx(Distribution):
-    __doc__ = Distribution.__doc__ + \
-    '''
-    Description
-    -----------
-    Upper-truncated log series (Harte et al 2008, Harte 2011). Like Fisher's, 
-    but normalized to finite support.  Using approximation from Harte (2011)
-
-    Parameters
-    ----------
-    S or n_samp : int or iterable
-        Total number of species / samples
-    N or tot_obs: int or iterable
-        Total number of individuals / observations
-   
-    Vars
-    ----
-    x : list of floats
-         exp(-beta) parameter
-        
-    Notes:
-    ------
-    This function uses the truncated log series as described in Harte 2011
-    eq (7.32).  The equation used in this function to solve for the 
-    Lagrange multiplier is equation (7.30) as described in Harte 2011. This
-    class is faster than the logser with no approximation.    
-       
-    Also note that realistic values of x where x = e^-(beta) (see Harte 
-    2011) are in the range (1/e, 1) (exclusive). Therefore, the start and 
-    stop parameters for the brentq optimizer have been chosen near these 
-    values.
-
-    '''
-    
-    @doc_inherit
-    def __init__(self, **kwargs):
-        self.params = kwargs
-        self.min_supp = 1
-        self.par_num = 0
-    
-    def pmf(self, n, root=2):
-        """
-        Probability mass function method.
-
-        Parameters
-        ----------
-        n : int, float or array-like object
-            Values at which to calculate pmf. May be a list of same length as 
-            parameters, or single iterable.
-        root : int (1 or 2)
-            There are often two roots (solutions) in the solution for the
-            lagrange multiplier in this pmf.  root 2 is the root typically used
-            in calculations and is the default.  If root=1, the first root will
-            be used and this is not a true pmf. 
-
-        Returns
-        -------
-        pmf : list of ndarrays
-            List of 1D arrays of probability of observing sample n.
-        vars : dict containing lists of floats
-            Intermediate parameter variables calculated for pmf, as 
-            dict.
-
-        See class docstring for more specific information on this distribution.
-        """
-        # Get parameters
-        S, N, n = self.get_params(n=n)
-        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
-
-        start = 0.3
-        stop = 1 - 1e-10
-        eq = lambda x, S, N: (((-m.log(x))*(m.log(-1/(m.log(x))))) - 
-                                                                (float(S)/N))
-        pmf = []
-        var = {}
-        var['x'] = []
-
-        for tS, tN, tn in zip(S, N, n):
-            try:
-                x = scipy.optimize.brentq(eq, start, stop, args=(tS, tN),
-                                                                    disp=True)
-            except ValueError:
-                eq1 = lambda x: -1 * eq(x, tS, tN)
-                xmax = scipy.optimize.fmin(eq1, .5, disp=0)[0]
-                ymax = eq(xmax, tS, tN)
-                if ymax > 0:
-                    #print "Notice: More than one root in %s. Using root %s" %\
-                                            #(self.__class__.__name__, root)
-                    if root == 1:
-                        x = scipy.optimize.brentq(eq, start, xmax, args=(tS,
-                                                                tN), disp=True)
-                    if root == 2:
-                        x = scipy.optimize.brentq(eq, xmax, stop, args=(tS,
-                                                                tN), disp=True)
-                if ymax < 0:
-                    raise RootError('No solution to constraint equation with '
-                                                  + 'given values of S and N') 
-            g = -1/np.log(x)
-            tpmf = (1/np.log(g)) * ((x**tn)/tn)
-            var['x'].append(x)
-            pmf.append(tpmf)
-        return pmf, var
-
-class geo_ser(Distribution):
-    __doc__ = Distribution.__doc__ + \
-    '''
-    Geometric series distribution (Motomura 1932 and Magurran 1988).
-
-    Parameters
-    ----------
-    S : int
-        Total number of species in landscape
-    N : int
-        Total number of individuals in landscape
-    k : float
-        The fraction of resources that each species acquires. Range is 
-        (0, 1].
-
-    Var
-    ----
-    k : list of floats
-        k parameter of geometric series
-    S : list of ints
-        S parameters of geometric series
-    
-    Notes
-    -----
-    The support of this distribution is from [1, N] where N is the total number
-    of individuals/observations. The intrinsic behavior of this distribution
-    in addition to the support leads to the empirical cdf summing to one before
-    the geo_ser cdf. 
-
-    '''
-
-    @doc_inherit
-    def __init__(self, **kwargs):
-        self.params = kwargs
-        self.min_supp = 1
-        self.par_num = 2
-
-    #TODO:  Need to derive the pmf for the Geometric series
-    @doc_inherit
-    def pmf(self, n):
-        S, N, n = self.get_params(n=n)
-        k = make_array(self.params.get('k', None))
-        assert k[0] != None, "k parameter not given"
-        assert np.all(k > 0) and np.all(k <= 1), "k must be between on the " +\
-                                                            "interval (0, 1]"
-        pmf = []
-        var = {}
-        var['k'] = []
-        var['S'] = []
-        #Equation from May (1975)
-        eq = lambda x, k: (1 / x) * (1 / np.log(1 / (1 - k)))
-        for tS, tN, tk, tn in zip(S, N, k, n):
-            sumg = sum(eq(np.arange(1, tN + 1), tk))
-            tpmf = eq(tn, tk) / sumg
-            pmf.append(tpmf)
-            var['k'].append(tk)
-            var['S'].append(tS)
-        return pmf, var
+    # TODO: Write cdf method based on cdf of plognorm, similar to above
 
 
-    @doc_inherit
-    def rad(self):
-        # Get parameters
-        S, N = self.get_params()
-
-        k = make_array(self.params.get('k', None))
-        assert k[0] != None, "k parameter not given"
-        assert np.all(k > 0) and np.all(k <= 1), "k must be between on the " +\
-                                                            "interval (0, 1]"
-        rad = []
-        for tS, tN, tk in zip(S, N, k):
-            C = (1 - (1 - k )** S) ** - 1
-            trad = N * C * k * (1 - k) ** (np.arange(1, S + 1) - 1)
-            rad.append(trad)
-        return rad
-
-    @doc_inherit
-    def fit(self, data):
-
-        super(geo_ser, self).fit(data)
-        S = self.params['n_samp']; N = self.params['tot_obs']
-        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
-        self.params['k'] = []
-        for tdata, tS, tN in zip(data, S, N):
-            tNmin = np.min(tdata)
-            #Equation from May (1975)
-            eq = lambda x: (((x / (1 - x)) * ((1 - x) ** tS / (1 - (1 - x) ** 
-                           tS))) - (tNmin / tN))
-            tk = scipy.optimize.brentq(eq, 1e-10, 1 - 1e-10, disp=True)
-            self.params['k'].append(tk)
-        return self
-
-class broken_stick(Distribution):
-    __doc__ = Distribution.__doc__ + \
-    '''
-    McArthur's broken stick distribution (May 1975)
-
-    Parameters
-    ----------
-    S : int
-        Total number of species in landscape
-    N : int
-       Total number of indviduals in landscape
-
-    Vars
-    ----
-    S : list of ints
-        S parameter of the broken stick distribution
-
-    '''
-
-    @doc_inherit
-    def __init__(self, **kwargs):
-        self.params = kwargs
-        self.min_supp = 1
-        self.par_num = 1
-
-    #TODO:  PMF is not quite summing to one
-    @doc_inherit
-    def pmf(self, n):
-
-        # Get parameters
-        S, N, n = self.get_params(n=n) 
-        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
-        
-        eq = lambda x, S, N: ((S - 1) / N) * (1 - (x / N)) ** (S - 2)
-        pmf = []
-        var = {}
-        var['S'] = []
-
-        for tS, tN, tn in zip(S, N, n):
-            tpmf = eq(tn, tS, tN)
-            pmf.append(tpmf)
-            var['S'].append(tS)
-
-        return pmf, var
-
-    @doc_inherit
-    def rad(self):
-        '''
-        This distribution returns the predicted rank-abundance distribution for
-        McArthur's broken-stick distribution (May 1975).
-
-        Returns
-        -------
-        rad : list of ndarrays
-            List of 1D arrays of predicted abundance for each species
-
-        '''
-        S, N = self.get_params()
-        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
-        rad = []
-        for tS, tN in zip(S, N):
-            trad = np.empty(tS)
-            for i in xrange(tS):
-                n = np.arange(i + 1, tS + 1) 
-                trad[i] = (tN / tS) * sum(1 / n)
-            rad.append(trad)
-        return rad
-            
-class lognorm(Distribution):
-    __doc__ = Distribution.__doc__ + \
+class lognorm(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     Description
     ------------
@@ -1083,9 +969,9 @@ class lognorm(Distribution):
     Parameters
     ----------
     mu : float
-        The mu parameter of the poisson log normal
+        The mu parameter of the log normal
     sigma : float
-        The sigma parameter of the poisson log normal
+        The sigma parameter of the log normal
     S or n_samp : int or iterable (optional)
         Total number of species / samples
     N or tot_obs: int or iterable (optional)
@@ -1093,10 +979,7 @@ class lognorm(Distribution):
 
     Vars
     ----
-    mu : list of floats
-        mu parameter of the log-normal
-    sigma : list of floats
-        sigma parameter of the log-normal
+    None
     
     Notes
     -----
@@ -1106,43 +989,78 @@ class lognorm(Distribution):
     SAD is certainly not 0.  Therefore, we consider the lognormal "discrete"
     and calcuate the cdf by summing.  Note that this is one of the many 
     problems that Blackburn and Gaston have with using the lognormal for SADs.
-
     '''
+
+    # TODO: MW - what about using exact equation for cdf/quantile function?
+    # FIX:  To JK from MW: Refactored lognorm with scipy function for pdf and
+    # cdf
     
     @doc_inherit
     def __init__(self, **kwargs):
         self.params = kwargs
-        self.min_supp = 1
+        self.min_supp = 0
         self.par_num = 2
+
     
     @doc_inherit
     def pmf(self, n):
 
+        # Get parameters
         mu = make_array(self.params.get('mu', None))
         sigma = make_array(self.params.get('sigma',  None))
+        n = expand_n(n, len(mu))
 
         # Validate parameters
         assert mu[0] != None, 'mu paramater not given'
         assert sigma[0] != None, 'sigma parameter not given'
         assert len(mu) == len(sigma), 'Length of mu and sigma must be the same'
 
-        n = expand_n(n, len(mu))
+        # Calculate pmf
         pmf = []
-        var = {}
-        var['mu'] =[]
-        var['sigma'] = []
-        
         for tmu, tsigma, tn in zip(mu, sigma, n):
-            tpmf = stats.norm.pdf(np.log(tn), loc=tmu, scale=tsigma) / tn
+            # TODO: Why divided by tn?
+            # FIX: In the way I had it coded previously, you had to divide by
+            # tn to get the correct answer (See Wikipedia page of lognormal). I
+            # have now coded it using scipy.
+            tpmf = stats.lognorm.pdf(tn, tsigma, scale=np.exp(tmu))
             pmf.append(tpmf)
-            var['mu'].append(tmu)
-            var['sigma'].append(tsigma)
 
-        return pmf, var
+        return pmf, None
+
+    @doc_inherit
+    def cdf(self, n):
+
+        # Get parameters
+        mu = make_array(self.params.get('mu', None))
+        sigma = make_array(self.params.get('sigma',  None))
+        n = expand_n(n, len(mu))
+
+        # Validate parameters
+        assert mu[0] != None, 'mu paramater not given'
+        assert sigma[0] != None, 'sigma parameter not given'
+        assert len(mu) == len(sigma), 'Length of mu and sigma must be the same'
+
+        #Calculate cdf
+        cdf = []
+        for tmu, tsigma, tn in zip(mu, sigma, n):
+            tcdf = stats.lognorm.cdf(tn, tsigma, scale=np.exp(tmu))
+            cdf.append(tcdf)
+
+        return cdf, None
+
     
     @doc_inherit
     def fit(self, data):
 
+        # TODO: Should this be done in all fit methods?
+        # Fix:  Implemented checking of data argument in base class
+
+        if type(data) != type([]):
+            raise TypeError('Data must be a list of iterables')
+        if not np.all(np.array([np.iterable(dt) for dt in data])):
+            raise TypeError('Objects in data must be iterable')
+
+        # Process data
         data = [np.array(data) for data in data]
 
         # Calculate and store parameters
@@ -1155,12 +1073,12 @@ class lognorm(Distribution):
             mu0 = np.mean(np.log(tdata))  # Starting guesses for mu and sigma
             sigma0 = np.std(np.log(tdata), ddof=1)
 
-            def pln_func(x):
+            def ln_func(x):
                 self.params['mu'] = x[0]
                 self.params['sigma'] = x[1]
                 return -sum(np.log(self.pmf(tdata)[0][0]))
 
-            mu, sigma = scipy.optimize.fmin(pln_func, x0=[mu0, sigma0],
+            mu, sigma = scipy.optimize.fmin(ln_func, x0=[mu0, sigma0],
                                             disp=0)
             temp_mu.append(mu)
             temp_sigma.append(sigma)
@@ -1170,14 +1088,185 @@ class lognorm(Distribution):
 
         self.params['mu'] = temp_mu
         self.params['sigma'] = temp_sigma
+
         return self
 
-class sugihara(Distribution):
-    __doc__ = Distribution.__doc__ + \
+
+class geo_ser(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
+    '''
+    Geometric series distribution (Motomura 1932 and Magurran 1988).
+
+    Parameters
+    ----------
+    S or n_samp : int or iterable
+        Total number of species / samples
+    N or tot_obs: int or iterable
+        Total number of individuals / observations
+    k : float
+        The fraction of resources that each species acquires. Range is 
+        (0, 1].
+
+    Var
+    ----
+    None
+    
+    Notes
+    -----
+    Equation for pmf and fit from May (1975).
+    
+    The support of this distribution is from [1, N] where N is the total number
+    of individuals/observations. Therefore, the cdf of this function is one at
+    N.  The empirical cdf of observed data reaches one at N - S + 1 (if not
+    sooner) and therefore comparisons of geo_ser cdfs and empirical cdfs will
+    often deviate near as n approaches N - S + 1 (if not sooner). 
+    
+    
+    '''
+    # TODO: @MW - Last sentence of docstring hard to understand - clarify.
+    # FIX: Clarified!
+
+
+    @doc_inherit
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.min_supp = 1
+        self.par_num = 2
+
+
+    @doc_inherit
+    def pmf(self, n):
+
+        # Get parameters
+        S, N, n = self.get_params(n=n)
+        k = make_array(self.params.get('k', None))
+        assert k[0] != None, 'k parameter not given'
+        assert np.all(k > 0) and np.all(k <= 1), ('k must be in the '
+                                                  'interval (0, 1]')
+
+        # Calculate pmf
+        pmf = []
+        eq = lambda x, k: (1 / x) * (1 / np.log(1 / (1 - k)))
+        for tS, tN, tk, tn in zip(S, N, k, n):
+            sumg = sum(eq(np.arange(1, tN + 1), tk))
+            tpmf = eq(tn, tk) / sumg
+            pmf.append(tpmf)
+
+        return pmf, None
+
+
+    @doc_inherit
+    def rad(self):
+
+        # Get parameters
+        S, N = self.get_params()
+        k = make_array(self.params.get('k', None))
+        assert k[0] != None, "k parameter not given"
+        assert np.all(k > 0) and np.all(k <= 1), ('k must be in the '
+                                                  'interval (0, 1]')
+        # Calculate rad
+        rad = []
+        for tS, tN, tk in zip(S, N, k):
+            C = (1 - (1 - k )** S) ** - 1
+            trad = N * C * k * (1 - k) ** (np.arange(1, S + 1) - 1)
+            rad.append(trad)
+
+        return rad
+
+
+    @doc_inherit
+    def fit(self, data):
+
+        # Get parameters
+        super(geo_ser, self).fit(data)  # Run DiscreteDistribution.fit method
+        S = self.params['n_samp']
+        N = self.params['tot_obs']
+        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
+
+        # Calculate fit
+        self.params['k'] = []
+        for tdata, tS, tN in zip(data, S, N):
+            tNmin = np.min(tdata)
+            eq = lambda x: (((x / (1 - x)) *
+                             ((1 - x) ** tS / (1 - (1 - x) ** tS)))
+                            - (tNmin / tN))
+            tk = scipy.optimize.brentq(eq, 1e-10, 1 - 1e-10, disp=True)
+            self.params['k'].append(tk)
+
+        return self
+
+
+class broken_stick(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
+    '''
+    McArthur's broken stick distribution (May 1975)
+
+    Parameters
+    ----------
+    S or n_samp : int or iterable
+        Total number of species / samples
+    N or tot_obs: int or iterable
+        Total number of individuals / observations
+
+    Vars
+    ----
+    None
+    '''
+
+    @doc_inherit
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.min_supp = 1
+        self.par_num = 1  # TODO: Should this be 2?
+                          # FIX:  May (1975) p. 114 says the broken stick has
+                          # only 1 parameter, S. 
+
+
+    @doc_inherit
+    def pmf(self, n):
+        # TODO:  PMF is not quite summing to one
+
+        # Get parameters
+        S, N, n = self.get_params(n=n) 
+        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
+        
+        # Calculate pmf
+        # TODO: If x and n are the same, change x to n in eq for clarity?
+        eq = lambda x, S, N: ((S - 1) / N) * (1 - (x / N)) ** (S - 2)
+        pmf = []
+
+        for tS, tN, tn in zip(S, N, n):
+            tpmf = eq(tn, tS, tN)
+            pmf.append(tpmf)
+
+        return pmf, None
+
+
+    @doc_inherit
+    def rad(self):
+
+        # Get parameters
+        S, N = self.get_params()
+        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
+
+        # Calculate rad
+        rad = []
+        for tS, tN in zip(S, N):
+            trad = np.empty(tS)
+            for i in xrange(tS):
+                n = np.arange(i + 1, tS + 1) 
+                trad[i] = (tN / tS) * sum(1 / n)
+            rad.append(trad)
+
+        return rad
+            
+
+class sugihara(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     Description
     -----------
-    Sugihara Rank Abundance Distribution (Sugihara 1980)
+    Sugihara Rank Abundance DiscreteDistribution (Sugihara 1980)
 
     Parameters
     ----------
@@ -1188,12 +1277,27 @@ class sugihara(Distribution):
 
     Notes
     -----
-    As S gets large, we will start to under sample some of the possible 
-    breakage sequences and this model begins to fail. Adapted from 
-    Sugihara (1980)
+    This is a sampled rank abundance distribution.  It is not derived
+    analytically.
+
+    As S gets bigger, the number of possible breakage sequences for a given
+    set of species will increase factorially.  To address this issue, one 
+    should increase the number of samples via the parameter sample_size (in
+    the rad method) to sample all possible breakage sequences. However, for S
+    greater than 20 it is computationally difficult to sample all possible
+    breakage sequences and one must realize that the resulting rank
+    abundance distribution may not be a perfect representation of sequential
+    breaking.  
+
+    The rad method has an additional optional argument for sample_size, which 
+    is set to 10000 by default. 
 
     '''
-    #TODO: Back-derive the pmf?
+    # TODO: Explain in docstring that this is sampled, not exact
+    # TODO: Back-derive pmf?
+    # TODO: Make Error/Warning if pmf or cdf called
+    # TODO: Can the docstring be clarified? What is "large"?
+    # Fix: Addressed most of these issues in the doc string.
     
     @doc_inherit
     def __init__(self, **kwargs):
@@ -1205,15 +1309,18 @@ class sugihara(Distribution):
     @doc_inherit
     def rad(self, sample_size=10000):
         
+        # Get parameters
         S, N = self.get_params()
         assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
+
+        # Calculate rad
         rad = []
         for tS, tN in zip(S, N):
             total = []
             for i in xrange(sample_size):
                 U = np.random.triangular(0.5, 0.75, 1, size=tS - 1)
                 p = []
-                #Could this be refactored to look sexier and perform better?
+                # TODO: Could this be refactored to perform better?
                 for i in xrange(tS):
                     if i == 0:
                         p.append(1)
@@ -1229,10 +1336,12 @@ class sugihara(Distribution):
             total_array = np.array(total)
             means = np.array([np.mean(total_array[:,i]) for i in xrange(tS)])
             rad.append(tN * means)
+
         return rad
 
-class binm(Distribution):
-    __doc__ = Distribution.__doc__ + \
+
+class binm(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     ''' 
     Description
     -----------
@@ -1297,8 +1406,8 @@ class binm(Distribution):
             var['tot_obs'].append(ttot_obs)
         return cdf, var
 
-class pois(Distribution):
-    __doc__ = Distribution.__doc__ + \
+class pois(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     Description
     -----------
@@ -1352,8 +1461,8 @@ class pois(Distribution):
             var['mu'].append(tmu)
         return cdf, var
 
-class nbd(Distribution):
-    __doc__ = Distribution.__doc__ + \
+class nbd(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     Description
     -----------
@@ -1551,8 +1660,8 @@ class nbd_lt(nbd):
 
         return trunc_pmf, reg_var         
 
-class fnbd(Distribution):
-    __doc__ = Distribution.__doc__ + \
+class fnbd(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     Description
     -----------
@@ -1650,8 +1759,8 @@ class fnbd(Distribution):
         self.params['tot_obs'] = tot_obs
         return self
 
-class geo(Distribution):
-    __doc__ = Distribution.__doc__ + \
+class geo(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     Description
     -----------
@@ -1697,8 +1806,8 @@ class geo(Distribution):
         var['p'] = 1 / n_samp
         return cdf, var
         
-class fgeo(Distribution):
-    __doc__ = Distribution.__doc__ + \
+class fgeo(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     Description
     -----------
@@ -1750,8 +1859,8 @@ class fgeo(Distribution):
         var['p'] = nvar['p']
         return cdf, var
 
-class tgeo(Distribution):
-    __doc__ = Distribution.__doc__ + \
+class tgeo(DiscreteDistribution):
+    __doc__ = DiscreteDistribution.__doc__ + \
     '''
     Description
     -----------
@@ -1813,7 +1922,7 @@ class tgeo(Distribution):
         return pmf, var
 
 class mete_sar_iter(Curve):
-    __doc__ = Distribution.__doc__ + \
+    __doc__ = Curve.__doc__ + \
     '''
     Description
     -----------
@@ -1978,7 +2087,7 @@ class mete_sar_iter(Curve):
         return univ_SAR
 
 class powerlaw(Curve):
-    __doc__ = Distribution.__doc__ + \
+    __doc__ = Curve.__doc__ + \
     '''
     Description
     -----------
@@ -2037,7 +2146,7 @@ class powerlaw(Curve):
         return self
 
 class gen_sar(Curve):
-    __doc__ = Distribution.__doc__ + \
+    __doc__ = Curve.__doc__ + \
     '''
     A generic sar function the utilizes the relationship between the sad
     and the ssad to generate the sar.  Can take any combination of sad and
@@ -2220,6 +2329,368 @@ class plognorm_lt_fgeo(gen_sar):
         self.params = kwargs
         self.sad = plognorm_lt()
         self.ssad = fgeo()
+
+#########################
+## Energy Distributions##
+#########################
+
+
+class EnergyDistribution(object):
+    '''
+    The base class for the energy distributions
+    '''
+
+    def __init__(self):
+        '''
+        Initialize distribution object.
+
+        Stores keyword arguments as params attribute and defines minimum 
+        support for distribution.
+
+        Parameters
+        ----------
+        kwargs : comma separate list of keyword arguments
+            Parameters needed for distribution. Stored in dict as params 
+            attribute.
+
+        See class docstring for more specific information on this distribution.
+        '''
+        # This method does nothing, but exists so that derived class init
+        # methods can inherit this docstring.
+        pass
+
+    def pdf(self, e):
+        '''
+        Probability density function method.
+
+        Parameters
+        ----------
+        e : int, float or array-like object
+            Values at which to calculate pmf. May be a list of same length as 
+            parameters, or single iterable.
+
+        Returns
+        -------
+        pdf : list of ndarrays
+            List of 1D arrays of probability of observing sample e.
+        vars : dict containing lists of floats
+            Intermediate parameter variables calculated for pmf, as 
+            dict.
+
+        See class docstring for more specific information on this distribution.
+        '''
+
+        pass
+
+    def cdf(self, e):
+        '''
+        Cumulative distribution method.  
+
+        Parameters
+        ----------
+        e : int, float or array-like object
+            Values at which to calculate cdf. May be a list of same length as 
+            parameters, or single iterable.
+
+        Returns
+        -------
+        cdf : list of ndarrays
+            List of 1D arrays of probability of observing sample e.
+        var : dict containing lists of floats
+            Intermediate parameter variables calculated for cdf, as dict.
+
+        See class docstring for more specific information on this distribution.
+        '''
+
+        pass
+
+    def red(self):
+        '''
+        Rank energy distribution of a given function.
+        
+        Returns
+        -------
+        red : list of ndarrays
+            List of 1D arrays of predicted energy for each individual in a
+            given community of species
+
+        See class docstring for more specific information on this distribution.
+
+        '''
+        
+        pass
+
+    def get_params(self, e=None):
+        '''
+        Gets and validates basic distribution parameters
+
+        Parameters
+        ----------
+        e : int, float or array-like object
+            Values at which to calculate pdf. May be a list of same length as 
+            parameters, or single iterable.
+
+        Returns
+        -------
+        : tuple
+            Validated S, N, E and n parameters
+ 
+        '''
+        S = make_array(self.params.get('S', None))
+        N = make_array(self.params.get('N', None))
+        E = make_array(self.params.get('E', None))
+
+        if e != None:
+            e = expand_n(e, len(S))
+
+        # Validate parameters
+        assert len(S) == len(N), 'Length of S and N must be the same'
+        assert len(E) == len(N), 'Length of E and N must be the same'
+        assert S[0] != None, 'S parameter not given'
+        assert N[0] != None, 'N parameter not given'
+        assert E[0] != None, 'E parameter not given'
+        assert np.all(S > 1), 'S must be greater than 1'
+        assert np.all(N > 0), 'N must be greater than 0'
+        assert np.all(E >= 1), 'E must be greater than or equal to 1' 
+    
+        if e != None:
+            return S, N, E, e
+        else:
+            return S, N, E
+
+    def fit(self, data):
+        '''
+        Fit the energy distribution to data
+        
+        Parameters
+        ----------
+        data : tuple
+            A tuple containing two objects.  The first object is a list of
+            iterables with each iterable containing an empirical community 
+            energy distribution.  The second object is a list of iterables with
+            each iterable containing an empirical sad.
+
+        '''
+
+        #Check data argument
+        if type(data) != type((1,)):
+            raise TypeError('Data must be a tuple of iterables')
+        if not np.all([np.iterable(dt) for dt in data]):
+            raise TypeError('Objects in data tuple must be iterable')
+        if not np.all([np.all([np.iterable(d) for d in dt]) for dt in data]):
+            raise TypeError("Iterable objects in data tuple must also contain"
+                            + " iterable objects")
+
+        E = [np.sum(np.array(edata)) for edata in data[0]]
+        N = []
+        S = []
+        for tdata in data[1]:
+            N.append(np.sum(np.array(tdata)))
+            S.append(len(np.array(tdata)))
+
+        self.params['E'] = E
+        self.params['N'] = N
+        self.params['S'] = S
+
+        return self
+
+class psi(EnergyDistribution):
+    __doc__ = EnergyDistribution.__doc__ + \
+    '''
+    The community energy distribution (psi) described in Harte (2011)
+
+    Parameters
+    ----------
+    S or n_samp : int or iterable
+        Total number of species / samples
+    N or tot_obs: int or iterable
+        Total number of individuals / observations
+    E : int or iterable
+        Total energy output of community
+
+    Var
+    ---
+    beta : list of floats
+        The beta lagrange multiplier
+    l2 : list of floats
+        The lambda2 lagrange multiplier
+
+    Notes
+    -----
+    All other lagrange multipliers can be calculated from beta and l2.
+
+    '''
+
+    @doc_inherit
+    def __init__(self, **kwargs):
+
+        self.params = kwargs
+        self.min_supp = 1
+
+    @doc_inherit
+    def pdf(self, e):
+        #Get and check parameters
+        S, N, E, e = self.get_params(e=e)
+
+        start = 0.3
+        stop = 2
+        flmax = sys.float_info[0]
+        eq = lambda x,k,N,S: sum(x ** k / float(N) * S) -  sum((x ** k) / k)
+
+        pdf = []
+        var = {}
+        var['beta'] = []
+        var['l2'] = []
+
+        for tS, tN, tE, te in zip(S, N, E, e):
+            k = np.linspace(1, tN, num=tN)
+            tx = scipy.optimize.brentq(eq, start,
+                                       min((flmax/tS)**(1/float(tN)), stop), 
+                                       args = (k, tN, tS), disp=True)
+            tbeta = -np.log(tx)
+            tl2 = float(tS) / (tE - tN) # Harte (2011) 7.26
+            tl1 = tbeta - tl2
+            tsigma = tl1 + (tE * tl2)
+
+            norm = (float(tS) / (tl2 * tN)) * (((np.exp(-tbeta) - \
+                    np.exp(-tbeta*(tN + 1))) / (1 - np.exp(-tbeta))) - \
+                    ((np.exp(-tsigma) - np.exp(-tsigma*(tN + 1))) / \
+                    (1 - np.exp(-tsigma)))) #Harte (2011) 7.22
+
+            #Notation from E.W.
+            exp_neg_gamma = np.exp(-(tbeta + (te - 1) * tl2))
+
+            tpdf = (float(tS) / (tN * norm)) * ((exp_neg_gamma  / \
+                    (1 - exp_neg_gamma)**2) - ((exp_neg_gamma**tN / \
+                    (1 - exp_neg_gamma)) * (tN + (exp_neg_gamma / \
+                    (1 - exp_neg_gamma)))))
+                    # Harte (2011) 7.24
+            pdf.append(tpdf)
+            var['beta'].append(tbeta)
+            var['l2'].append(tl2)
+        
+        return pdf, var
+    
+    @doc_inherit
+    def red(self):
+
+        S, N, E = self.get_params()
+
+        start = 0.3
+        stop = 2
+        flmax = sys.float_info[0]
+        eq = lambda x,k,N,S: sum(x ** k / float(N) * S) -  sum((x ** k) / k)
+
+        n_arrays = [np.arange(1, i + 1) for i in N]
+        prad = lambda beta, r, N, l1, l2: (1 / l2) * np.log(((beta * N) + \
+                                  r - 0.5) / (r - 0.5)) - (l1 / l2)
+        rad = []
+        for tS, tN, tE, tn, in zip(S, N, E, n_arrays):
+
+            k = np.linspace(1, tN, num=tN)
+            tx = scipy.optimize.brentq(eq, start,
+                                       min((flmax/tS)**(1/float(tN)), stop), 
+                                       args = (k, tN, tS), disp=True)
+            tbeta = -np.log(tx)
+            tl2 = float(tS) / (tE - tN) # Harte (2011) 7.26
+            tl1 = tbeta - tl2
+
+            trad = prad(tbeta, tn, tN, tl1, tl2)
+            rad.append(trad)
+
+        return rad
+
+class theta(EnergyDistribution):
+    __doc__ = EnergyDistribution.__doc__ + \
+    '''
+    The species specific energy distribution (theta) as described by Harte
+    (2011).
+
+    Parameters
+    ----------
+    S or n_samp : int or iterable
+        Total number of species / samples
+    N or tot_obs: int or iterable
+        Total number of individuals / observations
+    E : int or iterable
+        Total energy output of community
+    n : int or iterable
+        Number of individuals in a given species
+
+    Var
+    ---
+    l2 : list of floats
+        The lambda2 lagrange multiplier
+
+    '''
+
+    @doc_inherit
+    def __init__(self, **kwargs): 
+
+        self.params = kwargs
+        self.min_supp = 1
+    
+    @doc_inherit
+    def pdf(self, e):
+
+        S, N, E, e = self.get_params(e=e)
+        n = make_array(self.params.get('n', None))
+        assert np.all(n <= N), 'n must be less than or equal to N'
+
+        pdf = []
+        var = {}
+        var['l2'] = []
+
+        for tS, tN, tE, tn, te in zip(S, N, E, n, e):
+
+            tl2 = float(tS) / (tE - tN)
+            tpdf = (tn * tl2 * np.exp(-tl2 * tn * te)) / (np.exp(-tl2 * tn)\
+                                - np.exp(-tl2 * tn * tE)) #Harte (2011) 7.25
+
+            pdf.append(tpdf)
+            var['l2'].append(tl2)
+        
+        return pdf, var
+
+    @doc_inherit
+    def red(self):
+
+        S, N, E = self.get_params()
+        n = make_array(self.params.get('n', None))
+        assert n[0] != None, 'n parameter not given'
+        assert np.all(n <= N), 'n must be less than or equal to N'
+
+        n_arrays = [np.arange(1, i + 1) for i in n]
+
+        pred = lambda r, n, l2 : 1 + (1 / (l2 * n)) * np.log( n / (r - 0.5))
+        red = []
+        for tS, tN, tE, tn, tn_arr in zip(S, N, E, n, n_arrays):
+           
+           tl2 = float(tS) / (tE - tN)
+           tred = pred(tn_arr, tn, tl2)
+           red.append(tred)
+
+        return red
+
+    def fit(self, data):
+        '''
+        Fits empirical species energy distribution data
+
+        Parameters
+        ----------
+        data : tuple
+            A tuple of length 3.  The first object is a list of np.arrays
+            containing empirical species energy distributions.  The second
+            object is a list of np.arrays containing community energy
+            distributions, and the third object is a list of np.arrays
+            containing sads.
+
+        '''
+        super(theta, self).fit((data[1], data[2]))
+        n = [len(np.array(ndata)) for ndata in data[0]]
+        self.params['n'] = n
+        return self
+
 
 def make_array(n):
     '''Cast n as iterable array.'''
