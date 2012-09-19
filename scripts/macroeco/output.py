@@ -113,11 +113,10 @@ class DistOutput(object):
             assert len(criteria) == tot_sad, "len(criteria) must  equal" + \
                                    " number of data arrays under consideration"
         for i, data in enumerate(recs):
-            names = data.dtype.names
-            for nm in names:
-                plt.plot(np.arange(1, len(data) + 1), np.sort(data[nm])[::-1],\
-                                   '-o')
-            plt.legend(names, loc='best')
+            
+            # Plot all columns of the rec array
+            plot_rec_columns(data)
+
             if criteria != None:
                 plt.title('RAD criteria: ' + str(criteria[i]))
             else:
@@ -154,10 +153,12 @@ class DistOutput(object):
             assert len(criteria) == tot_sad, "len(criteria) must  equal" + \
                                    " number of data arrays under consideration"
         for i, data in enumerate(recs):
+            
             names = data.dtype.names
             for nm in names:
                 plt.plot(np.sort(obs_sads[i]), np.sort(data[nm]), '-o')
             plt.legend(names, loc='best')
+
             if criteria != None:
                 plt.title('CDF criteria: ' + str(criteria[i]))
             else:
@@ -228,10 +229,10 @@ class SAROutput(object):
             plt.savefig(self.out_dir + '_SAR_plot_' + str(i))
             plt.clf()
 
-class PsiOutput(object):
+class IEDOutput(object):
     '''
-    Class outputs community energy distributions by interacting with
-    ComparePsiEnergy
+    Class outputs individual energy distributions by interacting with
+    CompareIED
 
     '''
 
@@ -258,7 +259,8 @@ class PsiOutput(object):
         Output
         ------
         This method outputs both a plot and a csv that compare observed and
-        predicted species-level rank energy curves.  
+        predicted individual rank energy curves for the entire community at the
+        given subset.  
 
         '''
         tot_reds = len(reds['obs'])
@@ -267,11 +269,11 @@ class PsiOutput(object):
             assert len(criteria) == tot_reds, "len(criteria) must  equal" + \
                                       " number of reds under consideration"
         for i, data in enumerate(recs):
-            names = data.dtype.names
-            for nm in names:
-                plt.plot(np.arange(1, len(data) + 1), np.sort(data[nm])[::-1],\
-                                   '-o')
-            plt.legend(names, loc='best')
+            
+            #Plot all data in a single rec array
+            plot_rec_columns(data)
+
+            # Make appropirate title for figure
             if criteria != None:
                 plt.title('RED criteria: ' + str(criteria[i]))
             else:
@@ -279,17 +281,17 @@ class PsiOutput(object):
             plt.loglog()
             plt.ylabel('log(energy)')
             plt.xlabel('log(rank)')
-            logging.info('Saving figure ' + self.out_dir + '_comm_rank_energy_' 
+            logging.info('Saving figure ' + self.out_dir + '_ied_rank_energy_' 
                           + str(i))
-            plt.savefig(self.out_dir + '_comm_rank_energy_' + str(i))
+            plt.savefig(self.out_dir + '_ied_rank_energy_' + str(i))
             plt.clf()
-            output_form(recs[i], self.out_dir + '_comm_rank_energy_' + str(i))
+            output_form(recs[i], self.out_dir + '_ied_rank_energy_' + str(i))
 
 
-class ThetaOutput(object):
+class SEDOutput(object):
     '''
-    Class outputs species energy distributions by interacting with
-    CompareThetaEnergy
+    Class outputs species-level energy distributions by interacting with
+    CompareSED
 
     '''
 
@@ -326,11 +328,9 @@ class ThetaOutput(object):
             assert len(criteria) == tot_reds, "len(criteria) must  equal" + \
                                       " number of reds under consideration"
         for i, data in enumerate(recs):
-            names = data.dtype.names
-            for nm in names:
-                plt.plot(np.arange(1, len(data) + 1), np.sort(data[nm])[::-1],\
-                                   '-o')
-            plt.legend(names, loc='best')
+
+            plot_rec_columns(data)
+
             if spp != None:
                 if criteria != None:
                     plt.title('Species Code: ' + str(spp[i]) + ' Criteria: ' +
@@ -345,11 +345,11 @@ class ThetaOutput(object):
             plt.semilogx()
             plt.ylabel('Energy')
             plt.xlabel('log(rank)')
-            logging.info('Saving figure ' + self.out_dir + '_spp_rank_energy_' 
+            logging.info('Saving figure ' + self.out_dir + '_sed_rank_energy_' 
                           + str(i))
-            plt.savefig(self.out_dir + '_spp_rank_energy_' + str(i))
+            plt.savefig(self.out_dir + '_sed_rank_energy_' + str(i))
             plt.clf()
-            output_form(recs[i], self.out_dir + '_spp_rank_energy_' + str(i))
+            output_form(recs[i], self.out_dir + '_sed_rank_energy_' + str(i))
 
 def make_rec_from_dict(dist_dict, num, dt=np.float):
     '''
@@ -373,6 +373,48 @@ def make_rec_from_dict(dist_dict, num, dt=np.float):
             temp[kw] = dist_dict[kw][i]
         recs.append(temp)
     return recs
+
+def plot_rec_columns(rec_array):
+    '''
+    Function plots the columns in a rec array.
+    '''
+
+    # Available plotting symbols
+    plot_symbols = ['+', 's', 'd', '*', 'x', '8', 'H', '1', 'p', '2', '3',
+                                                        '4', '|', 4, 5, 6, 7]
+    names = rec_array.dtype.names
+
+    # If their are more arrays than symbols just change colors of lines
+    if len(names) > len(plot_symbols):
+        for nm in names:
+            if nm == 'obs':
+                plt.plot(np.arange(1, len(rec_array) + 1),
+                                        np.sort(rec_array[nm])[::-1], '-ro')
+            else:
+                plt.plot(np.arange(1, len(rec_array) + 1),
+                                        np.sort(rec_array[nm])[::-1], '-o')
+
+    # Else, use different symbols/markers for each line
+    elif len(names) <= len(plot_symbols):
+
+        # Counter is 0
+        cnt = 0
+        for nm in names:
+            if nm == 'obs':
+                plt.plot(np.arange(1, len(rec_array) + 1),
+                                        np.sort(rec_array[nm])[::-1], '-ro')
+            else:
+                plt.plot(np.arange(1, len(rec_array) + 1),
+                                        np.sort(rec_array[nm])[::-1], '-' +
+                                        str(plot_symbols[cnt]))
+                cnt += 1
+
+    plt.legend(names, loc='best')
+            
+
+
+    
+
 
 
 

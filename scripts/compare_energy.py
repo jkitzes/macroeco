@@ -26,23 +26,32 @@ if __name__ == '__main__':
     from macroeco.utils.workflow import Workflow
     from macroeco.empirical import Patch
     import macroeco.compare as comp
-    from macroeco.output import ThetaOutput, PsiOutput
+    from macroeco.output import SEDOutput, IEDOutput
 
     wf = Workflow(clog=True, svers=__version__)
     
     for data_path, output_ID, params in wf.single_datasets():
+
+        # Put data in patch object
         patch = Patch(data_path, subset=params['subset'])
+
+        # Calculate empirical metrics
         sad = patch.sad(params['criteria'])
         cmengy = patch.ied(params['criteria'])
         spengy = patch.sed(params['criteria'])
-        cmprt = comp.CompareThetaEnergy((spengy, cmengy, sad),
-                                            params['dist_list_theta'], patch=True)
-        cmprp = comp.ComparePsiEnergy((cmengy, sad), params['dist_list_psi'],
-                                        patch = True)
-        sout = ThetaOutput(output_ID)
-        soup = PsiOutput(output_ID)
+
+        # Make comparison objects 
+        cmprt = comp.CompareSED((spengy, cmengy, sad),
+                                    params['dist_list_sed'], patch=True)
+        cmprp = comp.CompareIED((cmengy, sad), params['dist_list_ied'],
+                                        patch=True)
+
+        # Make output objects and output plots
+        sout = SEDOutput(output_ID)
+        soup = IEDOutput(output_ID)
         sout.plot_reds(cmprt.compare_reds(), criteria=cmprt.sad_criteria)
         soup.plot_reds(cmprp.compare_reds(), criteria=cmprp.sad_criteria)
+
         logging.info('Completed analysis %s\n' % output_ID)
     logging.info("Completed 'compare_energy.py' script")
 

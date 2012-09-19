@@ -98,8 +98,8 @@ import scipy.special
 import math as m
 import scipy.integrate as integrate
 import sys
-#from docinherit import DocInherit
-from macroeco.utils.docinherit import DocInherit
+from docinherit import DocInherit
+#from macroeco.utils.docinherit import DocInherit
 
 doc_inherit = DocInherit
 
@@ -190,7 +190,7 @@ class Curve(object):
 
     def fit(self, data, full_sad):
         '''
-        This fit method fills the required parameters for an SARCurve object.
+        This fit method fills the required parameters for a Curve object.
 
         Parameters
         ----------
@@ -203,7 +203,8 @@ class Curve(object):
 
         '''
         
-        #Assertion statements
+        # TODO: Make this pass and do specific fit within each derived class
+        # Assertion statements
         assert len(data) == 2, "data must contain two objects"
         assert len(data[0]) == len(data[1]), "Area and species number " + \
                                         "arrays must be of the same length"
@@ -341,8 +342,9 @@ class DiscreteDistribution(object):
         # Get parameters
         S, N = self.get_params()
 
-        # TODO: Add error or warning if N too large for memory
-        # FIX: Python throws a MemoryError when it runs out of RAM.
+        # TODO: Add error or warning if N is large enough that python is slow
+        # FIX: Throw warning that N is large and that calculation will take
+        # awhile.  N > 100,000. Base CDF should thrown the same warning. 
 
         # Calculate pmfs, going up to N for upper limit
         n_arrays = [np.arange(self.min_supp, 1*(i + 1)) for i in N]
@@ -414,6 +416,10 @@ class DiscreteDistribution(object):
             Validated n_samp/S, tot_obs/N, and n parameters
  
         '''
+
+        # TODO: Have it take a list of parameters that you want.  The
+        # parameters are strings.  Get each of parameters specified by the
+        # strings. Return a tuple still.
         n_samp = make_array(self.params.get('n_samp', None))
         if n_samp[0] is None:
             n_samp = make_array(self.params.get('S', None))
@@ -422,6 +428,7 @@ class DiscreteDistribution(object):
         if tot_obs[0] is None:
             tot_obs = make_array(self.params.get('N', None))
 
+        # TODO: Move back into __init__
         if n != None:
             n = expand_n(n, len(n_samp))
 
@@ -558,14 +565,15 @@ class logser_ut(DiscreteDistribution):
     def __init__(self, **kwargs):
         self.params = kwargs
         self.min_supp = 1
-        self.par_num = 0 #Number of parameters
+        self.par_num = 2 # This is highly contested
 
     @doc_inherit    
     def pmf(self, n):
 
         # Get parameters
         S, N, n = self.get_params(n=n)
-        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
+        assert np.all(S <= N), 'n_samp/S must be <= to tot_obs/N'
+        
 
         # Calculate pmf
         start = 0.3
@@ -578,20 +586,27 @@ class logser_ut(DiscreteDistribution):
         var['x'] = []
 
         for tS, tN, tn in zip(S, N, n):
-            k = np.linspace(1, tN, num=tN)
-            tx = scipy.optimize.brentq(eq, start,
+
+            # If S = N, return 1 for n = 1 and 0 otherwise (e**-beta = 0)
+            if tS == tN:
+                tpmf = np.zeros(len(tn))
+                tpmf[tn == 1] = 1
+                tx = 0
+
+            else:
+                k = np.linspace(1, tN, num=tN)
+                tx = scipy.optimize.brentq(eq, start,
                                        min((flmax/tS)**(1/float(tN)), stop), 
                                        args = (k, tN, tS), disp=True)
-            tnorm = np.sum(tx ** k / k)  # From Ethan White's trun_logser_pmf
-            tpmf = (tx ** tn / tn) / tnorm
+                tnorm = np.sum(tx ** k / k)  # From Ethan White's trun_logser_pmf
+                tpmf = (tx ** tn / tn) / tnorm
+
             var['x'].append(tx)
             pmf.append(tpmf)
    
         return pmf, var
 
     # TODO: Add exact cdf from JK dissertation
-    # FIX: For saving computational time?  Cumulative sums of pmfs are the
-    # exact cdfs...need to check that the analytical cdf is faster.
 
 
 class logser_ut_appx(DiscreteDistribution):
@@ -636,10 +651,12 @@ class logser_ut_appx(DiscreteDistribution):
     def __init__(self, **kwargs):
         self.params = kwargs
         self.min_supp = 1
-        self.par_num = 0
+        self.par_num = 2 # This is highly contested
     
     @doc_inherit
     def pmf(self, n, root=2):
+        
+        # TODO: remove option to change root
 
         # Get parameters
         S, N, n = self.get_params(n=n)
@@ -656,7 +673,9 @@ class logser_ut_appx(DiscreteDistribution):
 
         for tS, tN, tn in zip(S, N, n):
             
-            # First try using brentq solver
+            # TODO: What if N = S? 
+
+            # Try normal root finder. Will fail it two roots
             try:
                 x = scipy.optimize.brentq(eq, start, stop, args=(tS, tN),
                                                                     disp=True)
@@ -756,8 +775,6 @@ class plognorm(DiscreteDistribution):
         See class docstring for more specific information on this distribution.
         '''
 
-        # TODO: Allow mu to be calculated from S and N
-
         # Get parameters
         mu = make_array(self.params.get('mu', None))
         sigma = make_array(self.params.get('sigma',  None))
@@ -827,14 +844,14 @@ class plognorm(DiscreteDistribution):
         See class docstring for more specific information on this distribution.
         '''
 
-        # TODO: Check that data is a list of iterables
+        # TODO: Check that data is a list of iterables. Make an external method
         # FIX: Check that data is list and objects in data are iterable 
         if type(data) != type([]):
             raise TypeError('Data must be a list of iterables')
         if not np.all(np.array([np.iterable(dt) for dt in data])):
             raise TypeError('Objects in data must be iterable')
 
-        # Check data
+        # Check data.  can go in the same method as above
         data = [np.array(data) for data in data]
 
         # Calculate and store parameters
@@ -846,7 +863,9 @@ class plognorm(DiscreteDistribution):
         for tdata in data:
             mu0 = np.mean(np.log(tdata))  # Starting guesses for mu and sigma
             sigma0 = np.std(np.log(tdata), ddof=1)
-
+            
+            # TODO: Can we do this without setting the self.params? Make
+            # another plognorm inside?
             def pln_func(x):
                 self.params['mu'] = x[0]
                 self.params['sigma'] = x[1]
@@ -959,6 +978,7 @@ class plognorm_lt(plognorm):
     # TODO: Write cdf method based on cdf of plognorm, similar to above
 
 
+# TODO: Make a continuous distribution
 class lognorm(DiscreteDistribution):
     __doc__ = DiscreteDistribution.__doc__ + \
     '''
@@ -991,10 +1011,6 @@ class lognorm(DiscreteDistribution):
     problems that Blackburn and Gaston have with using the lognormal for SADs.
     '''
 
-    # TODO: MW - what about using exact equation for cdf/quantile function?
-    # FIX:  To JK from MW: Refactored lognorm with scipy function for pdf and
-    # cdf
-    
     @doc_inherit
     def __init__(self, **kwargs):
         self.params = kwargs
@@ -1018,10 +1034,6 @@ class lognorm(DiscreteDistribution):
         # Calculate pmf
         pmf = []
         for tmu, tsigma, tn in zip(mu, sigma, n):
-            # TODO: Why divided by tn?
-            # FIX: In the way I had it coded previously, you had to divide by
-            # tn to get the correct answer (See Wikipedia page of lognormal). I
-            # have now coded it using scipy.
             tpmf = stats.lognorm.pdf(tn, tsigma, scale=np.exp(tmu))
             pmf.append(tpmf)
 
@@ -1036,6 +1048,7 @@ class lognorm(DiscreteDistribution):
         n = expand_n(n, len(mu))
 
         # Validate parameters
+        # TODO: validate parameter method?
         assert mu[0] != None, 'mu paramater not given'
         assert sigma[0] != None, 'sigma parameter not given'
         assert len(mu) == len(sigma), 'Length of mu and sigma must be the same'
@@ -1072,7 +1085,8 @@ class lognorm(DiscreteDistribution):
         for tdata in data:
             mu0 = np.mean(np.log(tdata))  # Starting guesses for mu and sigma
             sigma0 = np.std(np.log(tdata), ddof=1)
-
+            
+            # TODO: See plognorm TODO 
             def ln_func(x):
                 self.params['mu'] = x[0]
                 self.params['sigma'] = x[1]
@@ -1131,7 +1145,7 @@ class geo_ser(DiscreteDistribution):
     def __init__(self, **kwargs):
         self.params = kwargs
         self.min_supp = 1
-        self.par_num = 2
+        self.par_num = 3 # May says 2 parameters, test this
 
 
     @doc_inherit
@@ -1167,7 +1181,7 @@ class geo_ser(DiscreteDistribution):
         # Calculate rad
         rad = []
         for tS, tN, tk in zip(S, N, k):
-            C = (1 - (1 - k )** S) ** - 1
+            C = (1 - (1 - k ) ** S) ** - 1
             trad = N * C * k * (1 - k) ** (np.arange(1, S + 1) - 1)
             rad.append(trad)
 
@@ -1217,22 +1231,20 @@ class broken_stick(DiscreteDistribution):
     def __init__(self, **kwargs):
         self.params = kwargs
         self.min_supp = 1
-        self.par_num = 1  # TODO: Should this be 2?
-                          # FIX:  May (1975) p. 114 says the broken stick has
-                          # only 1 parameter, S. 
+        self.par_num = 2  # May says 1
 
 
     @doc_inherit
     def pmf(self, n):
-        # TODO:  PMF is not quite summing to one
+        # TODO:  PMF is not quite summing to one. But it is checking against
+        # known results.  
 
         # Get parameters
         S, N, n = self.get_params(n=n) 
         assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
         
         # Calculate pmf
-        # TODO: If x and n are the same, change x to n in eq for clarity?
-        eq = lambda x, S, N: ((S - 1) / N) * (1 - (x / N)) ** (S - 2)
+        eq = lambda x, S, N: ((S - 1) / N) * ((1 - (x / N)) ** (S - 2))
         pmf = []
 
         for tS, tN, tn in zip(S, N, n):
@@ -1266,7 +1278,7 @@ class sugihara(DiscreteDistribution):
     '''
     Description
     -----------
-    Sugihara Rank Abundance DiscreteDistribution (Sugihara 1980)
+    Sugihara Rank Abundance Distribution (Sugihara 1980)
 
     Parameters
     ----------
@@ -1293,11 +1305,8 @@ class sugihara(DiscreteDistribution):
     is set to 10000 by default. 
 
     '''
-    # TODO: Explain in docstring that this is sampled, not exact
     # TODO: Back-derive pmf?
     # TODO: Make Error/Warning if pmf or cdf called
-    # TODO: Can the docstring be clarified? What is "large"?
-    # Fix: Addressed most of these issues in the doc string.
     
     @doc_inherit
     def __init__(self, **kwargs):
@@ -1488,7 +1497,6 @@ class nbd(DiscreteDistribution):
         k parameter of nbd
     p : list of floats 
         p parameters of nbd
-
     '''
     
     @doc_inherit
@@ -2166,8 +2174,7 @@ class gen_sar(Curve):
     filled manually.  Generic sar can only downscale.  
 
     '''
-    #NOTE: Might be making this too limiting be forcing an sad object in.
-    #Just going to do it for now
+
     def __init__(self, sad, ssad, **kwargs):
         '''
 
@@ -2205,6 +2212,7 @@ class gen_sar(Curve):
 
         '''
         sad = self.params.get('sad_pmf', None)
+
         assert sad != None, "params['sad_pmf'] does not exist.  Try fitting" \
                     + " gen_sar object or initialize self.params['sad_pmf']"
         ssad = self.ssad
@@ -2243,6 +2251,7 @@ class gen_sar(Curve):
             The full_sad at the anchor area (species/items counts)
 
         '''
+
         super(gen_sar, self).fit(data, full_sad)
         self.sad.fit([full_sad])
         self.params['sad_pmf'] = self.sad.pmf(np.arange(1, self.params['N'] + 

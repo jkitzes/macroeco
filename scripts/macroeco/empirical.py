@@ -72,7 +72,7 @@ class Patch:
 
     
             
-    def sad(self, criteria):
+    def sad(self, criteria, clean=False):
         '''
         Calculates an empirical species abundance distribution given criteria.
 
@@ -89,6 +89,9 @@ class Patch:
             - metric - number of divisions of data along this axis, int/float
             - categorical - 'split' calculates each category separately,
               'whole' takes the entire column.
+        clean : bool
+            If True, all the zeros are removed from the sads.  If False, sads
+            are left as is.
         
         Returns
         -------
@@ -396,11 +399,12 @@ class Patch:
                         subtable[count_col]), subtable[count_col])
                 species = np.repeat(subtable[spp_col], subtable[count_col])
             else:
-                energy = subtable[engy_col] 
+                energy = subtable[this_engy] 
                 species = subtable[spp_col]
 
             # Convert mass to energy is mass is True
             if mass:
+                #import pdb; pdb. set_trace()
                 energy = (energy ** exponent)
                 
             # Normalizing energy

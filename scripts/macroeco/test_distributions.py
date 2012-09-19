@@ -26,6 +26,7 @@ import numpy as np
 
 # TODO: Do we need to test rad's? Against what?
 
+
 class TestDistributions(unittest.TestCase):
     '''Test the functions within sad_distr.py'''
 
@@ -52,7 +53,6 @@ class TestDistributions(unittest.TestCase):
     
     def test_logser(self):
         # Test error raising
-        self.assertRaises(AssertionError, logser(S=45, N=45).pmf, 1)
         self.assertRaises(AssertionError, logser(S=234, N=67).pmf, 1)
         self.assertRaises(AssertionError, logser(S=34, N=0).pmf, 1)
 
@@ -69,7 +69,6 @@ class TestDistributions(unittest.TestCase):
 
     def test_logser_ut(self):
         # Test error raising
-        self.assertRaises(AssertionError, logser_ut(S=45, N=45).pmf, 1)
         self.assertRaises(AssertionError, logser_ut(S=234, N=67).pmf, 1)
         self.assertRaises(AssertionError, logser_ut(S=34, N=0).pmf, 1)
 
@@ -88,15 +87,19 @@ class TestDistributions(unittest.TestCase):
         self.assertTrue(np.round(-np.log(x['x'][0]), decimals=6) == 0.000413)
         pmf, x = logser_ut(S=64, N=2**12 * 64).pmf(1)
         self.assertTrue(np.round(-np.log(x['x'][0]), decimals=7) == 0.0000228)
-
-        # TODO: Test cdf. Below appear to do nothing.
+        
+        # Check that they don't fail
         logser_ut(S=64, N=1000).rad()
         logser_ut(S=64, N=1000).cdf((1,1,2,4,5,7,12))
+        
+        # Test correct answer when S == N
+        pmf, x = logser_ut(S=31, N=31).pmf([1,2,3,4,5])
+        self.assertTrue(x['x'][0] == 0)
+        self.assertTrue(np.array_equal(pmf[0], np.array([1,0,0,0,0])))
 
 
     def test_logser_ut_appx(self):
         # Test error raising
-        self.assertRaises(AssertionError, logser_ut_appx(S=45, N=45).pmf, 1)
         self.assertRaises(AssertionError, logser_ut_appx(S=234, N=67).pmf, 1)
         self.assertRaises(AssertionError, logser_ut_appx(S=34, N=0).pmf, 1)
 
@@ -114,7 +117,7 @@ class TestDistributions(unittest.TestCase):
                         or
                         np.round(-np.log(x['x'][0]), decimals=7) == 0.0000228)
 
-        # TODO: Test cdf. Below appear to do nothing.
+        # Test that they don't fail
         logser_ut_appx(S=64, N=1000).rad()
         logser_ut_appx(S=64, N=1000).cdf((1,1,2,4,5,7,12))
         
@@ -141,7 +144,7 @@ class TestDistributions(unittest.TestCase):
         self.assertTrue(sum(np.round(plognorm(mu=3,sigma=-3).\
                                      pmf([1,2,3,4,5])[0][0], decimals=3)) == 0)
 
-        # TODO: @MW - What does the following do here?
+        # Test that these don't fail
         plognorm().fit([self.abund_list[0]])
         N = sum(self.abund_list[0])
         S = len(self.abund_list[0])
@@ -150,7 +153,8 @@ class TestDistributions(unittest.TestCase):
     
     def test_plognorm_lt(self):
         # TODO: No test below - should test pmf and cdf, at minimum
-
+        
+        # Test that these don't fail
         N = sum(self.abund_list[0])
         S = len(self.abund_list[0])
         plognorm_lt(S=[S,S+2], N=[N, N+2], mu=[2,3], sigma=[2,3]).cdf(5)
@@ -177,8 +181,10 @@ class TestDistributions(unittest.TestCase):
                                                                     decimals=4)
         diff = r_output - lnorm
         self.assertTrue(np.all(diff == 0))
+        
+        # TODO: Test cdf against R cdf
 
-        # TODO: Below doesn't do anything - test cdf and fit
+        # Test that these don't fail
         lognorm().fit([self.abund_list[0]])
         N=sum(self.abund_list[0])
         S=len(self.abund_list[0])
@@ -218,7 +224,8 @@ class TestDistributions(unittest.TestCase):
 
     
     def test_broken_stick(self):
-        # TODO: Why should this throw error? Describe test -        
+        # Test that n_except throws approriate error if length S and N are not
+        # the same as length pmf
         self.assertRaises(TypeError, broken_stick(S=12, N=111).pmf,[[2],[3]])
 
         # Data from Magurran (1998)
@@ -235,7 +242,7 @@ class TestDistributions(unittest.TestCase):
         diff = np.array(expt) - bs
         self.assertTrue(np.all(diff == 0))
 
-        # TODO: Test rad and cdf - below does nothing
+        # Test that these don't fail 
         broken_stick(S=23, N=500).cdf([1,2,500])
         broken_stick(S=23, N=500).rad()
         broken_stick().fit(self.abund_list)

@@ -372,10 +372,10 @@ class CompareSARCurve(object):
         return pred_sar
 
 # TODO: Change names of empirical energy distributions
-class ComparePsiEnergy(object):
+class CompareIED(object):
     '''
-    Class compares predicted community energy distributions to observed energy
-    distributions
+    Class compares predicted individual energy distribution (s) for the entire
+    community to observed individual energy distributions
 
     '''
 
@@ -396,27 +396,44 @@ class ComparePsiEnergy(object):
             the output from Patch.comm_engy and the second element being the
             output from Patch.sad. If False expects what argument data_list
             describes. sads and energy should be made with the same criteria.
+
+        Notes
+        -----
+        The __init method always removes zeros from the SADs
         '''
 
         if patch:
+            # Store spp_list in self.items
             self.items = data_list[1][0]
             self.sad_criteria = []
             self.sad_list = []
+
             for obj in data_list[1][1]:
+                #Unpack sad output (criteria, sad)
                 self.sad_criteria.append(obj[0])
-                self.sad_list.append(obj[1])
+
+                #Remove zeros from sads
+                self.sad_list.append(obj[1][obj[1] != 0])
+
+            
             self.eng_criteria = []
             self.eng_list = []
             for obj in data_list[0]:
+
+                # Unpack energy information
                 self.eng_criteria.append(obj[0])
                 self.eng_list.append(obj[1])
         else:
             self.sad_list = [np.array(data) for data in data_list[1]]
+            #Clean zeros from sad
+            self.sad_list = [data[data != 0] for data in self.sad_list]
             self.sad_criteria = None
             self.eng_list = [np.array(data) for data in data_list[0]]
             self.eng_criteria = None
             self.items = None
 
+        # TODO: Make this into method
+        # Check if dist_list is a list of strings or list of objects
         if np.all([type(dist) == str for dist in dist_list]):
             self.dist_list = np.empty(len(dist_list), dtype=object)
             for kw in list(dist_dict.viewkeys()):
@@ -456,10 +473,10 @@ class ComparePsiEnergy(object):
     def summary(self):
         pass
 
-class CompareThetaEnergy(object):
+class CompareSED(object):
     '''
-    Class compares predicted species level energy distributions to observed
-    species level energy distributions.
+    Class compares predicted species-level energy distribution (s) with the
+    observed species-level energy distribution (s)
 
     Attributes
     ----------
@@ -533,11 +550,14 @@ class CompareThetaEnergy(object):
                 num = len(self.spp_names[i])
                 tcri = [obj[0] for i in xrange(num)]
                 self.sad_criteria += tcri
-                tsad = [obj[1] for i in xrange(num)]
+                tsad = [obj[1][obj[1] != 0] for i in xrange(num)] #Remove 0s
                 self.sad_list += tsad
             self.spp_names = list(np.array(self.spp_names).flatten())
         else:
             self.sad_list = [np.array(data) for data in data_list[2]]
+
+            #Remove 0's from sad
+            self.sad_list = [data[data != 0] for data in self.sad_list]
             self.sad_criteria = None
             self.eng_list = [np.array(data) for data in data_list[1]]
             self.eng_criteria = None
