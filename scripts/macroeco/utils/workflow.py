@@ -13,7 +13,6 @@ Classes
 
 import xml.etree.ElementTree as etree
 import sys, os, logging
-from mpl_toolkits.basemap import Basemap
 import matplotlib.pyplot as plt
 from macroeco.data import Metadata
 
@@ -114,7 +113,7 @@ class Workflow:
         Yields
         ------
         data_path : string
-            Path[s] to data to analyze, relative to current working directory
+            Path to data to analyze, relative to current working directory
         output_ID : string
             Concatenates script, run, and dataset identifiers
         run_params : dict
@@ -135,8 +134,7 @@ class Workflow:
                               'sites created') % run_name)
                 self.parameters.data_path[run_name] = ['']
             else:
-                pass
-                #make_map(self.parameters.params['data_paths'])
+                make_map(self.parameters.data_path[run_name], run_name)
                 
             # Loop through each dataset and yield values for dataset and run
             for data_path in self.parameters.data_path[run_name]:
@@ -170,11 +168,16 @@ class Parameters:
     ----------
     script_name : string
         Name of script originating the workflow
+    script_vers : string
+        Version of script originating the workflow
     interactive : bool
         Whether the script can pause for user interaction
     params : dict
         Dictionary of dictionaries, with each outer key a run name and each 
         outer value a dictionary of parameter names and values for each run.
+    data_path : dict
+        Dictonarity where keys are run names and values are lists of data paths 
+        associated with each run.
         
     '''
     
@@ -203,7 +206,8 @@ class Parameters:
             return
 
         # Read parameter file
-        logging.info('Reading parameters from %s' %paramfile)
+        logging.info('Reading parameters from %s' % os.path.join(output_path, 
+                     paramfile))
         self.read_from_xml()
 
         # Check that all required parameters present in all runs
@@ -316,74 +320,102 @@ class Parameters:
                                   (run_name, param_name))
 
             
-def make_map(datalist, mapname=None, whole_globe=False):
+def make_map(data_paths, run_name, whole_globe=False):
     '''
-    Makes a map of all sites in analysis.
+    Makes a map of all sites in run.
 
     Parameter
     ---------
-    datalist:  list of absolute paths to data files *.csv;
-               data location will be extracted from corresponding *.xml
-
-    mapname:  optional filename of the map (do not include extension)
+    data_paths : list
+        Paths to data files (csv's). Data location will be extracted from 
+        corresponding xml metadata file.
+    run_name : str
+        Name of run, used as name of map file.
+    whole_globe : bool
+        If True, map is entire globe. If False, map is "zoomed in" on data 
+        locations.
 
     Returns
     -------
-    True if no file with the names of all these datasets exists and one was created
-    False if a file already existed
+    map_created : bool
+        True if file was created, False if a file already existed and none was 
+        created.
+
+    Notes
+    -----
+    Map will be given the name of a run. If multiple runs have the same name, 
+    only the map associated with the first run of that name will be saved.
+
+    The label for each site will be the first 4 letters of the data file name 
+    (e.g., LBRI_2000.csv and LBRI.csv will both be labeled LBRI).
     '''
+
+    # Check if Basemap present - if not, log and return
+    try:
+        from mpl_toolkits.basemap import Basemap
+    except:
+        logging.debug('Basemap module is not available, no map of data ' + 
+                      'locations can be created')
+        return False
+
+    # Set map_name
+    map_name = 'map_' + run_name + '.png'
+
+    # TODO: Check if run_name is unique
+    # Check if map with this run_name already exists
+    if os.path.isfile(map_name):
+        logging.debug('Map with this run name already exists. New map ' + 
+                      'overwriting old one.')
+
+    # Get lat, long, and name of each data set
     lats = []
     lons = []
     names = []
-    for f in datalist:
-        x = f[:-3]+'xml'
-        fname, fext = os.path.splitext(os.path.split(f)[-1])
-        names.append(fname[:4])
+
+    for path in data_paths:
+        x = path[:-3]+'xml'
         
-    # Normalize so we can check for an existing file
-    names.sort()
-    if not mapname:
-        mapname = 'map_' + '_'.join(names)
-    mapname = mapname + '.png'
-    if os.path.isfile(mapname):
+        try:
+            meta = Metadata(x, {})
+            bounds = meta.get_physical_coverage()
+            lats.append(bounds[0])
+            lons.append(bounds[1])
+            
+            fname, fext = os.path.splitext(os.path.split(path)[-1])
+            names.append(fname[:4])  # First 4 letters of data set name
+        except:
+            logging.info('No location data found in %s, no map point '
+                         'added.' % x)
+
+    # If no valid location data, return without making a map
+    if len(names) == 0:
         return False
-    
-    for f in datalist:
-        x = f[:-3]+'xml'
-        meta = Metadata(x)
-        bounds = meta.get_coverage_region()
 
-        lats.append(bounds[0])
-        lons.append(bounds[1])
-
-    print('Making map projection...')
+    # Set up map
+    logging.debug('Creating map for run %s' % run_name)
     if whole_globe:
-        m = Basemap(projection='cyl',
-                    resolution='i')
-                    
+        m = Basemap(projection='cyl', resolution='i')
     else:
-        print('Min and max coords found:\n'+str((min(lats),min(lons),max(lats),max(lons))))
+        # 10 degree buffer around min and max lat/long
         m = Basemap(projection='cyl', lat_0=50, lon_0=-100,
             llcrnrlon=min(lons)-10, llcrnrlat=min(lats)-10,
             urcrnrlon=max(lons)+10, urcrnrlat=max(lats)+10,
             resolution='l')
 
-    print('Drawing blue-marble background...')
+    # Draw features
     m.bluemarble()
     m.drawcoastlines()
     m.drawcountries()
-    #m.fillcontinents(color='beige') #Not with bluemarble
     m.drawmapboundary()
 
-    print('Plotting research sites...')
+    # Add sites
     x, y = m(lons, lats)
     m.plot(x, y, 'yo')
     for n, xpt, ypt in zip(names,x,y):
-        if n == 'BCIS': ypt += 1 #Cleanup for crowded areas 
+        if n == 'BCIS': ypt += 1 # Manual Cleanup for crowded areas
         if n == 'SHER': ypt += 2
         plt.text(xpt+.5,ypt+.5,n,color='yellow')
-    plt.title('Field sites')
-    plt.savefig(mapname)
+
+    plt.savefig(map_name)
     plt.close()
-    #plt.show()
     return True
