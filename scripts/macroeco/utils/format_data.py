@@ -8,7 +8,8 @@ the user with all formatting functions that may be required.  This module is
 not a substitute for thorough examination of ones data to remove irrelevant
 data'''
 
-
+# NOTE: For some reason, ipython notebook did not like the import * command.
+# Need to investigate
 import numpy as np
 from matplotlib.mlab import csv2rec
 from form_func import *
@@ -462,7 +463,7 @@ class Dense_Data:
         spp_col_num : int
             The column number in the dense array where the spp_names begin
 
-        num_spp : int
+        num_spp : tuple
             Number of species in plot
 
         '''
