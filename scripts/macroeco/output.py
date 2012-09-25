@@ -163,7 +163,7 @@ class DistOutput(object):
                 plt.title('CDF criteria: ' + str(criteria[i]))
             else:
                 plt.title('CDF: plot number ' + str(i))
-            plt.semilogx()
+            #plt.semilogx()
             plt.ylabel('cumulative probability')
             plt.xlabel('abundance')
             logging.info('Saving figure ' + self.out_dir + '_cdf_plot_' 
@@ -389,7 +389,8 @@ def plot_rec_columns(rec_array):
         for nm in names:
             if nm == 'obs':
                 plt.plot(np.arange(1, len(rec_array) + 1),
-                                        np.sort(rec_array[nm])[::-1], '-ro')
+                                        np.sort(rec_array[nm])[::-1], '-o',
+                                        color='black')
             else:
                 plt.plot(np.arange(1, len(rec_array) + 1),
                                         np.sort(rec_array[nm])[::-1], '-o')
