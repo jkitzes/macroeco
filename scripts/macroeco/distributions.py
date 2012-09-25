@@ -3,7 +3,7 @@
 '''
 Macroecological distributions and curves.
 
-DiscreteDistributions
+Distributions
 -------------
 
 SAD
@@ -98,8 +98,8 @@ import scipy.special
 import math as m
 import scipy.integrate as integrate
 import sys
-from docinherit import DocInherit
-#from macroeco.utils.docinherit import DocInherit
+#from docinherit import DocInherit
+from macroeco.utils.docinherit import DocInherit
 
 doc_inherit = DocInherit
 
@@ -119,7 +119,7 @@ __status__ = "Development"
 
 
 # ----------------------------------------------------------------------------
-# Define base classes Curve, DiscreteDistribution, and custom errors
+# Define base classes Curve, Distribution, and custom errors
 # ----------------------------------------------------------------------------
 
 
@@ -214,7 +214,7 @@ class Curve(object):
         return self
 
 
-class DiscreteDistribution(object):
+class Distribution(object):
     '''
     Class for statistical distributions.
 
@@ -466,12 +466,12 @@ class DownscaleError(Exception):
 
 
 # ----------------------------------------------------------------------------
-# DiscreteDistributions
+# Distributions
 # ----------------------------------------------------------------------------
 
 
-class logser(DiscreteDistribution):
-    __doc__ = DiscreteDistribution.__doc__ + \
+class logser(Distribution):
+    __doc__ = Distribution.__doc__ + \
     '''
     Description
     -----------
@@ -530,8 +530,8 @@ class logser(DiscreteDistribution):
     # TODO: Add custom method for cdf based on equation
     
 
-class logser_ut(DiscreteDistribution):
-    __doc__ = DiscreteDistribution.__doc__ + \
+class logser_ut(Distribution):
+    __doc__ = Distribution.__doc__ + \
     '''
     Description
     -----------
@@ -609,8 +609,8 @@ class logser_ut(DiscreteDistribution):
     # TODO: Add exact cdf from JK dissertation
 
 
-class logser_ut_appx(DiscreteDistribution):
-    __doc__ = DiscreteDistribution.__doc__ + \
+class logser_ut_appx(Distribution):
+    __doc__ = Distribution.__doc__ + \
     '''
     Description
     -----------
@@ -704,8 +704,8 @@ class logser_ut_appx(DiscreteDistribution):
         return pmf, var
 
 
-class plognorm(DiscreteDistribution):
-    __doc__ = DiscreteDistribution.__doc__ + \
+class plognorm(Distribution):
+    __doc__ = Distribution.__doc__ + \
     '''
     Poisson log-normal distribution (Bulmer 1974)
 
@@ -886,7 +886,7 @@ class plognorm(DiscreteDistribution):
 
 
 class plognorm_lt(plognorm):
-    __doc__ = DiscreteDistribution.__doc__ + \
+    __doc__ = Distribution.__doc__ + \
     '''
     Lower truncated Poisson lognormal (Bulmer 1974)
 
@@ -979,8 +979,8 @@ class plognorm_lt(plognorm):
 
 
 # TODO: Make a continuous distribution
-class lognorm(DiscreteDistribution):
-    __doc__ = DiscreteDistribution.__doc__ + \
+class lognorm(Distribution):
+    __doc__ = Distribution.__doc__ + \
     '''
     Description
     ------------
@@ -1106,8 +1106,8 @@ class lognorm(DiscreteDistribution):
         return self
 
 
-class geo_ser(DiscreteDistribution):
-    __doc__ = DiscreteDistribution.__doc__ + \
+class geo_ser(Distribution):
+    __doc__ = Distribution.__doc__ + \
     '''
     Geometric series distribution (Motomura 1932 and Magurran 1988).
 
@@ -1192,7 +1192,7 @@ class geo_ser(DiscreteDistribution):
     def fit(self, data):
 
         # Get parameters
-        super(geo_ser, self).fit(data)  # Run DiscreteDistribution.fit method
+        super(geo_ser, self).fit(data)  # Run Distribution.fit method
         S = self.params['n_samp']
         N = self.params['tot_obs']
         assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
@@ -1210,8 +1210,8 @@ class geo_ser(DiscreteDistribution):
         return self
 
 
-class broken_stick(DiscreteDistribution):
-    __doc__ = DiscreteDistribution.__doc__ + \
+class broken_stick(Distribution):
+    __doc__ = Distribution.__doc__ + \
     '''
     McArthur's broken stick distribution (May 1975)
 
@@ -1273,8 +1273,8 @@ class broken_stick(DiscreteDistribution):
         return rad
             
 
-class sugihara(DiscreteDistribution):
-    __doc__ = DiscreteDistribution.__doc__ + \
+class sugihara(Distribution):
+    __doc__ = Distribution.__doc__ + \
     '''
     Description
     -----------
@@ -1349,8 +1349,8 @@ class sugihara(DiscreteDistribution):
         return rad
 
 
-class binm(DiscreteDistribution):
-    __doc__ = DiscreteDistribution.__doc__ + \
+class binm(Distribution):
+    __doc__ = Distribution.__doc__ + \
     ''' 
     Description
     -----------
@@ -1415,8 +1415,8 @@ class binm(DiscreteDistribution):
             var['tot_obs'].append(ttot_obs)
         return cdf, var
 
-class pois(DiscreteDistribution):
-    __doc__ = DiscreteDistribution.__doc__ + \
+class pois(Distribution):
+    __doc__ = Distribution.__doc__ + \
     '''
     Description
     -----------
@@ -1470,8 +1470,8 @@ class pois(DiscreteDistribution):
             var['mu'].append(tmu)
         return cdf, var
 
-class nbd(DiscreteDistribution):
-    __doc__ = DiscreteDistribution.__doc__ + \
+class nbd(Distribution):
+    __doc__ = Distribution.__doc__ + \
     '''
     Description
     -----------
@@ -1668,8 +1668,8 @@ class nbd_lt(nbd):
 
         return trunc_pmf, reg_var         
 
-class fnbd(DiscreteDistribution):
-    __doc__ = DiscreteDistribution.__doc__ + \
+class fnbd(Distribution):
+    __doc__ = Distribution.__doc__ + \
     '''
     Description
     -----------
@@ -1767,8 +1767,8 @@ class fnbd(DiscreteDistribution):
         self.params['tot_obs'] = tot_obs
         return self
 
-class geo(DiscreteDistribution):
-    __doc__ = DiscreteDistribution.__doc__ + \
+class geo(Distribution):
+    __doc__ = Distribution.__doc__ + \
     '''
     Description
     -----------
@@ -1814,8 +1814,8 @@ class geo(DiscreteDistribution):
         var['p'] = 1 / n_samp
         return cdf, var
         
-class fgeo(DiscreteDistribution):
-    __doc__ = DiscreteDistribution.__doc__ + \
+class fgeo(Distribution):
+    __doc__ = Distribution.__doc__ + \
     '''
     Description
     -----------
@@ -1867,8 +1867,8 @@ class fgeo(DiscreteDistribution):
         var['p'] = nvar['p']
         return cdf, var
 
-class tgeo(DiscreteDistribution):
-    __doc__ = DiscreteDistribution.__doc__ + \
+class tgeo(Distribution):
+    __doc__ = Distribution.__doc__ + \
     '''
     Description
     -----------
