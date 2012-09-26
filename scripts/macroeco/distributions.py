@@ -98,8 +98,8 @@ import scipy.special
 import math as m
 import scipy.integrate as integrate
 import sys
-#from docinherit import DocInherit
-from macroeco.utils.docinherit import DocInherit
+from docinherit import DocInherit
+#from macroeco.utils.docinherit import DocInherit
 
 doc_inherit = DocInherit
 
@@ -280,9 +280,36 @@ class Distribution(object):
 
         See class docstring for more specific information on this distribution.
         '''
-        # This method does nothing, but exists so that derived class pmf
-        # methods can inherit this docstring.
-        pass
+        # This method raises an error if a derived class does not have its own
+        # pmf method.
+        raise NotImplementedError('PMF is not implemented for this' + 
+                                  ' Distribution class')
+
+    def pdf(self, n):
+        '''
+        Probability density function method.
+
+        Parameters
+        ----------
+        n : int, float or array-like object
+            Values at which to calculate pdf. May be a list of same length as 
+            parameters, or single iterable.
+
+        Returns
+        -------
+        pdf : list of ndarrays
+            List of 1D arrays of probability of observing sample n.
+        vars : dict containing lists of floats
+            Intermediate parameter variables calculated for pdf, as 
+            dict.
+
+        See class docstring for more specific information on this distribution.
+        '''
+        # This method raises an error if a derived class does not have its own
+        # pdf method
+
+        raise NotImplementedError('PDF is not implemented for this' + 
+                                  ' Distribution class')
 
 
     def cdf(self, n):
@@ -340,20 +367,20 @@ class Distribution(object):
         '''
 
         # Get parameters
-        S, N = self.get_params()
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
 
-        # TODO: Add error or warning if N is large enough that python is slow
-        # FIX: Throw warning that N is large and that calculation will take
-        # awhile.  N > 100,000. Base CDF should thrown the same warning. 
+        # TODO: Add error or warning if tot_obs is large enough that python is slow
+        # FIX: Throw warning that tot_obs is large and that calculation will take
+        # awhile.  tot_obs > 100,000. Base CDF should thrown the same warning. 
 
-        # Calculate pmfs, going up to N for upper limit
-        n_arrays = [np.arange(self.min_supp, 1*(i + 1)) for i in N]
+        # Calculate pmfs, going up to tot_obs for upper limit
+        n_arrays = [np.arange(self.min_supp, 1*(i + 1)) for i in tot_obs]
         pmf, var = self.pmf(n_arrays)
         
         # Calculate rad
         rad = []
-        for tS, tN, tpmf in zip(S, N, pmf):
-            trad = make_rank_abund(tpmf, tS, min_supp=self.min_supp)
+        for tn_samp, ttot_obs, tpmf in zip(n_samp, tot_obs, pmf):
+            trad = make_rank_abund(tpmf, tn_samp, min_supp=self.min_supp)
             rad.append(trad)
 
         return rad
@@ -378,14 +405,7 @@ class Distribution(object):
         # By default, loop through ndarrays in data and extract n_samp
         # and tot_obs for each one.
 
-        #Check data argument
-        if type(data) != type([]):
-            raise TypeError('Data must be a list of iterables')
-        if not np.all(np.array([np.iterable(dt) for dt in data])):
-            raise TypeError('Objects in data must be iterable')
-        
-        #Convert data argument to arrays
-        data = [np.array(data) for data in data]
+        data = check_list_of_iterables(data) 
 
         n_samp = []
         tot_obs = []
@@ -400,50 +420,39 @@ class Distribution(object):
         return self
 
 
-    def get_params(self, n=None):
+    def get_params(self, parameter_list):
         '''
         Gets and validates basic distribution parameters
 
         Parameters
         ----------
-        n : int, float or array-like object
-            Values at which to calculate pmf. May be a list of same length as 
-            parameters, or single iterable.
+        parameter_list : list
+            A list of strings where each string is a keyword for the parameter
+            in the self.params dictionary.  
 
         Returns
         -------
         : tuple
-            Validated n_samp/S, tot_obs/N, and n parameters
+            Validated parameters with the sample length as parameter_list
  
         '''
 
-        # TODO: Have it take a list of parameters that you want.  The
-        # parameters are strings.  Get each of parameters specified by the
-        # strings. Return a tuple still.
-        n_samp = make_array(self.params.get('n_samp', None))
-        if n_samp[0] is None:
-            n_samp = make_array(self.params.get('S', None))
+        retrieved_params = []
 
-        tot_obs = make_array(self.params.get('tot_obs', None))
-        if tot_obs[0] is None:
-            tot_obs = make_array(self.params.get('N', None))
+        # Get params or None from self.params
+        for i, param in enumerate(parameter_list):
+            retrieved_params.append(make_array(self.params.get(param, None)))
 
-        # TODO: Move back into __init__
-        if n != None:
-            n = expand_n(n, len(n_samp))
+            # If parameter not found, raise error
+            if retrieved_params[i][0] is None:
+                raise TypeError('%s not found in self.params' % param)
 
-        # Validate parameters
-        assert len(n_samp) == len(tot_obs), 'Length of n_samp/S and' +\
-                                            ' tot_obs/N must be ' + 'the same'
-        assert n_samp[0] != None, 'n_samp/S parameter not given'
-        assert tot_obs[0] != None, 'tot_obs/N parameter not given'
-        assert np.all(n_samp > 1), 'n_samp/S must be greater than 1'
-        assert np.all(tot_obs > 0), 'tot_obs/N must be greater than 0'
-    
-        if n != None:
-            return n_samp, tot_obs, n
-        else:
-            return n_samp, tot_obs
+        # Check that all params are the same length
+        len_ind = [len(p) for p in retrieved_params]
+        assert len(np.unique(len_ind)) == 1, 'All parameters must have the' +\
+                                             ' same length'
+
+        return tuple(retrieved_params)
 
 
 class RootError(Exception):
@@ -480,9 +489,9 @@ class logser(Distribution):
 
     Parameters
     ----------
-    S or n_samp : int or iterable
+    n_samp : int or iterable
         Total number of species / samples
-    N or tot_obs: int or iterable
+    tot_obs: int or iterable
         Total number of individuals / observations
 
     Vars
@@ -494,6 +503,9 @@ class logser(Distribution):
     -----
     To use a known mean of the distribution as the parameter, set n_samp = 1 
     and tot_obs = mean.
+
+    The total species (S) is equivalent to n_samp and the total
+    individuals (N) is equivalent to tot_obs.
     '''
     
     @doc_inherit
@@ -506,20 +518,24 @@ class logser(Distribution):
     def pmf(self, n):
         
         # Get parameters
-        S, N, n = self.get_params(n=n)
-        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
         
         # Calculate pmf
         stop = 1 - 1e-10
         start = -2
-        eq = lambda p, S, N: (((N/p) - N) * (-(np.log(1 - p)))) - S
+        eq = lambda x, n_samp, tot_obs: (((tot_obs/x) - tot_obs) * 
+                                                (-(np.log(1 - x)))) - n_samp
 
         pmf = []
         var = {}
         var['p'] = []
 
-        for tS, tN, tn in zip(S, N, n):
-            tp = scipy.optimize.brentq(eq, start, stop, args=(tS,tN), 
+        for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
+            tp = scipy.optimize.brentq(eq, start, stop, args=(tn_samp,ttot_obs), 
                                        disp=True)
             tpmf = stats.logser.pmf(tn, tp)
             var['p'].append(tp)
@@ -540,9 +556,9 @@ class logser_ut(Distribution):
 
     Parameters
     ----------
-    S or n_samp : int or iterable
+    n_samp : int or iterable
         Total number of species / samples
-    N or tot_obs: int or iterable
+    tot_obs: int or iterable
         Total number of individuals / observations
    
     Vars
@@ -559,6 +575,9 @@ class logser_ut(Distribution):
     start and stop parameters for the brentq procedure are set close to these 
     values. However, x can occasionally be greater than one, so the maximum 
     stop value of the brentq optimizer is 2.
+
+    The total species (S) is equivalent to n_samp and the total
+    individuals (N) is equivalent to tot_obs.
     '''
     
     @doc_inherit
@@ -571,33 +590,38 @@ class logser_ut(Distribution):
     def pmf(self, n):
 
         # Get parameters
-        S, N, n = self.get_params(n=n)
-        assert np.all(S <= N), 'n_samp/S must be <= to tot_obs/N'
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
         
 
         # Calculate pmf
         start = 0.3
         stop = 2
         flmax = sys.float_info[0]
-        eq = lambda x,k,N,S: sum(x ** k / float(N) * S) -  sum((x ** k) / k)
+        eq = lambda x, k, tot_obs, n_samp: sum(x ** k / float(tot_obs) * 
+                                                   n_samp) -  sum((x ** k) / k)
 
         pmf = []
         var = {}
         var['x'] = []
 
-        for tS, tN, tn in zip(S, N, n):
+        for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
 
-            # If S = N, return 1 for n = 1 and 0 otherwise (e**-beta = 0)
-            if tS == tN:
+            # If n_samp = tot_obs, return 1 for n = 1 and 0 otherwise 
+            # (e**-beta = 0)
+            if tn_samp == ttot_obs:
                 tpmf = np.zeros(len(tn))
                 tpmf[tn == 1] = 1
                 tx = 0
 
             else:
-                k = np.linspace(1, tN, num=tN)
+                k = np.linspace(1, ttot_obs, num=ttot_obs)
                 tx = scipy.optimize.brentq(eq, start,
-                                       min((flmax/tS)**(1/float(tN)), stop), 
-                                       args = (k, tN, tS), disp=True)
+                               min((flmax/tn_samp)**(1/float(ttot_obs)), stop), 
+                               args = (k, ttot_obs, tn_samp), disp=True)
                 tnorm = np.sum(tx ** k / k)  # From Ethan White's trun_logser_pmf
                 tpmf = (tx ** tn / tn) / tnorm
 
@@ -619,9 +643,9 @@ class logser_ut_appx(Distribution):
 
     Parameters
     ----------
-    S or n_samp : int or iterable
+    n_samp : int or iterable
         Total number of species / samples
-    N or tot_obs: int or iterable
+    tot_obs: int or iterable
         Total number of individuals / observations
    
     Vars
@@ -645,6 +669,9 @@ class logser_ut_appx(Distribution):
     the lagrange multiplier.  Root 2 is the root typically used in calculations 
     and is the default.  If root=1, the first root will be used and this is not 
     a true pmf.
+
+    The total species (S) is equivalent to n_samp and the total
+    individuals (N) is equivalent to tot_obs.
     '''
     
     @doc_inherit
@@ -654,51 +681,60 @@ class logser_ut_appx(Distribution):
         self.par_num = 2 # This is highly contested
     
     @doc_inherit
-    def pmf(self, n, root=2):
+    def pmf(self, n):
         
-        # TODO: remove option to change root
+        # Multiple roots.  root = 2 makes it a logseries
+        root = 2
 
         # Get parameters
-        S, N, n = self.get_params(n=n)
-        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+
+        # TODO: Additional Checks
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
 
         # Calculate pmf
         start = 0.3
         stop = 1 - 1e-10
-        eq = lambda x, S, N: (((-m.log(x))*(m.log(-1/(m.log(x))))) - 
-                                                                (float(S)/N))
+        eq = lambda x, n_samp, tot_obs: (((-m.log(x))*(m.log(-1/(m.log(x))))) - 
+                                                                (float(n_samp)/tot_obs))
         pmf = []
         var = {}
         var['x'] = []
 
-        for tS, tN, tn in zip(S, N, n):
+        for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
             
-            # TODO: What if N = S? 
+            # TODO: What if tot_obs = n_samp? 
+            if tn_samp == ttot_obs:
+                tpmf = np.zeros(len(tn))
+                tpmf[tn == 1] = 1
+                tx = 0
+            else:
+                # Try normal root finder. Will fail if two roots
+                try:
+                    tx = scipy.optimize.brentq(eq, start, stop, 
+                                            args=(tn_samp, ttot_obs),disp=True)
 
-            # Try normal root finder. Will fail it two roots
-            try:
-                x = scipy.optimize.brentq(eq, start, stop, args=(tS, tN),
-                                                                    disp=True)
-            # If that fails, try a more complex decision tree
-            except ValueError:
-                eq1 = lambda x: -1 * eq(x, tS, tN)
-                xmax = scipy.optimize.fmin(eq1, .5, disp=0)[0]
-                ymax = eq(xmax, tS, tN)
-                if ymax > 0:
-                    if root == 1:
-                        x = scipy.optimize.brentq(eq, start, xmax, args=(tS,
-                                                                tN), disp=True)
-                    if root == 2:
-                        x = scipy.optimize.brentq(eq, xmax, stop, args=(tS,
-                                                                tN), disp=True)
-                if ymax < 0:
-                    raise RootError('No solution to constraint equation with '
-                                                  + 'given values of S and N') 
+                # If that fails, try a more complex decision tree
+                except ValueError:
+                    eq1 = lambda x: -1 * eq(x, tn_samp, ttot_obs)
+                    xmax = scipy.optimize.fmin(eq1, .5, disp=0)[0]
+                    ymax = eq(xmax, tn_samp, ttot_obs)
+                    if ymax > 0:
+                        if root == 1:
+                            tx = scipy.optimize.brentq(eq, start, xmax,
+                                           args=(tn_samp, ttot_obs), disp=True)
+                        if root == 2:
+                            tx = scipy.optimize.brentq(eq, xmax, stop, 
+                                           args=(tn_samp, ttot_obs), disp=True)
+                    if ymax < 0:
+                        raise RootError('No solution to constraint equation' +
+                                    ' with given values of n_samp and tot_obs') 
 
-            g = -1/np.log(x)
-            tpmf = (1/np.log(g)) * ((x**tn)/tn)
+                g = -1/np.log(tx)
+                tpmf = (1/np.log(g)) * ((tx**tn)/tn)
 
-            var['x'].append(x)
+            var['x'].append(tx)
             pmf.append(tpmf)
 
         return pmf, var
@@ -715,9 +751,9 @@ class plognorm(Distribution):
         The mu parameter of the poisson log normal
     sigma : float
         The sigma parameter of the poisson log normal
-    S or n_samp : int or iterable (optional)
+    n_samp : int or iterable (optional)
         Total number of species / samples
-    N or tot_obs: int or iterable (optional)
+    tot_obs: int or iterable (optional)
         Total number of individuals / observations
 
     Vars
@@ -730,6 +766,9 @@ class plognorm(Distribution):
     Wilber. The VGAM R package was adopted directly from Bulmer (1974). The fit 
     function was adapted from Ethan White's pln_solver function in 
     weecology.
+
+    The total species (S) is equivalent to n_samp and the total
+    individuals (N) is equivalent to tot_obs.
     '''
     
     # @doc_inherit cannot be used here because of derived plognorm_lt
@@ -776,15 +815,9 @@ class plognorm(Distribution):
         '''
 
         # Get parameters
-        mu = make_array(self.params.get('mu', None))
-        sigma = make_array(self.params.get('sigma',  None))
-
-        # Validate parameters
-        assert mu[0] != None, 'mu paramater not given'
-        assert sigma[0] != None, 'sigma parameter not given'
-        assert len(mu) == len(sigma), 'Length of mu and sigma must be the same'
-
+        mu, sigma = self.get_params(['mu', 'sigma'])
         n = expand_n(n, len(mu))
+
         n_uniq = [np.unique(tn) for tn in n]  # Speed up by calc for uniq vals
 
         # Calculate pmf, no intermediate vars
@@ -846,13 +879,8 @@ class plognorm(Distribution):
 
         # TODO: Check that data is a list of iterables. Make an external method
         # FIX: Check that data is list and objects in data are iterable 
-        if type(data) != type([]):
-            raise TypeError('Data must be a list of iterables')
-        if not np.all(np.array([np.iterable(dt) for dt in data])):
-            raise TypeError('Objects in data must be iterable')
 
-        # Check data.  can go in the same method as above
-        data = [np.array(data) for data in data]
+        data = check_list_of_iterables(data)
 
         # Calculate and store parameters
         temp_mu = []
@@ -896,9 +924,9 @@ class plognorm_lt(plognorm):
         the mu parameter of the poisson log normal
     sigma : float
         the sigma parameter of the poisson log normal
-    S or n_samp : int or iterable (optional)
+    n_samp : int or iterable (optional)
         Total number of species / samples
-    N or tot_obs: int or iterable (optional)
+    tot_obs: int or iterable (optional)
         Total number of individuals / observations
 
     Vars
@@ -912,6 +940,10 @@ class plognorm_lt(plognorm):
     function was adapted from Ethan White's pln_solver function in weecology.
 
     Truncation calculation based on Bulmer Eq. A1.
+
+    The total species (S) is equivalent to n_samp and the total
+    individuals (N) is equivalent to tot_obs.
+
     '''
 
     # @doc_inherit cannot be used here because class is derived from plognorm
@@ -958,13 +990,9 @@ class plognorm_lt(plognorm):
         '''
 
         # Get parameters
-        mu = make_array(self.params.get('mu', None))
-        sigma = make_array(self.params.get('sigma',  None))
+        mu, sigma = self.get_params(['mu', 'sigma'])
 
-        # Validate parameters
-        assert mu[0] != None, 'mu paramater not given'
-        assert sigma[0] != None, 'sigma parameter not given'
-        assert len(mu) == len(sigma), 'Length of mu and sigma must be the same'
+        # TODO: Additional parameter checks
 
         # Calculate pmf, using plognorm as aid
         reg_plog = plognorm(mu=mu, sigma=sigma)
@@ -992,9 +1020,9 @@ class lognorm(Distribution):
         The mu parameter of the log normal
     sigma : float
         The sigma parameter of the log normal
-    S or n_samp : int or iterable (optional)
+    n_samp : int or iterable (optional)
         Total number of species / samples
-    N or tot_obs: int or iterable (optional)
+    tot_obs: int or iterable (optional)
         Total number of individuals / observations
 
     Vars
@@ -1022,14 +1050,10 @@ class lognorm(Distribution):
     def pmf(self, n):
 
         # Get parameters
-        mu = make_array(self.params.get('mu', None))
-        sigma = make_array(self.params.get('sigma',  None))
-        n = expand_n(n, len(mu))
+        mu, sigma = self.get_params(['mu', 'sigma'])
 
-        # Validate parameters
-        assert mu[0] != None, 'mu paramater not given'
-        assert sigma[0] != None, 'sigma parameter not given'
-        assert len(mu) == len(sigma), 'Length of mu and sigma must be the same'
+        # TODO: Additional parameter checks
+        n = expand_n(n, len(mu))
 
         # Calculate pmf
         pmf = []
@@ -1043,15 +1067,10 @@ class lognorm(Distribution):
     def cdf(self, n):
 
         # Get parameters
-        mu = make_array(self.params.get('mu', None))
-        sigma = make_array(self.params.get('sigma',  None))
-        n = expand_n(n, len(mu))
+        mu, sigma = self.get_params(['mu', 'sigma'])
 
-        # Validate parameters
-        # TODO: validate parameter method?
-        assert mu[0] != None, 'mu paramater not given'
-        assert sigma[0] != None, 'sigma parameter not given'
-        assert len(mu) == len(sigma), 'Length of mu and sigma must be the same'
+        # TODO: Additional parameter checks
+        n = expand_n(n, len(mu))
 
         #Calculate cdf
         cdf = []
@@ -1065,16 +1084,8 @@ class lognorm(Distribution):
     @doc_inherit
     def fit(self, data):
 
-        # TODO: Should this be done in all fit methods?
-        # Fix:  Implemented checking of data argument in base class
 
-        if type(data) != type([]):
-            raise TypeError('Data must be a list of iterables')
-        if not np.all(np.array([np.iterable(dt) for dt in data])):
-            raise TypeError('Objects in data must be iterable')
-
-        # Process data
-        data = [np.array(data) for data in data]
+        data = check_list_of_iterables(data)
 
         # Calculate and store parameters
         temp_mu = []
@@ -1113,9 +1124,9 @@ class geo_ser(Distribution):
 
     Parameters
     ----------
-    S or n_samp : int or iterable
+    n_samp : int or iterable
         Total number of species / samples
-    N or tot_obs: int or iterable
+    tot_obs: int or iterable
         Total number of individuals / observations
     k : float
         The fraction of resources that each species acquires. Range is 
@@ -1133,13 +1144,12 @@ class geo_ser(Distribution):
     of individuals/observations. Therefore, the cdf of this function is one at
     N.  The empirical cdf of observed data reaches one at N - S + 1 (if not
     sooner) and therefore comparisons of geo_ser cdfs and empirical cdfs will
-    often deviate near as n approaches N - S + 1 (if not sooner). 
-    
-    
-    '''
-    # TODO: @MW - Last sentence of docstring hard to understand - clarify.
-    # FIX: Clarified!
+    often deviate near as n approaches N - S + 1 (if not sooner).
 
+    The total species (S) is equivalent to n_samp and the total
+    individuals (N) is equivalent to tot_obs.
+
+    '''
 
     @doc_inherit
     def __init__(self, **kwargs):
@@ -1152,18 +1162,24 @@ class geo_ser(Distribution):
     def pmf(self, n):
 
         # Get parameters
-        S, N, n = self.get_params(n=n)
-        k = make_array(self.params.get('k', None))
-        assert k[0] != None, 'k parameter not given'
+        n_samp, tot_obs, k = self.get_params(['n_samp', 'tot_obs', 'k'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
         assert np.all(k > 0) and np.all(k <= 1), ('k must be in the '
                                                   'interval (0, 1]')
 
         # Calculate pmf
         pmf = []
-        eq = lambda x, k: (1 / x) * (1 / np.log(1 / (1 - k)))
-        for tS, tN, tk, tn in zip(S, N, k, n):
-            sumg = sum(eq(np.arange(1, tN + 1), tk))
-            tpmf = eq(tn, tk) / sumg
+
+        # Equation from May 1975.  
+        eq = lambda x, n_samp, k: (1 / x) * (1 / n_samp) * (1 / np.log(1 / 
+                                                                 (1 - k)))
+
+        for tn_samp, ttot_obs, tk, tn in zip(n_samp, tot_obs, k, n):
+            sumg = sum(eq(np.arange(1, ttot_obs + 1), tn_samp, tk))
+            tpmf = eq(tn, tn_samp, tk) / sumg #Normalizing
             pmf.append(tpmf)
 
         return pmf, None
@@ -1173,16 +1189,14 @@ class geo_ser(Distribution):
     def rad(self):
 
         # Get parameters
-        S, N = self.get_params()
-        k = make_array(self.params.get('k', None))
-        assert k[0] != None, "k parameter not given"
-        assert np.all(k > 0) and np.all(k <= 1), ('k must be in the '
+        n_samp, tot_obs, k = self.get_params(['n_samp', 'tot_obs', 'k'])
+        assert np.all(k > 0) and np.all(k <= 1), ('k must be in the ' + 
                                                   'interval (0, 1]')
         # Calculate rad
         rad = []
-        for tS, tN, tk in zip(S, N, k):
-            C = (1 - (1 - k ) ** S) ** - 1
-            trad = N * C * k * (1 - k) ** (np.arange(1, S + 1) - 1)
+        for tn_samp, ttot_obs, tk in zip(n_samp, tot_obs, k):
+            C = (1 - (1 - k ) ** n_samp) ** - 1
+            trad = tot_obs * C * k * (1 - k) ** (np.arange(1, n_samp + 1) - 1)
             rad.append(trad)
 
         return rad
@@ -1193,17 +1207,19 @@ class geo_ser(Distribution):
 
         # Get parameters
         super(geo_ser, self).fit(data)  # Run Distribution.fit method
-        S = self.params['n_samp']
-        N = self.params['tot_obs']
-        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
+        n_samp = self.params['n_samp']
+        tot_obs = self.params['tot_obs']
+
+        # TODO: Additional checks?
+        assert np.all(n_samp < tot_obs), 'n_samp must be <= tot_obs'
 
         # Calculate fit
         self.params['k'] = []
-        for tdata, tS, tN in zip(data, S, N):
-            tNmin = np.min(tdata)
+        for tdata, tn_samp, ttot_obs in zip(data, n_samp, tot_obs):
+            ttot_obs_min = np.min(tdata)
             eq = lambda x: (((x / (1 - x)) *
-                             ((1 - x) ** tS / (1 - (1 - x) ** tS)))
-                            - (tNmin / tN))
+                             ((1 - x) ** tn_samp / (1 - (1 - x) ** tn_samp)))
+                            - (ttot_obs_min / ttot_obs))
             tk = scipy.optimize.brentq(eq, 1e-10, 1 - 1e-10, disp=True)
             self.params['k'].append(tk)
 
@@ -1217,14 +1233,18 @@ class broken_stick(Distribution):
 
     Parameters
     ----------
-    S or n_samp : int or iterable
+    n_samp : int or iterable
         Total number of species / samples
-    N or tot_obs: int or iterable
+    tot_obs: int or iterable
         Total number of individuals / observations
 
     Vars
     ----
     None
+
+    The total species (S) is equivalent to n_samp and the total
+    individuals (N) is equivalent to tot_obs.
+
     '''
 
     @doc_inherit
@@ -1238,17 +1258,21 @@ class broken_stick(Distribution):
     def pmf(self, n):
         # TODO:  PMF is not quite summing to one. But it is checking against
         # known results.  
-
+        
         # Get parameters
-        S, N, n = self.get_params(n=n) 
-        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+
+        # TODO: Additional checks?
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
         
         # Calculate pmf
-        eq = lambda x, S, N: ((S - 1) / N) * ((1 - (x / N)) ** (S - 2))
+        eq = lambda x, n_samp, tot_obs: ((n_samp - 1) / tot_obs) * \
+                                          ((1 - (x / tot_obs)) ** (n_samp - 2))
         pmf = []
 
-        for tS, tN, tn in zip(S, N, n):
-            tpmf = eq(tn, tS, tN)
+        for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
+            tpmf = eq(tn, tn_samp, ttot_obs)
             pmf.append(tpmf)
 
         return pmf, None
@@ -1256,18 +1280,20 @@ class broken_stick(Distribution):
 
     @doc_inherit
     def rad(self):
-
+        
         # Get parameters
-        S, N = self.get_params()
-        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+
+        # TODO: Additional checks?
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
 
         # Calculate rad
         rad = []
-        for tS, tN in zip(S, N):
-            trad = np.empty(tS)
-            for i in xrange(tS):
-                n = np.arange(i + 1, tS + 1) 
-                trad[i] = (tN / tS) * sum(1 / n)
+        for tn_samp, ttot_obs in zip(n_samp, tot_obs):
+            trad = np.empty(tn_samp)
+            for i in xrange(tn_samp):
+                n = np.arange(i + 1, tn_samp + 1) 
+                trad[i] = (ttot_obs / tn_samp) * sum(1 / n)
             rad.append(trad)
 
         return rad
@@ -1282,9 +1308,9 @@ class sugihara(Distribution):
 
     Parameters
     ----------
-    S or n_samp : int or iterable
+    n_samp : int or iterable
         Total number of species / samples
-    N or tot_obs: int or iterable
+    tot_obs: int or iterable
         Total number of individuals / observations
 
     Notes
@@ -1303,10 +1329,12 @@ class sugihara(Distribution):
 
     The rad method has an additional optional argument for sample_size, which 
     is set to 10000 by default. 
-
+    
+    The total species (S) is equivalent to n_samp and the total
+    individuals (N) is equivalent to tot_obs.
+    
     '''
     # TODO: Back-derive pmf?
-    # TODO: Make Error/Warning if pmf or cdf called
     
     @doc_inherit
     def __init__(self, **kwargs):
@@ -1319,18 +1347,18 @@ class sugihara(Distribution):
     def rad(self, sample_size=10000):
         
         # Get parameters
-        S, N = self.get_params()
-        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
 
         # Calculate rad
         rad = []
-        for tS, tN in zip(S, N):
+        for tn_samp, ttot_obs in zip(n_samp, tot_obs):
             total = []
             for i in xrange(sample_size):
-                U = np.random.triangular(0.5, 0.75, 1, size=tS - 1)
+                U = np.random.triangular(0.5, 0.75, 1, size=tn_samp - 1)
                 p = []
                 # TODO: Could this be refactored to perform better?
-                for i in xrange(tS):
+                for i in xrange(tn_samp):
                     if i == 0:
                         p.append(1)
                     else:
@@ -1343,10 +1371,20 @@ class sugihara(Distribution):
                 total.append(p)
       
             total_array = np.array(total)
-            means = np.array([np.mean(total_array[:,i]) for i in xrange(tS)])
-            rad.append(tN * means)
+            means = np.array([np.mean(total_array[:,i]) for i in 
+                                                              xrange(tn_samp)])
+            rad.append(ttot_obs * means)
 
         return rad
+
+    def cdf(self, n):
+        '''
+        No cdf exists for this distribution
+
+        '''
+
+        raise NotImplementedError('No CDF exists for object %s' %
+                                                    self.__class__.__name__)
 
 
 class binm(Distribution):
@@ -1387,7 +1425,12 @@ class binm(Distribution):
     
     @doc_inherit
     def pmf(self, n):
-        n_samp, tot_obs, n = self.get_params(n=n)
+        # Get parameters
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
         
         pmf = []
         var = {}
@@ -1402,7 +1445,11 @@ class binm(Distribution):
     
     @doc_inherit
     def cdf(self, n):
-        n_samp, tot_obs, n = self.get_params(n=n)
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
 
         cdf = []
         var = {}
@@ -1445,7 +1492,11 @@ class pois(Distribution):
     @doc_inherit
     def pmf(self, n):
 
-        n_samp, tot_obs, n = self.get_params(n=n)
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
         
         pmf = []
         var = {}
@@ -1459,7 +1510,11 @@ class pois(Distribution):
     @doc_inherit
     def cdf(self, n): 
         
-        n_samp, tot_obs, n = self.get_params(n=n)
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
 
         cdf = []
         var = {}
@@ -1526,9 +1581,11 @@ class nbd(Distribution):
         See class docstring for more specific information on this distribution.
         '''
         
-        n_samp, tot_obs, n = self.get_params(n=n)
-        k = make_array(self.params.get('k', None))
-        assert k[0] != None, "k parameter not given"
+        n_samp, tot_obs, k = self.get_params(['n_samp', 'tot_obs', 'k'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
         
         pmf = []
         var = {}
@@ -1563,9 +1620,11 @@ class nbd(Distribution):
         See class docstring for more specific information on this distribution.
         '''
 
-        n_samp, tot_obs, n = self.get_params(n=n)
-        k = make_array(self.params.get('k', None))
-        assert k[0] != None, "k parameter not given"
+        n_samp, tot_obs, k = self.get_params(['n_samp', 'tot_obs', 'k'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
         
         cdf = []
         var = {}
@@ -1599,9 +1658,9 @@ class nbd(Distribution):
         '''
 
         super(nbd, self).fit(data)
-        n_samp, tot_obs = self.get_params()
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
 
-        data = [np.array(tdata) for tdata in data]
+        data = check_list_of_iterables(data) 
         tempk = []
 
         for tdata, tn_samp, ttot_obs in zip(data, n_samp, tot_obs): 
@@ -1647,6 +1706,12 @@ class nbd_lt(nbd):
     p : list of floats 
         p parameters of nbd
 
+    Notes
+    -----
+    The total species (S) is equivalent to n_samp and the total
+    individuals (N) is equivalent to tot_obs.
+
+
     '''
 
     def __init__(self, **kwargs):
@@ -1654,11 +1719,34 @@ class nbd_lt(nbd):
         self.min_supp = 1
         self.par_num = 2
     
-    @doc_inherit
+    
     def pmf(self, n):
-        n_samp, tot_obs, n = self.get_params(n=n)
-        k = make_array(self.params.get('k', None))
-        assert k[0] != None, "k parameter not given"
+        '''
+        Probability mass function method.
+
+        Parameters
+        ----------
+        n : int, float or array-like object
+            Values at which to calculate pmf. May be a list of same length as 
+            parameters, or single iterable.
+
+        Returns
+        -------
+        pmf : list of ndarrays
+            List of 1D arrays of probability of observing sample n.
+        vars : dict containing lists of floats
+            Intermediate parameter variables calculated for pmf, as 
+            dict.
+
+        See class docstring for more specific information on this distribution.
+        '''
+
+        # Get parameters
+        n_samp, tot_obs, k = self.get_params(['n_samp', 'tot_obs', 'k'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
 
         reg_nbd = nbd(n_samp=n_samp, tot_obs=tot_obs, k=k)
         reg_pmf, reg_var = reg_nbd.pmf(n)
@@ -1667,6 +1755,40 @@ class nbd_lt(nbd):
         trunc_pmf = [(pr / (1 - p0)) for pr, p0 in zip(reg_pmf, reg_pmf0)]
 
         return trunc_pmf, reg_var         
+
+    def cdf(self, n):
+        '''
+        Cumulative distribution method.  
+
+        Parameters
+        ----------
+        n : int, float or array-like object
+            Values at which to calculate cdf. May be a list of same length as 
+            parameters, or single iterable.
+
+        Returns
+        -------
+        cdf : list of ndarrays
+            List of 1D arrays of probability of observing sample n.
+        vars : dict containing lists of floats
+            Intermediate parameter variables calculated for cdf, as dict.
+
+        See class docstring for more specific information on this distribution.
+        '''
+
+        n_samp, tot_obs, k = self.get_params(['n_samp', 'tot_obs', 'k'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
+
+        reg_nbd = nbd(n_samp=n_samp, tot_obs=tot_obs, k=k)
+        p0 = reg_nbd.pmf(0)[0]
+        reg_cdf, reg_vars = reg_nbd.cdf(n)
+
+        trun_cdf = [(tcdf - tp0) / (1 - tp0) for tcdf, tp0 in zip(reg_cdf, p0)]
+
+        return trun_cdf, reg_vars
 
 class fnbd(Distribution):
     __doc__ = Distribution.__doc__ + \
@@ -1708,9 +1830,12 @@ class fnbd(Distribution):
         #    elif (a <= 0) or (a >= 1):
         #        raise Exception, "a must be between 0 and 1"
 
-        n_samp, tot_obs, n = self.get_params(n=n)
-        k = make_array(self.params.get('k', None))
-        assert k[0] != None, "k parameter not given"
+        # Get parameters
+        n_samp, tot_obs, k = self.get_params(['n_samp', 'tot_obs', 'k'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
         
         pmf = []
         var = {}
@@ -1746,9 +1871,10 @@ class fnbd(Distribution):
         See class docstring for more specific information on this distribution.
         '''
         super(fnbd, self).fit(data)
-        n_samp, tot_obs = self.get_params()
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        
+        data = check_list_of_iterables(data)
 
-        data = [np.array(tdata) for tdata in data]
         tempk = []
 
         for tdata, tn_samp, ttot_obs in zip(data, n_samp, tot_obs): 
@@ -1797,7 +1923,13 @@ class geo(Distribution):
     @doc_inherit
     def pmf(self, n):
 
-        n_samp, tot_obs, n = self.get_params(n=n)
+        # Get parameters
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
+
         k = np.repeat(1, len(n_samp))
         pmf, nvar = nbd(tot_obs=tot_obs, n_samp=n_samp, k=k).pmf(n)
         var = {}
@@ -1807,7 +1939,13 @@ class geo(Distribution):
     @doc_inherit
     def cdf(self, n):
 
-        n_samp, tot_obs, n = self.get_params(n=n)
+        # Get parameters
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
+
         k = np.repeat(1, len(n_samp))
         cdf, nvar = nbd(tot_obs=tot_obs, n_samp=n_samp, k=k).cdf(n)
         var = {}
@@ -1850,7 +1988,13 @@ class fgeo(Distribution):
     @doc_inherit
     def pmf(self, n):
         
-        n_samp, tot_obs, n = self.get_params(n=n)
+        # Get parameters
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
+
         k = np.repeat(1, len(n_samp))
         pmf, nvar = fnbd(tot_obs=tot_obs, n_samp=n_samp, k=k).pmf(n)
         var = {}
@@ -1860,7 +2004,13 @@ class fgeo(Distribution):
     @doc_inherit
     def cdf(self, n):
         
-        n_samp, tot_obs, n = self.get_params(n=n)
+        # Get parameters
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
+
         k = np.repeat(1, len(n_samp))
         cdf, nvar = fnbd(tot_obs=tot_obs, n_samp=n_samp, k=k).cdf(n)
         var = {}
@@ -1911,7 +2061,13 @@ class tgeo(Distribution):
     @doc_inherit
     def pmf(self, n):
 
-        n_samp, tot_obs, n = self.get_params(n=n)
+        # Get parameters
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
+
         #NOTE: Overflow warning but not affecting results
         eq = lambda x, N, a: ((x / (1 - x)) - (((N + 1) * x ** (N + 1)) / \
                             (1 - x ** (N + 1)))) - (N * a)
@@ -2727,6 +2883,31 @@ def expand_n(n, size):
 
     return new_n
 
+def check_list_of_iterables(data):
+    '''
+    Checks if the given object is a list of iterables.  If so, returns a
+    list of arrays.  Else, a TypeError is raised.
+    
+    Parameters
+    ----------
+    data : object
+        The object to be tested.
+
+    Returns
+    -------
+    : list
+        If error is not thrown, returns a list of arrays
+
+    '''
+    
+    # Check that data is a list of iterables
+    if type(data) != type([]):
+        raise TypeError('Data must be a list of iterables')
+    if not np.all(np.array([np.iterable(dt) for dt in data])):
+        raise TypeError('Objects in data must be iterable')
+
+    # Make a list of arrays
+    return [np.array(data) for data in data]
 
 def make_rank_abund(pmf, n_samp, min_supp=1):
     '''

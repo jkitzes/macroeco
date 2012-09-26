@@ -53,15 +53,17 @@ class TestDistributions(unittest.TestCase):
     
     def test_logser(self):
         # Test error raising
-        self.assertRaises(AssertionError, logser(S=234, N=67).pmf, 1)
-        self.assertRaises(AssertionError, logser(S=34, N=0).pmf, 1)
+        self.assertRaises(AssertionError, logser(n_samp=234, tot_obs=67).pmf, 
+                                                                             1)
+        self.assertRaises(AssertionError, logser(n_samp=34, tot_obs=0).pmf, 1)
 
         # Test pmf against value in Fisher's paper Fisher et al. 1943
-        pmf, var = logser(S=240, N=15609).pmf(1)
+        pmf, var = logser(n_samp=240, tot_obs=15609).pmf(1)
         self.assertTrue(np.round(var['p'][0], decimals=4) == 0.9974)
 
         # Test cdf reaches 1
-        cdf = np.round(logser(S=45, N=1200).cdf(1200)[0][0][0], decimals=1)
+        cdf = np.round(logser(n_samp=45, tot_obs=1200).cdf(1200)[0][0][0], 
+                                                                    decimals=1)
         self.assertTrue(cdf == 1)
 
         # TODO: Test known value of cdf
@@ -69,57 +71,63 @@ class TestDistributions(unittest.TestCase):
 
     def test_logser_ut(self):
         # Test error raising
-        self.assertRaises(AssertionError, logser_ut(S=234, N=67).pmf, 1)
-        self.assertRaises(AssertionError, logser_ut(S=34, N=0).pmf, 1)
+        self.assertRaises(AssertionError, logser_ut(n_samp=234, tot_obs=67).pmf, 1)
+        self.assertRaises(AssertionError, logser_ut(n_samp=34, tot_obs=0).pmf, 1)
 
         # Test that pmf is correct length
-        pmf = logser_ut(S=34, N=567).pmf(np.arange(1, 568))[0][0]
+        pmf = logser_ut(n_samp=34, tot_obs=567).pmf(np.arange(1, 568))[0][0]
         self.assertTrue(len(pmf) == 567)
 
         # Test that values equal values from John's book (Harte 2011)
-        pmf, x = logser_ut(S=4, N=4 * 4).pmf(1)
+        pmf, x = logser_ut(n_samp=4, tot_obs=4 * 4).pmf(1)
         self.assertTrue(np.round(-np.log(x['x'][0]), decimals=4) == 0.0459)
-        pmf, x = logser_ut(S=4, N=2**4 * 4).pmf(1)
+        pmf, x = logser_ut(n_samp=4, tot_obs=2**4 * 4).pmf(1)
         self.assertTrue(np.round(-np.log(x['x'][0]), decimals=5) == -0.00884)
-        pmf, x = logser_ut(S=4, N=2**8 * 4).pmf(1)
+        pmf, x = logser_ut(n_samp=4, tot_obs=2**8 * 4).pmf(1)
         self.assertTrue(np.round(-np.log(x['x'][0]), decimals=5) == -0.00161)
-        pmf, x = logser_ut(S=16, N=2**8 * 16).pmf(1)
+        pmf, x = logser_ut(n_samp=16, tot_obs=2**8 * 16).pmf(1)
         self.assertTrue(np.round(-np.log(x['x'][0]), decimals=6) == 0.000413)
-        pmf, x = logser_ut(S=64, N=2**12 * 64).pmf(1)
+        pmf, x = logser_ut(n_samp=64, tot_obs=2**12 * 64).pmf(1)
         self.assertTrue(np.round(-np.log(x['x'][0]), decimals=7) == 0.0000228)
         
         # Check that they don't fail
-        logser_ut(S=64, N=1000).rad()
-        logser_ut(S=64, N=1000).cdf((1,1,2,4,5,7,12))
+        logser_ut(n_samp=64, tot_obs=1000).rad()
+        logser_ut(n_samp=64, tot_obs=1000).cdf((1,1,2,4,5,7,12))
         
-        # Test correct answer when S == N
-        pmf, x = logser_ut(S=31, N=31).pmf([1,2,3,4,5])
+        # Test correct answer when n_samp == tot_obs
+        pmf, x = logser_ut(n_samp=31, tot_obs=31).pmf([1,2,3,4,5])
         self.assertTrue(x['x'][0] == 0)
         self.assertTrue(np.array_equal(pmf[0], np.array([1,0,0,0,0])))
 
 
     def test_logser_ut_appx(self):
         # Test error raising
-        self.assertRaises(AssertionError, logser_ut_appx(S=234, N=67).pmf, 1)
-        self.assertRaises(AssertionError, logser_ut_appx(S=34, N=0).pmf, 1)
+        self.assertRaises(AssertionError, logser_ut_appx(n_samp=234, 
+                                                            tot_obs=67).pmf, 1)
+        self.assertRaises(AssertionError, logser_ut_appx(n_samp=34, 
+                                                             tot_obs=0).pmf, 1)
 
         # Test that values equal values from John's book (Harte 2011)
-        pmf, x = logser_ut_appx(S=4, N=4 * 4).pmf(1)
+        pmf, x = logser_ut_appx(n_samp=4, tot_obs=4 * 4).pmf(1)
         self.assertTrue(np.round(-np.log(x['x'][0]), decimals=3) == 0.116)
-        pmf, x = logser_ut_appx(S=4, N=2**4 * 4).pmf(1)
+        pmf, x = logser_ut_appx(n_samp=4, tot_obs=2**4 * 4).pmf(1)
         self.assertTrue(np.round(-np.log(x['x'][0]), decimals=4) == 0.0148)
-        pmf, x = logser_ut_appx(S=4, N=2**8 * 4).pmf(1)
+        pmf, x = logser_ut_appx(n_samp=4, tot_obs=2**8 * 4).pmf(1)
         self.assertTrue(np.round(-np.log(x['x'][0]), decimals=6) == 0.000516)
-        pmf, x = logser_ut_appx(S=16, N=2**8 * 16).pmf(1)
+        pmf, x = logser_ut_appx(n_samp=16, tot_obs=2**8 * 16).pmf(1)
         self.assertTrue(np.round(-np.log(x['x'][0]), decimals=6) == 0.000516)
-        pmf, x = logser_ut_appx(S=64, N=2**12 * 64).pmf(1)
+        pmf, x = logser_ut_appx(n_samp=64, tot_obs=2**12 * 64).pmf(1)
         self.assertTrue(np.round(-np.log(x['x'][0]), decimals=7) == 0.0000229
                         or
                         np.round(-np.log(x['x'][0]), decimals=7) == 0.0000228)
 
+        pmf, x = logser_ut_appx(n_samp=31, tot_obs=31).pmf([1,2,3,4,5])
+        self.assertTrue(x['x'][0] == 0)
+        self.assertTrue(np.array_equal(pmf[0], np.array([1,0,0,0,0])))
+
         # Test that they don't fail
-        logser_ut_appx(S=64, N=1000).rad()
-        logser_ut_appx(S=64, N=1000).cdf((1,1,2,4,5,7,12))
+        logser_ut_appx(n_samp=64, tot_obs=1000).rad()
+        logser_ut_appx(n_samp=64, tot_obs=1000).cdf((1,1,2,4,5,7,12))
         
      
     def test_plognorm(self):
@@ -146,18 +154,14 @@ class TestDistributions(unittest.TestCase):
 
         # Test that these don't fail
         plognorm().fit([self.abund_list[0]])
-        N = sum(self.abund_list[0])
-        S = len(self.abund_list[0])
-        plognorm(S=S, N=N, mu=2, sigma=2).cdf(5)
+        plognorm(mu=2, sigma=2).cdf(5)
 
     
     def test_plognorm_lt(self):
         # TODO: No test below - should test pmf and cdf, at minimum
         
         # Test that these don't fail
-        N = sum(self.abund_list[0])
-        S = len(self.abund_list[0])
-        plognorm_lt(S=[S,S+2], N=[N, N+2], mu=[2,3], sigma=[2,3]).cdf(5)
+        plognorm_lt(mu=[2,3], sigma=[2,3]).cdf(5)
         plognorm_lt(mu=2, sigma=2).pmf([2,3,4,5,23])
         plognorm_lt().fit([self.abund_list[0]])
         plognorm_lt(mu=10, sigma=1).cdf(45)
@@ -177,19 +181,24 @@ class TestDistributions(unittest.TestCase):
         # Test pmf against R output
         r_output = [0.1210, .0806, .0601, 0.0476, 0.0391, .0331,  0.0285,\
                     0.0249, 0.0221, 0.0197]
+
+        rcdf = np.array([0.3319, 0.3319, 0.4869, 0.5127, 0.6124])
         lnorm = np.round(lognorm(mu=2, sigma=2).pmf(np.arange(1,11))[0][0],
                                                                     decimals=4)
         diff = r_output - lnorm
         self.assertTrue(np.all(diff == 0))
-        
-        # TODO: Test cdf against R cdf
 
+        # Test cdf against R cdf
+        pycdf = np.round(lognorm(mu=1.5, sigma=3.45).cdf([1,1,4,5,12])[0][0],\
+                                                                decimals=4)
+        diff = rcdf - pycdf
+        self.assertTrue(np.all(diff == 0))
+        
         # Test that these don't fail
         lognorm().fit([self.abund_list[0]])
-        N=sum(self.abund_list[0])
-        S=len(self.abund_list[0])
-        lognorm(N=N, S=S, mu=2, sigma=5).rad()
-        lognorm(mu=1.5, sigma=3.45).cdf([1,1,4,5,12])
+        tot_obs=sum(self.abund_list[0])
+        n_samp=len(self.abund_list[0])
+        lognorm(tot_obs=tot_obs, n_samp=n_samp, mu=2, sigma=5).rad()
 
         # Test fit parameter length is correct
         # TODO: Test fit
@@ -213,8 +222,8 @@ class TestDistributions(unittest.TestCase):
         self.assertTrue(np.round(gk, decimals=3) == 0.449)
 
         # Test rad
-        geo_sad = np.round(geo_ser(S=len(obs_sad), N=sum(obs_sad), k=.449).\
-                           rad(), decimals=1)[0]
+        geo_sad = np.round(geo_ser(n_samp=len(obs_sad), tot_obs=sum(obs_sad),
+                                                k=.449).rad(), decimals=1)[0]
         diff = np.floor(np.array(mag_pred_sad)) - np.floor(geo_sad)
         self.assertTrue(np.all(diff == 0))
 
@@ -224,9 +233,10 @@ class TestDistributions(unittest.TestCase):
 
     
     def test_broken_stick(self):
-        # Test that n_except throws approriate error if length S and N are not
+        # Test that n_except throws approriate error if length n_samp and tot_obs are not
         # the same as length pmf
-        self.assertRaises(TypeError, broken_stick(S=12, N=111).pmf,[[2],[3]])
+        self.assertRaises(TypeError, broken_stick(n_samp=12, tot_obs=111).
+                                                                pmf,[[2],[3]])
 
         # Data from Magurran (1998)
         obs_sad = [103,115,13,2,67,36,51,8,6,61,10,21,7,65,4,49,92,37,16,6,23,\
@@ -235,16 +245,16 @@ class TestDistributions(unittest.TestCase):
                     .786, .759, .732, .707, .683, .659, .636]
 
         # Test pmf
-        S = len(obs_sad)
-        N = sum(obs_sad)
-        bs = np.round(broken_stick(S=S, N=N).pmf(np.arange(1, 17))[0][0] * S,\
-                      decimals=3)
+        n_samp = len(obs_sad)
+        tot_obs = sum(obs_sad)
+        bs = np.round(broken_stick(n_samp=n_samp, tot_obs=tot_obs).
+                            pmf(np.arange(1, 17))[0][0] * n_samp, decimals=3)
         diff = np.array(expt) - bs
         self.assertTrue(np.all(diff == 0))
 
         # Test that these don't fail 
-        broken_stick(S=23, N=500).cdf([1,2,500])
-        broken_stick(S=23, N=500).rad()
+        broken_stick(n_samp=23, tot_obs=500).cdf([1,2,500])
+        broken_stick(n_samp=23, tot_obs=500).rad()
         broken_stick().fit(self.abund_list)
     
     
@@ -255,52 +265,100 @@ class TestDistributions(unittest.TestCase):
 
         # Test rad
         # Passes with 2% error regularly. Being conservative with 5% error
-        ps = sugihara(S=10, N=400).rad(sample_size=20000)[0] / 400
+        ps = sugihara(n_samp=10, tot_obs=400).rad(sample_size=20000)[0] / 400
         error = .05 * ps
         diff = np.array(sugi) - ps
         ind = np.abs(diff) <= error
         self.assertTrue(np.all(ind))
 
+        # Test that error is raised for cdf and pdf methods
+        self.assertRaises(NotImplementedError, sugihara().pmf, 67)
+        self.assertRaises(NotImplementedError, sugihara().cdf, 34)
+
      
     def test_binm(self):
+        
+        # Check that pdf and cdf give correct answers
         dist = binm(tot_obs=8123, n_samp=10)
         self.assertTrue(dist.cdf(8123)[0][0][0] == 1)
         self.assertTrue(dist.cdf(0) == dist.pmf(0))
         self.assertTrue(dist.cdf(1)[0][0][0] == (sum(dist.pmf([0,1])[0][0])))
+
+        # Check that appropriate errors are raised
         self.assertRaises(TypeError, dist.pmf, [[1], [1]])
-        self.assertRaises(AssertionError, binm(g=3, N=45).pmf, (23,24))
+        self.assertRaises(TypeError, binm(g=3, N=45).pmf, (23,24))
+
+        # Check that fit works
         dist = binm().fit(self.abund_list)
      
     def test_pois(self):
-        dist = pois(N=112, n_samp=20)
+
+        # Check that pdf and cdf give correct answers
+        dist = pois(tot_obs=112, n_samp=20)
         self.assertTrue(dist.cdf(112)[0][0][0] == 1)
         a = np.round(dist.cdf(0)[0][0][0], decimals=12)
         b = np.round(dist.pmf(0)[0][0][0], decimals=12)
         self.assertTrue(a == b)
         a = np.round(dist.cdf(23)[0][0], decimals=12)
+
+        # Make sure that fit and rad work
         dist = pois().fit(self.abund_list)
         rads = dist.rad()
         self.assertTrue(len(rads) == 4)
 
     def test_nbd(self):
-        dist = nbd(N=2300, n_samp=45)
-        self.assertRaises(AssertionError, dist.pmf, 45)
-        dist = nbd(N=2300, n_samp=24, k=2)
+
+        # Test TypeError if k not given
+        dist = nbd(tot_obs=2300, n_samp=45)
+        self.assertRaises(TypeError, dist.pmf, 45)
+
+        # Test that cdf is about 1 at tot_obs if tot_obs is large
+        dist = nbd(tot_obs=2300, n_samp=24, k=2)
         self.assertTrue(np.round(dist.cdf(2300)[0][0][0], decimals=1) == 1.0)
+
+        # Test the nbd fits a geometric distribution with k=1
         np.random.seed(345)
         p = 0.001
         geo_data = np.random.geometric(p, size=10000)
         dist = nbd().fit([geo_data])
         self.assertTrue(np.round(dist.params['k'][0], decimals=1) == 1)
+    
+    def test_nbd_lt(self):
+
+        # TODO: test pmf
+
+        # Test that cdf is about one
+        dist = nbd_lt(tot_obs=2300, n_samp=45, k=3)
+        self.assertTrue(np.round(dist.cdf(2300)[0][0][0], decimals=1) == 1.0)
+
+        # AssertionError if all params don't have same length
+        dist = nbd_lt(tot_obs=[400, 600], n_samp=[30, 23], k=[3])
+        self.assertRaises(AssertionError, dist.pmf, 1)
+
+        # Multiple entries noth yield cdf with 1
+        dist = nbd_lt(tot_obs=[400, 600], n_samp=[30, 23], k=[3,2])
+        cdf = dist.cdf([[400], [600]])
+        a = np.round(cdf[0][0][0], decimals=1)
+        b = np.round(cdf[0][0][0], decimals=1)
+        self.assertTrue(a == b)
+
 
     def test_fnbd(self):
-        dist = fnbd(N=2300, n_samp=20)
-        self.assertRaises(AssertionError, dist.pmf, 45)
-        dist = fnbd(N=2300, n_samp=15, k=2)
+        
+        # TypeError if k is not given
+        dist = fnbd(tot_obs=2300, n_samp=20)
+        self.assertRaises(TypeError, dist.pmf, 45)
+
+        # Test that cdf sums to one
+        dist = fnbd(tot_obs=2300, n_samp=15, k=2)
         self.assertTrue(np.round(dist.cdf(2300)[0][0][0], decimals=1) == 1.0)
+
+        # Test that cdf and pdf at 0 give the same answer
         a = np.round(dist.pmf(0)[0][0][0], decimals=12)
         b = np.round(dist.cdf(0)[0][0][0], decimals=12)
         self.assertTrue(a == b)
+
+        # Test that fit of of geometric data gives k=1
         np.random.seed(345)
         p = 0.001
         geo_data = np.random.geometric(p, size=10000)
@@ -309,13 +367,20 @@ class TestDistributions(unittest.TestCase):
 
     
     def test_tgeo(self):
+
+        # Test tgeo cdf is one
         dist = tgeo(n_samp=10, tot_obs=2345)
         self.assertTrue(np.round(dist.cdf(2345)[0][0][0], decimals=1) == 1.0)
+
         #It would be good to test against values in Harte book.
+
+        # Test that pdf and cdf give correct values
         check = dist.pmf([1,1,2,3,4,5,12,34,65])
         self.assertTrue(dist.cdf(0)[0][0][0] == dist.pmf(0)[0][0][0])
         self.assertTrue(dist.cdf(23)[0][0][0] == 
                     np.sum(dist.pmf(np.arange(0,24))[0][0]))
+
+        # Test that fit provides the correct number of tot_obs
         dist = tgeo().fit(self.abund_list)
         self.assertTrue(len(dist.params['tot_obs']) == 4)
 
