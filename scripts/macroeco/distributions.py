@@ -95,11 +95,12 @@ import numpy as np
 import scipy.stats as stats
 import scipy.optimize 
 import scipy.special
+from copy import deepcopy
 import math as m
 import scipy.integrate as integrate
 import sys
-#from docinherit import DocInherit
-from macroeco.utils.docinherit import DocInherit
+from docinherit import DocInherit
+#from macroeco.utils.docinherit import DocInherit
 
 doc_inherit = DocInherit
 
@@ -188,31 +189,75 @@ class Curve(object):
         # methods can inherit this docstring.
         pass
 
-    def fit(self, data, full_sad):
+    def univ_curve(self, num_iter=10, direction='down'):
         '''
-        This fit method fills the required parameters for a Curve object.
+        Generating a univsersal curve for different curves.  A universal curve
+        is defined as the slope value (z) at a function y = f(x) at a given x
+        plotted against (x / y). This function halfs and doubles x and
+        calculates the slope using the average. x = 1 is considered the
+        anchor scale.
 
         Parameters
         ----------
-        data :  tuple of array-like objects
-            data conatains two array-like object.  The first is a list of area
-            fractions (area / anchor area) and the second is a list of
-            species/items numbers corresponding to those area fractions.
-        full_sad : array-like object
-            The full_sad at the anchor area
+        num_iter : int
+            Number of halfings at which to calculate z.
 
         '''
-        
-        # TODO: Make this pass and do specific fit within each derived class
-        # Assertion statements
-        assert len(data) == 2, "data must contain two objects"
-        assert len(data[0]) == len(data[1]), "Area and species number " + \
-                                        "arrays must be of the same length"
-        full_sad = make_array(full_sad)
-        self.params['S'] = len(full_sad)
-        self.params['N'] = sum(full_sad)
-        return self
 
+        # Calculating z using equation from Harte et al. 2009
+        def z(a):
+            return (0.5 * (np.log(self.vals(a)['items'] / self.vals(0.5 *
+                        a)['items']) + np.log(self.vals(2 * a)['items'] / 
+                        self.vals(a)['items']))) / np.log(2)
+        
+        # Get the area list
+        if direction == 'down':
+            a_list = [1 / (2**(i)) for i in np.arange(num_iter + 1)]
+
+        elif direction == 'up':
+            a_list = [2**(i) for i in np.arange(num_iter + 1)]
+
+        else:
+            raise ValueError('%s not a recognized value' % direction)
+
+        # Compute universal curve parameters
+        a_list = np.array(a_list)
+        zs = z(a_list)
+        x_over_y = (a_list) / self.vals(a_list)['items']
+
+        uni =  np.array(zip(zs, x_over_y), dtype=
+                                      [('z', np.float),('x_over_y', np.float)])
+        uni.sort(order=['x_over_y'])
+        return uni
+
+    def get_params(self, parameter_list):
+        '''
+        Gets and validates basic distribution parameters
+
+        Parameters
+        ----------
+        parameter_list : list
+            A list of strings where each string is a keyword for the parameter
+            in the self.params dictionary.  
+
+        Returns
+        -------
+        : tuple
+            Validated parameters with the sample length as parameter_list
+ 
+        '''
+
+        retrieved_params = []
+
+        # Get params or None from self.params
+        for i, param in enumerate(parameter_list):
+            retrieved_params.append(self.params.get(param, None))
+
+            # If parameter not found, raise error
+            if retrieved_params[i] is None:
+                raise TypeError('%s not found in self.params' % param)
+        
+        return tuple(retrieved_params)
 
 class Distribution(object):
     '''
@@ -1430,7 +1475,6 @@ class binm(Distribution):
         n = expand_n(n, len(n_samp))
         
         # TODO: Additional checks?
-        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
         
         pmf = []
         var = {}
@@ -1496,7 +1540,6 @@ class pois(Distribution):
         n = expand_n(n, len(n_samp))
         
         # TODO: Additional checks?
-        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
         
         pmf = []
         var = {}
@@ -1585,7 +1628,6 @@ class nbd(Distribution):
         n = expand_n(n, len(n_samp))
         
         # TODO: Additional checks?
-        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
         
         pmf = []
         var = {}
@@ -1624,7 +1666,6 @@ class nbd(Distribution):
         n = expand_n(n, len(n_samp))
         
         # TODO: Additional checks?
-        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
         
         cdf = []
         var = {}
@@ -1780,7 +1821,6 @@ class nbd_lt(nbd):
         n = expand_n(n, len(n_samp))
         
         # TODO: Additional checks?
-        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
 
         reg_nbd = nbd(n_samp=n_samp, tot_obs=tot_obs, k=k)
         p0 = reg_nbd.pmf(0)[0]
@@ -1835,7 +1875,6 @@ class fnbd(Distribution):
         n = expand_n(n, len(n_samp))
         
         # TODO: Additional checks?
-        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
         
         pmf = []
         var = {}
@@ -1928,7 +1967,6 @@ class geo(Distribution):
         n = expand_n(n, len(n_samp))
         
         # TODO: Additional checks?
-        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
 
         k = np.repeat(1, len(n_samp))
         pmf, nvar = nbd(tot_obs=tot_obs, n_samp=n_samp, k=k).pmf(n)
@@ -1944,7 +1982,6 @@ class geo(Distribution):
         n = expand_n(n, len(n_samp))
         
         # TODO: Additional checks?
-        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
 
         k = np.repeat(1, len(n_samp))
         cdf, nvar = nbd(tot_obs=tot_obs, n_samp=n_samp, k=k).cdf(n)
@@ -1993,7 +2030,6 @@ class fgeo(Distribution):
         n = expand_n(n, len(n_samp))
         
         # TODO: Additional checks?
-        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
 
         k = np.repeat(1, len(n_samp))
         pmf, nvar = fnbd(tot_obs=tot_obs, n_samp=n_samp, k=k).pmf(n)
@@ -2009,7 +2045,6 @@ class fgeo(Distribution):
         n = expand_n(n, len(n_samp))
         
         # TODO: Additional checks?
-        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
 
         k = np.repeat(1, len(n_samp))
         cdf, nvar = fnbd(tot_obs=tot_obs, n_samp=n_samp, k=k).cdf(n)
@@ -2066,7 +2101,6 @@ class tgeo(Distribution):
         n = expand_n(n, len(n_samp))
         
         # TODO: Additional checks?
-        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
 
         #NOTE: Overflow warning but not affecting results
         eq = lambda x, N, a: ((x / (1 - x)) - (((N + 1) * x ** (N + 1)) / \
@@ -2109,7 +2143,7 @@ class mete_sar_iter(Curve):
     def __init__(self, **kwargs):
         self.params = kwargs
 
-    def vals(self, a_list, upscale=0, downscale=0):
+    def vals(self, a_list, upscale=0, downscale=0, non_iter=False):
         '''
         Predict the universal SAR curve for the given S and N found at 
         the given anchor scale
@@ -2124,6 +2158,9 @@ class mete_sar_iter(Curve):
         downscale : int
             Number of iterations down from the anchor scale. Each iteration 
             halves the previous area. Only active if a_list is None.
+        non_iter : bool
+            If False, returns all iterations.  If True, only returns iterations
+            that match a_list.
 
         Returns
         -------
@@ -2140,10 +2177,7 @@ class mete_sar_iter(Curve):
 
         '''
         #Get and check params
-        S = self.params.get('S', None)
-        N = self.params.get('N', None)
-        assert S != None, "S parameter not given"
-        assert N != None, "N parameter not given"
+        S, N = self.get_params(['n_samp', 'tot_obs'])
         assert S < N, "S must be less than N"
         assert S > 1, "S must be greater than 1"
         assert N > 0, "S must be greater than 0"
@@ -2178,77 +2212,90 @@ class mete_sar_iter(Curve):
         if downscale != 0:
             sar['items'][:downscale + 1] =\
                                    _downscale_sar_(areas[:downscale + 1], N, S)
-        return sar
-   
 
-    def univ_curve(self, num_iter=10):
+        if non_iter == False:
+            return sar
+        else:
+            ind = np.zeros(len(sar), dtype=bool)
+            for a in a_list:
+                ind = np.bitwise_or(ind, sar['area'] == a)
+            return sar[ind]
+
+    def univ_curve(self, num_iter=10, direction='down'):
         '''
-        This function calculates the universal SAR curve.
+        Generating a universal curve for the mete iterative sar
 
         Parameters
         ----------
         num_iter : int
-            Number of iterations.
-            WARNING: Running more than 10 begins to take along time 
-    
+            Number of area halfings
+        direction : string
+            Either 'down' or 'up'.  The direction to iterate the sar.
+
         Returns
         -------
-        :1D structured np.array
-            The structured array has fields 'z' and 'N/S' for plotting 
-            convenience
+        : structured array
+            Structured array with fields 'z' and 'x_over_y'.  z is the slope 
+            of the SAR at the corresponding Area_fraction (x) / S (y). 
+            Area_fraction is Area / Anchor Area. S is the total number of 
+            species in the landscape.
 
         Notes
         -----
-        This function calculates the universal SAR curve.  Different ratios
-        of N/S will only put you at different places along the same curve. 
-        Iterations of more than 15 take a long time. The equations used in this
-        function were taken from Harte et al. (2009) and Harte (2011). This 
-        uses method 1 in Harte (2011)
-
+        The universal curve is generated using the the equation in Harte et al.
+        2009. 
         '''
         
-        S = self.params.get('S', None)
-        N = self.params.get('N', None)
-        assert S != None, "S parameter not given"
-        assert N != None, "N parameter not given"
-        assert S < N, "S must be less than N"
-        assert S > 1, "S must be greater than 1"
-        assert N > 0, "S must be greater than 0"
-        num_ind = np.empty(num_iter + 1); spp = np.empty(num_iter + 1)
-        univ_SAR = np.empty(num_iter + 1, dtype=[('z', np.float),
-                                                        ('N/S', np.float)])
-        #From Harte et al. (2009)
-        z = lambda beta: 1 / (np.log(2) * np.log(1 / beta))
+        #From Harte et al. 2009
+        def z(a):
+            a1 = self.vals(a, non_iter=True)['items']
+            a2 = self.vals(2*a, non_iter=True)['items']
+            a3 = self.vals(.5 * a, non_iter=True)['items']
+            return (0.5 * (np.log(a1 / a3) + np.log(a2 / a1))) / np.log(2)
 
-        for i in xrange(num_iter + 1):
-            if i == 0:
-                num_ind[i] = N
-                spp[i] = S
-                n = np.linspace(1, N, num=N)
-                eq = lambda x: (((x - x ** (N + 1)) / ( 1 - x)) / \
-                                                   sum((x ** n) / n)) - (N / S)
-                x = scipy.optimize.brentq(eq, 1e-10, min((sys.float_info[0] / S)\
-                                      **(1/float(N)), 2), disp=True)
-                univ_SAR['z'][i] = z(-np.log(x))
-                univ_SAR['N/S'][i] = N / S
-            else:
-                num_ind[i] = 2 * num_ind[i - 1]
-                N2A = num_ind[i]
-                n = np.linspace(1, N2A, num=N2A)
-                eq1 = lambda x: (sum((x**n)/n) * ((N2A) / ((x - x**(N2A + 1)) / \
-                            (1 - x)) * (1 / x))) - ((N2A) * ((1 - x) / \
-                            (x - x**(N2A + 1))) * (1 - (x**N2A / (N2A + 1))))\
-                            - spp[i - 1]
-                x = scipy.optimize.brentq(eq1, 1e-10, 1 - 1e-10, disp=True)
-                univ_SAR['z'][i] = z(-np.log(x))
-                #Using approximations for summations. See module notes
-                eq2 = lambda S2A: np.log(1 / np.log(1 / x)) * ((N2A) / \
-                                          ((x - x**(N2A + 1)) / (1 - x))) - S2A
-                S2A = scipy.optimize.brentq(eq2, spp[i - 1], 2 * spp[i - 1], \
-                                                                     disp=True)
-                spp[i] = S2A
-                univ_SAR['N/S'][i] = N2A / S2A
-        return univ_SAR
+        # Get area list
+        if direction == 'down':
+            a_list = [1 / (2**(i)) for i in np.arange(num_iter + 1)]
+
+        elif direction == 'up':
+            a_list = [2**(i) for i in np.arange(num_iter + 1)]
+
+        else:
+            raise ValueError('%s not a recognized direction' % direction)
+        
+        a_list.sort()
+        a_list = np.array(a_list)
+        zs = z(a_list)
+        x_over_y = (a_list) / self.vals(a_list, non_iter=True)['items']
+
+        uni =  np.array(zip(zs, x_over_y), dtype=
+                                      [('z', np.float),('x_over_y', np.float)])
+        uni.sort(order=['x_over_y'])
+        return uni
+   
+
+    def fit(self, *args):
+        '''
+        This fit method fills the required parameters for a mete_sar_iter 
+        object.
+
+        Parameters
+        ----------
+        full_sad : array-like object
+            The full_sad at the anchor area
+
+        Notes
+        -----
+        full_sad is the first argument in the tuple args.  If there is a second
+        argument, it should be a tuple or array like objects.
+        
+
+        '''
+        full_sad = args[0]
+        self.params['n_samp'] = len(full_sad)
+        self.params['tot_obs'] = sum(full_sad)
+
+        return self
 
 class powerlaw(Curve):
     __doc__ = Curve.__doc__ + \
@@ -2288,10 +2335,7 @@ class powerlaw(Curve):
             ('area', np.float)]. 
     
         '''
-        z = self.params.get('z', None)
-        c = self.params.get('c', None)
-        assert z != None, "z parameter not given"
-        assert c != None, "c parameter not given"
+        z, c = self.get_params(['z', 'c'])
         a_list = make_array(a_list)
         output_array = np.empty(len(a_list), dtype=[('items', np.float),
                                                      ('area', np.float)])
@@ -2300,10 +2344,40 @@ class powerlaw(Curve):
         output_array['items'] = p_law(a_list)
         return output_array
     
-    @doc_inherit
-    def fit(self, data, full_sad):
+    def fit(self, *args):
+        '''
+        This fit method fills the required parameters for a mete_sar_iter 
+        object.
 
-        super(powerlaw, self).fit(data, full_sad)
+        Parameters
+        ----------
+        full_sad : array-like object
+            The full_sad at the anchor area
+
+        data :  tuple of array-like objects
+            data conatains two array-like object.  The first is a list of area
+            fractions (area / anchor area) and the second is a list of
+            species/items numbers corresponding to those area fractions.
+
+        Notes
+        -----
+        full_sad parameter should be first object in args and data should be
+        second object in args.
+
+        '''
+        
+        # Check and unpack args
+        assert len(args) == 2, 'Expected two arguments'
+        full_sad, data = args
+        
+        assert len(data) == 2, "data must contain two objects"
+        assert len(data[0]) == len(data[1]), "Area and species number " + \
+                                        "arrays must be of the same length"
+        full_sad = make_array(full_sad)
+        self.params['n_samp'] = len(full_sad)
+        self.params['tot_obs'] = sum(full_sad)
+
+        # Fit power law to regression
         reg = stats.linregress(np.log(data[0]), np.log(data[1]))
         self.params['z'] = reg[0]
         self.params['c'] = np.exp(reg[1])
@@ -2327,7 +2401,7 @@ class gen_sar(Curve):
     -----
     In order to use gen_sar method vals(), self.params['sad_pmf'] must exist.
     Running gen_sar method fit() fills self.params['sad_pmf'] or it can be
-    filled manually.  Generic sar can only downscale.  
+    filled manually.  
 
     '''
 
@@ -2367,31 +2441,59 @@ class gen_sar(Curve):
             ('area', np.float)]. Items can be species.
 
         '''
-        sad = self.params.get('sad_pmf', None)
-
-        assert sad != None, "params['sad_pmf'] does not exist.  Try fitting" \
-                    + " gen_sar object or initialize self.params['sad_pmf']"
+        
+        # TODO: Really only need n_samp and tot_obs for everything other than
+        # plognorm.  Could calulate the full sad here. 
+        sad, S = self.get_params(['sad_pmf', 'n_samp'])
         ssad = self.ssad
-        S = self.params.get('S', None)
-        assert S != None, "S parameter not given"
         sar = []
-        N_range = np.arange(1, len(sad) + 1)
-        ssad.params['tot_obs'] = N_range
 
         for i, a in enumerate(a_list):
-            if not a <= 1:
-                raise ValueError("a must be less than or equal to 1")
-            if a == 1:
+            
+            #Setting ssad parameters
+            N_range = np.arange(1, len(sad) + 1)
+            ssad.params['tot_obs'] = N_range
+
+            # Upscale
+            if a > 1:
+
+                sad_params = deepcopy(self.sad.params)
+                def eq(Sbig, abig, S):
+
+                    # Setting distribution parameters for guess at upscale
+                    # TODO: upscaling plognorm does not refit with the current 
+                    # setup
+                    Nbig = abig * self.params['tot_obs']
+                    self.sad.params['tot_obs'] = Nbig
+                    self.sad.params['n_samp'] = Sbig
+                    ssad.params['tot_obs'] = np.arange(1, Nbig + 1)
+                    ssad.params['n_samp'] = np.repeat(abig,
+                                                   len(ssad.params['tot_obs']))
+
+                    p_pres_list = [1 - absnt[0] for absnt in ssad.pmf(0)[0]]
+                    sadbig = self.sad.pmf(np.arange(1, Nbig + 1))[0][0]
+                    val = sum(Sbig * sadbig * np.array(p_pres_list)) - S
+                    return val
+                
+                #Optimizing to find Sbig
+                Sbig = scipy.optimize.brentq(eq, S, a * S, args=(a, S), disp=0)
+                sar.append(Sbig)
+                self.sad.params = sad_params # Reset sad params
+
+            elif a == 1:
                 p_pres_list = np.repeat(1, len(N_range))
+                sar.append(sum(S * sad * np.array(p_pres_list)))
+
+            # Downscale
             else:
                 ssad.params['n_samp'] = np.repeat(1 / a, len(N_range))
-                #import pdb; pdb.set_trace()
                 p_pres_list = [1 - absnt[0] for absnt in ssad.pmf(0)[0]]
-            sar.append(sum(S * sad * np.array(p_pres_list)))
+                sar.append(sum(S * sad * np.array(p_pres_list)))
+
         return np.array(zip(sar, a_list), dtype=[('items', np.float), 
                                                   ('area', np.float)])
     
-    def fit(self, data, full_sad):
+    def fit(self, *args):
         '''
         This fit method fills the required parameters for an SARCurve object.
         For the gen_sar object, the fit method will fill self.params['sad_pmf']
@@ -2399,30 +2501,39 @@ class gen_sar(Curve):
 
         Parameters
         ----------
-        data :  tuple of array-like objects
-            data contains two array-like object.  The first is a list of area
-            fractions and the second is a list of species/items numbers 
-            corresponding to those areas.
         full_sad : array-like object
             The full_sad at the anchor area (species/items counts)
 
-        '''
+        Notes
+        -----
+        full_sad is the first object in args
 
-        super(gen_sar, self).fit(data, full_sad)
+        '''
+        full_sad = args[0]
+        full_sad = make_array(full_sad)
+
+        # Get N/tot_obs and S/n_samp from full sad
+        self.params['n_samp'] = len(full_sad)
+        self.params['tot_obs'] = sum(full_sad)
+
         self.sad.fit([full_sad])
-        self.params['sad_pmf'] = self.sad.pmf(np.arange(1, self.params['N'] + 
-                                                                    1))[0][0]
+        self.params['sad_pmf'] = self.sad.pmf(np.arange(1, 
+                                        self.params['tot_obs'] + 1))[0][0]
         return self
 
 ###########################
 #---Generic SAR classes---#
 ###########################
 
-class logser_ut_tgeo(gen_sar):
+class mete_sar(gen_sar):
     '''
     Generic sar: 
     SAD : Truncated logseries (logser_ut)
     SSAD: Truncated geometric (tgeo)
+
+    Notes
+    -----
+    This is the one shot mete sar described by Harte (2011)
 
     See class gen_sar for more information
     '''
@@ -3064,9 +3175,10 @@ def _downscale_sar_(down_areas, N, S):
         else:
             num_ind[i] = 0.5 * num_ind[i - 1]
             if num_ind[i] <= 1:
-                raise DownscaleError('Cannot downscale %i iterations from ' +\
+                raise DownscaleError('Cannot downscale %i iterations from ' 
+                                     % (len(down_areas) - 1) +\
                                      'anchor scale. One or less individuals' +\
-                                     ' per cell.' % (len(down_areas) - 1))
+                                     ' per cell.')
             N_A = num_ind[i - 1]
             S_A = spp[i - 1]
             n = np.linspace(1, N_A, num=N_A)
