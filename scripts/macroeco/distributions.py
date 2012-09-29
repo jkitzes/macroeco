@@ -99,8 +99,8 @@ from copy import deepcopy
 import math as m
 import scipy.integrate as integrate
 import sys
-from docinherit import DocInherit
-#from macroeco.utils.docinherit import DocInherit
+#from docinherit import DocInherit
+from macroeco.utils.docinherit import DocInherit
 
 doc_inherit = DocInherit
 
@@ -189,7 +189,7 @@ class Curve(object):
         # methods can inherit this docstring.
         pass
 
-    def univ_curve(self, num_iter=10, direction='down'):
+    def univ_curve(self, num_iter=10, direction='down', param=None):
         '''
         Generating a univsersal curve for different curves.  A universal curve
         is defined as the slope value (z) at a function y = f(x) at a given x
@@ -201,8 +201,20 @@ class Curve(object):
         ----------
         num_iter : int
             Number of halfings at which to calculate z.
+        direction : string
+            Either 'down' or 'up'.  The direction to iterate the sar.
+        param : string
+            If not None, will look for the given string in the self.params
+            dict and set multiplier to this value. If None, multiplier is one.
 
         '''
+        
+        # Allow multiplier to be set to examine different relationships
+        if param != None:
+            multiplier = self.params.get(param, None)
+            assert multiplier != None, "%s not found in self.params" % param
+        else:
+            multiplier = 1
 
         # Calculating z using equation from Harte et al. 2009
         def z(a):
@@ -218,16 +230,17 @@ class Curve(object):
             a_list = [2**(i) for i in np.arange(num_iter + 1)]
 
         else:
-            raise ValueError('%s not a recognized value' % direction)
+            raise ValueError('%s not a recognized direction' % direction)
 
         # Compute universal curve parameters
         a_list = np.array(a_list)
         zs = z(a_list)
-        x_over_y = (a_list) / self.vals(a_list)['items']
+        x_over_y = (a_list * multiplier) / self.vals(a_list)['items']
 
         uni =  np.array(zip(zs, x_over_y), dtype=
                                       [('z', np.float),('x_over_y', np.float)])
         uni.sort(order=['x_over_y'])
+
         return uni
 
     def get_params(self, parameter_list):
@@ -387,7 +400,13 @@ class Distribution(object):
         # Calculate pmfs
         max_n = [np.max(tn) for tn in n]
         n_in = [np.arange(self.min_supp, i + 1) for i in max_n]
-        pmf_list, var = self.pmf(n_in)
+
+        # Extend for pdf or pmf
+        try:
+            pmf_list, var = self.pdf(n_in)
+
+        except(NotImplementedError):
+            pmf_list, var = self.pmf(n_in)
 
         # Calculate cdfs
         cdf = []
@@ -492,10 +511,19 @@ class Distribution(object):
             if retrieved_params[i][0] is None:
                 raise TypeError('%s not found in self.params' % param)
 
-        # Check that all params are the same length
+        # Check that all params are the same length. If they don't, extend
+        # parameters with only one item
         len_ind = [len(p) for p in retrieved_params]
-        assert len(np.unique(len_ind)) == 1, 'All parameters must have the' +\
-                                             ' same length'
+        unq = np.unique(len_ind)
+        if len(unq) != 1:
+            if len(unq) == 2 and (unq[0] == 1 or unq[1] == 1):
+                max_len = np.max(len_ind)
+                ones = np.where(np.array(len_ind) == 1)[0]
+                for i in ones:
+                    retrieved_params[i] = np.repeat(retrieved_params[i],
+                                                                       max_len)
+            else:
+                raise ValueError('Parameters do not have the same length')
 
         return tuple(retrieved_params)
 
@@ -922,8 +950,6 @@ class plognorm(Distribution):
         See class docstring for more specific information on this distribution.
         '''
 
-        # TODO: Check that data is a list of iterables. Make an external method
-        # FIX: Check that data is list and objects in data are iterable 
 
         data = check_list_of_iterables(data)
 
@@ -2110,10 +2136,25 @@ class tgeo(Distribution):
         var['x'] = []
         for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
             ta = 1 / tn_samp
-            x = scipy.optimize.brentq(eq, 0, min((sys.float_info[0] *
-                ta)**(1/float(ttot_obs)), 2), args=(ttot_obs, ta), disp=False)
-            z = (1 - x ** (ttot_obs + 1)) / (1 - x)
-            tpmf = (1 / z) * (x ** tn)
+
+            if ta == 0.5: #Compute probability directly to save time
+                x = 1
+                tpmf = np.repeat(1 / (1 + ttot_obs), len(tn))
+
+            # All values zero except ttot_obs
+            elif ta == 1:
+                tpmf = np.zeros(len(tn))
+                tpmf[np.where(tn == ttot_obs)[0]] = 1
+                x = 0 
+
+            else:
+
+                x = scipy.optimize.brentq(eq, 0, min((sys.float_info[0] *
+                    ta)**(1/float(ttot_obs)), 2), args=(ttot_obs, ta), 
+                    disp=False)
+                z = (1 - x ** (ttot_obs + 1)) / (1 - x)
+                tpmf = (1 / z) * (x ** tn)
+
             pmf.append(tpmf)
             var['x'].append(x)
 
@@ -2221,7 +2262,7 @@ class mete_sar_iter(Curve):
                 ind = np.bitwise_or(ind, sar['area'] == a)
             return sar[ind]
 
-    def univ_curve(self, num_iter=10, direction='down'):
+    def univ_curve(self, num_iter=10, direction='down', **kwargs):
         '''
         Generating a universal curve for the mete iterative sar
 
@@ -2246,6 +2287,9 @@ class mete_sar_iter(Curve):
         2009. 
         '''
         
+        multiplier = self.params.get('tot_obs', None)
+        assert multiplier != None, "tot_obs not found in self.params"
+
         #From Harte et al. 2009
         def z(a):
             a1 = self.vals(a, non_iter=True)['items']
@@ -2266,7 +2310,7 @@ class mete_sar_iter(Curve):
         a_list.sort()
         a_list = np.array(a_list)
         zs = z(a_list)
-        x_over_y = (a_list) / self.vals(a_list, non_iter=True)['items']
+        x_over_y = (a_list * multiplier) / self.vals(a_list, non_iter=True)['items']
 
         uni =  np.array(zip(zs, x_over_y), dtype=
                                       [('z', np.float),('x_over_y', np.float)])
@@ -2568,6 +2612,46 @@ class logser_ut_binm(gen_sar):
         self.sad = logser_ut()
         self.ssad = binm()
 
+class logser_binm(gen_sar):
+    '''
+    Generic sar: 
+    SAD : logseries (logser)
+    SSAD: Binomial (binm)
+
+    See class gen_sar for more information
+    '''
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.sad = logser()
+        self.ssad = binm()
+
+class logser_ut_pois(gen_sar):
+    '''
+    Generic sar: 
+    SAD : Truncated logseries (logser)
+    SSAD: Poisson (pois)
+
+    See class gen_sar for more information
+    '''
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.sad = logser_ut()
+        self.ssad = pois()
+
+class logser_ut_geo(gen_sar):
+    '''
+    Generic sar: 
+    SAD : Truncated logseries (logser)
+    SSAD: Geometric
+
+    See class gen_sar for more information
+    '''
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.sad = logser_ut()
+        self.ssad = geo()
+
+
 class plognorm_lt_binm(gen_sar):
     '''
     Generic sar: 
@@ -2607,180 +2691,66 @@ class plognorm_lt_fgeo(gen_sar):
         self.sad = plognorm_lt()
         self.ssad = fgeo()
 
+class nbd_lt_tgeo(gen_sar):
+    '''
+    Generic sar: 
+    SAD : Negative Binomial (plognorm_lt)
+    SSAD: Truncated geometric (tgeo)
+
+    See class gen_sar for more information
+    '''
+
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.sad = nbd_lt(k=1)
+        self.ssad = tgeo()
+
+
+class broken_stick_tgeo(gen_sar):
+    '''
+    Generic sar: 
+    SAD : Broken Stick (broken_stick)
+    SSAD: Truncated geometric (tgeo)
+
+    See class gen_sar for more information
+    '''
+
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.sad = broken_stick() 
+        self.ssad = tgeo()
+
+class broken_stick_binm(gen_sar):
+    '''
+    Generic sar: 
+    SAD : Broken Stick (broken_stick)
+    SSAD: Binomial (binm)
+
+    See class gen_sar for more information
+    '''
+
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.sad = broken_stick() 
+        self.ssad = binm()
+
+    
+
 #########################
 ## Energy Distributions##
 #########################
 
 
-class EnergyDistribution(object):
-    '''
-    The base class for the energy distributions
-    '''
-
-    def __init__(self):
-        '''
-        Initialize distribution object.
-
-        Stores keyword arguments as params attribute and defines minimum 
-        support for distribution.
-
-        Parameters
-        ----------
-        kwargs : comma separate list of keyword arguments
-            Parameters needed for distribution. Stored in dict as params 
-            attribute.
-
-        See class docstring for more specific information on this distribution.
-        '''
-        # This method does nothing, but exists so that derived class init
-        # methods can inherit this docstring.
-        pass
-
-    def pdf(self, e):
-        '''
-        Probability density function method.
-
-        Parameters
-        ----------
-        e : int, float or array-like object
-            Values at which to calculate pmf. May be a list of same length as 
-            parameters, or single iterable.
-
-        Returns
-        -------
-        pdf : list of ndarrays
-            List of 1D arrays of probability of observing sample e.
-        vars : dict containing lists of floats
-            Intermediate parameter variables calculated for pmf, as 
-            dict.
-
-        See class docstring for more specific information on this distribution.
-        '''
-
-        pass
-
-    def cdf(self, e):
-        '''
-        Cumulative distribution method.  
-
-        Parameters
-        ----------
-        e : int, float or array-like object
-            Values at which to calculate cdf. May be a list of same length as 
-            parameters, or single iterable.
-
-        Returns
-        -------
-        cdf : list of ndarrays
-            List of 1D arrays of probability of observing sample e.
-        var : dict containing lists of floats
-            Intermediate parameter variables calculated for cdf, as dict.
-
-        See class docstring for more specific information on this distribution.
-        '''
-
-        pass
-
-    def red(self):
-        '''
-        Rank energy distribution of a given function.
-        
-        Returns
-        -------
-        red : list of ndarrays
-            List of 1D arrays of predicted energy for each individual in a
-            given community of species
-
-        See class docstring for more specific information on this distribution.
-
-        '''
-        
-        pass
-
-    def get_params(self, e=None):
-        '''
-        Gets and validates basic distribution parameters
-
-        Parameters
-        ----------
-        e : int, float or array-like object
-            Values at which to calculate pdf. May be a list of same length as 
-            parameters, or single iterable.
-
-        Returns
-        -------
-        : tuple
-            Validated S, N, E and n parameters
- 
-        '''
-        S = make_array(self.params.get('S', None))
-        N = make_array(self.params.get('N', None))
-        E = make_array(self.params.get('E', None))
-
-        if e != None:
-            e = expand_n(e, len(S))
-
-        # Validate parameters
-        assert len(S) == len(N), 'Length of S and N must be the same'
-        assert len(E) == len(N), 'Length of E and N must be the same'
-        assert S[0] != None, 'S parameter not given'
-        assert N[0] != None, 'N parameter not given'
-        assert E[0] != None, 'E parameter not given'
-        assert np.all(S > 1), 'S must be greater than 1'
-        assert np.all(N > 0), 'N must be greater than 0'
-        assert np.all(E >= 1), 'E must be greater than or equal to 1' 
-    
-        if e != None:
-            return S, N, E, e
-        else:
-            return S, N, E
-
-    def fit(self, data):
-        '''
-        Fit the energy distribution to data
-        
-        Parameters
-        ----------
-        data : tuple
-            A tuple containing two objects.  The first object is a list of
-            iterables with each iterable containing an empirical community 
-            energy distribution.  The second object is a list of iterables with
-            each iterable containing an empirical sad.
-
-        '''
-
-        #Check data argument
-        if type(data) != type((1,)):
-            raise TypeError('Data must be a tuple of iterables')
-        if not np.all([np.iterable(dt) for dt in data]):
-            raise TypeError('Objects in data tuple must be iterable')
-        if not np.all([np.all([np.iterable(d) for d in dt]) for dt in data]):
-            raise TypeError("Iterable objects in data tuple must also contain"
-                            + " iterable objects")
-
-        E = [np.sum(np.array(edata)) for edata in data[0]]
-        N = []
-        S = []
-        for tdata in data[1]:
-            N.append(np.sum(np.array(tdata)))
-            S.append(len(np.array(tdata)))
-
-        self.params['E'] = E
-        self.params['N'] = N
-        self.params['S'] = S
-
-        return self
-
-class psi(EnergyDistribution):
-    __doc__ = EnergyDistribution.__doc__ + \
+class psi(Distribution):
+    __doc__ = Distribution.__doc__ + \
     '''
     The community energy distribution (psi) described in Harte (2011)
 
     Parameters
     ----------
-    S or n_samp : int or iterable
+    n_samp : int or iterable
         Total number of species / samples
-    N or tot_obs: int or iterable
+    tot_obs: int or iterable
         Total number of individuals / observations
     E : int or iterable
         Total energy output of community
@@ -2807,39 +2777,43 @@ class psi(EnergyDistribution):
     @doc_inherit
     def pdf(self, e):
         #Get and check parameters
-        S, N, E, e = self.get_params(e=e)
+        n_samp, tot_obs, E = self.get_params(['n_samp', 'tot_obs', 'E'])
+        e = expand_n(e, len(n_samp))
 
         start = 0.3
         stop = 2
         flmax = sys.float_info[0]
-        eq = lambda x,k,N,S: sum(x ** k / float(N) * S) -  sum((x ** k) / k)
+        eq = lambda x,k,tot_obs,n_samp: sum(x ** k / float(tot_obs) * n_samp)\
+                                                           -  sum((x ** k) / k)
 
         pdf = []
         var = {}
         var['beta'] = []
         var['l2'] = []
 
-        for tS, tN, tE, te in zip(S, N, E, e):
-            k = np.linspace(1, tN, num=tN)
+        for tn_samp, ttot_obs, tE, te in zip(n_samp, tot_obs, E, e):
+            k = np.linspace(1, ttot_obs, num=ttot_obs)
             tx = scipy.optimize.brentq(eq, start,
-                                       min((flmax/tS)**(1/float(tN)), stop), 
-                                       args = (k, tN, tS), disp=True)
+                               min((flmax/tn_samp)**(1/float(ttot_obs)), stop), 
+                               args = (k, ttot_obs, tn_samp), disp=True)
+
+            # Set lagrange multipliers
             tbeta = -np.log(tx)
-            tl2 = float(tS) / (tE - tN) # Harte (2011) 7.26
+            tl2 = float(tn_samp) / (tE - ttot_obs) # Harte (2011) 7.26
             tl1 = tbeta - tl2
             tsigma = tl1 + (tE * tl2)
 
-            norm = (float(tS) / (tl2 * tN)) * (((np.exp(-tbeta) - \
-                    np.exp(-tbeta*(tN + 1))) / (1 - np.exp(-tbeta))) - \
-                    ((np.exp(-tsigma) - np.exp(-tsigma*(tN + 1))) / \
+            norm = (float(tn_samp) / (tl2 * ttot_obs)) * (((np.exp(-tbeta) - \
+                    np.exp(-tbeta*(ttot_obs + 1))) / (1 - np.exp(-tbeta))) - \
+                    ((np.exp(-tsigma) - np.exp(-tsigma*(ttot_obs + 1))) / \
                     (1 - np.exp(-tsigma)))) #Harte (2011) 7.22
 
             #Notation from E.W.
             exp_neg_gamma = np.exp(-(tbeta + (te - 1) * tl2))
 
-            tpdf = (float(tS) / (tN * norm)) * ((exp_neg_gamma  / \
-                    (1 - exp_neg_gamma)**2) - ((exp_neg_gamma**tN / \
-                    (1 - exp_neg_gamma)) * (tN + (exp_neg_gamma / \
+            tpdf = (float(tn_samp) / (ttot_obs * norm)) * ((exp_neg_gamma  / \
+                    (1 - exp_neg_gamma)**2) - ((exp_neg_gamma**ttot_obs / \
+                    (1 - exp_neg_gamma)) * (ttot_obs + (exp_neg_gamma / \
                     (1 - exp_neg_gamma)))))
                     # Harte (2011) 7.24
             pdf.append(tpdf)
@@ -2849,45 +2823,113 @@ class psi(EnergyDistribution):
         return pdf, var
     
     @doc_inherit
-    def red(self):
+    def cdf(self, e):
 
-        S, N, E = self.get_params()
+        n_samp, tot_obs, E = self.get_params(['n_samp', 'tot_obs', 'E'])
+        e = expand_n(e, len(n_samp))
 
         start = 0.3
         stop = 2
         flmax = sys.float_info[0]
-        eq = lambda x,k,N,S: sum(x ** k / float(N) * S) -  sum((x ** k) / k)
+        eq = lambda x,k,tot_obs,n_samp: sum(x ** k / float(tot_obs) * n_samp)\
+                                                           -  sum((x ** k) / k)
 
-        n_arrays = [np.arange(1, i + 1) for i in N]
-        prad = lambda beta, r, N, l1, l2: (1 / l2) * np.log(((beta * N) + \
-                                  r - 0.5) / (r - 0.5)) - (l1 / l2)
-        rad = []
-        for tS, tN, tE, tn, in zip(S, N, E, n_arrays):
+        cdf = []
 
-            k = np.linspace(1, tN, num=tN)
+        var = {}
+        var['beta'] = []
+        var['l2'] = []
+
+        for tn_samp, ttot_obs, tE, te in zip(n_samp, tot_obs, E, e):
+            k = np.linspace(1, ttot_obs, num=ttot_obs)
             tx = scipy.optimize.brentq(eq, start,
-                                       min((flmax/tS)**(1/float(tN)), stop), 
-                                       args = (k, tN, tS), disp=True)
+                               min((flmax/tn_samp)**(1/float(ttot_obs)), stop), 
+                               args = (k, ttot_obs, tn_samp), disp=True)
+
+            # Set lagrange multipliers
             tbeta = -np.log(tx)
-            tl2 = float(tS) / (tE - tN) # Harte (2011) 7.26
+            tl2 = float(tn_samp) / (tE - ttot_obs) # Harte (2011) 7.26
             tl1 = tbeta - tl2
 
-            trad = prad(tbeta, tn, tN, tl1, tl2)
+            # Exact cdf equation. 
+            eq2 = lambda x: tbeta * ((1 / (1 - np.exp(tl1 + (tl2 * x)))) - 
+                                    (1 / (1 - np.exp(tl1 + tl2))))
+
+            cdf.append(eq2(te))
+            var['beta'].append(tbeta)
+            var['l2'].append(tl2)
+
+        return cdf, var
+
+    @doc_inherit
+    def rad(self):
+
+        n_samp, tot_obs, E = self.get_params(['n_samp', 'tot_obs', 'E'])
+
+        start = 0.3
+        stop = 2
+        flmax = sys.float_info[0]
+        eq = lambda x,k,tot_obs,n_samp: sum(x ** k / float(tot_obs) * n_samp)\
+                                                        -  sum((x ** k) / k)
+
+        n_arrays = [np.arange(1, i + 1) for i in tot_obs]
+        
+        # Define the predicted rad
+        prad = lambda beta, r, tot_obs, l1, l2: (1 / l2) * np.log(((beta *\
+                                   tot_obs) + r - 0.5) / (r - 0.5)) - (l1 / l2)
+        rad = []
+        for tn_samp, ttot_obs, tE, tn, in zip(n_samp, tot_obs, E, n_arrays):
+
+            k = np.linspace(1, ttot_obs, num=ttot_obs)
+            tx = scipy.optimize.brentq(eq, start,
+                                min((flmax/tn_samp)**(1/float(ttot_obs)), stop), 
+                                args = (k, ttot_obs, tn_samp), disp=True)
+            tbeta = -np.log(tx)
+            tl2 = float(tn_samp) / (tE - ttot_obs) # Harte (2011) 7.26
+            tl1 = tbeta - tl2
+
+            trad = prad(tbeta, tn, ttot_obs, tl1, tl2)
             rad.append(trad)
 
         return rad
+    
+    def fit(self, data):
+        '''
+        Fit the energy distribution to data
+        
+        Parameters
+        ----------
+        data : tuple
+            A tuple containing two objects.  The first object is a list of
+            iterables with each iterable containing an empirical community 
+            energy distribution.  The second object is a list of iterables with
+            each iterable containing an empirical sad.
 
-class theta(EnergyDistribution):
-    __doc__ = EnergyDistribution.__doc__ + \
+        '''
+
+        # Use base class fit
+        super(psi, self).fit(data[1])
+
+        # Format and check energy data
+        data_eng = check_list_of_iterables(data[0])
+
+        # Store energy data in self.params
+        E = [np.sum(np.array(edata)) for edata in data_eng]
+        self.params['E'] = E
+
+        return self
+
+class theta(Distribution):
+    __doc__ = Distribution.__doc__ + \
     '''
     The species specific energy distribution (theta) as described by Harte
     (2011).
 
     Parameters
     ----------
-    S or n_samp : int or iterable
+    n_samp : int or iterable
         Total number of species / samples
-    N or tot_obs: int or iterable
+    tot_obs: int or iterable
         Total number of individuals / observations
     E : int or iterable
         Total energy output of community
@@ -2910,17 +2952,20 @@ class theta(EnergyDistribution):
     @doc_inherit
     def pdf(self, e):
 
-        S, N, E, e = self.get_params(e=e)
-        n = make_array(self.params.get('n', None))
-        assert np.all(n <= N), 'n must be less than or equal to N'
+        n_samp, tot_obs, E, n = self.get_params(['n_samp', 'tot_obs', 'E','n'])
+        e = expand_n(e, len(n_samp))
+        
+        # TODO: More checks?
+        assert np.all(n <= tot_obs), 'n must be less than or equal to tot_obs'
+
 
         pdf = []
         var = {}
         var['l2'] = []
 
-        for tS, tN, tE, tn, te in zip(S, N, E, n, e):
+        for tn_samp, ttot_obs, tE, tn, te in zip(n_samp, tot_obs, E, n, e):
 
-            tl2 = float(tS) / (tE - tN)
+            tl2 = float(tn_samp) / (tE - ttot_obs)
             tpdf = (tn * tl2 * np.exp(-tl2 * tn * te)) / (np.exp(-tl2 * tn)\
                                 - np.exp(-tl2 * tn * tE)) #Harte (2011) 7.25
 
@@ -2930,24 +2975,52 @@ class theta(EnergyDistribution):
         return pdf, var
 
     @doc_inherit
-    def red(self):
+    def cdf(self, e):
 
-        S, N, E = self.get_params()
-        n = make_array(self.params.get('n', None))
-        assert n[0] != None, 'n parameter not given'
-        assert np.all(n <= N), 'n must be less than or equal to N'
+        n_samp, tot_obs, E, n = self.get_params(['n_samp', 'tot_obs', 'E','n'])
+        e = expand_n(e, len(n_samp))
+        
+        # TODO: More checks?
+        assert np.all(n <= tot_obs), 'n must be less than or equal to tot_obs'
+
+
+        cdf = []
+        var = {}
+        var['l2'] = []
+
+        for tn_samp, ttot_obs, tE, tn, te in zip(n_samp, tot_obs, E, n, e):
+
+            tl2 = float(tn_samp) / (tE - ttot_obs)
+
+            # Exact cdf
+            tcdf = -np.exp(tl2 * tn) * (np.exp(-tl2 * tn * te) - 
+                                                        np.exp(-tl2 * tn))   
+
+            cdf.append(tcdf)
+            var['l2'].append(tl2)
+        
+        return cdf, var
+
+    @doc_inherit
+    def rad(self):
+
+        n_samp, tot_obs, E, n = self.get_params(['n_samp', 'tot_obs', 'E','n'])
+        
+        # TODO: More checks?
+        assert np.all(n <= tot_obs), 'n must be less than or equal to tot_obs'
 
         n_arrays = [np.arange(1, i + 1) for i in n]
 
-        pred = lambda r, n, l2 : 1 + (1 / (l2 * n)) * np.log( n / (r - 0.5))
-        red = []
-        for tS, tN, tE, tn, tn_arr in zip(S, N, E, n, n_arrays):
+        prad = lambda r, n, l2 : 1 + (1 / (l2 * n)) * np.log( n / (r - 0.5))
+        rad = []
+        for tn_samp, ttot_obs, tE, tn, tn_arr in zip(n_samp, tot_obs, E, n, 
+                                                                    n_arrays):
            
-           tl2 = float(tS) / (tE - tN)
-           tred = pred(tn_arr, tn, tl2)
-           red.append(tred)
+           tl2 = float(tn_samp) / (tE - ttot_obs)
+           trad = prad(tn_arr, tn, tl2)
+           rad.append(trad)
 
-        return red
+        return rad
 
     def fit(self, data):
         '''
@@ -2963,9 +3036,18 @@ class theta(EnergyDistribution):
             containing sads.
 
         '''
-        super(theta, self).fit((data[1], data[2]))
-        n = [len(np.array(ndata)) for ndata in data[0]]
+        super(theta, self).fit(data[2])
+
+        # Check and set energy data
+        data_eng = check_list_of_iterables(data[1])
+        E = [np.sum(np.array(edata)) for edata in data_eng]
+        self.params['E'] = E
+        
+        # Check and set species abundance data
+        n_data = check_list_of_iterables(data[0])
+        n = [len(np.array(ndata)) for ndata in n_data]
         self.params['n'] = n
+
         return self
 
 

@@ -37,15 +37,6 @@ class TestDistributions(unittest.TestCase):
         self.abund_list.append(np.array([3,2,2,1,5,6,4,5,7]))
         self.abund_list.append(np.array([1,1,4,5,7,89,100]))
 
-        #Testing against weecology function: N=1122, S=34, target_area=2
-        #Anchor_area=45
-        #There will be some differences because we are using approximations
-        #to make things faster
-        self.EWsar_down = np.array([8.79, 12.37, 16.71, 21.81, 27.59, 34])
-        #S = 23, N=3400, anchor_area=123, target_area=2000)
-        self.EWsar_up = np.array([23, 26.47, 30.11, 33.92, 37.89, 42.01])
-        #N/S:  1000/100, 5000/100, 200/10
-        self.EWslop = np.array([.3887, .2612, 0.3140])
         self.sar = ([0.0004, 0.0025, 0.005, 0.01, 0.25, 1], [2.2356, 10.0175,
         15.87, 24.32, 101.25, 155])
         self.sad = np.arange(1, 156)
@@ -331,9 +322,10 @@ class TestDistributions(unittest.TestCase):
         dist = nbd_lt(tot_obs=2300, n_samp=45, k=3)
         self.assertTrue(np.round(dist.cdf(2300)[0][0][0], decimals=1) == 1.0)
 
-        # AssertionError if all params don't have same length
+        # Check that k of length one is extended to length 2
         dist = nbd_lt(tot_obs=[400, 600], n_samp=[30, 23], k=[3])
-        self.assertRaises(AssertionError, dist.pmf, 1)
+        pmf, var = dist.pmf(1)
+        self.assertTrue(np.array_equal(var['k'], np.array([3,3]))) 
 
         # Multiple entries noth yield cdf with 1
         dist = nbd_lt(tot_obs=[400, 600], n_samp=[30, 23], k=[3,2])
@@ -383,63 +375,191 @@ class TestDistributions(unittest.TestCase):
         # Test that fit provides the correct number of tot_obs
         dist = tgeo().fit(self.abund_list)
         self.assertTrue(len(dist.params['tot_obs']) == 4)
-
+    
     
     def test_mete_sar_iter(self):
-        sar = mete_sar_iter(S=34, N=1122).vals([(2 / 45.0)])
+        
+        # Check mete sar against EW values
+        EWsar_down = np.array([8.79, 12.37, 16.71, 21.81, 27.59, 34])
+        #S = 23, N=3400, anchor_area=123, target_area=2000)
+        EWsar_up = np.array([23, 26.47, 30.11, 33.92, 37.89, 42.01])
+        sar = mete_sar_iter(n_samp=34, tot_obs=1122).vals([(2 / 45.0)])
         spp = np.round(sar['items'], decimals=2)
         error = 0.001 * spp
-        diff = np.abs(spp - self.EWsar_down)
+        diff = np.abs(spp - EWsar_down)
         self.assertTrue(np.all(diff <= error))
-        sar = mete_sar_iter(S=23, N=3400).vals([2000 / 123.0])
+        sar = mete_sar_iter(n_samp=23, tot_obs=3400).vals([2000 / 123.0])
         spp = np.round(sar['items'], decimals=2)
         error = 0.005 * spp
-        diff = np.abs(spp - self.EWsar_up)
+        diff = np.abs(spp - EWsar_up)
         self.assertTrue(np.all(diff <= error))
-        self.assertRaises(Exception, mete_sar_iter(S=12, N=100).vals,
-                                                None, downcale=8)
-        sar = mete_sar_iter(S=34, N=1000).vals(None, upscale=4, downscale=6)
+
+        # Check that Exception is raises if you downscale too far
+        self.assertRaises(Exception, mete_sar_iter(n_samp=12, tot_obs=100).vals
+                                                , None, downcale=8)
+
+        # Check that the return has the correct length when a_list is None
+        sar = mete_sar_iter(n_samp=34, tot_obs=1000).vals(None, upscale=4
+                                                                , downscale=6)
         self.assertTrue(len(sar) == 11)
-        sar = mete_sar_iter().fit(self.sar, self.sad)
-        self.assertTrue(sar.params['S'] == 155)
-        self.assertTrue(sar.params['N'] == sum(np.arange(1, 156)))
-        sar.vals([.4,3,1,.8])
 
+        # Check that only halving or doubling results are returned when 
+        # non_iter=True
+        sar = mete_sar_iter(n_samp=34, tot_obs=1000).vals([1,2,.5,.25,5,.4],
+                                                                 non_iter=True)
+        self.assertTrue(len(sar) == 4) 
 
-    def test_power_law(self):
-        sar = powerlaw().fit(self.sar, self.sad)
-        g = sar.vals([1])
-        self.assertTrue(np.round(g['items'][0], decimals=3) == 199.808)
-        sar.params['c']; sar.params['z']
-        self.assertTrue(sar.params['S'] == 155)
-        self.assertTrue(sar.params['N'] == sum(np.arange(1, 156)))
+        # Check errors are thrown
+        sar = mete_sar_iter(n_samp=34, tot_obs=1000)
+        self.assertRaises(TypeError, sar.vals, .1)
 
-    def test_universal_sar(self):
-        '''Interesting test results.  EW and our functions agree that using
-        sar_method1 METE is not quite universal.  The z that results from
-        different N and S with the same ratio differe slightly.  The amount
-        they differ might just be a result of approximations.  Need to look
-        into this'''
-        
+        # Check that fit method fits correctly with two arguments passed 
+        sar = mete_sar_iter().fit(self.sad, self.sar)
+        self.assertTrue(sar.params['n_samp'] == 155)
+        self.assertTrue(sar.params['tot_obs'] == sum(np.arange(1, 156)))
+
+        # Check that fit method fits correctly with one argument passed 
+        sar = mete_sar_iter().fit(self.sad)
+        self.assertTrue(sar.params['n_samp'] == 155)
+        self.assertTrue(sar.params['tot_obs'] == sum(np.arange(1, 156)))
+
+        # Test values
+        #N/S:  1000/100, 5000/100, 200/10
+        EWslop = np.array([.3887, .2612, 0.3140])
+
+        # Test universal SAR curve values
         answ = []
-        answ.append(mete_sar_iter(S=100, N=1000).univ_curve(num_iter=0)['z'][0])
-        answ.append(mete_sar_iter(S=100, N=5000).univ_curve(num_iter=0)['z'][0])
-        answ.append(mete_sar_iter(S=10, N=200).univ_curve(num_iter=0)['z'][0])
+        answ.append(mete_sar_iter(n_samp=100, tot_obs=1000).\
+                                                univ_curve(num_iter=0)['z'][0])
+        answ.append(mete_sar_iter(n_samp=100, tot_obs=5000).\
+                                                univ_curve(num_iter=0)['z'][0])
+        answ.append(mete_sar_iter(n_samp=10, tot_obs=200).\
+                                                univ_curve(num_iter=0)['z'][0])
         answ = np.array(answ)
         #Using different methods to calculate so use error
         error = 0.05 * answ
-        diff = np.abs(self.EWslop - answ)
+        diff = np.abs(EWslop - answ)
         self.assertTrue(np.all(diff <= error))
 
+        # Check correct errors thrown
+        sar = mete_sar_iter(n_samp=45, tot_obs=5000)
+        self.assertRaises(ValueError, sar.univ_curve, direction='hello')
+
+    def test_power_law(self):
+
+        # Check that fit produces correct result. Predicted species at 1 should
+        # be greater than observed.
+        sar = powerlaw().fit(self.sad, self.sar)
+        g = sar.vals([1])
+        self.assertTrue(np.round(g['items'][0], decimals=0) == 200)
+        
+        # Check that c and z exist and check values of other parameters.
+        sar.params['c']; sar.params['z']
+        self.assertTrue(sar.params['n_samp'] == 155)
+        self.assertTrue(sar.params['tot_obs'] == sum(np.arange(1, 156)))
+
+        # Check universal curve has constant values
+        uni = sar.univ_curve()
+        self.assertTrue(len(np.unique(np.round(uni['z'], decimals=5))) == 1)
+
+        # Check that passing in param changes multiplier and correct error are
+        # thrown
+        self.assertRaises(ValueError, sar.univ_curve, direction='asf')
+        self.assertRaises(AssertionError, sar.univ_curve, param='apple')
+        res1 = sar.univ_curve(num_iter=5, param='tot_obs')
+        res2 = sar.univ_curve(num_iter=5)
+        self.assertTrue(not(np.array_equal(res1['x_over_y'],
+                                                            res2['x_over_y'])))
+        self.assertTrue((np.array_equal(res1['z'], res2['z'])))
+        
     def test_gen_sar(self):
         '''Testing that this actually works'''
-
-        sar = gen_sar(logser(), geo()).fit(self.sar, self.sad)
+        
+        # Testing that gen_sar actually runs.  Not sure what values to test it
+        # against.
+        sar = gen_sar(logser(), geo()).fit(self.sad)
         g = sar.vals([.001,.04, .5, 1])
         self.assertTrue(np.round(g['items'][3], decimals=0) == 155)
         sar2 = gen_sar(logser(), geo())
-        sar2.params['S'] = sar.params['S']
-        sar2.params['N'] = sar.params['N']
+        sar2.params['n_samp'] = sar.params['n_samp']
+        sar2.params['tot_obs'] = sar.params['tot_obs']
         sar2.params['sad_pmf'] = sar.params['sad_pmf']
         s1 = sar.vals([.5]); s2 = sar2.vals([0.5])
         self.assertTrue(s1['items'][0] == s2['items'][0])
+
+        # Test univ_curve upscales and downscales
+        sar3 = gen_sar(broken_stick(), binm()).fit(self.sad)
+        #sar3.univ_curve(num_iter=2, direction='up')
+        sar3.univ_curve(num_iter=2, direction='down')
+
+    #More testing should be done
+    def test_theta(self):
+
+        # Testing assertions
+        self.assertRaises(AssertionError, theta(n_samp=34, tot_obs=300, E=4000,
+                                                                n=301).pdf, 1)
+
+        # Test lambda values
+        tht = theta(n_samp=4, tot_obs=4*4, E=4*4*4, n=10)
+        pdf, var = tht.pdf(1)
+        self.assertTrue(np.round(var['l2'][0], decimals=3) == 0.083)
+        S = 16
+        N = S * (2**8)
+        E = N * (2**10)
+        tht = theta(n_samp=S, tot_obs=N, E=E, n=N - 1)
+        pdf, var = tht.pdf(1)
+        self.assertTrue(np.round(var['l2'][0], decimals=8) == 3.82e-6)
+
+        # Test cdf
+        self.assertTrue(tht.cdf(E)[0][0][0] == 1)
+        self.assertTrue(tht.cdf(1)[0][0][0] == 0)
+
+        # Test rad doesn't throw error
+        tht.rad()
+
+        # TODO: test fit
+
+    def test_psi(self):
+
+        # Test lagrange values
+
+        S = 4
+        N = S * (2**4)
+        E = N * (2**2)
+        ps = psi(n_samp=S, tot_obs=N, E=E)
+        pdf, var = ps.pdf(1)
+        self.assertTrue(np.round(var['beta'][0] - var['l2'][0], decimals=3) 
+                                                                    == -0.030)
+        S = 16
+        N = S * (2**8)
+        E = N * (4)
+        ps = psi(n_samp=S, tot_obs=N, E=E)
+        pdf, var = ps.pdf(1)
+        self.assertTrue(np.round(var['beta'][0] - var['l2'][0], decimals=5) 
+                                                                == -0.00089)
+        self.assertTrue(np.round(var['l2'], decimals=4) == 0.0013)
+
+        # Test cdf
+        print ps.cdf(E)[0][0][0]
+        self.assertTrue(np.round(ps.cdf(E)[0][0][0], decimals=0) == 1)
+        self.assertTrue(ps.cdf(1)[0][0][0] == 0)
+
+        # Test rad doesn't throw an error
+        ps.rad()
+        
+
+
+
+        
+
+
+
+        
+
+
+
+
+
+
+
+  
