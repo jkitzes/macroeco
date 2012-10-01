@@ -2436,9 +2436,9 @@ class gen_sar(Curve):
 
     Parameters
     ----------
-    S : float
+    n_samp : float
         Total number of species at the anchor area
-    N : float
+    tot_obs : float
         Total number of individuals at the anchor area
 
     Notes

@@ -488,9 +488,9 @@ class TestDistributions(unittest.TestCase):
         self.assertTrue(s1['items'][0] == s2['items'][0])
 
         # Test univ_curve upscales and downscales
-        sar3 = gen_sar(broken_stick(), binm()).fit(self.sad)
+        #sar3 = gen_sar(broken_stick(), binm()).fit(self.sad)
         #sar3.univ_curve(num_iter=2, direction='up')
-        sar3.univ_curve(num_iter=2, direction='down')
+        #sar3.univ_curve(num_iter=2, direction='down')
 
     #More testing should be done
     def test_theta(self):
