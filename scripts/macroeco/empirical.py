@@ -71,7 +71,7 @@ class Patch:
         self.data_table.table = self.data_table.get_subtable(subset)
 
     
-            
+    # TODO: Implement clean in sad function and remove from compare   
     def sad(self, criteria, clean=False):
         '''
         Calculates an empirical species abundance distribution given criteria.
@@ -395,16 +395,22 @@ class Patch:
             
             # If all counts are not 1
             if count_col and (not np.all(subtable[count_col] == 1)):
+
+                # Remove any zero counts
+                subtable = self.data_table.get_subtable({count_col : '!=0'})
+                
+                # Convert counts to ints
+                temp_counts = subtable[count_col].astype(int)
+
                 energy = np.repeat((subtable[this_engy] /
-                        subtable[count_col]), subtable[count_col])
-                species = np.repeat(subtable[spp_col], subtable[count_col])
+                        subtable[count_col]), temp_counts)
+                species = np.repeat(subtable[spp_col], temp_counts)
             else:
                 energy = subtable[this_engy] 
                 species = subtable[spp_col]
 
-            # Convert mass to energy is mass is True
+            # Convert mass to energy if mass is True
             if mass:
-                #import pdb; pdb. set_trace()
                 energy = (energy ** exponent)
                 
             # Normalizing energy
@@ -422,8 +428,8 @@ class Patch:
         Parameters
         ----------
         criteria : dict
-            Dictionary must have contain a key with the value 'energy'.  See
-            sad method for further requirements.
+            Dictionary must have contain a key with the value 'energy' or
+            'mass'.  See sad method for further requirements.
 
         Returns
         -------
@@ -456,6 +462,42 @@ class Patch:
 
             result.append((this_ied[0], this_criteria_sed))
         
+        return result
+    
+    def ased(self, criteria, normalize=True, exponent=0.75):
+        '''
+        Calculates the average energy for each given species in a subset. 
+        
+        Parameters
+        ----------
+        criteria : dict
+            Dictionary must have contain a key with the value 'energy' or
+            'mass'.  See sad method for further requirements.
+        
+        Returns
+        -------
+
+        Notes
+        -----
+        This is equivalent to the nu distribution from Harte 2011
+
+        '''
+
+        sed = self.sed(criteria, normalize=normalize, exponent=exponent)
+
+        result = []
+        for this_sed in sed:
+            spp_list = list(this_sed[1].viewkeys())
+            spp_list.sort()
+
+            # Take the mean energy for each species
+            nu = [np.mean(this_sed[1][spp]) for spp in spp_list if
+                                                    len(this_sed[1][spp]) != 0]
+            # Truncated spp_list if necessary
+            spp_list = [spp for spp in spp_list if len(this_sed[1][spp]) != 0]
+            
+            result.append((np.array(spp_list), this_sed[0], np.array(nu)))
+
         return result
 
 def flatten_sad(sad):

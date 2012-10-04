@@ -189,7 +189,7 @@ class Curve(object):
         # methods can inherit this docstring.
         pass
 
-    def univ_curve(self, num_iter=10, direction='down', param=None):
+    def univ_curve(self, num_iter=5, direction='down', param=None):
         '''
         Generating a univsersal curve for different curves.  A universal curve
         is defined as the slope value (z) at a function y = f(x) at a given x
@@ -1077,7 +1077,6 @@ class plognorm_lt(plognorm):
     # TODO: Write cdf method based on cdf of plognorm, similar to above
 
 
-# TODO: Make a continuous distribution
 class lognorm(Distribution):
     __doc__ = Distribution.__doc__ + \
     '''
@@ -1109,22 +1108,24 @@ class lognorm(Distribution):
     and calcuate the cdf by summing.  Note that this is one of the many 
     problems that Blackburn and Gaston have with using the lognormal for SADs.
     '''
-
+    
     @doc_inherit
     def __init__(self, **kwargs):
         self.params = kwargs
-        self.min_supp = 0
+        self.min_supp = 1
         self.par_num = 2
 
-    
-    @doc_inherit
+    @doc_inherit  
     def pmf(self, n):
 
         # Get parameters
-        mu, sigma = self.get_params(['mu', 'sigma'])
-
+        tot_obs, n_samp, sigma = self.get_params(['tot_obs','n_samp','sigma'])
+        
         # TODO: Additional parameter checks
-        n = expand_n(n, len(mu))
+        n = expand_n(n, len(tot_obs))
+
+        # Calculate mu
+        mu = np.log(tot_obs / n_samp) - (sigma / 2)
 
         # Calculate pmf
         pmf = []
@@ -1134,14 +1135,17 @@ class lognorm(Distribution):
 
         return pmf, None
 
-    @doc_inherit
+    @doc_inherit  
     def cdf(self, n):
 
         # Get parameters
-        mu, sigma = self.get_params(['mu', 'sigma'])
-
+        tot_obs, n_samp, sigma = self.get_params(['tot_obs','n_samp','sigma'])
+        
         # TODO: Additional parameter checks
-        n = expand_n(n, len(mu))
+        n = expand_n(n, len(tot_obs))
+
+        # Calculate mu
+        mu = np.log(tot_obs / n_samp) - (sigma / 2)
 
         #Calculate cdf
         cdf = []
@@ -1151,42 +1155,32 @@ class lognorm(Distribution):
 
         return cdf, None
 
-    
-    @doc_inherit
+    @doc_inherit 
     def fit(self, data):
 
+        super(lognorm, self).fit(data)
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
 
-        data = check_list_of_iterables(data)
+        data = check_list_of_iterables(data) 
+        tempsig = []
 
-        # Calculate and store parameters
-        temp_mu = []
-        temp_sigma = []
-        self.params['n_samp'] = []
-        self.params['tot_obs'] = []
+        for tdata, tn_samp, ttot_obs in zip(data, n_samp, tot_obs): 
 
-        for tdata in data:
-            mu0 = np.mean(np.log(tdata))  # Starting guesses for mu and sigma
-            sigma0 = np.std(np.log(tdata), ddof=1)
-            
-            # TODO: See plognorm TODO 
-            def ln_func(x):
-                self.params['mu'] = x[0]
-                self.params['sigma'] = x[1]
+            def ln_func(sigma):
+                self.params['tot_obs'] = ttot_obs
+                self.params['n_samp'] = tn_samp
+                self.params['sigma'] = sigma 
                 return -sum(np.log(self.pmf(tdata)[0][0]))
 
-            mu, sigma = scipy.optimize.fmin(ln_func, x0=[mu0, sigma0],
-                                            disp=0)
-            temp_mu.append(mu)
-            temp_sigma.append(sigma)
+            mle_sigma = scipy.optimize.fmin(ln_func,
+                        np.array([np.std(np.log(tdata), ddof=1)]), disp=0)[0]
+            tempsig.append(mle_sigma)
 
-            self.params['n_samp'].append(len(tdata))
-            self.params['tot_obs'].append(np.sum(tdata))
-
-        self.params['mu'] = temp_mu
-        self.params['sigma'] = temp_sigma
-
+        self.params['sigma'] = tempsig
+        self.params['n_samp'] = n_samp
+        self.params['tot_obs'] = tot_obs
         return self
-
+        
 
 class geo_ser(Distribution):
     __doc__ = Distribution.__doc__ + \
@@ -2262,7 +2256,7 @@ class mete_sar_iter(Curve):
                 ind = np.bitwise_or(ind, sar['area'] == a)
             return sar[ind]
 
-    def univ_curve(self, num_iter=10, direction='down', **kwargs):
+    def univ_curve(self, num_iter=5, direction='down', **kwargs):
         '''
         Generating a universal curve for the mete iterative sar
 
@@ -2734,6 +2728,47 @@ class broken_stick_binm(gen_sar):
         self.sad = broken_stick() 
         self.ssad = binm()
 
+class lognorm_pois(gen_sar):
+    '''
+    Generic sar:
+    SAD : Log normal (lognorm)
+    SSAD : Poisson (pois)
+
+    See class gen_sar for more information
+    '''
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.sad = lognorm(sigma=2)
+        self.ssad = pois() 
+
+
+
+class lognorm_binm(gen_sar):
+    '''
+    Generic sar:
+    SAD : Log normal (lognorm)
+    SSAD : Binomial (binm) 
+
+    See class gen_sar for more information
+    '''
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.sad = lognorm(sigma=2)
+        self.ssad = binm()
+
+class lognorm_tgeo(gen_sar):
+    '''
+    Generic sar:
+    SAD : Log normal (lognorm)
+    SSAD : Truncated geometric (tgeo) 
+
+    See class gen_sar for more information
+    '''
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.sad = lognorm(sigma=2)
+        self.ssad = tgeo()
+
     
 
 #########################
@@ -3048,8 +3083,184 @@ class theta(Distribution):
         n = [len(np.array(ndata)) for ndata in n_data]
         self.params['n'] = n
 
+        
         return self
 
+# This distribution is a pain
+class nu(Distribution):
+    '''
+    An energy distribution describing the distribution of average energy across
+    all species in a community.
+    
+    Parameters
+    ----------
+    n_samp : int or iterable
+        Total number of species / samples
+    tot_obs: int or iterable
+        Total number of individuals / observations
+    E : int or iterable
+        Total energy output of community
+    '''
+
+    @doc_inherit
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.min_supp = 1
+
+    @doc_inherit
+    def pmf(self, e):
+        '''
+        Notes
+        -----
+        The nu distribution is only defined at e values given by 
+        e = 1 + (1 / (lambda2 * n)). While this function will return a pmf 
+        value for all e greater than or equal to one, note that the pmf will
+        only sum to one when provided with the proper support.
+
+        '''
+
+        n_samp, tot_obs, E = self.get_params(['n_samp', 'tot_obs', 'E'])
+        e = expand_n(e, len(n_samp))
+
+        # Beta Solver
+        eq = lambda x,k,tot_obs,n_samp: sum(x ** k / float(tot_obs) * n_samp)\
+                                                           -  sum((x ** k) / k)
+        start = 0.3
+        stop = 2                                                           
+        flmax = sys.float_info[0]
+
+        pdf = []
+        var = {}
+        var['beta'] = []
+        var['l2'] = []
+        var['sigma'] = []
+
+        for tn_samp, ttot_obs, tE, te in zip(n_samp, tot_obs, E, e):
+            k = np.linspace(1, ttot_obs, num=ttot_obs)
+            tx = scipy.optimize.brentq(eq, start,
+                               min((flmax/tn_samp)**(1/float(ttot_obs)), stop), 
+                               args = (k, ttot_obs, tn_samp), disp=True)
+
+            # Set lagrange multipliers
+            tbeta = -np.log(tx)
+            tl2 = float(tn_samp) / (tE - ttot_obs) # Harte (2011) 7.26
+            tl1 = tbeta - tl2
+            tsigma = tl1 + tE * tl2
+            Z = sum((np.exp(-tbeta * k) - np.exp(-tsigma * k)) / (tl2 * k))
+
+            tpdf = (1 / Z) * (np.exp(-tbeta / (tl2 * (te - 1))) - np.exp(-tsigma / (tl2 *
+                (te - 1)))) / (1 / (te - 1))
+
+            pdf.append(tpdf)
+            var['beta'].append(tbeta)
+            var['l2'].append(tl2)
+            var['sigma'].append(tsigma)
+
+        return pdf, var
+    
+    @doc_inherit
+    def cdf(self, e):
+
+        n_samp, tot_obs, E = self.get_params(['n_samp', 'tot_obs', 'E'])
+        e = expand_n(e, len(n_samp))
+
+        cdf = []
+
+        for tn_samp, ttot_obs, tE, te in zip(n_samp, tot_obs, E, e):
+            # Possible e values
+            tl2 = float(tn_samp) / (tE - ttot_obs) # Harte (2011) 7.26
+
+            # Harte (2011) 7.42
+            e_vals = (1 + 1 / (tl2 * np.arange(1, ttot_obs + 1)))
+            e_vals.sort()
+            
+            # Calculate pdf for all accepted e_vals. Set self.params
+            self.params['n_samp'] = tn_samp
+            self.params['tot_obs'] = ttot_obs
+            self.params['E'] = tE
+            acpt_pmf = self.pmf(e_vals)[0][0]
+
+            list_bools = [tpe >= e_vals for tpe in te]
+
+            tcdf = np.empty(len(te))
+            
+            # Set the cdf to the appropriate values
+            for i, bools in enumerate(list_bools):
+                ind = np.where(bools == True)[0]
+                if len(ind) != 0:
+                    tcdf[i] = sum(acpt_pmf[:(ind[-1] + 1)])
+                else:
+                    tcdf[i] = 0
+
+            cdf.append(tcdf)
+        
+        # Reset params
+        self.params['n_samp'] = n_samp
+        self.params['tot_obs'] = tot_obs
+        self.params['E'] = E
+
+        # Just Returning none for now, going to be removing the returns later
+        return cdf, None
+
+    def rad(self):
+        '''
+        '''
+
+        n_samp, tot_obs, E = self.get_params(['n_samp', 'tot_obs', 'E'])
+        
+        rad = []
+        for tn_samp, ttot_obs, tE in zip(n_samp, tot_obs, E):
+            
+            # Get predicted cdf for all possible e values
+            tl2 = (tn_samp / (tE - ttot_obs))
+            possible_e = 1 + 1 / (tl2 * np.arange(1, ttot_obs + 1))
+            possible_e.sort()
+            pred_cdf = self.cdf(possible_e)[0][0]
+            
+            # Observed cdf. Not quite true if some energys overlap
+            obs_cdf = np.arange(1/(tn_samp), 1, 1/tn_samp)
+
+            list_bools = [np.array(obs < pred_cdf) for obs in obs_cdf]
+            
+            pred_rad = np.empty(tn_samp)
+
+            for i, bools in enumerate(list_bools):
+                ind = np.where(bools == False)[0]
+                if len(ind) != 0:
+                    pred_rad[i] = possible_e[ind[-1]]
+                else:
+                    pred_rad[i] = ind[0] # Or should it be 0?
+
+            rad.append(pred_rad)
+
+        return rad
+
+
+    def fit(self, data):
+        '''
+        Fit the nu energy distribution to data
+        
+        Parameters
+        ----------
+        data : tuple
+            A tuple containing two objects.  The first object is a list of
+            iterables with each iterable containing an empirical community 
+            energy distribution.  The second object is a list of iterables with
+            each iterable containing an empirical sad.
+
+        '''
+
+        # Use base class fit
+        super(nu, self).fit(data[1])
+
+        # Format and check energy data
+        data_eng = check_list_of_iterables(data[0])
+
+        # Store energy data in self.params
+        E = [np.sum(np.array(edata)) for edata in data_eng]
+        self.params['E'] = E
+
+        return self
 
 def make_array(n):
     '''Cast n as iterable array.'''

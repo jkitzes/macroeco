@@ -31,21 +31,6 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
-#NOTE: This needs to be updated when more distributions/sars are ready!
-dist_dict  = {'logser' : logser(), 'plognorm' : plognorm(),
-              'logser_ut' : logser_ut(), 'logser_ut_appx' : logser_ut_appx(),
-              'plognorm_lt' : plognorm_lt(), 'sugihara': sugihara(),
-              'broken_stick' : broken_stick(), 'geo_ser' : geo_ser(),
-              'lognorm' : lognorm(), 'binm' : binm(), 'pois' : pois(), 'nbd' :
-              nbd(), 'fnbd' : fnbd(), 'geo' : geo(), 'fgeo' : fgeo(), 'tgeo' :
-              tgeo(), 'psi' : psi(), 'theta' : theta()} 
-
-sar_dict = {'mete_sar_iter' : mete_sar_iter(), 'powerlaw' : powerlaw(), 
-            'logser_ut_tgeo': logser_ut_tgeo(), 'logser_ut_fgeo' : 
-            logser_ut_fgeo(), 'logser_ut_binm' : logser_ut_binm(), 
-            'plognorm_lt_binm' : plognorm_lt_binm(), 'plognorm_lt_tgeo' : 
-            plognorm_lt_tgeo(), 'plognorm_lt_fgeo' : plognorm_lt_fgeo()}
-
 
 class CompareDistribution(object):
     '''
@@ -61,7 +46,8 @@ class CompareDistribution(object):
         data_list : list or tuple output from Patch object
             List of np.arrays containing data
         dist_list : list
-            List of distribution objects or list of distribution names
+            List of distribution objects or strings that have the same name as 
+            a distribution object. If they are strings, they will be evaled 
         patch : str
             If 'sad', expects the output from the Patch.sad method and if
             'ssad' expects the output from the Patch.ssad method. If None, 
@@ -91,15 +77,8 @@ class CompareDistribution(object):
             for data in self.data_list:
                 dlist.append(data[np.where((data != 0))[0]])
             self.data_list = dlist
-
-        if np.all([type(dist) == str for dist in dist_list]):
-            self.dist_list = np.empty(len(dist_list), dtype=object)
-            for kw in list(dist_dict.viewkeys()):
-                self.dist_list[np.where((kw == np.array(dist_list)))[0]] = \
-                                dist_dict[kw]
-            self.dist_list = list(self.dist_list)
-        else:
-            self.dist_list = dist_list
+       
+        self.dist_list = make_dist_list(dist_list)
 
     def compare_aic(self, crt=False):
         '''
@@ -334,14 +313,7 @@ class CompareSARCurve(object):
                 self.a_list.append(np.array(sar[0]))
             self.sar_list.append(np.array(sar[1]))
 
-        if np.all([type(cur) == str for cur in curve_list]):
-            self.curve_list = np.empty(len(curve_list), dtype=object)
-            for kw in list(sar_dict.viewkeys()):
-                self.curve_list[np.where((kw == np.array(curve_list)))[0]] = \
-                                sar_dict[kw]
-            self.curve_list = list(self.curve_list)
-        else:
-            self.curve_list = curve_list
+        self.curve_list = make_dist_list(curve_list)
 
         self.full_sad = [np.array(sad) for sad in full_sad]
 
@@ -364,7 +336,7 @@ class CompareSARCurve(object):
             psar['obs'] = np.array(zip(sar, a), dtype=[('items', np.float),
                                         ('area', np.float)])
             for cur in self.curve_list:
-                cur.fit((a, sar), sad)
+                cur.fit(sad, (a, sar))
                 psar[get_name(cur)] = cur.vals(a)
             for kw in psar.iterkeys():
                 psar[kw].sort(order='area')
@@ -425,23 +397,16 @@ class CompareIED(object):
                 self.eng_list.append(obj[1])
         else:
             self.sad_list = [np.array(data) for data in data_list[1]]
-            #Clean zeros from sad
-            self.sad_list = [data[data != 0] for data in self.sad_list]
             self.sad_criteria = None
             self.eng_list = [np.array(data) for data in data_list[0]]
             self.eng_criteria = None
             self.items = None
 
-        # TODO: Make this into method
+        # Clean SADs
+        self.sad_list = [data[data != 0] for data in self.sad_list]
+
         # Check if dist_list is a list of strings or list of objects
-        if np.all([type(dist) == str for dist in dist_list]):
-            self.dist_list = np.empty(len(dist_list), dtype=object)
-            for kw in list(dist_dict.viewkeys()):
-                self.dist_list[np.where((kw == np.array(dist_list)))[0]] = \
-                                dist_dict[kw]
-            self.dist_list = list(self.dist_list)
-        else:
-            self.dist_list = dist_list
+        self.dist_list = make_dist_list(dist_list)
 
         assert len(self.sad_list) == len(self.eng_list), 'sad_list and' \
                                         + ' eng_list must be the same length'
@@ -467,7 +432,7 @@ class CompareIED(object):
         reds_dict['obs'] = self.eng_list
         for dist in self.dist_list:
             dist.fit((self.eng_list, self.sad_list))
-            reds_dict[get_name(dist)] = dist.red()
+            reds_dict[get_name(dist)] = dist.rad()
         return reds_dict
 
     def summary(self):
@@ -555,9 +520,6 @@ class CompareSED(object):
             self.spp_names = list(np.array(self.spp_names).flatten())
         else:
             self.sad_list = [np.array(data) for data in data_list[2]]
-
-            #Remove 0's from sad
-            self.sad_list = [data[data != 0] for data in self.sad_list]
             self.sad_criteria = None
             self.eng_list = [np.array(data) for data in data_list[1]]
             self.eng_criteria = None
@@ -565,15 +527,10 @@ class CompareSED(object):
             self.speng_criteria = None
             self.spp_names = None
 
-        if np.all([type(dist) == str for dist in dist_list]):
-            self.dist_list = np.empty(len(dist_list), dtype=object)
-            for kw in list(dist_dict.viewkeys()):
-                self.dist_list[np.where((kw == np.array(dist_list)))[0]] = \
-                                dist_dict[kw]
-            self.dist_list = list(self.dist_list)
-        else:
-            self.dist_list = dist_list
+        # Clean SADs
+        self.sad_list = [data[data != 0] for data in self.sad_list]        
 
+        self.dist_list = make_dist_list(dist_list)
 
         assert len(self.sad_list) == len(self.eng_list), 'sad_list and' \
                                         + ' eng_list must be the same length'
@@ -603,9 +560,111 @@ class CompareSED(object):
         reds_dict['obs'] = self.speng_list
         for dist in self.dist_list:
             dist.fit((self.speng_list, self.eng_list, self.sad_list))
-            reds_dict[get_name(dist)] = dist.red()
+            reds_dict[get_name(dist)] = dist.rad()
 
         return reds_dict, self.spp_names
+
+class CompareASED(object):
+    '''
+    Compares theoretical and observed ased's
+
+    '''
+
+    def __init__(self, data_list, dist_list, patch=False):
+        '''
+        Parameters
+        ----------
+        data_list : tuple of lists or output from Patch object
+            Tuple of length three. The first object is a list np.arrays that
+            are the the average species energy distributions. 
+            The second object in the tuple is a list of np.arrays that are the 
+            empirical community energy distributions. The third object is a 
+            list of np.arrays that are themempirical sads. See patch argument 
+            in this method for information about Patch object output.
+        dist_list : list of strings or objects
+            Each string corresponds to a name of a ased distribution to which to
+            compare to the observed data. 
+        patch : bool
+            If True, expects a tuple of length 3 with the first object being
+            the complete output from Patch.ased, the second object being
+            the output from Patch.ied and the third element being the
+            output from Patch.sad. If False expects what argument data_list
+            describes. Empirical sads and energy distributions should be made 
+            with the same criteria.
+        '''
+
+        if patch:
+
+            #Unpack each tuple element in data_list
+
+            # Sort sad
+            # Store spp_list in self.items
+            self.sad_items = data_list[2][0]
+            self.sad_criteria = []
+            self.sad_list = []
+
+            for obj in data_list[2][1]:
+                #Unpack sad output (criteria, sad)
+                self.sad_criteria.append(obj[0])
+
+                #Remove zeros from sads
+                self.sad_list.append(obj[1][obj[1] != 0])
+            
+            #Unpack each tuple element starting with ased
+            self.ased_items = [] # items are ased species lists
+            self.ased_criteria = []
+            self.ased_list = []
+
+            for obj in data_list[0]:
+                self.ased_items.append(obj[0])
+                self.ased_criteria.append(obj[1])
+                self.ased_list.append(obj[2])
+
+            # Sort communtity energy
+            self.ied_criteria = []
+            self.ied_list = []
+            for obj in data_list[1]:
+
+                # Unpack energy (ied) information
+                self.ied_criteria.append(obj[0])
+                self.ied_list.append(obj[1])
+        else:
+            self.sad_list = [np.array(data) for data in data_list[2]]
+            self.sad_items = None
+            self.sad_criteria = None
+            self.ased_list = [np.array(data) for data in data_list[0]]
+            self.ased_items = None
+            self.ased_criteria = None
+            self.ied_list = [np.array(data) for data in data_list[1]]
+            self.ied_criteria = None
+
+        # Clean SADs
+        self.sad_list = [data[data != 0] for data in self.sad_list]
+
+        self.dist_list = make_dist_list(dist_list)
+
+    def compare_rads(self):
+        '''
+        Comparison of average species energy distribution
+
+        Returns
+        -------
+        : dict
+            Has len(self.dist_list) + 1.  All the distribution class names
+            passed to the constructor are key words as well as 'obs' which
+            references the observed data. Each keyword looks up
+            a list of arrays.  Each list is len(self.eng_list) long and
+            contains the predicted reds for the empirical data sets for the
+            given distribution.
+        '''
+        rads_dict = {}
+        rads_dict['obs'] = self.ased_list
+        for dist in self.dist_list:
+            dist.fit((self.ied_list, self.sad_list))
+            #Different Identifier?
+            rads_dict[get_name(dist)] = dist.rad()
+
+        return rads_dict
 
 def nll(pdist):
     '''
@@ -799,3 +858,26 @@ def get_name(obj):
     Return the name of the object
     '''
     return obj.__class__.__name__
+
+def make_dist_list(dist_list):
+    '''
+    If the dist_list is all strings, eval them.  Else return as is
+    '''
+
+    if np.all([type(dist) == str for dist in dist_list]):
+
+        ret_dist_list = np.empty(len(dist_list), dtype=object)
+
+        for i, dist_obj in enumerate(dist_list):
+
+            # Clean strings
+            dist_obj = dist_obj.strip()
+            ret_dist_list[i] = eval(dist_obj + '()')
+        ret_dist_list = list(ret_dist_list)
+    else:
+        ret_dist_list = dist_list
+
+    return ret_dist_list
+
+
+    
