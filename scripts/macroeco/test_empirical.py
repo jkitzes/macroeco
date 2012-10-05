@@ -10,7 +10,6 @@ pd = os.path.dirname
 jp = os.path.join
 from macroeco.empirical import *
 import numpy as np
-import random
 
 
 class TestPatch(unittest.TestCase):
@@ -207,23 +206,23 @@ d, 1, 1, 1''')
         # Test correct result with 'whole' and one division
         sad = self.pat1.sad({'spp_code': 'species', 'count': 'count', 
                                                                     'x': 1})
-        self.assertTrue(np.array_equal(sad[1][0][1], np.array([4,2])))
+        self.assertTrue(np.array_equal(sad[0][1], np.array([4,2])))
         sad = self.pat1.sad({'spp_code': 'species', 'count': 'count', 
                                                         'x': 'whole'})
-        self.assertTrue(np.array_equal(sad[1][0][1], np.array([4,2])))
+        self.assertTrue(np.array_equal(sad[0][1], np.array([4,2])))
         sad = self.pat4.sad({'spp_code': 'species', 'count' :'count', 'x': 1})
-        self.assertTrue(np.array_equal(sad[0], np.array([0,1,2,3])))
+        self.assertTrue(np.array_equal(sad[0][2], np.array([0,1,2,3])))
 
         # Test correct result with other divisions
         sad = self.pat4.sad({'spp_code': 'species', 'count': 'count', 'x': 3,
         'y': 2})
-        self.assertTrue(np.array_equal(sad[1][-1][1], np.array([0,0,0,1])))
+        self.assertTrue(np.array_equal(sad[-1][1], np.array([0,0,0,1])))
 
         # Test that 'whole' and ignore give the same result
         sad1 = self.pat4.sad({'spp_code': 'species', 'count': 'count'})
         sad2 = self.pat4.sad({'spp_code': 'species', 'count': 'count', 'x' :
         'whole'})
-        self.assertTrue(np.array_equal(sad1[1][0][1], sad2[1][0][1]))
+        self.assertTrue(np.array_equal(sad1[0][1], sad2[0][1]))
 
 
     def test_parse_criteria(self):
@@ -294,12 +293,12 @@ d, 1, 1, 1''')
         ssad = self.pat2.ssad({'spp_code': 'species', 'count': 'count'})
         sad = self.pat2.sad({'spp_code': 'species', 'count': 'count'})
         sum_ssad = np.array([sum(val) for val in ssad[1].itervalues()])
-        self.assertTrue(sum(sad[1][0][1]) == sum(sum_ssad))
+        self.assertTrue(sum(sad[0][1]) == sum(sum_ssad))
         
         ssad = self.pat6.ssad({'spp_code': 'species', 'count': 'count'})
         sad = self.pat6.sad({'spp_code': 'species', 'count': 'count'})
         sum_ssad = np.array([sum(val) for val in ssad[1].itervalues()])
-        self.assertTrue(sum(sad[1][0][1]) == sum(sum_ssad))
+        self.assertTrue(sum(sad[0][1]) == sum(sum_ssad))
 
         # Manual checks of correct ssad
         ssad = self.pat2.ssad({'spp_code': 'species', 'count': 'count', 'x':
@@ -350,4 +349,6 @@ d, 1, 1, 1''')
                         'energy': 'energy', 'x': 2})
         self.assertTrue(np.array_equal(eng[1][1]['rty'], np.array([1])))
         self.assertTrue(len(eng[1][1]) == 2)
+
+
 

@@ -470,6 +470,12 @@ class Distribution(object):
         # and tot_obs for each one.
 
         data = check_list_of_iterables(data) 
+        
+        # Check if distribution can support the fitted data
+        num_zeros = np.array([sum(dt == 0) for dt in data])
+        if np.any(num_zeros != 0) and self.min_supp == 1:
+            raise ValueError('%s does not suppot data with zeros' %
+                                                    self.__class__.__name__)
 
         n_samp = []
         tot_obs = []
@@ -950,14 +956,12 @@ class plognorm(Distribution):
         See class docstring for more specific information on this distribution.
         '''
 
-
+        super(plognorm, self).fit(data)
         data = check_list_of_iterables(data)
 
         # Calculate and store parameters
         temp_mu = []
         temp_sigma = []
-        self.params['n_samp'] = []
-        self.params['tot_obs'] = []
 
         for tdata in data:
             mu0 = np.mean(np.log(tdata))  # Starting guesses for mu and sigma
@@ -974,9 +978,6 @@ class plognorm(Distribution):
                                             disp=0)
             temp_mu.append(mu)
             temp_sigma.append(sigma)
-
-            self.params['n_samp'].append(len(tdata))
-            self.params['tot_obs'].append(np.sum(tdata))
 
         self.params['mu'] = temp_mu
         self.params['sigma'] = temp_sigma
@@ -1513,7 +1514,6 @@ class binm(Distribution):
         n = expand_n(n, len(n_samp))
         
         # TODO: Additional checks?
-        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
 
         cdf = []
         var = {}
@@ -1577,7 +1577,6 @@ class pois(Distribution):
         n = expand_n(n, len(n_samp))
         
         # TODO: Additional checks?
-        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
 
         cdf = []
         var = {}
@@ -1807,7 +1806,6 @@ class nbd_lt(nbd):
         n = expand_n(n, len(n_samp))
         
         # TODO: Additional checks?
-        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
 
         reg_nbd = nbd(n_samp=n_samp, tot_obs=tot_obs, k=k)
         reg_pmf, reg_var = reg_nbd.pmf(n)

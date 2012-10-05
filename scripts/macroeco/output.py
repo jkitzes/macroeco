@@ -403,7 +403,8 @@ def plot_rec_columns(rec_array):
         for nm in names:
             if nm == 'obs':
                 plt.plot(np.arange(1, len(rec_array) + 1),
-                                        np.sort(rec_array[nm])[::-1], '-ro')
+                                        np.sort(rec_array[nm])[::-1], '-o',
+                                        color='black')
             else:
                 plt.plot(np.arange(1, len(rec_array) + 1),
                                         np.sort(rec_array[nm])[::-1], '-' +
@@ -546,6 +547,5 @@ def jitter(x, y, jitter_scale=0.001):
                 if ind > 0:
                     jitt_x[indices[ind]] += (jitter_scale * ind)
     return jitt_x, jitt_y
-
 
 """

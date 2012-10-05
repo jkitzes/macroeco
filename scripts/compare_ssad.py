@@ -49,8 +49,7 @@ if __name__ == '__main__':
     for data_path, output_ID, params in wf.single_datasets():
         patch = Patch(data_path, subset=params['subset'])
         ssad = patch.ssad(params['criteria'])
-        cmpr = comp.CompareDistribution(ssad, params['dist_list'], 
-                                                patch='ssad', clean=False)
+        cmpr = comp.CompareDistribution(ssad, params['dist_list'],patch='ssad')
         sout = DistOutput(output_ID, 'ssad')
         sout.write_summary_table(cmpr.summary(), criteria=cmpr.spp_list)
         sout.plot_rads(cmpr.compare_rads(), criteria=cmpr.spp_list)

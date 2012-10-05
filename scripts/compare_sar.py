@@ -75,7 +75,7 @@ if __name__ == '__main__':
         sar = patch.sar(params['div_cols'], params['div_list'],
                                                     params['sar_criteria'])
         cmpr = comp.CompareSARCurve([sar], params['curve_list'],
-                                                        [sad[1][0][1]])
+                                                        [sad[0][1]])
         srout = SAROutput(output_ID)
         srout.plot_sars(cmpr.compare_curves(), names=params['names'])
         logging.info('Completed analysis %s\n' % output_ID)

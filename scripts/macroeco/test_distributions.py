@@ -47,6 +47,7 @@ class TestDistributions(unittest.TestCase):
         self.assertRaises(AssertionError, logser(n_samp=234, tot_obs=67).pmf, 
                                                                              1)
         self.assertRaises(AssertionError, logser(n_samp=34, tot_obs=0).pmf, 1)
+        self.assertRaises(ValueError, logser().fit, [[0,1,2,3,4]])
 
         # Test pmf against value in Fisher's paper Fisher et al. 1943
         pmf, var = logser(n_samp=240, tot_obs=15609).pmf(1)
@@ -174,14 +175,14 @@ class TestDistributions(unittest.TestCase):
                     0.0249, 0.0221, 0.0197]
 
         rcdf = np.array([0.3319, 0.3319, 0.4869, 0.5127, 0.6124])
-        lnorm = np.round(lognorm(mu=2, sigma=2).pmf(np.arange(1,11))[0][0],
-                                                                    decimals=4)
+        lnorm = np.round(lognorm(tot_obs=np.exp(3), n_samp=1, sigma=2).\
+                                    pmf(np.arange(1,11))[0][0], decimals=4)
         diff = r_output - lnorm
         self.assertTrue(np.all(diff == 0))
 
         # Test cdf against R cdf
-        pycdf = np.round(lognorm(mu=1.5, sigma=3.45).cdf([1,1,4,5,12])[0][0],\
-                                                                decimals=4)
+        pycdf = np.round(lognorm(tot_obs=np.exp(1.5 + (3.45 / 2)), n_samp=1, 
+                            sigma=3.45).cdf([1,1,4,5,12])[0][0], decimals=4)
         diff = rcdf - pycdf
         self.assertTrue(np.all(diff == 0))
         
@@ -196,7 +197,7 @@ class TestDistributions(unittest.TestCase):
         dist = lognorm().fit(self.abund_list)
         dist.pmf(3)
         dist.pmf([[3],[4],[5],[6]])
-        self.assertTrue(len(dist.params['mu']) == 4) 
+        self.assertTrue(len(dist.params['tot_obs']) == 4) 
 
       
     def test_geo_ser(self):
@@ -327,7 +328,7 @@ class TestDistributions(unittest.TestCase):
         pmf, var = dist.pmf(1)
         self.assertTrue(np.array_equal(var['k'], np.array([3,3]))) 
 
-        # Multiple entries noth yield cdf with 1
+        # Multiple entries both yield cdf with 1
         dist = nbd_lt(tot_obs=[400, 600], n_samp=[30, 23], k=[3,2])
         cdf = dist.cdf([[400], [600]])
         a = np.round(cdf[0][0][0], decimals=1)
@@ -336,6 +337,9 @@ class TestDistributions(unittest.TestCase):
 
 
     def test_fnbd(self):
+
+        # Test that no error is thrown if a zero is passed
+        fnbd().fit([[0,1,2,3,4,5,6]])
         
         # TypeError if k is not given
         dist = fnbd(tot_obs=2300, n_samp=20)
