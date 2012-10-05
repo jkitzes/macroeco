@@ -272,7 +272,8 @@ class CompareSARCurve(object):
 
     '''
     
-    def __init__(self, sar_list, curve_list, full_sad, max_a=True):
+    def __init__(self, sar_list, curve_list, full_sad, max_a=True, 
+                                                                  patch=False):
         '''
         NOTE: Requiring the full_sad makes this function a lot less flexible.
         Maybe we shouldn't do that.  Maybe just give N and S.  Should we get
@@ -285,7 +286,8 @@ class CompareSARCurve(object):
             of the same length.  The first element in the tuple is the
             area list and the second element is the species count for the sar.
             The maximum area in the area list should be the anchor area from
-            which the full_sad was generated.
+            which the full_sad was generated.  If patch=True, accepts the
+            output from Patch.sar
         curve_list : list
             A list of SARCurve objects or list of SARCurve object names (str)
         full_sad : list of array-like objects
@@ -293,23 +295,32 @@ class CompareSARCurve(object):
             sar_list. 
         max_a : bool
             If max_a is True, compare sets all areas to fractions in area_list.
+        patch : bool
+            If True, sar_list should be a list of outputs from Patch().sar
         '''
 
         assert len(sar_list) == len(full_sad), "sar_list and full_sad must " \
                                               + " be the same length"
-        self.full_sad = [np.array(sad) for sad in full_sad]
-        self.a_list = []
         self.sar_list = []
-        for sar in sar_list:
-            if max_a:
-                self.a_list.append(np.array(sar[0]) / max(np.array(sar[0])))
-            else:
-                self.a_list.append(np.array(sar[0]))
-            self.sar_list.append(np.array(sar[1]))
+        self.a_list = []
+        if patch:
+             for sar_obj in sar_list:
+                 unzipped_sar = unpack(sar_obj[0])
+                 self.sar_list.append(np.array(unzipped_sar[0]))
+                 self.a_list.append(np.array(unzipped_sar[1]))
+        else:
+            unzipped_sar = unpack(sar_list)
+            self.a_list = [np.array(areas) for areas in unzipped_sar[0]]
+            self.sar_list = [np.array(sar) for sar in unzipped_sar[1]]
+
+        # Set to area fractions if max_a is true
+        if max_a:
+            self.a_list = [ars / np.max(ars) for ars in self.a_list]
+
+        self.full_sad = [np.array(sad) for sad in full_sad]
 
         self.curve_list = make_dist_list(curve_list)
 
-        self.full_sad = [np.array(sad) for sad in full_sad]
 
     def compare_curves(self):
         '''

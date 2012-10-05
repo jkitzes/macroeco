@@ -349,7 +349,9 @@ class Patch:
             areas.append(area)
 
         # Return
-        return areas, mean_result, full_result
+        rec_sar = np.array(zip(mean_result, areas), dtype=[('items', np.float),
+                                                           ('area', np.float)])
+        return rec_sar, full_result
 
     def ied(self, criteria, normalize=True, exponent=0.75):
         '''

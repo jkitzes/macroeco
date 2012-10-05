@@ -266,26 +266,26 @@ d, 1, 1, 1''')
         # Checking that sar function returns correct S0 for full plot
         sar = self.pat3.sar(('x', 'y'), [(1,1)], {'spp_code': 'species',
         'count': 'count'})
-        self.assertTrue(sar[1][0] == 5)
+        self.assertTrue(sar[0]['items'][0] == 5)
 
         # Checking for correct result for sar
         sar = self.pat3.sar(('x', 'y'), [(1,1), (2,2)], {'spp_code': 'species',
         'count': 'count'})
-        self.assertTrue(np.array_equal(sar[2][1], np.array([3,3,2,3])))
+        self.assertTrue(np.array_equal(sar[1][1], np.array([3,3,2,3])))
         sar = self.pat4.sar(('x', 'y'), [(1,1), (1,2), (3,2)], {'spp_code':
                 'species', 'count': 'count'}, form='sar')
-        self.assertTrue(np.array_equal(sar[2][2], np.array([3,3,2,2,3,1])))
+        self.assertTrue(np.array_equal(sar[1][2], np.array([3,3,2,2,3,1])))
 
         # Checking for correct result for ear
         ear = self.pat3.sar(('x', 'y'), [(1,1), (2,2)], {'spp_code': 'species',
         'count': 'count'}, form='ear')
-        self.assertTrue(np.array_equal(ear[2][1], np.array([0,1,0,0])))
+        self.assertTrue(np.array_equal(ear[1][1], np.array([0,1,0,0])))
         
         # Test that returned areas are correct
         sar = self.pat1.sar(('x', 'y'), [(1,1)], {'spp_code': 'species',
                             'count': 'count'})
-        self.assertTrue(np.round(sar[0][0], decimals=2) == 0.06)
-        self.assertTrue(sar[1][0] == 2)
+        self.assertTrue(np.round(sar[0]['area'][0], decimals=2) == 0.06)
+        self.assertTrue(sar[0]['items'][0] == 2)
 
     def test_ssad(self):
         

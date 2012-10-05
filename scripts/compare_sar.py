@@ -68,14 +68,13 @@ if __name__ == '__main__':
         sad_criteria = params['sar_criteria']
         for nm in params['div_cols']:
             sad_criteria[nm] = 'whole'
-            sad_criteria[nm] = 'whole'
 
         patch = Patch(data_path, subset=params['subset'])
         sad = patch.sad(sad_criteria)
         sar = patch.sar(params['div_cols'], params['div_list'],
                                                     params['sar_criteria'])
         cmpr = comp.CompareSARCurve([sar], params['curve_list'],
-                                                        [sad[0][1]])
+                                                    [sad[0][1]], patch=True)
         srout = SAROutput(output_ID)
         srout.plot_sars(cmpr.compare_curves(), names=params['names'])
         logging.info('Completed analysis %s\n' % output_ID)
