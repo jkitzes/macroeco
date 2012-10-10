@@ -1231,7 +1231,6 @@ class geo_ser(Distribution):
         n_samp, tot_obs, k = self.get_params(['n_samp', 'tot_obs', 'k'])
         n = expand_n(n, len(n_samp))
         
-        # TODO: Additional checks?
         assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
         assert np.all(k > 0) and np.all(k <= 1), ('k must be in the '
                                                   'interval (0, 1]')
@@ -1261,8 +1260,9 @@ class geo_ser(Distribution):
         # Calculate rad
         rad = []
         for tn_samp, ttot_obs, tk in zip(n_samp, tot_obs, k):
-            C = (1 - (1 - k ) ** n_samp) ** - 1
-            trad = tot_obs * C * k * (1 - k) ** (np.arange(1, n_samp + 1) - 1)
+            tC = (1 - (1 - tk ) ** tn_samp) ** - 1
+            trad = ttot_obs * tC * tk * (1 - tk) ** (np.arange(1, tn_samp + 1) 
+                                                                           - 1)
             rad.append(trad)
 
         return rad
@@ -1329,7 +1329,6 @@ class broken_stick(Distribution):
         n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
         n = expand_n(n, len(n_samp))
 
-        # TODO: Additional checks?
         assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
         
         # Calculate pmf
@@ -2484,6 +2483,7 @@ class gen_sar(Curve):
         ssad = self.ssad
         sar = []
 
+        a_list = make_array(a_list)
         for i, a in enumerate(a_list):
             
             #Setting ssad parameters
@@ -2511,9 +2511,13 @@ class gen_sar(Curve):
                     val = sum(Sbig * sadbig * np.array(p_pres_list)) - S
                     return val
                 
-                #Optimizing to find Sbig
-                Sbig = scipy.optimize.brentq(eq, S, a * S, args=(a, S), disp=0)
-                sar.append(Sbig)
+                #Optimizing to find Sbig. If error set to nan
+                try:
+                    Sbig = scipy.optimize.brentq(eq, S, a * S, args=(a, S), disp=0)
+                    sar.append(Sbig)
+                except(ValueError):
+                    sar.append(np.nan)
+
                 self.sad.params = sad_params # Reset sad params
 
             elif a == 1:

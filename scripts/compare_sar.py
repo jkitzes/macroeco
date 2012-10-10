@@ -28,9 +28,9 @@ class docstring).
 'div_cols' : A tuple of specifying the columns that will be divided during the
 sar analysis. e.g. ('x', 'y')
 
-'div_list' : A list of tuples, in the same order as the columns in div_list, that
-specify the divisions one would like to make in order to generate the sar.  A
-division of (1,1) indicates the whole plot.
+'div_list' : A list of tuples, in the same order as the columns in div_list, 
+that specify the divisions one would like to make in order to generate the sar.
+A division of (1,1) indicates the whole plot.
 
 'sar_criteria' : This parameter is a dictionary that specifies which column in
 the data set is the column of species counts and which column is the column
@@ -49,6 +49,12 @@ and theoretical SARs plotted and csv files containing all of the data used to
 make the plot.
 
 '''
+
+required_params = {'subset' : 'Initial subsetting of the data', 'div_cols' : 
+                   'Tuple of column names to divide', 'sar_criteria' :
+                   'Dictionary with sar criteria', 'curve_list' : 'List of' +\
+                   ' curves to compare', 'names' : 'List of plot titles'}
+
 if __name__ == '__main__':
 
     import logging
@@ -57,7 +63,8 @@ if __name__ == '__main__':
     import macroeco.compare as comp
     from macroeco.output import SAROutput
 
-    wf = Workflow(clog=True, svers=__version__)
+    wf = Workflow(required_params=required_params, clog=True, 
+                                                            svers=__version__)
     
     for data_path, output_ID, params in wf.single_datasets():
         try:

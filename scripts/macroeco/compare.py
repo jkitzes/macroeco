@@ -95,7 +95,6 @@ class CompareDistribution(object):
         for dist in self.dist_list:
             dist.fit(self.data_list)
             
-            import pdb; pdb.set_trace()
             nlls = nll(dist.pmf(self.data_list)[0])
             #NOTE: dist.par_num is the number of parameters of distribution
             k = np.repeat(dist.par_num, len(nlls))
@@ -223,7 +222,48 @@ class CompareDistribution(object):
             LRT_list[comp_kw] = lrt
         return LRT_list
 
-    def summary(self, mins=10, crt=False):
+    def compare_rarity(self, rads, mins_list):
+        '''
+        This script takes in the output from self.compare_rads and a list of
+        minimum values against which to compare the observed and predicted
+        rads.
+        and outputs a dictionary with length self.dist_list + 1 (all
+        distributions + observed).  Each keyword in this dict looks up a dict
+        of len(mins_list) where the keywords are the values against which the
+        rads will be <=.  Each one of these subdictionaries looks up a list
+        with len(self.data_list).
+
+        Parameters
+        ----------
+        rads : dict
+            The output from self.compare_rads(). 
+        mins_list : array-like object
+            A list of numbers.  Each number number will be used in the
+            following function: rad <= mins_list[i].
+
+        Returns
+        -------
+        : dict
+            Returns a dictionary with length self.dist_list + 1 (all
+        distributions + observed).  Each keyword in this dict looks up a dict
+        of len(mins_list) where the keywords are the values against which the
+        rads will be <=.  Each one of these subdictionaries looks up a list
+        with len(self.data_list).
+
+
+        '''
+        mins_list = make_array(mins_list)
+
+        rarity = {}
+        keys = list(rads.viewkeys())
+        for kw in keys:
+            rarity[kw] = {}
+            for mins in mins_list:
+                rarity[kw][mins] = [sum(data <= mins) for data in rads[kw]]
+        return rarity
+
+
+    def summary(self, rads, mins_list=[10], crt=False):
         '''
         Summarizes the given datasets and the predicted rads. Looks at
         total balls sampled ('balls'), number of urns ('urns'), the max balls
@@ -233,7 +273,9 @@ class CompareDistribution(object):
 
         Parameters
         ----------
-        mins : int
+        rads : dict
+            The dictionary returned by self.compare_rads()
+        mins_list : list
             Bins with balls less than or equal to 10
         crt : bool
             If True, corrected AIC, if False, not
@@ -243,18 +285,26 @@ class CompareDistribution(object):
         : dict
             Dictionary of dictionaries of length self.dist_list + 1.  Each
             sub-dictionary other than 'obs' contains the keywords balls, urns,
-            max, tot <= MIN, and aic
+            max, tot_min, aic, aic_d, aic_w, and par_num.  Each of these
+            keywords contains a list that is the same length as the number of
+            sads under consideration.
+
+            aic = AIC
+            aic_d = Delta AIC
+            aic_w = AIC weights
+            par_num = Parameer number of the given distribution
+
 
         '''
         summary = {}
-        rads = self.compare_rads()
+        rarity = self.compare_rarity(rads, mins_list=mins_list)
         for kw in rads.iterkeys():
             summary[kw] = {}
             summary[kw]['balls'] = [np.sum(data) for data in rads[kw]]
             summary[kw]['urns'] = [len(data) for data in rads[kw]]
             summary[kw]['max'] = [np.max(data) for data in rads[kw]]
-            summary[kw]['tot_min'] = [sum(data <= mins) for data in 
-                                                                rads[kw]]
+            summary[kw]['tot_min'] = rarity[kw]
+
         aic_vals = self.compare_aic_measures(crt=crt)
         names = [get_name(dist) for dist in self.dist_list]
         for i, nm in enumerate(names):
@@ -426,9 +476,6 @@ class CompareIED(object):
             dist.fit((self.ied_list, self.sad_list))
             reds_dict[get_name(dist)] = dist.rad()
         return reds_dict
-
-    def summary(self):
-        pass
 
 class CompareSED(object):
     '''

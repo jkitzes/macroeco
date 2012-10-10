@@ -47,9 +47,14 @@ class DistOutput(object):
         '''
         Parameters
         ----------
-        smry : dict
-            A dictionary as returned by the fucntion compare_summary within
-            the CompareDistribution class
+        smry : tuple
+            A tuple of length two in which the first object is a dictionary as
+            returned by the fucntion compare_summary within the 
+            CompareDistribution class.  The second object is  dictionary with
+            the keyword 'mins' that refers to the abundance that the 'tot_min'
+            keyword is less than OR equal to. If mins = 1, tot_min desribes the
+            number of items with counts <= 1. 
+
         criteria : array-like object
             An array-like object in which contains either string or dicts that
             tell how each dataset was generated.  Describes the subsetting of
@@ -61,25 +66,38 @@ class DistOutput(object):
 
         '''
         logging.info('Writing summary table')
+
         tot_sad = len(smry['obs']['balls'])
         if criteria != None:
             assert len(criteria) == tot_sad, "len(criteria) must  equal" + \
                                    " number of data arrays under consideration"
+        ob = smry['obs']
         for i in xrange(tot_sad):
             fout = open(self.out_dir + '_summary_table_' + str(i) + '.txt', 'w')
             if criteria != None:
                 fout.write('CRITERIA: ' + str(criteria[i]) + '\n\n')
             else:
                 fout.write('CRITERIA: NONE ' + str(i) + '\n\n')
-            ob = smry['obs']
+
+            # Getting rarity 
+            ob_rare = {} 
+            for mins in ob['tot_min'].iterkeys():
+                ob_rare['<=' + str(mins)] = ob['tot_min'][mins][i]
+
             fout.write('EMPIRICAL VALUES:\n' + self.urns + ' = ' + 
                     str(ob['urns'][i]) + '\n' + self.balls + ' = ' + 
                     str(ob['balls'][i]) + '\nObserved Nmax= ' + 
                     str(ob['max'][i]) + '\nObserved Rarity = ' +
-                    str(ob['tot_min'][i]) + '\n\n')
+                    str(ob_rare) + '\n\n')
             for kw in smry.iterkeys():
                 if kw != 'obs':
                     dt= smry[kw]
+                    
+                    # Getting rarity
+                    dt_rare = {}
+                    for mins in dt['tot_min'].iterkeys():
+                        dt_rare['<=' + str(mins)] = dt['tot_min'][mins][i]
+
                     fout.write('PREDICTED DISTRIBUTION : ' + kw + '\n' + 
                     self.urns + ' = ' + str(dt['urns'][i]) + '\n' + 
                     self.balls + ' = ' + str(dt['balls'][i]) + 
@@ -87,8 +105,8 @@ class DistOutput(object):
                     str(dt['aic_d'][i]) + '\nAIC_weight = ' +
                     str(dt['aic_w'][i]) + '\nNumber of Parameters = ' + 
                     str(dt['par_num'][i]) + '\nPredicted Nmax = ' + 
-                    str(dt['max'][i]) + '\nPredicted Rarity = ' + 
-                    str(dt['tot_min'][i]) + '\n\n')
+                    str(dt['max'][i]) + '\nPredicted Rarity = ' +
+                    str(dt_rare) + '\n\n')
             fout.close()
 
     def plot_rads(self, rads, criteria=None):
@@ -116,19 +134,26 @@ class DistOutput(object):
             
             # Plot all columns of the rec array
             plot_rec_columns(data)
-
-            if criteria != None:
-                plt.title('RAD criteria: ' + str(criteria[i]))
-            else:
-                plt.title('RAD: plot number ' + str(i))
             plt.semilogy()
             plt.ylabel('log(abundance)')
             plt.xlabel('rank')
-            logging.info('Saving figure ' + self.out_dir + '_rank_abundance_' 
-                            + str(i))
-            plt.savefig(self.out_dir + '_rank_abundance_' + str(i))
+            if criteria != None and np.all([type(crt) != dict for crt in
+                                                                    criteria]):
+                plt.title('RAD criteria: ' + str(criteria[i]))
+                logging.info('Saving figure and csv ' + self.out_dir + 
+                                         '_rank_abundance_' + str(criteria[i]))
+                plt.savefig(self.out_dir + '_rank_abundance_' + 
+                                                              str(criteria[i]))
+                output_form(recs[i], self.out_dir + '_rank_abundance_' +
+                                                              str(criteria[i]))
+            else:
+                plt.title('RAD: plot number ' + str(i))
+                logging.info('Saving figure ' + self.out_dir + 
+                                                   '_rank_abundance_' + str(i))
+                plt.savefig(self.out_dir + '_rank_abundance_' + str(i))
+                output_form(recs[i], self.out_dir + '_rank_abundance_' + str(i))
+            
             plt.clf()
-            output_form(recs[i], self.out_dir + '_rank_abundance_' + str(i))
     
     def plot_cdfs(self, cdfs, obs_sads, criteria=None):
         '''
@@ -158,21 +183,30 @@ class DistOutput(object):
             for nm in names:
                 plt.plot(np.sort(obs_sads[i]), np.sort(data[nm]), '-o')
             plt.legend(names, loc='best')
-
-            if criteria != None:
-                plt.title('CDF criteria: ' + str(criteria[i]))
-            else:
-                plt.title('CDF: plot number ' + str(i))
             #plt.semilogx()
             plt.ylabel('cumulative probability')
             plt.xlabel('abundance')
-            logging.info('Saving figure ' + self.out_dir + '_cdf_plot_' 
-                            + str(i))
-            plt.savefig(self.out_dir + '_cdf_plot_' + str(i))
-            plt.clf()
+            
+            # Add observed to cdf array
             n_rec = add_field(data, [('n', np.int)])
             n_rec['n'] = obs_sads[i]
-            output_form(n_rec, self.out_dir + '_cdf_plot_' + str(i))
+
+            if criteria != None and np.all([type(crt) != dict for crt in
+                                                                    criteria]):
+                plt.title('CDF criteria: ' + str(criteria[i]))
+                logging.info('Saving figure and csv ' + self.out_dir +
+                                               '_cdf_plot_' + str(criteria[i]))
+                plt.savefig(self.out_dir + '_cdf_plot_' + str(criteria[i]))
+                output_form(n_rec, self.out_dir + '_cdf_plot_' +
+                                                            str(criteria[i]))
+
+            else:
+                plt.title('CDF: plot number ' + str(i))
+                logging.info('Saving figure and csv ' + self.out_dir +
+                                                        '_cdf_plot_' + str(i))
+                plt.savefig(self.out_dir + '_cdf_plot_' + str(i))
+                output_form(n_rec, self.out_dir + '_cdf_plot_' + str(i))
+            plt.clf()
 
 class SAROutput(object):
     '''
@@ -330,6 +364,9 @@ class SEDOutput(object):
         for i, data in enumerate(recs):
 
             plot_rec_columns(data)
+            plt.semilogx()
+            plt.ylabel('Energy')
+            plt.xlabel('log(rank)')
 
             if spp != None:
                 if criteria != None:
@@ -342,9 +379,7 @@ class SEDOutput(object):
                     plt.title('Criteria: ' + str(criteria[i]))
                 else:
                     plt.title('Plot number ' + str(i))
-            plt.semilogx()
-            plt.ylabel('Energy')
-            plt.xlabel('log(rank)')
+            
             logging.info('Saving figure ' + self.out_dir + '_sed_rank_energy_' 
                           + str(i))
             plt.savefig(self.out_dir + '_sed_rank_energy_' + str(i))

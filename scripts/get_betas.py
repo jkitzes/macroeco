@@ -32,6 +32,9 @@ This script saves a csv file with columns 'N', 'S', and 'beta', where the
 
 '''
 
+required_params = {'approximation' : 'A boolean that determines if beta is ' +\
+                    ' approximated'}
+
 if __name__ == '__main__':
 
     import logging
@@ -41,7 +44,8 @@ if __name__ == '__main__':
     from macroeco.utils.form_func import output_form
     from matplotlib.mlab import csv2rec
 
-    wf = Workflow(clog=True, svers=__version__)
+    wf = Workflow(required_params=required_params, clog=True, 
+                                                            svers=__version__)
 
     for data_path, output_ID, params in wf.single_datasets():
         n_s = csv2rec(data_path)
