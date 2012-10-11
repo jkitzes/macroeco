@@ -316,12 +316,57 @@ class Grid_Data:
 
         #Remove all '\n' from the end of each cell in grid
         #Not technically necessary but just being clean
-        for grid in self.grids:
+        self.grids = remove_char(self.grids)
+        '''for grid in self.grids:
             for name in grid.dtype.names:
                 for i in xrange(len(grid[name])): 
                     while grid[name][i][::-1].find('\n') == 0:
-                        grid[name][i] = grid[name][i][:-1]
+                        grid[name][i] = grid[name][i][:-1]'''
 
+        self.grids_archival = [np.copy(data) for data in self.grids]
+
+    def truncate_grid_cells(self, symbol):
+        '''
+        This function will look at each cell in grid list and truncated the
+        string within the cell at AND after the first instance of a given
+        symbol.
+
+        Parameters
+        ----------
+        symbol : char (string of length one)
+            The symbol at which to being truncation
+
+        '''
+        
+        for i in xrange(len(self.grids)):
+            for nm in self.grids[i].dtype.names:
+                for j in xrange(len(self.grids[i][nm])):
+                    ind = self.grids[i][nm][j].find(symbol)
+                    if ind != -1:
+                        self.grids[i][nm][j] = self.grids[i][nm][j][:ind]
+
+        self.grids = remove_char(self.grids)
+
+    def remove_and_replace(self, remove, replace):
+        '''
+        Removes a string and replaces it with another one
+
+        Paramters
+        ---------
+        remove : string
+            String to be removed
+        replace : string
+            String to replace removed string
+
+        '''
+
+        for i in xrange(len(self.grids)):
+            for nm in self.grids[i].dtype.names:
+                for j in xrange(len(self.grids[i][nm])):
+                    ind = self.grids[i][nm][j].find(remove)
+                    if ind != -1:
+                        self.grids[i][nm][j] =\
+                                self.grids[i][nm][j].replace(remove, replace)
 
     def find_unique_spp_in_grid(self, spacer='-', spp_sep='\n'):
         '''
@@ -332,7 +377,7 @@ class Grid_Data:
         ----------
         spacer : str
             The character separating the species code from the species count.
-            Default value is '-' (n-slash)
+            Default value is '-' (n-dash)
 
         spp_sep : str
             The character that separates a speces/count combination from
@@ -488,7 +533,7 @@ class Dense_Data:
 
         assert len(filenames) == len(self.columnar_data), "Number of filenames\
                                  must be the same as the number of datasets"
-        for i, data in self.columnar_data:
+        for i, data in enumerate(self.columnar_data):
             output_form(data, filenames[i]) 
 
 
@@ -591,6 +636,20 @@ class Transect_Data:
                                  must be the same as the number of datasets"
         for i, data in self.columnar_data:
             output_form(data, filenames[i]) 
+
+
+def remove_char(grid_list, char='\n'):
+    '''
+    Removes the given char from the end of each cell in grid list
+    '''
+
+    for grid in grid_list:
+        for name in grid.dtype.names:
+            for i in xrange(len(grid[name])): 
+                while grid[name][i][::-1].find('\n') == 0:
+                    grid[name][i] = grid[name][i][:-1]
+    
+    return grid_list
 
 
 

@@ -67,6 +67,7 @@ if __name__ == '__main__':
     import macroeco.compare as comp
     from macroeco.utils.form_func import output_form
     import numpy as np
+    import os
 
     wf = Workflow(required_params=required_params, clog=True, 
                                                             svers=__version__)
@@ -92,8 +93,8 @@ if __name__ == '__main__':
         keys = list(rarity.viewkeys())
         dtype = [(kw, np.int) for kw in keys]
         max_len = np.max([len(str(crit)) for crit in cmpr.criteria])
-        dtype.insert(0, ('criteria', 'S' + str(max_len)))
-
+        dtype.insert(0, ('criteria', 'S90')) # arbitrary length
+        dtype.insert(0, ('data_name', 'S90')) # arbitrary length
 
         # Get a list of my minimums
         rare_list = []
@@ -101,6 +102,8 @@ if __name__ == '__main__':
         for mn in mins:
             rarity_array = np.empty(len(cmpr.data_list), dtype=dtype)
             rarity_array['criteria'] = cmpr.criteria
+            nm = os.path.split(data_path)[1].split('.')[0]
+            rarity_array['data_name'] = np.repeat(nm, len(rarity_array))
             for kw in keys:
                 rarity_array[kw] = rarity[kw][mn]
             rare_list.append(rarity_array)
@@ -108,7 +111,7 @@ if __name__ == '__main__':
         # Output results
         for i, rare in enumerate(rare_list):
             output_form(rare, output_ID + '_rarity_<=_' + str(mins[i]))
-
+        
         logging.info('Completed analysis %s\n' % output_ID)
     logging.info("Completed 'compare_rarity.py' script")
 

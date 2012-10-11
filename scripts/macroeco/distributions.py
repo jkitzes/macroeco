@@ -533,17 +533,6 @@ class Distribution(object):
 
         return tuple(retrieved_params)
 
-
-class RootError(Exception):
-    '''Error if no or multiple roots exist when only one should exist.'''
-
-    def __init__(self, value=None):
-        Exception.__init__(self)
-        self.value = value
-    def __str__(self):
-        return '%s' % self.value
-
-
 class DownscaleError(Exception):
     '''Catch downscale errors'''
     def __init__(self, value=None):
@@ -614,8 +603,14 @@ class logser(Distribution):
         var['p'] = []
 
         for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
-            tp = scipy.optimize.brentq(eq, start, stop, args=(tn_samp,ttot_obs), 
-                                       disp=True)
+            # Catching cryptic brentq error
+            try:
+                tp = scipy.optimize.brentq(eq, start, stop, 
+                                            args=(tn_samp,ttot_obs), disp=True)
+            except(ValueError):
+                raise ValueError("No solution to %s.pmf when tot_obs = %f and"\
+                                  % (self.__class__.__name__, ttot_obs) + 
+                                  " n_samp = %f" % (tn_samp)) 
             tpmf = stats.logser.pmf(tn, tp)
             var['p'].append(tp)
             pmf.append(tpmf)
@@ -698,10 +693,15 @@ class logser_ut(Distribution):
 
             else:
                 k = np.linspace(1, ttot_obs, num=ttot_obs)
-                tx = scipy.optimize.brentq(eq, start,
+                try:
+                    tx = scipy.optimize.brentq(eq, start,
                                min((flmax/tn_samp)**(1/float(ttot_obs)), stop), 
                                args = (k, ttot_obs, tn_samp), disp=True)
-                tnorm = np.sum(tx ** k / k)  # From Ethan White's trun_logser_pmf
+                except(ValueError):
+                    raise ValueError("No solution to %s.pmf when tot_obs = "
+                                  % (self.__class__.__name__) + 
+                                  "%.2f and n_samp = %f" % (ttot_obs, tn_samp))
+                tnorm = np.sum(tx ** k / k)
                 tpmf = (tx ** tn / tn) / tnorm
 
             var['x'].append(tx)
@@ -807,8 +807,10 @@ class logser_ut_appx(Distribution):
                             tx = scipy.optimize.brentq(eq, xmax, stop, 
                                            args=(tn_samp, ttot_obs), disp=True)
                     if ymax < 0:
-                        raise RootError('No solution to constraint equation' +
-                                    ' with given values of n_samp and tot_obs') 
+                        raise ValueError('No solution to ' +
+                            ' %s.pmf' % (self.__class__.__name__) +
+                            ' when tot_obs = %.2f and n_samp = %.2f ' % 
+                            (ttot_obs, tn_samp)) 
 
                 g = -1/np.log(tx)
                 tpmf = (1/np.log(g)) * ((tx**tn)/tn)
@@ -1277,7 +1279,7 @@ class geo_ser(Distribution):
         tot_obs = self.params['tot_obs']
 
         # TODO: Additional checks?
-        assert np.all(n_samp < tot_obs), 'n_samp must be <= tot_obs'
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
 
         # Calculate fit
         self.params['k'] = []
@@ -1286,7 +1288,12 @@ class geo_ser(Distribution):
             eq = lambda x: (((x / (1 - x)) *
                              ((1 - x) ** tn_samp / (1 - (1 - x) ** tn_samp)))
                             - (ttot_obs_min / ttot_obs))
-            tk = scipy.optimize.brentq(eq, 1e-10, 1 - 1e-10, disp=True)
+            try:
+                tk = scipy.optimize.brentq(eq, 1e-10, 1 - 1e-10, disp=True)
+            except(ValueError):
+                raise ValueError("No solution for k in %s.fit with tot_obs = "\
+                                 % (self.__class__.__name__) + 
+                                 "%.2f and n_samp = %.2f" % (ttot_obs, tn_samp))
             self.params['k'].append(tk)
 
         return self
@@ -2139,10 +2146,15 @@ class tgeo(Distribution):
                 x = 0 
 
             else:
-
-                x = scipy.optimize.brentq(eq, 0, min((sys.float_info[0] *
-                    ta)**(1/float(ttot_obs)), 2), args=(ttot_obs, ta), 
-                    disp=False)
+                try:
+                    x = scipy.optimize.brentq(eq, 0, min((sys.float_info[0] *
+                        ta)**(1/float(ttot_obs)), 2), args=(ttot_obs, ta), 
+                        disp=False)
+                except:
+                    raise ValueError("No solution to %s.pmf when tot_obs = " %
+                                     (self.__class__.__name__) +
+                                     "%.2f and n_samp = %.2f" % (ttot_obs,
+                                     tn_samp))
                 z = (1 - x ** (ttot_obs + 1)) / (1 - x)
                 tpmf = (1 / z) * (x ** tn)
 
@@ -2830,9 +2842,15 @@ class psi(Distribution):
 
         for tn_samp, ttot_obs, tE, te in zip(n_samp, tot_obs, E, e):
             k = np.linspace(1, ttot_obs, num=ttot_obs)
-            tx = scipy.optimize.brentq(eq, start,
+
+            try:
+                tx = scipy.optimize.brentq(eq, start,
                                min((flmax/tn_samp)**(1/float(ttot_obs)), stop), 
                                args = (k, ttot_obs, tn_samp), disp=True)
+            except(ValueError):
+                raise ValueError("No solution to %s.pmf for tot_obs = %.2f"
+                                 % (self.__class__.__name__, ttot_obs) + 
+                                 " and n_samp = %.2f" % (tn_samp))
 
             # Set lagrange multipliers
             tbeta = -np.log(tx)
@@ -2879,9 +2897,15 @@ class psi(Distribution):
 
         for tn_samp, ttot_obs, tE, te in zip(n_samp, tot_obs, E, e):
             k = np.linspace(1, ttot_obs, num=ttot_obs)
-            tx = scipy.optimize.brentq(eq, start,
+
+            try:
+                tx = scipy.optimize.brentq(eq, start,
                                min((flmax/tn_samp)**(1/float(ttot_obs)), stop), 
                                args = (k, ttot_obs, tn_samp), disp=True)
+            except(ValueError):
+                raise ValueError("No solution to %s.cdf for tot_obs = %.2f"
+                                 % (self.__class__.__name__, ttot_obs) + 
+                                 " and n_samp = %.2f" % (tn_samp))
 
             # Set lagrange multipliers
             tbeta = -np.log(tx)
@@ -2918,9 +2942,14 @@ class psi(Distribution):
         for tn_samp, ttot_obs, tE, tn, in zip(n_samp, tot_obs, E, n_arrays):
 
             k = np.linspace(1, ttot_obs, num=ttot_obs)
-            tx = scipy.optimize.brentq(eq, start,
+            try:
+                tx = scipy.optimize.brentq(eq, start,
                                 min((flmax/tn_samp)**(1/float(ttot_obs)), stop), 
                                 args = (k, ttot_obs, tn_samp), disp=True)
+            except(ValueError):
+                raise ValueError("No solution to %s.rad for tot_obs = %.2f"
+                                 % (self.__class__.__name__, ttot_obs) + 
+                                 " and n_samp = %.2f" % (tn_samp))
             tbeta = -np.log(tx)
             tl2 = float(tn_samp) / (tE - ttot_obs) # Harte (2011) 7.26
             tl1 = tbeta - tl2
@@ -3139,9 +3168,14 @@ class nu(Distribution):
 
         for tn_samp, ttot_obs, tE, te in zip(n_samp, tot_obs, E, e):
             k = np.linspace(1, ttot_obs, num=ttot_obs)
-            tx = scipy.optimize.brentq(eq, start,
+            try:
+                tx = scipy.optimize.brentq(eq, start,
                                min((flmax/tn_samp)**(1/float(ttot_obs)), stop), 
                                args = (k, ttot_obs, tn_samp), disp=True)
+            except(ValueError):
+                raise ValueError("No solution to %s.pmf for tot_obs = %.2f"
+                                 % (self.__class__.__name__, ttot_obs) + 
+                                 " and n_samp = %.2f" % (tn_samp))
 
             # Set lagrange multipliers
             tbeta = -np.log(tx)
