@@ -17,7 +17,7 @@ gui_name = '''SSAD Analysis'''
 
 summary = '''Compares a dataset's observed ssad(s) against theoretical ssads'''
 
-explantion = '''This script takes in a dataset(s) and a list of distributions
+explanation = '''This script takes in a dataset(s) and a list of distributions
 to which the observed dataset(s)'s ssads will be compared.  The required
 parameters for this script are the following: 
 
