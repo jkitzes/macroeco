@@ -71,7 +71,7 @@ class Patch:
         self.data_table.table = self.data_table.get_subtable(subset)
 
     
-            
+    # TODO: Implement clean in sad function and remove from compare   
     def sad(self, criteria, clean=False):
         '''
         Calculates an empirical species abundance distribution given criteria.
@@ -95,15 +95,15 @@ class Patch:
         
         Returns
         -------
-        spp_list : ndarray
-            1D array listing identifiers for species in the same order as they 
-            appear in arrays found in result.
-        result : dict
-            List of tuples containing results, where first element is 
+        result : list 
+            List of tuples containing results, where the first element is a
             dictionary of criteria for this calculation and second element is a 
             1D ndarray of length species containing the abundance for each 
-            species.
+            species. The third element is 1D array listing identifiers for 
+            species in the same order as they appear in the second element of 
+            result. 
         '''
+        
         spp_list, spp_col, count_col, engy_col, mass, combinations = \
             self.parse_criteria(criteria)
 
@@ -120,10 +120,20 @@ class Patch:
                 else:
                     count = len(spp_subtable)
                 sad_list.append(count)
-                    
-            result.append((comb, np.array(sad_list)))
 
-        return spp_list, result
+            sad_list = np.array(sad_list)
+
+            if clean:
+                ind = np.where(sad_list != 0)[0]
+                sad_list = sad_list[ind]
+                temp_spp_list = spp_list[ind]
+            else:
+                temp_spp_list = spp_list
+
+                    
+            result.append((comb, sad_list, temp_spp_list))
+
+        return result
 
     def ssad(self, criteria):
         '''
@@ -148,8 +158,9 @@ class Patch:
 
 
         '''
-        spp_list, sad_out = self.sad(criteria)
-        combs, array_res = flatten_sad(sad_out)
+        sad_return = self.sad(criteria, clean=False)
+        spp_list = sad_return[0][2]
+        combs, array_res = flatten_sad(sad_return)
         ssad = {}
         
         for i, spp in enumerate(spp_list):
@@ -305,8 +316,8 @@ class Patch:
                 this_criteria[col] = div[i]
 
             # Get flattened sad for all criteria and this div
-            spp_list, sad = self.sad(this_criteria)
-            flat_sad = flatten_sad(sad)[1]
+            sad_return = self.sad(this_criteria)
+            flat_sad = flatten_sad(sad_return)[1]
 
             # Store results
             if form == 'sar':
@@ -338,7 +349,9 @@ class Patch:
             areas.append(area)
 
         # Return
-        return areas, mean_result, full_result
+        rec_sar = np.array(zip(mean_result, areas), dtype=[('items', np.float),
+                                                           ('area', np.float)])
+        return rec_sar, full_result
 
     def ied(self, criteria, normalize=True, exponent=0.75):
         '''
@@ -360,11 +373,12 @@ class Patch:
 
         Returns
         -------
-        result : tuple
+        result : list
             List of tuples containing results, where first element is 
             dictionary of criteria for this calculation and second element is a 
             1D ndarray containing the energy measurement of each individual in
-            the subset.
+            the subset.  The third element is the full (not unique) species
+            list for the given criteria. 
 
         Notes
         -----
@@ -395,16 +409,21 @@ class Patch:
             
             # If all counts are not 1
             if count_col and (not np.all(subtable[count_col] == 1)):
+                
+                # Remove any zero counts
+                subtable = subtable[subtable[count_col] != 0]
+                # Convert counts to ints
+                temp_counts = subtable[count_col].astype(int)
+
                 energy = np.repeat((subtable[this_engy] /
-                        subtable[count_col]), subtable[count_col])
-                species = np.repeat(subtable[spp_col], subtable[count_col])
+                        subtable[count_col]), temp_counts)
+                species = np.repeat(subtable[spp_col], temp_counts)
             else:
                 energy = subtable[this_engy] 
                 species = subtable[spp_col]
 
-            # Convert mass to energy is mass is True
+            # Convert mass to energy if mass is True
             if mass:
-                #import pdb; pdb. set_trace()
                 energy = (energy ** exponent)
                 
             # Normalizing energy
@@ -422,8 +441,8 @@ class Patch:
         Parameters
         ----------
         criteria : dict
-            Dictionary must have contain a key with the value 'energy'.  See
-            sad method for further requirements.
+            Dictionary must have contain a key with the value 'energy' or
+            'mass'.  See sad method for further requirements.
 
         Returns
         -------
@@ -456,6 +475,50 @@ class Patch:
 
             result.append((this_ied[0], this_criteria_sed))
         
+        return result
+    
+    def ased(self, criteria, normalize=True, exponent=0.75):
+        '''
+        Calculates the average species energy distribution for each given
+        species in a subset. 
+        
+        Parameters
+        ----------
+        criteria : dict
+            Dictionary must have contain a key with the value 'energy' or
+            'mass'.  See sad method for further requirements.
+        
+        Returns
+        -------
+        result : list 
+            List of tuples containing results, where the first element is a
+            dictionary of criteria for this calculation and second element is a 
+            1D ndarray of length species containing the average energy for each 
+            species. The third element is 1D array listing identifiers for 
+            species in the same order as they appear in the second element of 
+            result.         
+
+        Notes
+        -----
+        This is equivalent to the nu distribution from Harte 2011
+
+        '''
+
+        sed = self.sed(criteria, normalize=normalize, exponent=exponent)
+
+        result = []
+        for this_sed in sed:
+            spp_list = list(this_sed[1].viewkeys())
+            spp_list.sort()
+
+            # Take the mean energy for each species
+            nu = [np.mean(this_sed[1][spp]) for spp in spp_list if
+                                                    len(this_sed[1][spp]) != 0]
+            # Truncated spp_list if necessary
+            spp_list = [spp for spp in spp_list if len(this_sed[1][spp]) != 0]
+            
+            result.append((this_sed[0], np.array(nu), np.array(spp_list)))
+
         return result
 
 def flatten_sad(sad):
