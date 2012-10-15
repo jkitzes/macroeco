@@ -95,6 +95,7 @@ import numpy as np
 import scipy.stats as stats
 import scipy.optimize 
 import scipy.special
+from copy import deepcopy
 import math as m
 import scipy.integrate as integrate
 import sys
@@ -188,31 +189,88 @@ class Curve(object):
         # methods can inherit this docstring.
         pass
 
-    def fit(self, data, full_sad):
+    def univ_curve(self, num_iter=5, direction='down', param=None):
         '''
-        This fit method fills the required parameters for a Curve object.
+        Generating a univsersal curve for different curves.  A universal curve
+        is defined as the slope value (z) at a function y = f(x) at a given x
+        plotted against (x / y). This function halfs and doubles x and
+        calculates the slope using the average. x = 1 is considered the
+        anchor scale.
 
         Parameters
         ----------
-        data :  tuple of array-like objects
-            data conatains two array-like object.  The first is a list of area
-            fractions (area / anchor area) and the second is a list of
-            species/items numbers corresponding to those area fractions.
-        full_sad : array-like object
-            The full_sad at the anchor area
+        num_iter : int
+            Number of halfings at which to calculate z.
+        direction : string
+            Either 'down' or 'up'.  The direction to iterate the sar.
+        param : string
+            If not None, will look for the given string in the self.params
+            dict and set multiplier to this value. If None, multiplier is one.
 
         '''
         
-        # TODO: Make this pass and do specific fit within each derived class
-        # Assertion statements
-        assert len(data) == 2, "data must contain two objects"
-        assert len(data[0]) == len(data[1]), "Area and species number " + \
-                                        "arrays must be of the same length"
-        full_sad = make_array(full_sad)
-        self.params['S'] = len(full_sad)
-        self.params['N'] = sum(full_sad)
-        return self
+        # Allow multiplier to be set to examine different relationships
+        if param != None:
+            multiplier = self.params.get(param, None)
+            assert multiplier != None, "%s not found in self.params" % param
+        else:
+            multiplier = 1
 
+        # Calculating z using equation from Harte et al. 2009
+        def z(a):
+            return (0.5 * (np.log(self.vals(a)['items'] / self.vals(0.5 *
+                        a)['items']) + np.log(self.vals(2 * a)['items'] / 
+                        self.vals(a)['items']))) / np.log(2)
+        
+        # Get the area list
+        if direction == 'down':
+            a_list = [1 / (2**(i)) for i in np.arange(num_iter + 1)]
+
+        elif direction == 'up':
+            a_list = [2**(i) for i in np.arange(num_iter + 1)]
+
+        else:
+            raise ValueError('%s not a recognized direction' % direction)
+
+        # Compute universal curve parameters
+        a_list = np.array(a_list)
+        zs = z(a_list)
+        x_over_y = (a_list * multiplier) / self.vals(a_list)['items']
+
+        uni =  np.array(zip(zs, x_over_y), dtype=
+                                      [('z', np.float),('x_over_y', np.float)])
+        uni.sort(order=['x_over_y'])
+
+        return uni
+
+    def get_params(self, parameter_list):
+        '''
+        Gets and validates basic distribution parameters
+
+        Parameters
+        ----------
+        parameter_list : list
+            A list of strings where each string is a keyword for the parameter
+            in the self.params dictionary.  
+
+        Returns
+        -------
+        : tuple
+            Validated parameters with the sample length as parameter_list
+ 
+        '''
+
+        retrieved_params = []
+
+        # Get params or None from self.params
+        for i, param in enumerate(parameter_list):
+            retrieved_params.append(self.params.get(param, None))
+
+            # If parameter not found, raise error
+            if retrieved_params[i] is None:
+                raise TypeError('%s not found in self.params' % param)
+        
+        return tuple(retrieved_params)
 
 class Distribution(object):
     '''
@@ -280,9 +338,36 @@ class Distribution(object):
 
         See class docstring for more specific information on this distribution.
         '''
-        # This method does nothing, but exists so that derived class pmf
-        # methods can inherit this docstring.
-        pass
+        # This method raises an error if a derived class does not have its own
+        # pmf method.
+        raise NotImplementedError('PMF is not implemented for this' + 
+                                  ' Distribution class')
+
+    def pdf(self, n):
+        '''
+        Probability density function method.
+
+        Parameters
+        ----------
+        n : int, float or array-like object
+            Values at which to calculate pdf. May be a list of same length as 
+            parameters, or single iterable.
+
+        Returns
+        -------
+        pdf : list of ndarrays
+            List of 1D arrays of probability of observing sample n.
+        vars : dict containing lists of floats
+            Intermediate parameter variables calculated for pdf, as 
+            dict.
+
+        See class docstring for more specific information on this distribution.
+        '''
+        # This method raises an error if a derived class does not have its own
+        # pdf method
+
+        raise NotImplementedError('PDF is not implemented for this' + 
+                                  ' Distribution class')
 
 
     def cdf(self, n):
@@ -315,7 +400,13 @@ class Distribution(object):
         # Calculate pmfs
         max_n = [np.max(tn) for tn in n]
         n_in = [np.arange(self.min_supp, i + 1) for i in max_n]
-        pmf_list, var = self.pmf(n_in)
+
+        # Extend for pdf or pmf
+        try:
+            pmf_list, var = self.pdf(n_in)
+
+        except(NotImplementedError):
+            pmf_list, var = self.pmf(n_in)
 
         # Calculate cdfs
         cdf = []
@@ -340,20 +431,20 @@ class Distribution(object):
         '''
 
         # Get parameters
-        S, N = self.get_params()
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
 
-        # TODO: Add error or warning if N is large enough that python is slow
-        # FIX: Throw warning that N is large and that calculation will take
-        # awhile.  N > 100,000. Base CDF should thrown the same warning. 
+        # TODO: Add error or warning if tot_obs is large enough that python is slow
+        # FIX: Throw warning that tot_obs is large and that calculation will take
+        # awhile.  tot_obs > 100,000. Base CDF should thrown the same warning. 
 
-        # Calculate pmfs, going up to N for upper limit
-        n_arrays = [np.arange(self.min_supp, 1*(i + 1)) for i in N]
+        # Calculate pmfs, going up to tot_obs for upper limit
+        n_arrays = [np.arange(self.min_supp, 1*(i + 1)) for i in tot_obs]
         pmf, var = self.pmf(n_arrays)
         
         # Calculate rad
         rad = []
-        for tS, tN, tpmf in zip(S, N, pmf):
-            trad = make_rank_abund(tpmf, tS, min_supp=self.min_supp)
+        for tn_samp, ttot_obs, tpmf in zip(n_samp, tot_obs, pmf):
+            trad = make_rank_abund(tpmf, tn_samp, min_supp=self.min_supp)
             rad.append(trad)
 
         return rad
@@ -378,14 +469,13 @@ class Distribution(object):
         # By default, loop through ndarrays in data and extract n_samp
         # and tot_obs for each one.
 
-        #Check data argument
-        if type(data) != type([]):
-            raise TypeError('Data must be a list of iterables')
-        if not np.all(np.array([np.iterable(dt) for dt in data])):
-            raise TypeError('Objects in data must be iterable')
+        data = check_list_of_iterables(data) 
         
-        #Convert data argument to arrays
-        data = [np.array(data) for data in data]
+        # Check if distribution can support the fitted data
+        num_zeros = np.array([sum(dt == 0) for dt in data])
+        if np.any(num_zeros != 0) and self.min_supp == 1:
+            raise ValueError('%s does not suppot data with zeros' %
+                                                    self.__class__.__name__)
 
         n_samp = []
         tot_obs = []
@@ -400,61 +490,48 @@ class Distribution(object):
         return self
 
 
-    def get_params(self, n=None):
+    def get_params(self, parameter_list):
         '''
         Gets and validates basic distribution parameters
 
         Parameters
         ----------
-        n : int, float or array-like object
-            Values at which to calculate pmf. May be a list of same length as 
-            parameters, or single iterable.
+        parameter_list : list
+            A list of strings where each string is a keyword for the parameter
+            in the self.params dictionary.  
 
         Returns
         -------
         : tuple
-            Validated n_samp/S, tot_obs/N, and n parameters
+            Validated parameters with the sample length as parameter_list
  
         '''
 
-        # TODO: Have it take a list of parameters that you want.  The
-        # parameters are strings.  Get each of parameters specified by the
-        # strings. Return a tuple still.
-        n_samp = make_array(self.params.get('n_samp', None))
-        if n_samp[0] is None:
-            n_samp = make_array(self.params.get('S', None))
+        retrieved_params = []
 
-        tot_obs = make_array(self.params.get('tot_obs', None))
-        if tot_obs[0] is None:
-            tot_obs = make_array(self.params.get('N', None))
+        # Get params or None from self.params
+        for i, param in enumerate(parameter_list):
+            retrieved_params.append(make_array(self.params.get(param, None)))
 
-        # TODO: Move back into __init__
-        if n != None:
-            n = expand_n(n, len(n_samp))
+            # If parameter not found, raise error
+            if retrieved_params[i][0] is None:
+                raise TypeError('%s not found in self.params' % param)
 
-        # Validate parameters
-        assert len(n_samp) == len(tot_obs), 'Length of n_samp/S and' +\
-                                            ' tot_obs/N must be ' + 'the same'
-        assert n_samp[0] != None, 'n_samp/S parameter not given'
-        assert tot_obs[0] != None, 'tot_obs/N parameter not given'
-        assert np.all(n_samp > 1), 'n_samp/S must be greater than 1'
-        assert np.all(tot_obs > 0), 'tot_obs/N must be greater than 0'
-    
-        if n != None:
-            return n_samp, tot_obs, n
-        else:
-            return n_samp, tot_obs
+        # Check that all params are the same length. If they don't, extend
+        # parameters with only one item
+        len_ind = [len(p) for p in retrieved_params]
+        unq = np.unique(len_ind)
+        if len(unq) != 1:
+            if len(unq) == 2 and (unq[0] == 1 or unq[1] == 1):
+                max_len = np.max(len_ind)
+                ones = np.where(np.array(len_ind) == 1)[0]
+                for i in ones:
+                    retrieved_params[i] = np.repeat(retrieved_params[i],
+                                                                       max_len)
+            else:
+                raise ValueError('Parameters do not have the same length')
 
-
-class RootError(Exception):
-    '''Error if no or multiple roots exist when only one should exist.'''
-
-    def __init__(self, value=None):
-        Exception.__init__(self)
-        self.value = value
-    def __str__(self):
-        return '%s' % self.value
-
+        return tuple(retrieved_params)
 
 class DownscaleError(Exception):
     '''Catch downscale errors'''
@@ -480,9 +557,9 @@ class logser(Distribution):
 
     Parameters
     ----------
-    S or n_samp : int or iterable
+    n_samp : int or iterable
         Total number of species / samples
-    N or tot_obs: int or iterable
+    tot_obs: int or iterable
         Total number of individuals / observations
 
     Vars
@@ -494,6 +571,9 @@ class logser(Distribution):
     -----
     To use a known mean of the distribution as the parameter, set n_samp = 1 
     and tot_obs = mean.
+
+    The total species (S) is equivalent to n_samp and the total
+    individuals (N) is equivalent to tot_obs.
     '''
     
     @doc_inherit
@@ -506,21 +586,31 @@ class logser(Distribution):
     def pmf(self, n):
         
         # Get parameters
-        S, N, n = self.get_params(n=n)
-        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
         
         # Calculate pmf
         stop = 1 - 1e-10
         start = -2
-        eq = lambda p, S, N: (((N/p) - N) * (-(np.log(1 - p)))) - S
+        eq = lambda x, n_samp, tot_obs: (((tot_obs/x) - tot_obs) * 
+                                                (-(np.log(1 - x)))) - n_samp
 
         pmf = []
         var = {}
         var['p'] = []
 
-        for tS, tN, tn in zip(S, N, n):
-            tp = scipy.optimize.brentq(eq, start, stop, args=(tS,tN), 
-                                       disp=True)
+        for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
+            # Catching cryptic brentq error
+            try:
+                tp = scipy.optimize.brentq(eq, start, stop, 
+                                            args=(tn_samp,ttot_obs), disp=True)
+            except(ValueError):
+                raise ValueError("No solution to %s.pmf when tot_obs = %.2f"\
+                                  % (self.__class__.__name__, ttot_obs) + 
+                                  " and n_samp = %.2f" % (tn_samp)) 
             tpmf = stats.logser.pmf(tn, tp)
             var['p'].append(tp)
             pmf.append(tpmf)
@@ -540,9 +630,9 @@ class logser_ut(Distribution):
 
     Parameters
     ----------
-    S or n_samp : int or iterable
+    n_samp : int or iterable
         Total number of species / samples
-    N or tot_obs: int or iterable
+    tot_obs: int or iterable
         Total number of individuals / observations
    
     Vars
@@ -559,6 +649,9 @@ class logser_ut(Distribution):
     start and stop parameters for the brentq procedure are set close to these 
     values. However, x can occasionally be greater than one, so the maximum 
     stop value of the brentq optimizer is 2.
+
+    The total species (S) is equivalent to n_samp and the total
+    individuals (N) is equivalent to tot_obs.
     '''
     
     @doc_inherit
@@ -571,34 +664,44 @@ class logser_ut(Distribution):
     def pmf(self, n):
 
         # Get parameters
-        S, N, n = self.get_params(n=n)
-        assert np.all(S <= N), 'n_samp/S must be <= to tot_obs/N'
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
         
 
         # Calculate pmf
         start = 0.3
         stop = 2
         flmax = sys.float_info[0]
-        eq = lambda x,k,N,S: sum(x ** k / float(N) * S) -  sum((x ** k) / k)
+        eq = lambda x, k, tot_obs, n_samp: sum(x ** k / float(tot_obs) * 
+                                                   n_samp) -  sum((x ** k) / k)
 
         pmf = []
         var = {}
         var['x'] = []
 
-        for tS, tN, tn in zip(S, N, n):
+        for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
 
-            # If S = N, return 1 for n = 1 and 0 otherwise (e**-beta = 0)
-            if tS == tN:
+            # If n_samp = tot_obs, return 1 for n = 1 and 0 otherwise 
+            # (e**-beta = 0)
+            if tn_samp == ttot_obs:
                 tpmf = np.zeros(len(tn))
                 tpmf[tn == 1] = 1
                 tx = 0
 
             else:
-                k = np.linspace(1, tN, num=tN)
-                tx = scipy.optimize.brentq(eq, start,
-                                       min((flmax/tS)**(1/float(tN)), stop), 
-                                       args = (k, tN, tS), disp=True)
-                tnorm = np.sum(tx ** k / k)  # From Ethan White's trun_logser_pmf
+                k = np.linspace(1, ttot_obs, num=ttot_obs)
+                try:
+                    tx = scipy.optimize.brentq(eq, start,
+                               min((flmax/tn_samp)**(1/float(ttot_obs)), stop), 
+                               args = (k, ttot_obs, tn_samp), disp=True)
+                except(ValueError):
+                    raise ValueError("No solution to %s.pmf when tot_obs = "
+                                  % (self.__class__.__name__) + 
+                                  "%.2f and n_samp = %.2f" % (ttot_obs, tn_samp))
+                tnorm = np.sum(tx ** k / k)
                 tpmf = (tx ** tn / tn) / tnorm
 
             var['x'].append(tx)
@@ -619,9 +722,9 @@ class logser_ut_appx(Distribution):
 
     Parameters
     ----------
-    S or n_samp : int or iterable
+    n_samp : int or iterable
         Total number of species / samples
-    N or tot_obs: int or iterable
+    tot_obs: int or iterable
         Total number of individuals / observations
    
     Vars
@@ -645,6 +748,9 @@ class logser_ut_appx(Distribution):
     the lagrange multiplier.  Root 2 is the root typically used in calculations 
     and is the default.  If root=1, the first root will be used and this is not 
     a true pmf.
+
+    The total species (S) is equivalent to n_samp and the total
+    individuals (N) is equivalent to tot_obs.
     '''
     
     @doc_inherit
@@ -654,51 +760,62 @@ class logser_ut_appx(Distribution):
         self.par_num = 2 # This is highly contested
     
     @doc_inherit
-    def pmf(self, n, root=2):
+    def pmf(self, n):
         
-        # TODO: remove option to change root
+        # Multiple roots.  root = 2 makes it a logseries
+        root = 2
 
         # Get parameters
-        S, N, n = self.get_params(n=n)
-        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+
+        # TODO: Additional Checks
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
 
         # Calculate pmf
         start = 0.3
         stop = 1 - 1e-10
-        eq = lambda x, S, N: (((-m.log(x))*(m.log(-1/(m.log(x))))) - 
-                                                                (float(S)/N))
+        eq = lambda x, n_samp, tot_obs: (((-m.log(x))*(m.log(-1/(m.log(x))))) - 
+                                                                (float(n_samp)/tot_obs))
         pmf = []
         var = {}
         var['x'] = []
 
-        for tS, tN, tn in zip(S, N, n):
+        for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
             
-            # TODO: What if N = S? 
+            # TODO: What if tot_obs = n_samp? 
+            if tn_samp == ttot_obs:
+                tpmf = np.zeros(len(tn))
+                tpmf[tn == 1] = 1
+                tx = 0
+            else:
+                # Try normal root finder. Will fail if two roots
+                try:
+                    tx = scipy.optimize.brentq(eq, start, stop, 
+                                            args=(tn_samp, ttot_obs),disp=True)
 
-            # Try normal root finder. Will fail it two roots
-            try:
-                x = scipy.optimize.brentq(eq, start, stop, args=(tS, tN),
-                                                                    disp=True)
-            # If that fails, try a more complex decision tree
-            except ValueError:
-                eq1 = lambda x: -1 * eq(x, tS, tN)
-                xmax = scipy.optimize.fmin(eq1, .5, disp=0)[0]
-                ymax = eq(xmax, tS, tN)
-                if ymax > 0:
-                    if root == 1:
-                        x = scipy.optimize.brentq(eq, start, xmax, args=(tS,
-                                                                tN), disp=True)
-                    if root == 2:
-                        x = scipy.optimize.brentq(eq, xmax, stop, args=(tS,
-                                                                tN), disp=True)
-                if ymax < 0:
-                    raise RootError('No solution to constraint equation with '
-                                                  + 'given values of S and N') 
+                # If that fails, try a more complex decision tree
+                except ValueError:
+                    eq1 = lambda x: -1 * eq(x, tn_samp, ttot_obs)
+                    xmax = scipy.optimize.fmin(eq1, .5, disp=0)[0]
+                    ymax = eq(xmax, tn_samp, ttot_obs)
+                    if ymax > 0:
+                        if root == 1:
+                            tx = scipy.optimize.brentq(eq, start, xmax,
+                                           args=(tn_samp, ttot_obs), disp=True)
+                        if root == 2:
+                            tx = scipy.optimize.brentq(eq, xmax, stop, 
+                                           args=(tn_samp, ttot_obs), disp=True)
+                    if ymax < 0:
+                        raise ValueError('No solution to ' +
+                            ' %s.pmf' % (self.__class__.__name__) +
+                            ' when tot_obs = %.2f and n_samp = %.2f ' % 
+                            (ttot_obs, tn_samp)) 
 
-            g = -1/np.log(x)
-            tpmf = (1/np.log(g)) * ((x**tn)/tn)
+                g = -1/np.log(tx)
+                tpmf = (1/np.log(g)) * ((tx**tn)/tn)
 
-            var['x'].append(x)
+            var['x'].append(tx)
             pmf.append(tpmf)
 
         return pmf, var
@@ -715,9 +832,9 @@ class plognorm(Distribution):
         The mu parameter of the poisson log normal
     sigma : float
         The sigma parameter of the poisson log normal
-    S or n_samp : int or iterable (optional)
+    n_samp : int or iterable (optional)
         Total number of species / samples
-    N or tot_obs: int or iterable (optional)
+    tot_obs: int or iterable (optional)
         Total number of individuals / observations
 
     Vars
@@ -730,6 +847,9 @@ class plognorm(Distribution):
     Wilber. The VGAM R package was adopted directly from Bulmer (1974). The fit 
     function was adapted from Ethan White's pln_solver function in 
     weecology.
+
+    The total species (S) is equivalent to n_samp and the total
+    individuals (N) is equivalent to tot_obs.
     '''
     
     # @doc_inherit cannot be used here because of derived plognorm_lt
@@ -776,15 +896,9 @@ class plognorm(Distribution):
         '''
 
         # Get parameters
-        mu = make_array(self.params.get('mu', None))
-        sigma = make_array(self.params.get('sigma',  None))
-
-        # Validate parameters
-        assert mu[0] != None, 'mu paramater not given'
-        assert sigma[0] != None, 'sigma parameter not given'
-        assert len(mu) == len(sigma), 'Length of mu and sigma must be the same'
-
+        mu, sigma = self.get_params(['mu', 'sigma'])
         n = expand_n(n, len(mu))
+
         n_uniq = [np.unique(tn) for tn in n]  # Speed up by calc for uniq vals
 
         # Calculate pmf, no intermediate vars
@@ -844,21 +958,12 @@ class plognorm(Distribution):
         See class docstring for more specific information on this distribution.
         '''
 
-        # TODO: Check that data is a list of iterables. Make an external method
-        # FIX: Check that data is list and objects in data are iterable 
-        if type(data) != type([]):
-            raise TypeError('Data must be a list of iterables')
-        if not np.all(np.array([np.iterable(dt) for dt in data])):
-            raise TypeError('Objects in data must be iterable')
-
-        # Check data.  can go in the same method as above
-        data = [np.array(data) for data in data]
+        super(plognorm, self).fit(data)
+        data = check_list_of_iterables(data)
 
         # Calculate and store parameters
         temp_mu = []
         temp_sigma = []
-        self.params['n_samp'] = []
-        self.params['tot_obs'] = []
 
         for tdata in data:
             mu0 = np.mean(np.log(tdata))  # Starting guesses for mu and sigma
@@ -875,9 +980,6 @@ class plognorm(Distribution):
                                             disp=0)
             temp_mu.append(mu)
             temp_sigma.append(sigma)
-
-            self.params['n_samp'].append(len(tdata))
-            self.params['tot_obs'].append(np.sum(tdata))
 
         self.params['mu'] = temp_mu
         self.params['sigma'] = temp_sigma
@@ -896,9 +998,9 @@ class plognorm_lt(plognorm):
         the mu parameter of the poisson log normal
     sigma : float
         the sigma parameter of the poisson log normal
-    S or n_samp : int or iterable (optional)
+    n_samp : int or iterable (optional)
         Total number of species / samples
-    N or tot_obs: int or iterable (optional)
+    tot_obs: int or iterable (optional)
         Total number of individuals / observations
 
     Vars
@@ -912,6 +1014,10 @@ class plognorm_lt(plognorm):
     function was adapted from Ethan White's pln_solver function in weecology.
 
     Truncation calculation based on Bulmer Eq. A1.
+
+    The total species (S) is equivalent to n_samp and the total
+    individuals (N) is equivalent to tot_obs.
+
     '''
 
     # @doc_inherit cannot be used here because class is derived from plognorm
@@ -958,13 +1064,9 @@ class plognorm_lt(plognorm):
         '''
 
         # Get parameters
-        mu = make_array(self.params.get('mu', None))
-        sigma = make_array(self.params.get('sigma',  None))
+        mu, sigma = self.get_params(['mu', 'sigma'])
 
-        # Validate parameters
-        assert mu[0] != None, 'mu paramater not given'
-        assert sigma[0] != None, 'sigma parameter not given'
-        assert len(mu) == len(sigma), 'Length of mu and sigma must be the same'
+        # TODO: Additional parameter checks
 
         # Calculate pmf, using plognorm as aid
         reg_plog = plognorm(mu=mu, sigma=sigma)
@@ -978,7 +1080,6 @@ class plognorm_lt(plognorm):
     # TODO: Write cdf method based on cdf of plognorm, similar to above
 
 
-# TODO: Make a continuous distribution
 class lognorm(Distribution):
     __doc__ = Distribution.__doc__ + \
     '''
@@ -992,9 +1093,9 @@ class lognorm(Distribution):
         The mu parameter of the log normal
     sigma : float
         The sigma parameter of the log normal
-    S or n_samp : int or iterable (optional)
+    n_samp : int or iterable (optional)
         Total number of species / samples
-    N or tot_obs: int or iterable (optional)
+    tot_obs: int or iterable (optional)
         Total number of individuals / observations
 
     Vars
@@ -1010,26 +1111,24 @@ class lognorm(Distribution):
     and calcuate the cdf by summing.  Note that this is one of the many 
     problems that Blackburn and Gaston have with using the lognormal for SADs.
     '''
-
+    
     @doc_inherit
     def __init__(self, **kwargs):
         self.params = kwargs
-        self.min_supp = 0
+        self.min_supp = 1
         self.par_num = 2
 
-    
-    @doc_inherit
+    @doc_inherit  
     def pmf(self, n):
 
         # Get parameters
-        mu = make_array(self.params.get('mu', None))
-        sigma = make_array(self.params.get('sigma',  None))
-        n = expand_n(n, len(mu))
+        tot_obs, n_samp, sigma = self.get_params(['tot_obs','n_samp','sigma'])
+        
+        # TODO: Additional parameter checks
+        n = expand_n(n, len(tot_obs))
 
-        # Validate parameters
-        assert mu[0] != None, 'mu paramater not given'
-        assert sigma[0] != None, 'sigma parameter not given'
-        assert len(mu) == len(sigma), 'Length of mu and sigma must be the same'
+        # Calculate mu
+        mu = np.log(tot_obs / n_samp) - (sigma / 2)
 
         # Calculate pmf
         pmf = []
@@ -1039,19 +1138,17 @@ class lognorm(Distribution):
 
         return pmf, None
 
-    @doc_inherit
+    @doc_inherit  
     def cdf(self, n):
 
         # Get parameters
-        mu = make_array(self.params.get('mu', None))
-        sigma = make_array(self.params.get('sigma',  None))
-        n = expand_n(n, len(mu))
+        tot_obs, n_samp, sigma = self.get_params(['tot_obs','n_samp','sigma'])
+        
+        # TODO: Additional parameter checks
+        n = expand_n(n, len(tot_obs))
 
-        # Validate parameters
-        # TODO: validate parameter method?
-        assert mu[0] != None, 'mu paramater not given'
-        assert sigma[0] != None, 'sigma parameter not given'
-        assert len(mu) == len(sigma), 'Length of mu and sigma must be the same'
+        # Calculate mu
+        mu = np.log(tot_obs / n_samp) - (sigma / 2)
 
         #Calculate cdf
         cdf = []
@@ -1061,50 +1158,32 @@ class lognorm(Distribution):
 
         return cdf, None
 
-    
-    @doc_inherit
+    @doc_inherit 
     def fit(self, data):
 
-        # TODO: Should this be done in all fit methods?
-        # Fix:  Implemented checking of data argument in base class
+        super(lognorm, self).fit(data)
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
 
-        if type(data) != type([]):
-            raise TypeError('Data must be a list of iterables')
-        if not np.all(np.array([np.iterable(dt) for dt in data])):
-            raise TypeError('Objects in data must be iterable')
+        data = check_list_of_iterables(data) 
+        tempsig = []
 
-        # Process data
-        data = [np.array(data) for data in data]
+        for tdata, tn_samp, ttot_obs in zip(data, n_samp, tot_obs): 
 
-        # Calculate and store parameters
-        temp_mu = []
-        temp_sigma = []
-        self.params['n_samp'] = []
-        self.params['tot_obs'] = []
-
-        for tdata in data:
-            mu0 = np.mean(np.log(tdata))  # Starting guesses for mu and sigma
-            sigma0 = np.std(np.log(tdata), ddof=1)
-            
-            # TODO: See plognorm TODO 
-            def ln_func(x):
-                self.params['mu'] = x[0]
-                self.params['sigma'] = x[1]
+            def ln_func(sigma):
+                self.params['tot_obs'] = ttot_obs
+                self.params['n_samp'] = tn_samp
+                self.params['sigma'] = sigma 
                 return -sum(np.log(self.pmf(tdata)[0][0]))
 
-            mu, sigma = scipy.optimize.fmin(ln_func, x0=[mu0, sigma0],
-                                            disp=0)
-            temp_mu.append(mu)
-            temp_sigma.append(sigma)
+            mle_sigma = scipy.optimize.fmin(ln_func,
+                        np.array([np.std(np.log(tdata), ddof=1)]), disp=0)[0]
+            tempsig.append(mle_sigma)
 
-            self.params['n_samp'].append(len(tdata))
-            self.params['tot_obs'].append(np.sum(tdata))
-
-        self.params['mu'] = temp_mu
-        self.params['sigma'] = temp_sigma
-
+        self.params['sigma'] = tempsig
+        self.params['n_samp'] = n_samp
+        self.params['tot_obs'] = tot_obs
         return self
-
+        
 
 class geo_ser(Distribution):
     __doc__ = Distribution.__doc__ + \
@@ -1113,9 +1192,9 @@ class geo_ser(Distribution):
 
     Parameters
     ----------
-    S or n_samp : int or iterable
+    n_samp : int or iterable
         Total number of species / samples
-    N or tot_obs: int or iterable
+    tot_obs: int or iterable
         Total number of individuals / observations
     k : float
         The fraction of resources that each species acquires. Range is 
@@ -1133,13 +1212,12 @@ class geo_ser(Distribution):
     of individuals/observations. Therefore, the cdf of this function is one at
     N.  The empirical cdf of observed data reaches one at N - S + 1 (if not
     sooner) and therefore comparisons of geo_ser cdfs and empirical cdfs will
-    often deviate near as n approaches N - S + 1 (if not sooner). 
-    
-    
-    '''
-    # TODO: @MW - Last sentence of docstring hard to understand - clarify.
-    # FIX: Clarified!
+    often deviate near as n approaches N - S + 1 (if not sooner).
 
+    The total species (S) is equivalent to n_samp and the total
+    individuals (N) is equivalent to tot_obs.
+
+    '''
 
     @doc_inherit
     def __init__(self, **kwargs):
@@ -1152,18 +1230,23 @@ class geo_ser(Distribution):
     def pmf(self, n):
 
         # Get parameters
-        S, N, n = self.get_params(n=n)
-        k = make_array(self.params.get('k', None))
-        assert k[0] != None, 'k parameter not given'
+        n_samp, tot_obs, k = self.get_params(['n_samp', 'tot_obs', 'k'])
+        n = expand_n(n, len(n_samp))
+        
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
         assert np.all(k > 0) and np.all(k <= 1), ('k must be in the '
                                                   'interval (0, 1]')
 
         # Calculate pmf
         pmf = []
-        eq = lambda x, k: (1 / x) * (1 / np.log(1 / (1 - k)))
-        for tS, tN, tk, tn in zip(S, N, k, n):
-            sumg = sum(eq(np.arange(1, tN + 1), tk))
-            tpmf = eq(tn, tk) / sumg
+
+        # Equation from May 1975.  
+        eq = lambda x, n_samp, k: (1 / x) * (1 / n_samp) * (1 / np.log(1 / 
+                                                                 (1 - k)))
+
+        for tn_samp, ttot_obs, tk, tn in zip(n_samp, tot_obs, k, n):
+            sumg = sum(eq(np.arange(1, ttot_obs + 1), tn_samp, tk))
+            tpmf = eq(tn, tn_samp, tk) / sumg #Normalizing
             pmf.append(tpmf)
 
         return pmf, None
@@ -1173,16 +1256,15 @@ class geo_ser(Distribution):
     def rad(self):
 
         # Get parameters
-        S, N = self.get_params()
-        k = make_array(self.params.get('k', None))
-        assert k[0] != None, "k parameter not given"
-        assert np.all(k > 0) and np.all(k <= 1), ('k must be in the '
+        n_samp, tot_obs, k = self.get_params(['n_samp', 'tot_obs', 'k'])
+        assert np.all(k > 0) and np.all(k <= 1), ('k must be in the ' + 
                                                   'interval (0, 1]')
         # Calculate rad
         rad = []
-        for tS, tN, tk in zip(S, N, k):
-            C = (1 - (1 - k ) ** S) ** - 1
-            trad = N * C * k * (1 - k) ** (np.arange(1, S + 1) - 1)
+        for tn_samp, ttot_obs, tk in zip(n_samp, tot_obs, k):
+            tC = (1 - (1 - tk ) ** tn_samp) ** - 1
+            trad = ttot_obs * tC * tk * (1 - tk) ** (np.arange(1, tn_samp + 1) 
+                                                                           - 1)
             rad.append(trad)
 
         return rad
@@ -1193,18 +1275,25 @@ class geo_ser(Distribution):
 
         # Get parameters
         super(geo_ser, self).fit(data)  # Run Distribution.fit method
-        S = self.params['n_samp']
-        N = self.params['tot_obs']
-        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
+        n_samp = self.params['n_samp']
+        tot_obs = self.params['tot_obs']
+
+        # TODO: Additional checks?
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
 
         # Calculate fit
         self.params['k'] = []
-        for tdata, tS, tN in zip(data, S, N):
-            tNmin = np.min(tdata)
+        for tdata, tn_samp, ttot_obs in zip(data, n_samp, tot_obs):
+            ttot_obs_min = np.min(tdata)
             eq = lambda x: (((x / (1 - x)) *
-                             ((1 - x) ** tS / (1 - (1 - x) ** tS)))
-                            - (tNmin / tN))
-            tk = scipy.optimize.brentq(eq, 1e-10, 1 - 1e-10, disp=True)
+                             ((1 - x) ** tn_samp / (1 - (1 - x) ** tn_samp)))
+                            - (ttot_obs_min / ttot_obs))
+            try:
+                tk = scipy.optimize.brentq(eq, 1e-10, 1 - 1e-10, disp=True)
+            except(ValueError):
+                raise ValueError("No solution for k in %s.fit with tot_obs = "\
+                                 % (self.__class__.__name__) + 
+                                 "%.2f and n_samp = %.2f" % (ttot_obs, tn_samp))
             self.params['k'].append(tk)
 
         return self
@@ -1217,14 +1306,18 @@ class broken_stick(Distribution):
 
     Parameters
     ----------
-    S or n_samp : int or iterable
+    n_samp : int or iterable
         Total number of species / samples
-    N or tot_obs: int or iterable
+    tot_obs: int or iterable
         Total number of individuals / observations
 
     Vars
     ----
     None
+
+    The total species (S) is equivalent to n_samp and the total
+    individuals (N) is equivalent to tot_obs.
+
     '''
 
     @doc_inherit
@@ -1238,17 +1331,20 @@ class broken_stick(Distribution):
     def pmf(self, n):
         # TODO:  PMF is not quite summing to one. But it is checking against
         # known results.  
-
+        
         # Get parameters
-        S, N, n = self.get_params(n=n) 
-        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
         
         # Calculate pmf
-        eq = lambda x, S, N: ((S - 1) / N) * ((1 - (x / N)) ** (S - 2))
+        eq = lambda x, n_samp, tot_obs: ((n_samp - 1) / tot_obs) * \
+                                          ((1 - (x / tot_obs)) ** (n_samp - 2))
         pmf = []
 
-        for tS, tN, tn in zip(S, N, n):
-            tpmf = eq(tn, tS, tN)
+        for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
+            tpmf = eq(tn, tn_samp, ttot_obs)
             pmf.append(tpmf)
 
         return pmf, None
@@ -1256,18 +1352,20 @@ class broken_stick(Distribution):
 
     @doc_inherit
     def rad(self):
-
+        
         # Get parameters
-        S, N = self.get_params()
-        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+
+        # TODO: Additional checks?
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
 
         # Calculate rad
         rad = []
-        for tS, tN in zip(S, N):
-            trad = np.empty(tS)
-            for i in xrange(tS):
-                n = np.arange(i + 1, tS + 1) 
-                trad[i] = (tN / tS) * sum(1 / n)
+        for tn_samp, ttot_obs in zip(n_samp, tot_obs):
+            trad = np.empty(tn_samp)
+            for i in xrange(tn_samp):
+                n = np.arange(i + 1, tn_samp + 1) 
+                trad[i] = (ttot_obs / tn_samp) * sum(1 / n)
             rad.append(trad)
 
         return rad
@@ -1282,9 +1380,9 @@ class sugihara(Distribution):
 
     Parameters
     ----------
-    S or n_samp : int or iterable
+    n_samp : int or iterable
         Total number of species / samples
-    N or tot_obs: int or iterable
+    tot_obs: int or iterable
         Total number of individuals / observations
 
     Notes
@@ -1303,10 +1401,12 @@ class sugihara(Distribution):
 
     The rad method has an additional optional argument for sample_size, which 
     is set to 10000 by default. 
-
+    
+    The total species (S) is equivalent to n_samp and the total
+    individuals (N) is equivalent to tot_obs.
+    
     '''
     # TODO: Back-derive pmf?
-    # TODO: Make Error/Warning if pmf or cdf called
     
     @doc_inherit
     def __init__(self, **kwargs):
@@ -1319,18 +1419,18 @@ class sugihara(Distribution):
     def rad(self, sample_size=10000):
         
         # Get parameters
-        S, N = self.get_params()
-        assert np.all(S < N), 'n_samp/S must be less than tot_obs/N'
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
 
         # Calculate rad
         rad = []
-        for tS, tN in zip(S, N):
+        for tn_samp, ttot_obs in zip(n_samp, tot_obs):
             total = []
             for i in xrange(sample_size):
-                U = np.random.triangular(0.5, 0.75, 1, size=tS - 1)
+                U = np.random.triangular(0.5, 0.75, 1, size=tn_samp - 1)
                 p = []
                 # TODO: Could this be refactored to perform better?
-                for i in xrange(tS):
+                for i in xrange(tn_samp):
                     if i == 0:
                         p.append(1)
                     else:
@@ -1343,10 +1443,20 @@ class sugihara(Distribution):
                 total.append(p)
       
             total_array = np.array(total)
-            means = np.array([np.mean(total_array[:,i]) for i in xrange(tS)])
-            rad.append(tN * means)
+            means = np.array([np.mean(total_array[:,i]) for i in 
+                                                              xrange(tn_samp)])
+            rad.append(ttot_obs * means)
 
         return rad
+
+    def cdf(self, n):
+        '''
+        No cdf exists for this distribution
+
+        '''
+
+        raise NotImplementedError('No CDF exists for object %s' %
+                                                    self.__class__.__name__)
 
 
 class binm(Distribution):
@@ -1387,7 +1497,11 @@ class binm(Distribution):
     
     @doc_inherit
     def pmf(self, n):
-        n_samp, tot_obs, n = self.get_params(n=n)
+        # Get parameters
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
         
         pmf = []
         var = {}
@@ -1402,7 +1516,10 @@ class binm(Distribution):
     
     @doc_inherit
     def cdf(self, n):
-        n_samp, tot_obs, n = self.get_params(n=n)
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
 
         cdf = []
         var = {}
@@ -1445,7 +1562,10 @@ class pois(Distribution):
     @doc_inherit
     def pmf(self, n):
 
-        n_samp, tot_obs, n = self.get_params(n=n)
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
         
         pmf = []
         var = {}
@@ -1459,7 +1579,10 @@ class pois(Distribution):
     @doc_inherit
     def cdf(self, n): 
         
-        n_samp, tot_obs, n = self.get_params(n=n)
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
 
         cdf = []
         var = {}
@@ -1526,9 +1649,10 @@ class nbd(Distribution):
         See class docstring for more specific information on this distribution.
         '''
         
-        n_samp, tot_obs, n = self.get_params(n=n)
-        k = make_array(self.params.get('k', None))
-        assert k[0] != None, "k parameter not given"
+        n_samp, tot_obs, k = self.get_params(['n_samp', 'tot_obs', 'k'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
         
         pmf = []
         var = {}
@@ -1563,9 +1687,10 @@ class nbd(Distribution):
         See class docstring for more specific information on this distribution.
         '''
 
-        n_samp, tot_obs, n = self.get_params(n=n)
-        k = make_array(self.params.get('k', None))
-        assert k[0] != None, "k parameter not given"
+        n_samp, tot_obs, k = self.get_params(['n_samp', 'tot_obs', 'k'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
         
         cdf = []
         var = {}
@@ -1599,9 +1724,9 @@ class nbd(Distribution):
         '''
 
         super(nbd, self).fit(data)
-        n_samp, tot_obs = self.get_params()
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
 
-        data = [np.array(tdata) for tdata in data]
+        data = check_list_of_iterables(data) 
         tempk = []
 
         for tdata, tn_samp, ttot_obs in zip(data, n_samp, tot_obs): 
@@ -1647,6 +1772,12 @@ class nbd_lt(nbd):
     p : list of floats 
         p parameters of nbd
 
+    Notes
+    -----
+    The total species (S) is equivalent to n_samp and the total
+    individuals (N) is equivalent to tot_obs.
+
+
     '''
 
     def __init__(self, **kwargs):
@@ -1654,11 +1785,33 @@ class nbd_lt(nbd):
         self.min_supp = 1
         self.par_num = 2
     
-    @doc_inherit
+    
     def pmf(self, n):
-        n_samp, tot_obs, n = self.get_params(n=n)
-        k = make_array(self.params.get('k', None))
-        assert k[0] != None, "k parameter not given"
+        '''
+        Probability mass function method.
+
+        Parameters
+        ----------
+        n : int, float or array-like object
+            Values at which to calculate pmf. May be a list of same length as 
+            parameters, or single iterable.
+
+        Returns
+        -------
+        pmf : list of ndarrays
+            List of 1D arrays of probability of observing sample n.
+        vars : dict containing lists of floats
+            Intermediate parameter variables calculated for pmf, as 
+            dict.
+
+        See class docstring for more specific information on this distribution.
+        '''
+
+        # Get parameters
+        n_samp, tot_obs, k = self.get_params(['n_samp', 'tot_obs', 'k'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
 
         reg_nbd = nbd(n_samp=n_samp, tot_obs=tot_obs, k=k)
         reg_pmf, reg_var = reg_nbd.pmf(n)
@@ -1667,6 +1820,39 @@ class nbd_lt(nbd):
         trunc_pmf = [(pr / (1 - p0)) for pr, p0 in zip(reg_pmf, reg_pmf0)]
 
         return trunc_pmf, reg_var         
+
+    def cdf(self, n):
+        '''
+        Cumulative distribution method.  
+
+        Parameters
+        ----------
+        n : int, float or array-like object
+            Values at which to calculate cdf. May be a list of same length as 
+            parameters, or single iterable.
+
+        Returns
+        -------
+        cdf : list of ndarrays
+            List of 1D arrays of probability of observing sample n.
+        vars : dict containing lists of floats
+            Intermediate parameter variables calculated for cdf, as dict.
+
+        See class docstring for more specific information on this distribution.
+        '''
+
+        n_samp, tot_obs, k = self.get_params(['n_samp', 'tot_obs', 'k'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+
+        reg_nbd = nbd(n_samp=n_samp, tot_obs=tot_obs, k=k)
+        p0 = reg_nbd.pmf(0)[0]
+        reg_cdf, reg_vars = reg_nbd.cdf(n)
+
+        trun_cdf = [(tcdf - tp0) / (1 - tp0) for tcdf, tp0 in zip(reg_cdf, p0)]
+
+        return trun_cdf, reg_vars
 
 class fnbd(Distribution):
     __doc__ = Distribution.__doc__ + \
@@ -1708,9 +1894,11 @@ class fnbd(Distribution):
         #    elif (a <= 0) or (a >= 1):
         #        raise Exception, "a must be between 0 and 1"
 
-        n_samp, tot_obs, n = self.get_params(n=n)
-        k = make_array(self.params.get('k', None))
-        assert k[0] != None, "k parameter not given"
+        # Get parameters
+        n_samp, tot_obs, k = self.get_params(['n_samp', 'tot_obs', 'k'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
         
         pmf = []
         var = {}
@@ -1746,9 +1934,10 @@ class fnbd(Distribution):
         See class docstring for more specific information on this distribution.
         '''
         super(fnbd, self).fit(data)
-        n_samp, tot_obs = self.get_params()
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        
+        data = check_list_of_iterables(data)
 
-        data = [np.array(tdata) for tdata in data]
         tempk = []
 
         for tdata, tn_samp, ttot_obs in zip(data, n_samp, tot_obs): 
@@ -1797,7 +1986,12 @@ class geo(Distribution):
     @doc_inherit
     def pmf(self, n):
 
-        n_samp, tot_obs, n = self.get_params(n=n)
+        # Get parameters
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+
         k = np.repeat(1, len(n_samp))
         pmf, nvar = nbd(tot_obs=tot_obs, n_samp=n_samp, k=k).pmf(n)
         var = {}
@@ -1807,7 +2001,12 @@ class geo(Distribution):
     @doc_inherit
     def cdf(self, n):
 
-        n_samp, tot_obs, n = self.get_params(n=n)
+        # Get parameters
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+
         k = np.repeat(1, len(n_samp))
         cdf, nvar = nbd(tot_obs=tot_obs, n_samp=n_samp, k=k).cdf(n)
         var = {}
@@ -1850,7 +2049,12 @@ class fgeo(Distribution):
     @doc_inherit
     def pmf(self, n):
         
-        n_samp, tot_obs, n = self.get_params(n=n)
+        # Get parameters
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+
         k = np.repeat(1, len(n_samp))
         pmf, nvar = fnbd(tot_obs=tot_obs, n_samp=n_samp, k=k).pmf(n)
         var = {}
@@ -1860,7 +2064,12 @@ class fgeo(Distribution):
     @doc_inherit
     def cdf(self, n):
         
-        n_samp, tot_obs, n = self.get_params(n=n)
+        # Get parameters
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+
         k = np.repeat(1, len(n_samp))
         cdf, nvar = fnbd(tot_obs=tot_obs, n_samp=n_samp, k=k).cdf(n)
         var = {}
@@ -1911,7 +2120,12 @@ class tgeo(Distribution):
     @doc_inherit
     def pmf(self, n):
 
-        n_samp, tot_obs, n = self.get_params(n=n)
+        # Get parameters
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+
         #NOTE: Overflow warning but not affecting results
         eq = lambda x, N, a: ((x / (1 - x)) - (((N + 1) * x ** (N + 1)) / \
                             (1 - x ** (N + 1)))) - (N * a)
@@ -1920,10 +2134,30 @@ class tgeo(Distribution):
         var['x'] = []
         for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
             ta = 1 / tn_samp
-            x = scipy.optimize.brentq(eq, 0, min((sys.float_info[0] *
-                ta)**(1/float(ttot_obs)), 2), args=(ttot_obs, ta), disp=False)
-            z = (1 - x ** (ttot_obs + 1)) / (1 - x)
-            tpmf = (1 / z) * (x ** tn)
+
+            if ta == 0.5: #Compute probability directly to save time
+                x = 1
+                tpmf = np.repeat(1 / (1 + ttot_obs), len(tn))
+
+            # All values zero except ttot_obs
+            elif ta == 1:
+                tpmf = np.zeros(len(tn))
+                tpmf[np.where(tn == ttot_obs)[0]] = 1
+                x = 0 
+
+            else:
+                try:
+                    x = scipy.optimize.brentq(eq, 0, min((sys.float_info[0] *
+                        ta)**(1/float(ttot_obs)), 2), args=(ttot_obs, ta), 
+                        disp=False)
+                except:
+                    raise ValueError("No solution to %s.pmf when tot_obs = " %
+                                     (self.__class__.__name__) +
+                                     "%.2f and n_samp = %.2f" % (ttot_obs,
+                                     tn_samp))
+                z = (1 - x ** (ttot_obs + 1)) / (1 - x)
+                tpmf = (1 / z) * (x ** tn)
+
             pmf.append(tpmf)
             var['x'].append(x)
 
@@ -1953,7 +2187,7 @@ class mete_sar_iter(Curve):
     def __init__(self, **kwargs):
         self.params = kwargs
 
-    def vals(self, a_list, upscale=0, downscale=0):
+    def vals(self, a_list, upscale=0, downscale=0, non_iter=False):
         '''
         Predict the universal SAR curve for the given S and N found at 
         the given anchor scale
@@ -1968,6 +2202,9 @@ class mete_sar_iter(Curve):
         downscale : int
             Number of iterations down from the anchor scale. Each iteration 
             halves the previous area. Only active if a_list is None.
+        non_iter : bool
+            If False, returns all iterations.  If True, only returns iterations
+            that match a_list.
 
         Returns
         -------
@@ -1984,10 +2221,7 @@ class mete_sar_iter(Curve):
 
         '''
         #Get and check params
-        S = self.params.get('S', None)
-        N = self.params.get('N', None)
-        assert S != None, "S parameter not given"
-        assert N != None, "N parameter not given"
+        S, N = self.get_params(['n_samp', 'tot_obs'])
         assert S < N, "S must be less than N"
         assert S > 1, "S must be greater than 1"
         assert N > 0, "S must be greater than 0"
@@ -2022,77 +2256,93 @@ class mete_sar_iter(Curve):
         if downscale != 0:
             sar['items'][:downscale + 1] =\
                                    _downscale_sar_(areas[:downscale + 1], N, S)
-        return sar
-   
 
-    def univ_curve(self, num_iter=10):
+        if non_iter == False:
+            return sar
+        else:
+            ind = np.zeros(len(sar), dtype=bool)
+            for a in a_list:
+                ind = np.bitwise_or(ind, sar['area'] == a)
+            return sar[ind]
+
+    def univ_curve(self, num_iter=5, direction='down', **kwargs):
         '''
-        This function calculates the universal SAR curve.
+        Generating a universal curve for the mete iterative sar
 
         Parameters
         ----------
         num_iter : int
-            Number of iterations.
-            WARNING: Running more than 10 begins to take along time 
-    
+            Number of area halfings
+        direction : string
+            Either 'down' or 'up'.  The direction to iterate the sar.
+
         Returns
         -------
-        :1D structured np.array
-            The structured array has fields 'z' and 'N/S' for plotting 
-            convenience
+        : structured array
+            Structured array with fields 'z' and 'x_over_y'.  z is the slope 
+            of the SAR at the corresponding Area_fraction (x) / S (y). 
+            Area_fraction is Area / Anchor Area. S is the total number of 
+            species in the landscape.
 
         Notes
         -----
-        This function calculates the universal SAR curve.  Different ratios
-        of N/S will only put you at different places along the same curve. 
-        Iterations of more than 15 take a long time. The equations used in this
-        function were taken from Harte et al. (2009) and Harte (2011). This 
-        uses method 1 in Harte (2011)
-
+        The universal curve is generated using the the equation in Harte et al.
+        2009. 
         '''
         
-        S = self.params.get('S', None)
-        N = self.params.get('N', None)
-        assert S != None, "S parameter not given"
-        assert N != None, "N parameter not given"
-        assert S < N, "S must be less than N"
-        assert S > 1, "S must be greater than 1"
-        assert N > 0, "S must be greater than 0"
-        num_ind = np.empty(num_iter + 1); spp = np.empty(num_iter + 1)
-        univ_SAR = np.empty(num_iter + 1, dtype=[('z', np.float),
-                                                        ('N/S', np.float)])
-        #From Harte et al. (2009)
-        z = lambda beta: 1 / (np.log(2) * np.log(1 / beta))
+        multiplier = self.params.get('tot_obs', None)
+        assert multiplier != None, "tot_obs not found in self.params"
 
-        for i in xrange(num_iter + 1):
-            if i == 0:
-                num_ind[i] = N
-                spp[i] = S
-                n = np.linspace(1, N, num=N)
-                eq = lambda x: (((x - x ** (N + 1)) / ( 1 - x)) / \
-                                                   sum((x ** n) / n)) - (N / S)
-                x = scipy.optimize.brentq(eq, 1e-10, min((sys.float_info[0] / S)\
-                                      **(1/float(N)), 2), disp=True)
-                univ_SAR['z'][i] = z(-np.log(x))
-                univ_SAR['N/S'][i] = N / S
-            else:
-                num_ind[i] = 2 * num_ind[i - 1]
-                N2A = num_ind[i]
-                n = np.linspace(1, N2A, num=N2A)
-                eq1 = lambda x: (sum((x**n)/n) * ((N2A) / ((x - x**(N2A + 1)) / \
-                            (1 - x)) * (1 / x))) - ((N2A) * ((1 - x) / \
-                            (x - x**(N2A + 1))) * (1 - (x**N2A / (N2A + 1))))\
-                            - spp[i - 1]
-                x = scipy.optimize.brentq(eq1, 1e-10, 1 - 1e-10, disp=True)
-                univ_SAR['z'][i] = z(-np.log(x))
-                #Using approximations for summations. See module notes
-                eq2 = lambda S2A: np.log(1 / np.log(1 / x)) * ((N2A) / \
-                                          ((x - x**(N2A + 1)) / (1 - x))) - S2A
-                S2A = scipy.optimize.brentq(eq2, spp[i - 1], 2 * spp[i - 1], \
-                                                                     disp=True)
-                spp[i] = S2A
-                univ_SAR['N/S'][i] = N2A / S2A
-        return univ_SAR
+        #From Harte et al. 2009
+        def z(a):
+            a1 = self.vals(a, non_iter=True)['items']
+            a2 = self.vals(2*a, non_iter=True)['items']
+            a3 = self.vals(.5 * a, non_iter=True)['items']
+            return (0.5 * (np.log(a1 / a3) + np.log(a2 / a1))) / np.log(2)
+
+        # Get area list
+        if direction == 'down':
+            a_list = [1 / (2**(i)) for i in np.arange(num_iter + 1)]
+
+        elif direction == 'up':
+            a_list = [2**(i) for i in np.arange(num_iter + 1)]
+
+        else:
+            raise ValueError('%s not a recognized direction' % direction)
+        
+        a_list.sort()
+        a_list = np.array(a_list)
+        zs = z(a_list)
+        x_over_y = (a_list * multiplier) / self.vals(a_list, non_iter=True)['items']
+
+        uni =  np.array(zip(zs, x_over_y), dtype=
+                                      [('z', np.float),('x_over_y', np.float)])
+        uni.sort(order=['x_over_y'])
+        return uni
+   
+
+    def fit(self, *args):
+        '''
+        This fit method fills the required parameters for a mete_sar_iter 
+        object.
+
+        Parameters
+        ----------
+        full_sad : array-like object
+            The full_sad at the anchor area
+
+        Notes
+        -----
+        full_sad is the first argument in the tuple args.  If there is a second
+        argument, it should be a tuple or array like objects.
+        
+
+        '''
+        full_sad = args[0]
+        self.params['n_samp'] = len(full_sad)
+        self.params['tot_obs'] = sum(full_sad)
+
+        return self
 
 class powerlaw(Curve):
     __doc__ = Curve.__doc__ + \
@@ -2132,10 +2382,7 @@ class powerlaw(Curve):
             ('area', np.float)]. 
     
         '''
-        z = self.params.get('z', None)
-        c = self.params.get('c', None)
-        assert z != None, "z parameter not given"
-        assert c != None, "c parameter not given"
+        z, c = self.get_params(['z', 'c'])
         a_list = make_array(a_list)
         output_array = np.empty(len(a_list), dtype=[('items', np.float),
                                                      ('area', np.float)])
@@ -2144,10 +2391,40 @@ class powerlaw(Curve):
         output_array['items'] = p_law(a_list)
         return output_array
     
-    @doc_inherit
-    def fit(self, data, full_sad):
+    def fit(self, *args):
+        '''
+        This fit method fills the required parameters for a mete_sar_iter 
+        object.
 
-        super(powerlaw, self).fit(data, full_sad)
+        Parameters
+        ----------
+        full_sad : array-like object
+            The full_sad at the anchor area
+
+        data :  tuple of array-like objects
+            data conatains two array-like object.  The first is a list of area
+            fractions (area / anchor area) and the second is a list of
+            species/items numbers corresponding to those area fractions.
+
+        Notes
+        -----
+        full_sad parameter should be first object in args and data should be
+        second object in args.
+
+        '''
+        
+        # Check and unpack args
+        assert len(args) == 2, 'Expected two arguments'
+        full_sad, data = args
+        
+        assert len(data) == 2, "data must contain two objects"
+        assert len(data[0]) == len(data[1]), "Area and species number " + \
+                                        "arrays must be of the same length"
+        full_sad = make_array(full_sad)
+        self.params['n_samp'] = len(full_sad)
+        self.params['tot_obs'] = sum(full_sad)
+
+        # Fit power law to regression
         reg = stats.linregress(np.log(data[0]), np.log(data[1]))
         self.params['z'] = reg[0]
         self.params['c'] = np.exp(reg[1])
@@ -2162,16 +2439,16 @@ class gen_sar(Curve):
 
     Parameters
     ----------
-    S : float
+    n_samp : float
         Total number of species at the anchor area
-    N : float
+    tot_obs : float
         Total number of individuals at the anchor area
 
     Notes
     -----
     In order to use gen_sar method vals(), self.params['sad_pmf'] must exist.
     Running gen_sar method fit() fills self.params['sad_pmf'] or it can be
-    filled manually.  Generic sar can only downscale.  
+    filled manually.  
 
     '''
 
@@ -2211,31 +2488,64 @@ class gen_sar(Curve):
             ('area', np.float)]. Items can be species.
 
         '''
-        sad = self.params.get('sad_pmf', None)
-
-        assert sad != None, "params['sad_pmf'] does not exist.  Try fitting" \
-                    + " gen_sar object or initialize self.params['sad_pmf']"
+        
+        # TODO: Really only need n_samp and tot_obs for everything other than
+        # plognorm.  Could calulate the full sad here. 
+        sad, S = self.get_params(['sad_pmf', 'n_samp'])
         ssad = self.ssad
-        S = self.params.get('S', None)
-        assert S != None, "S parameter not given"
         sar = []
-        N_range = np.arange(1, len(sad) + 1)
-        ssad.params['tot_obs'] = N_range
 
+        a_list = make_array(a_list)
         for i, a in enumerate(a_list):
-            if not a <= 1:
-                raise ValueError("a must be less than or equal to 1")
-            if a == 1:
+            
+            #Setting ssad parameters
+            N_range = np.arange(1, len(sad) + 1)
+            ssad.params['tot_obs'] = N_range
+
+            # Upscale
+            if a > 1:
+
+                sad_params = deepcopy(self.sad.params)
+                def eq(Sbig, abig, S):
+
+                    # Setting distribution parameters for guess at upscale
+                    # TODO: upscaling plognorm does not refit with the current 
+                    # setup
+                    Nbig = abig * self.params['tot_obs']
+                    self.sad.params['tot_obs'] = Nbig
+                    self.sad.params['n_samp'] = Sbig
+                    ssad.params['tot_obs'] = np.arange(1, Nbig + 1)
+                    ssad.params['n_samp'] = np.repeat(abig,
+                                                   len(ssad.params['tot_obs']))
+
+                    p_pres_list = [1 - absnt[0] for absnt in ssad.pmf(0)[0]]
+                    sadbig = self.sad.pmf(np.arange(1, Nbig + 1))[0][0]
+                    val = sum(Sbig * sadbig * np.array(p_pres_list)) - S
+                    return val
+                
+                #Optimizing to find Sbig. If error set to nan
+                try:
+                    Sbig = scipy.optimize.brentq(eq, S, a * S, args=(a, S), disp=0)
+                    sar.append(Sbig)
+                except(ValueError):
+                    sar.append(np.nan)
+
+                self.sad.params = sad_params # Reset sad params
+
+            elif a == 1:
                 p_pres_list = np.repeat(1, len(N_range))
+                sar.append(sum(S * sad * np.array(p_pres_list)))
+
+            # Downscale
             else:
                 ssad.params['n_samp'] = np.repeat(1 / a, len(N_range))
-                #import pdb; pdb.set_trace()
                 p_pres_list = [1 - absnt[0] for absnt in ssad.pmf(0)[0]]
-            sar.append(sum(S * sad * np.array(p_pres_list)))
+                sar.append(sum(S * sad * np.array(p_pres_list)))
+
         return np.array(zip(sar, a_list), dtype=[('items', np.float), 
                                                   ('area', np.float)])
     
-    def fit(self, data, full_sad):
+    def fit(self, *args):
         '''
         This fit method fills the required parameters for an SARCurve object.
         For the gen_sar object, the fit method will fill self.params['sad_pmf']
@@ -2243,30 +2553,39 @@ class gen_sar(Curve):
 
         Parameters
         ----------
-        data :  tuple of array-like objects
-            data contains two array-like object.  The first is a list of area
-            fractions and the second is a list of species/items numbers 
-            corresponding to those areas.
         full_sad : array-like object
             The full_sad at the anchor area (species/items counts)
 
-        '''
+        Notes
+        -----
+        full_sad is the first object in args
 
-        super(gen_sar, self).fit(data, full_sad)
+        '''
+        full_sad = args[0]
+        full_sad = make_array(full_sad)
+
+        # Get N/tot_obs and S/n_samp from full sad
+        self.params['n_samp'] = len(full_sad)
+        self.params['tot_obs'] = sum(full_sad)
+
         self.sad.fit([full_sad])
-        self.params['sad_pmf'] = self.sad.pmf(np.arange(1, self.params['N'] + 
-                                                                    1))[0][0]
+        self.params['sad_pmf'] = self.sad.pmf(np.arange(1, 
+                                        self.params['tot_obs'] + 1))[0][0]
         return self
 
 ###########################
 #---Generic SAR classes---#
 ###########################
 
-class logser_ut_tgeo(gen_sar):
+class mete_sar(gen_sar):
     '''
     Generic sar: 
     SAD : Truncated logseries (logser_ut)
     SSAD: Truncated geometric (tgeo)
+
+    Notes
+    -----
+    This is the one shot mete sar described by Harte (2011)
 
     See class gen_sar for more information
     '''
@@ -2300,6 +2619,46 @@ class logser_ut_binm(gen_sar):
         self.params = kwargs
         self.sad = logser_ut()
         self.ssad = binm()
+
+class logser_binm(gen_sar):
+    '''
+    Generic sar: 
+    SAD : logseries (logser)
+    SSAD: Binomial (binm)
+
+    See class gen_sar for more information
+    '''
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.sad = logser()
+        self.ssad = binm()
+
+class logser_ut_pois(gen_sar):
+    '''
+    Generic sar: 
+    SAD : Truncated logseries (logser)
+    SSAD: Poisson (pois)
+
+    See class gen_sar for more information
+    '''
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.sad = logser_ut()
+        self.ssad = pois()
+
+class logser_ut_geo(gen_sar):
+    '''
+    Generic sar: 
+    SAD : Truncated logseries (logser)
+    SSAD: Geometric
+
+    See class gen_sar for more information
+    '''
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.sad = logser_ut()
+        self.ssad = geo()
+
 
 class plognorm_lt_binm(gen_sar):
     '''
@@ -2340,180 +2699,107 @@ class plognorm_lt_fgeo(gen_sar):
         self.sad = plognorm_lt()
         self.ssad = fgeo()
 
+class nbd_lt_tgeo(gen_sar):
+    '''
+    Generic sar: 
+    SAD : Negative Binomial (plognorm_lt)
+    SSAD: Truncated geometric (tgeo)
+
+    See class gen_sar for more information
+    '''
+
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.sad = nbd_lt(k=1)
+        self.ssad = tgeo()
+
+
+class broken_stick_tgeo(gen_sar):
+    '''
+    Generic sar: 
+    SAD : Broken Stick (broken_stick)
+    SSAD: Truncated geometric (tgeo)
+
+    See class gen_sar for more information
+    '''
+
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.sad = broken_stick() 
+        self.ssad = tgeo()
+
+class broken_stick_binm(gen_sar):
+    '''
+    Generic sar: 
+    SAD : Broken Stick (broken_stick)
+    SSAD: Binomial (binm)
+
+    See class gen_sar for more information
+    '''
+
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.sad = broken_stick() 
+        self.ssad = binm()
+
+class lognorm_pois(gen_sar):
+    '''
+    Generic sar:
+    SAD : Log normal (lognorm)
+    SSAD : Poisson (pois)
+
+    See class gen_sar for more information
+    '''
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.sad = lognorm(sigma=2)
+        self.ssad = pois() 
+
+
+
+class lognorm_binm(gen_sar):
+    '''
+    Generic sar:
+    SAD : Log normal (lognorm)
+    SSAD : Binomial (binm) 
+
+    See class gen_sar for more information
+    '''
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.sad = lognorm(sigma=2)
+        self.ssad = binm()
+
+class lognorm_tgeo(gen_sar):
+    '''
+    Generic sar:
+    SAD : Log normal (lognorm)
+    SSAD : Truncated geometric (tgeo) 
+
+    See class gen_sar for more information
+    '''
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.sad = lognorm(sigma=2)
+        self.ssad = tgeo()
+
+    
+
 #########################
 ## Energy Distributions##
 #########################
 
 
-class EnergyDistribution(object):
-    '''
-    The base class for the energy distributions
-    '''
-
-    def __init__(self):
-        '''
-        Initialize distribution object.
-
-        Stores keyword arguments as params attribute and defines minimum 
-        support for distribution.
-
-        Parameters
-        ----------
-        kwargs : comma separate list of keyword arguments
-            Parameters needed for distribution. Stored in dict as params 
-            attribute.
-
-        See class docstring for more specific information on this distribution.
-        '''
-        # This method does nothing, but exists so that derived class init
-        # methods can inherit this docstring.
-        pass
-
-    def pdf(self, e):
-        '''
-        Probability density function method.
-
-        Parameters
-        ----------
-        e : int, float or array-like object
-            Values at which to calculate pmf. May be a list of same length as 
-            parameters, or single iterable.
-
-        Returns
-        -------
-        pdf : list of ndarrays
-            List of 1D arrays of probability of observing sample e.
-        vars : dict containing lists of floats
-            Intermediate parameter variables calculated for pmf, as 
-            dict.
-
-        See class docstring for more specific information on this distribution.
-        '''
-
-        pass
-
-    def cdf(self, e):
-        '''
-        Cumulative distribution method.  
-
-        Parameters
-        ----------
-        e : int, float or array-like object
-            Values at which to calculate cdf. May be a list of same length as 
-            parameters, or single iterable.
-
-        Returns
-        -------
-        cdf : list of ndarrays
-            List of 1D arrays of probability of observing sample e.
-        var : dict containing lists of floats
-            Intermediate parameter variables calculated for cdf, as dict.
-
-        See class docstring for more specific information on this distribution.
-        '''
-
-        pass
-
-    def red(self):
-        '''
-        Rank energy distribution of a given function.
-        
-        Returns
-        -------
-        red : list of ndarrays
-            List of 1D arrays of predicted energy for each individual in a
-            given community of species
-
-        See class docstring for more specific information on this distribution.
-
-        '''
-        
-        pass
-
-    def get_params(self, e=None):
-        '''
-        Gets and validates basic distribution parameters
-
-        Parameters
-        ----------
-        e : int, float or array-like object
-            Values at which to calculate pdf. May be a list of same length as 
-            parameters, or single iterable.
-
-        Returns
-        -------
-        : tuple
-            Validated S, N, E and n parameters
- 
-        '''
-        S = make_array(self.params.get('S', None))
-        N = make_array(self.params.get('N', None))
-        E = make_array(self.params.get('E', None))
-
-        if e != None:
-            e = expand_n(e, len(S))
-
-        # Validate parameters
-        assert len(S) == len(N), 'Length of S and N must be the same'
-        assert len(E) == len(N), 'Length of E and N must be the same'
-        assert S[0] != None, 'S parameter not given'
-        assert N[0] != None, 'N parameter not given'
-        assert E[0] != None, 'E parameter not given'
-        assert np.all(S > 1), 'S must be greater than 1'
-        assert np.all(N > 0), 'N must be greater than 0'
-        assert np.all(E >= 1), 'E must be greater than or equal to 1' 
-    
-        if e != None:
-            return S, N, E, e
-        else:
-            return S, N, E
-
-    def fit(self, data):
-        '''
-        Fit the energy distribution to data
-        
-        Parameters
-        ----------
-        data : tuple
-            A tuple containing two objects.  The first object is a list of
-            iterables with each iterable containing an empirical community 
-            energy distribution.  The second object is a list of iterables with
-            each iterable containing an empirical sad.
-
-        '''
-
-        #Check data argument
-        if type(data) != type((1,)):
-            raise TypeError('Data must be a tuple of iterables')
-        if not np.all([np.iterable(dt) for dt in data]):
-            raise TypeError('Objects in data tuple must be iterable')
-        if not np.all([np.all([np.iterable(d) for d in dt]) for dt in data]):
-            raise TypeError("Iterable objects in data tuple must also contain"
-                            + " iterable objects")
-
-        E = [np.sum(np.array(edata)) for edata in data[0]]
-        N = []
-        S = []
-        for tdata in data[1]:
-            N.append(np.sum(np.array(tdata)))
-            S.append(len(np.array(tdata)))
-
-        self.params['E'] = E
-        self.params['N'] = N
-        self.params['S'] = S
-
-        return self
-
-class psi(EnergyDistribution):
-    __doc__ = EnergyDistribution.__doc__ + \
+class psi(Distribution):
+    __doc__ = Distribution.__doc__ + \
     '''
     The community energy distribution (psi) described in Harte (2011)
 
     Parameters
     ----------
-    S or n_samp : int or iterable
+    n_samp : int or iterable
         Total number of species / samples
-    N or tot_obs: int or iterable
+    tot_obs: int or iterable
         Total number of individuals / observations
     E : int or iterable
         Total energy output of community
@@ -2540,39 +2826,49 @@ class psi(EnergyDistribution):
     @doc_inherit
     def pdf(self, e):
         #Get and check parameters
-        S, N, E, e = self.get_params(e=e)
+        n_samp, tot_obs, E = self.get_params(['n_samp', 'tot_obs', 'E'])
+        e = expand_n(e, len(n_samp))
 
         start = 0.3
         stop = 2
         flmax = sys.float_info[0]
-        eq = lambda x,k,N,S: sum(x ** k / float(N) * S) -  sum((x ** k) / k)
+        eq = lambda x,k,tot_obs,n_samp: sum(x ** k / float(tot_obs) * n_samp)\
+                                                           -  sum((x ** k) / k)
 
         pdf = []
         var = {}
         var['beta'] = []
         var['l2'] = []
 
-        for tS, tN, tE, te in zip(S, N, E, e):
-            k = np.linspace(1, tN, num=tN)
-            tx = scipy.optimize.brentq(eq, start,
-                                       min((flmax/tS)**(1/float(tN)), stop), 
-                                       args = (k, tN, tS), disp=True)
+        for tn_samp, ttot_obs, tE, te in zip(n_samp, tot_obs, E, e):
+            k = np.linspace(1, ttot_obs, num=ttot_obs)
+
+            try:
+                tx = scipy.optimize.brentq(eq, start,
+                               min((flmax/tn_samp)**(1/float(ttot_obs)), stop), 
+                               args = (k, ttot_obs, tn_samp), disp=True)
+            except(ValueError):
+                raise ValueError("No solution to %s.pmf for tot_obs = %.2f"
+                                 % (self.__class__.__name__, ttot_obs) + 
+                                 " and n_samp = %.2f" % (tn_samp))
+
+            # Set lagrange multipliers
             tbeta = -np.log(tx)
-            tl2 = float(tS) / (tE - tN) # Harte (2011) 7.26
+            tl2 = float(tn_samp) / (tE - ttot_obs) # Harte (2011) 7.26
             tl1 = tbeta - tl2
             tsigma = tl1 + (tE * tl2)
 
-            norm = (float(tS) / (tl2 * tN)) * (((np.exp(-tbeta) - \
-                    np.exp(-tbeta*(tN + 1))) / (1 - np.exp(-tbeta))) - \
-                    ((np.exp(-tsigma) - np.exp(-tsigma*(tN + 1))) / \
+            norm = (float(tn_samp) / (tl2 * ttot_obs)) * (((np.exp(-tbeta) - \
+                    np.exp(-tbeta*(ttot_obs + 1))) / (1 - np.exp(-tbeta))) - \
+                    ((np.exp(-tsigma) - np.exp(-tsigma*(ttot_obs + 1))) / \
                     (1 - np.exp(-tsigma)))) #Harte (2011) 7.22
 
             #Notation from E.W.
             exp_neg_gamma = np.exp(-(tbeta + (te - 1) * tl2))
 
-            tpdf = (float(tS) / (tN * norm)) * ((exp_neg_gamma  / \
-                    (1 - exp_neg_gamma)**2) - ((exp_neg_gamma**tN / \
-                    (1 - exp_neg_gamma)) * (tN + (exp_neg_gamma / \
+            tpdf = (float(tn_samp) / (ttot_obs * norm)) * ((exp_neg_gamma  / \
+                    (1 - exp_neg_gamma)**2) - ((exp_neg_gamma**ttot_obs / \
+                    (1 - exp_neg_gamma)) * (ttot_obs + (exp_neg_gamma / \
                     (1 - exp_neg_gamma)))))
                     # Harte (2011) 7.24
             pdf.append(tpdf)
@@ -2582,45 +2878,124 @@ class psi(EnergyDistribution):
         return pdf, var
     
     @doc_inherit
-    def red(self):
+    def cdf(self, e):
 
-        S, N, E = self.get_params()
+        n_samp, tot_obs, E = self.get_params(['n_samp', 'tot_obs', 'E'])
+        e = expand_n(e, len(n_samp))
 
         start = 0.3
         stop = 2
         flmax = sys.float_info[0]
-        eq = lambda x,k,N,S: sum(x ** k / float(N) * S) -  sum((x ** k) / k)
+        eq = lambda x,k,tot_obs,n_samp: sum(x ** k / float(tot_obs) * n_samp)\
+                                                           -  sum((x ** k) / k)
 
-        n_arrays = [np.arange(1, i + 1) for i in N]
-        prad = lambda beta, r, N, l1, l2: (1 / l2) * np.log(((beta * N) + \
-                                  r - 0.5) / (r - 0.5)) - (l1 / l2)
-        rad = []
-        for tS, tN, tE, tn, in zip(S, N, E, n_arrays):
+        cdf = []
 
-            k = np.linspace(1, tN, num=tN)
-            tx = scipy.optimize.brentq(eq, start,
-                                       min((flmax/tS)**(1/float(tN)), stop), 
-                                       args = (k, tN, tS), disp=True)
+        var = {}
+        var['beta'] = []
+        var['l2'] = []
+
+        for tn_samp, ttot_obs, tE, te in zip(n_samp, tot_obs, E, e):
+            k = np.linspace(1, ttot_obs, num=ttot_obs)
+
+            try:
+                tx = scipy.optimize.brentq(eq, start,
+                               min((flmax/tn_samp)**(1/float(ttot_obs)), stop), 
+                               args = (k, ttot_obs, tn_samp), disp=True)
+            except(ValueError):
+                raise ValueError("No solution to %s.cdf for tot_obs = %.2f"
+                                 % (self.__class__.__name__, ttot_obs) + 
+                                 " and n_samp = %.2f" % (tn_samp))
+
+            # Set lagrange multipliers
             tbeta = -np.log(tx)
-            tl2 = float(tS) / (tE - tN) # Harte (2011) 7.26
+            tl2 = float(tn_samp) / (tE - ttot_obs) # Harte (2011) 7.26
             tl1 = tbeta - tl2
 
-            trad = prad(tbeta, tn, tN, tl1, tl2)
+            # Exact cdf equation. 
+            eq2 = lambda x: tbeta * ((1 / (1 - np.exp(tl1 + (tl2 * x)))) - 
+                                    (1 / (1 - np.exp(tl1 + tl2))))
+
+            cdf.append(eq2(te))
+            var['beta'].append(tbeta)
+            var['l2'].append(tl2)
+
+        return cdf, var
+
+    @doc_inherit
+    def rad(self):
+
+        n_samp, tot_obs, E = self.get_params(['n_samp', 'tot_obs', 'E'])
+
+        start = 0.3
+        stop = 2
+        flmax = sys.float_info[0]
+        eq = lambda x,k,tot_obs,n_samp: sum(x ** k / float(tot_obs) * n_samp)\
+                                                        -  sum((x ** k) / k)
+
+        n_arrays = [np.arange(1, i + 1) for i in tot_obs]
+        
+        # Define the predicted rad
+        prad = lambda beta, r, tot_obs, l1, l2: (1 / l2) * np.log(((beta *\
+                                   tot_obs) + r - 0.5) / (r - 0.5)) - (l1 / l2)
+        rad = []
+        for tn_samp, ttot_obs, tE, tn, in zip(n_samp, tot_obs, E, n_arrays):
+
+            k = np.linspace(1, ttot_obs, num=ttot_obs)
+            try:
+                tx = scipy.optimize.brentq(eq, start,
+                                min((flmax/tn_samp)**(1/float(ttot_obs)), stop), 
+                                args = (k, ttot_obs, tn_samp), disp=True)
+            except(ValueError):
+                raise ValueError("No solution to %s.rad for tot_obs = %.2f"
+                                 % (self.__class__.__name__, ttot_obs) + 
+                                 " and n_samp = %.2f" % (tn_samp))
+            tbeta = -np.log(tx)
+            tl2 = float(tn_samp) / (tE - ttot_obs) # Harte (2011) 7.26
+            tl1 = tbeta - tl2
+
+            trad = prad(tbeta, tn, ttot_obs, tl1, tl2)
             rad.append(trad)
 
         return rad
+    
+    def fit(self, data):
+        '''
+        Fit the energy distribution to data
+        
+        Parameters
+        ----------
+        data : tuple
+            A tuple containing two objects.  The first object is a list of
+            iterables with each iterable containing an empirical community 
+            energy distribution.  The second object is a list of iterables with
+            each iterable containing an empirical sad.
 
-class theta(EnergyDistribution):
-    __doc__ = EnergyDistribution.__doc__ + \
+        '''
+
+        # Use base class fit
+        super(psi, self).fit(data[1])
+
+        # Format and check energy data
+        data_eng = check_list_of_iterables(data[0])
+
+        # Store energy data in self.params
+        E = [np.sum(np.array(edata)) for edata in data_eng]
+        self.params['E'] = E
+
+        return self
+
+class theta(Distribution):
+    __doc__ = Distribution.__doc__ + \
     '''
     The species specific energy distribution (theta) as described by Harte
     (2011).
 
     Parameters
     ----------
-    S or n_samp : int or iterable
+    n_samp : int or iterable
         Total number of species / samples
-    N or tot_obs: int or iterable
+    tot_obs: int or iterable
         Total number of individuals / observations
     E : int or iterable
         Total energy output of community
@@ -2643,17 +3018,20 @@ class theta(EnergyDistribution):
     @doc_inherit
     def pdf(self, e):
 
-        S, N, E, e = self.get_params(e=e)
-        n = make_array(self.params.get('n', None))
-        assert np.all(n <= N), 'n must be less than or equal to N'
+        n_samp, tot_obs, E, n = self.get_params(['n_samp', 'tot_obs', 'E','n'])
+        e = expand_n(e, len(n_samp))
+        
+        # TODO: More checks?
+        assert np.all(n <= tot_obs), 'n must be less than or equal to tot_obs'
+
 
         pdf = []
         var = {}
         var['l2'] = []
 
-        for tS, tN, tE, tn, te in zip(S, N, E, n, e):
+        for tn_samp, ttot_obs, tE, tn, te in zip(n_samp, tot_obs, E, n, e):
 
-            tl2 = float(tS) / (tE - tN)
+            tl2 = float(tn_samp) / (tE - ttot_obs)
             tpdf = (tn * tl2 * np.exp(-tl2 * tn * te)) / (np.exp(-tl2 * tn)\
                                 - np.exp(-tl2 * tn * tE)) #Harte (2011) 7.25
 
@@ -2663,24 +3041,52 @@ class theta(EnergyDistribution):
         return pdf, var
 
     @doc_inherit
-    def red(self):
+    def cdf(self, e):
 
-        S, N, E = self.get_params()
-        n = make_array(self.params.get('n', None))
-        assert n[0] != None, 'n parameter not given'
-        assert np.all(n <= N), 'n must be less than or equal to N'
+        n_samp, tot_obs, E, n = self.get_params(['n_samp', 'tot_obs', 'E','n'])
+        e = expand_n(e, len(n_samp))
+        
+        # TODO: More checks?
+        assert np.all(n <= tot_obs), 'n must be less than or equal to tot_obs'
+
+
+        cdf = []
+        var = {}
+        var['l2'] = []
+
+        for tn_samp, ttot_obs, tE, tn, te in zip(n_samp, tot_obs, E, n, e):
+
+            tl2 = float(tn_samp) / (tE - ttot_obs)
+
+            # Exact cdf
+            tcdf = -np.exp(tl2 * tn) * (np.exp(-tl2 * tn * te) - 
+                                                        np.exp(-tl2 * tn))   
+
+            cdf.append(tcdf)
+            var['l2'].append(tl2)
+        
+        return cdf, var
+
+    @doc_inherit
+    def rad(self):
+
+        n_samp, tot_obs, E, n = self.get_params(['n_samp', 'tot_obs', 'E','n'])
+        
+        # TODO: More checks?
+        assert np.all(n <= tot_obs), 'n must be less than or equal to tot_obs'
 
         n_arrays = [np.arange(1, i + 1) for i in n]
 
-        pred = lambda r, n, l2 : 1 + (1 / (l2 * n)) * np.log( n / (r - 0.5))
-        red = []
-        for tS, tN, tE, tn, tn_arr in zip(S, N, E, n, n_arrays):
+        prad = lambda r, n, l2 : 1 + (1 / (l2 * n)) * np.log( n / (r - 0.5))
+        rad = []
+        for tn_samp, ttot_obs, tE, tn, tn_arr in zip(n_samp, tot_obs, E, n, 
+                                                                    n_arrays):
            
-           tl2 = float(tS) / (tE - tN)
-           tred = pred(tn_arr, tn, tl2)
-           red.append(tred)
+           tl2 = float(tn_samp) / (tE - ttot_obs)
+           trad = prad(tn_arr, tn, tl2)
+           rad.append(trad)
 
-        return red
+        return rad
 
     def fit(self, data):
         '''
@@ -2696,11 +3102,201 @@ class theta(EnergyDistribution):
             containing sads.
 
         '''
-        super(theta, self).fit((data[1], data[2]))
-        n = [len(np.array(ndata)) for ndata in data[0]]
+        super(theta, self).fit(data[2])
+
+        # Check and set energy data
+        data_eng = check_list_of_iterables(data[1])
+        E = [np.sum(np.array(edata)) for edata in data_eng]
+        self.params['E'] = E
+        
+        # Check and set species abundance data
+        n_data = check_list_of_iterables(data[0])
+        n = [len(np.array(ndata)) for ndata in n_data]
         self.params['n'] = n
+
+        
         return self
 
+# This distribution is a pain
+class nu(Distribution):
+    '''
+    An energy distribution describing the distribution of average energy across
+    all species in a community.
+    
+    Parameters
+    ----------
+    n_samp : int or iterable
+        Total number of species / samples
+    tot_obs: int or iterable
+        Total number of individuals / observations
+    E : int or iterable
+        Total energy output of community
+    '''
+
+    @doc_inherit
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.min_supp = 1
+
+    @doc_inherit
+    def pmf(self, e):
+        '''
+        Notes
+        -----
+        The nu distribution is only defined at e values given by 
+        e = 1 + (1 / (lambda2 * n)). While this function will return a pmf 
+        value for all e greater than or equal to one, note that the pmf will
+        only sum to one when provided with the proper support.
+
+        '''
+
+        n_samp, tot_obs, E = self.get_params(['n_samp', 'tot_obs', 'E'])
+        e = expand_n(e, len(n_samp))
+
+        # Beta Solver
+        eq = lambda x,k,tot_obs,n_samp: sum(x ** k / float(tot_obs) * n_samp)\
+                                                           -  sum((x ** k) / k)
+        start = 0.3
+        stop = 2                                                           
+        flmax = sys.float_info[0]
+
+        pdf = []
+        var = {}
+        var['beta'] = []
+        var['l2'] = []
+        var['sigma'] = []
+
+        for tn_samp, ttot_obs, tE, te in zip(n_samp, tot_obs, E, e):
+            k = np.linspace(1, ttot_obs, num=ttot_obs)
+            try:
+                tx = scipy.optimize.brentq(eq, start,
+                               min((flmax/tn_samp)**(1/float(ttot_obs)), stop), 
+                               args = (k, ttot_obs, tn_samp), disp=True)
+            except(ValueError):
+                raise ValueError("No solution to %s.pmf for tot_obs = %.2f"
+                                 % (self.__class__.__name__, ttot_obs) + 
+                                 " and n_samp = %.2f" % (tn_samp))
+
+            # Set lagrange multipliers
+            tbeta = -np.log(tx)
+            tl2 = float(tn_samp) / (tE - ttot_obs) # Harte (2011) 7.26
+            tl1 = tbeta - tl2
+            tsigma = tl1 + tE * tl2
+            Z = sum((np.exp(-tbeta * k) - np.exp(-tsigma * k)) / (tl2 * k))
+
+            tpdf = (1 / Z) * (np.exp(-tbeta / (tl2 * (te - 1))) - np.exp(-tsigma / (tl2 *
+                (te - 1)))) / (1 / (te - 1))
+
+            pdf.append(tpdf)
+            var['beta'].append(tbeta)
+            var['l2'].append(tl2)
+            var['sigma'].append(tsigma)
+
+        return pdf, var
+    
+    @doc_inherit
+    def cdf(self, e):
+
+        n_samp, tot_obs, E = self.get_params(['n_samp', 'tot_obs', 'E'])
+        e = expand_n(e, len(n_samp))
+
+        cdf = []
+
+        for tn_samp, ttot_obs, tE, te in zip(n_samp, tot_obs, E, e):
+            # Possible e values
+            tl2 = float(tn_samp) / (tE - ttot_obs) # Harte (2011) 7.26
+
+            # Harte (2011) 7.42
+            e_vals = (1 + 1 / (tl2 * np.arange(1, ttot_obs + 1)))
+            e_vals.sort()
+            
+            # Calculate pdf for all accepted e_vals. Set self.params
+            self.params['n_samp'] = tn_samp
+            self.params['tot_obs'] = ttot_obs
+            self.params['E'] = tE
+            acpt_pmf = self.pmf(e_vals)[0][0]
+
+            list_bools = [tpe >= e_vals for tpe in te]
+
+            tcdf = np.empty(len(te))
+            
+            # Set the cdf to the appropriate values
+            for i, bools in enumerate(list_bools):
+                ind = np.where(bools == True)[0]
+                if len(ind) != 0:
+                    tcdf[i] = sum(acpt_pmf[:(ind[-1] + 1)])
+                else:
+                    tcdf[i] = 0
+
+            cdf.append(tcdf)
+        
+        # Reset params
+        self.params['n_samp'] = n_samp
+        self.params['tot_obs'] = tot_obs
+        self.params['E'] = E
+
+        # Just Returning none for now, going to be removing the returns later
+        return cdf, None
+
+    def rad(self):
+        '''
+        '''
+
+        n_samp, tot_obs, E = self.get_params(['n_samp', 'tot_obs', 'E'])
+        
+        rad = []
+        for tn_samp, ttot_obs, tE in zip(n_samp, tot_obs, E):
+            
+            # Get predicted cdf for all possible e values
+            tl2 = (tn_samp / (tE - ttot_obs))
+            possible_e = 1 + 1 / (tl2 * np.arange(1, ttot_obs + 1))
+            possible_e.sort()
+            pred_cdf = self.cdf(possible_e)[0][0]
+            
+            # Observed cdf. Not quite true if some energys overlap
+            obs_cdf = np.arange(1/(tn_samp), 1, 1/tn_samp)
+
+            list_bools = [np.array(obs < pred_cdf) for obs in obs_cdf]
+            
+            pred_rad = np.empty(tn_samp)
+
+            for i, bools in enumerate(list_bools):
+                ind = np.where(bools == False)[0]
+                if len(ind) != 0:
+                    pred_rad[i] = possible_e[ind[-1]]
+                else:
+                    pred_rad[i] = ind[0] # Or should it be 0?
+
+            rad.append(pred_rad)
+
+        return rad
+
+
+    def fit(self, data):
+        '''
+        Fit the nu energy distribution to data
+        
+        Parameters
+        ----------
+        data : tuple
+            A tuple containing two objects.  The first object is a list of
+            iterables with each iterable containing an empirical community 
+            energy distribution.  The second object is a list of iterables with
+            each iterable containing an empirical sad.
+
+        '''
+
+        # Use base class fit
+        super(nu, self).fit(data[1])
+
+        # Format and check energy data
+        data_eng = check_list_of_iterables(data[0])
+
+        # Store energy data in self.params
+        E = [np.sum(np.array(edata)) for edata in data_eng]
+        self.params['E'] = E
+
+        return self
 
 def make_array(n):
     '''Cast n as iterable array.'''
@@ -2727,6 +3323,31 @@ def expand_n(n, size):
 
     return new_n
 
+def check_list_of_iterables(data):
+    '''
+    Checks if the given object is a list of iterables.  If so, returns a
+    list of arrays.  Else, a TypeError is raised.
+    
+    Parameters
+    ----------
+    data : object
+        The object to be tested.
+
+    Returns
+    -------
+    : list
+        If error is not thrown, returns a list of arrays
+
+    '''
+    
+    # Check that data is a list of iterables
+    if type(data) != type([]):
+        raise TypeError('Data must be a list of iterables')
+    if not np.all(np.array([np.iterable(dt) for dt in data])):
+        raise TypeError('Objects in data must be iterable')
+
+    # Make a list of arrays
+    return [np.array(data) for data in data]
 
 def make_rank_abund(pmf, n_samp, min_supp=1):
     '''
@@ -2883,9 +3504,10 @@ def _downscale_sar_(down_areas, N, S):
         else:
             num_ind[i] = 0.5 * num_ind[i - 1]
             if num_ind[i] <= 1:
-                raise DownscaleError('Cannot downscale %i iterations from ' +\
+                raise DownscaleError('Cannot downscale %i iterations from ' 
+                                     % (len(down_areas) - 1) +\
                                      'anchor scale. One or less individuals' +\
-                                     ' per cell.' % (len(down_areas) - 1))
+                                     ' per cell.')
             N_A = num_ind[i - 1]
             S_A = spp[i - 1]
             n = np.linspace(1, N_A, num=N_A)
