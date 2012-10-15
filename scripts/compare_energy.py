@@ -18,41 +18,72 @@ gui_name = '''Energetics Analysis'''
 summary = '''Compares a dataset's observed energy distributions against 
              theoretical energy distributions'''
 
-explantion = ''' This script allows the user to compare observed energy
-distributions against predicted energy distributions.  This script can compare
-the individual community distribution (psi) and/or the species-level energy
-distribution (theta). The choice of which energy metrics to compare can be
-specified in the 'energy_metrics' parameter. The required parameters are below.
+explantion = ''' This script allows the user to compare observed energy metrics
+against predicted energy metrics. There are two energy metrics that this script
+can compare: individual energy distributions (ied) and species-level energy
+distributions (sed).  The ied is a distribution of the energy of each
+individual within a community.  The energy of each individual can be calculated
+from the the biomass using the 3/4 allometric scaling law.  Other proxies for
+energy, such as leaf surface area, can be used as well.  The ied is species
+blind; it does not consider what species an individual belongs to. For
+normalization purposes, each value of the empirical ied is divided by the
+smallest empirical energy value. 
 
-'subset' : How one would like to initially subset his data (see DataTable 
-class docstring). 
+The sed is a distribution of the energy of each individual within a species.
+So, for example, a community with 30 speices would have 30 sed's, one for each
+species.  The entire communities energy distribution is normalized in the exact
+same way as the ied then individuals are placed into their respective species
+and the sed's are generated. 
 
-'criteria' : How one would like to divide her dataset when caluculating the 
-energy distributions. The theoretical distributions are compared against every
-dataset that is generated from the cutting specified in this parameter.  See 
-Patch class docstring for details
-
-'dist_list_sed' : The list of sed distributions to which one could compare her
-observed data.  Possible distributions to use are: 'theta'
-
-'data_list_ied' : The list of ied distributions to which one could compare her
-observed dara. Possible distributions to use are: 'psi'
-
-'energy_metrics' : A list of either ['sed'], ['ied'], ['sed', 'ied'], or []
-specifiying which energy metrics to examine.
-
-This script outputs cdf and rad plots in which the observed energy distribution
-is compared the distributions given in dist_list_sed and/or dist_list_ied.  For
-each plot, a corresponding csv file with the same name as the plot except with
-a .csv extension is output containing the data used to make the plot. For all
-sed plots, the species name is printed on the top of the plot
-
+This script outputs cumulative density function (cdf) plots and rank abundance
+distribution (rad) plots in which the observed energy distribution is compared
+to the distributions given in the required parameter
+predicted_distributions_sed and/or predicted_distributions_ied.  For each plot,
+a corresponding csv file with the same name as the plot except with a .csv
+extension is output containing the data used to make the plot. For all sed
+plots, the species name is printed on the top of the plot
 '''
 
-required_params = {'subset' : 'Dictionary of initial subsets', 'criteria' :
-        'Dictionary of how to split the data', 'dist_list_sed' : 
-    'List of sed distributions', 'dist_list_ied' : 'List of ied distributions',
-    'energy_metrics' : 'List of energy metrics to examine'}
+subset = '''You should examine the columns in your data set and decide if you
+would like to subset his data in some particular way BEFORE the analysis
+begins. It is important to note that only the subsetted data will be analyzed.
+For example,  if the user has column names 'year' in his data set with values
+1998, 1999, and 2000 and he only wants to look at the year 2000 for a
+particular analysis, he should enter ==2000 next as the value in the 'year'
+field.  Similarly <, >, <=, >=, !=, etc. operators could be used.'''
+
+criteria = '''You should examine the columns in your dataset and decide if you
+would like to divide the data in a particular way FOR THE analysis. For
+example, if the you have a spatial dataset with x,y coordinates and you are
+interested in examining the ied for two separate halves of your plot along the
+x coordinate she could cut the x coordinate in two halves by giving the 'x'
+column a value of 2.  If the column that she would like to divide contains
+discrete values (e.g. year), she could enter the value 'split' and each unique
+discrete value will be analyzed separately. Conversely, the the value 'whole'
+could be given could be given to specify the entire column.  The value 'whole'
+is equivalent to 1 or leaving the value blank. There are four special words
+that can be used on a given column: 'species', 'energy', 'count', and 'mass'.
+The value 'species' MUST be given to the column that contains species ids. The
+other three special words do not necessarily have to be given.'''
+
+
+predicted_distributions_sed = '''The list of sed distributions to which you can
+compare your observed data. These MUST be entered in the following format:
+['example_1', 'example_2'] or ['example_1']. Possible distributions are:
+'theta' '''
+
+predicted_distributions_ied = '''The list of ied distributions to which you
+could compare your observed data. These MUST be entered in the following
+format: ['example_1', 'example_2'] or ['example_1']. P Possible distributions
+to use are: 'psi' '''
+
+energy_metrics = '''Type exactly ['sed'], ['ied'], ['sed', 'ied']. This
+specifies which energy metric(s) you would like to examine'''
+
+required_params = {'subset' : subset, 'criteria' : criteria,
+                   'predicted_distributions_sed' : predicted_distributions_sed,
+                   'predicted_distributions_ied' : predicted_distributions_ied,
+                   'energy_metrics' : energy_metrics}
 
 if __name__ == '__main__':
 
