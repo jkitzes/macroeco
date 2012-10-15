@@ -53,9 +53,9 @@ if __name__ == '__main__':
             raise KeyError('File %s does not have the required columns N ' %
                             data_path + 'and S')
         if params['approximation'] == False:
-            lgsr = logser_ut(N=n_s['n'], S=n_s['s'])
+            lgsr = logser_ut(tot_obs=n_s['n'], n_samp=n_s['s'])
         else:
-            lgsr = logser_ut_appx(N=n_s['n'], S=n_s['s'])
+            lgsr = logser_ut_appx(tot_obs=n_s['n'], n_samp=n_s['s'])
         betas = -np.log(np.array(lgsr.pmf(1)[1]['x']))
         n_s_new = np.array(zip(n_s['s'], n_s['n'], betas), dtype=[('S',
                                np.float), ('N', np.float), ('beta', np.float)])

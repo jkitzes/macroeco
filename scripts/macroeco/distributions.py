@@ -608,9 +608,9 @@ class logser(Distribution):
                 tp = scipy.optimize.brentq(eq, start, stop, 
                                             args=(tn_samp,ttot_obs), disp=True)
             except(ValueError):
-                raise ValueError("No solution to %s.pmf when tot_obs = %f and"\
+                raise ValueError("No solution to %s.pmf when tot_obs = %.2f"\
                                   % (self.__class__.__name__, ttot_obs) + 
-                                  " n_samp = %f" % (tn_samp)) 
+                                  " and n_samp = %.2f" % (tn_samp)) 
             tpmf = stats.logser.pmf(tn, tp)
             var['p'].append(tp)
             pmf.append(tpmf)
@@ -700,7 +700,7 @@ class logser_ut(Distribution):
                 except(ValueError):
                     raise ValueError("No solution to %s.pmf when tot_obs = "
                                   % (self.__class__.__name__) + 
-                                  "%.2f and n_samp = %f" % (ttot_obs, tn_samp))
+                                  "%.2f and n_samp = %.2f" % (ttot_obs, tn_samp))
                 tnorm = np.sum(tx ** k / k)
                 tpmf = (tx ** tn / tn) / tnorm
 
