@@ -15,8 +15,8 @@ Patch Methods
 - `ear` -- calculate endemics-area relationship (grid or sample)
 - `comm` -- calculate commonality between sub-patches (grid)
 - `ssad` -- calculate species-level spatial abundance distrib (grid or sample)
-- `sp_engy` -- calculate species energy distribution (grid or sample)
-- `comm_engy` -- calculate the community energy distribution
+- `sed` -- calculate species energy distribution (grid or sample)
+- `ied` -- calculate the community energy distribution
 
 - `get_sp_centers` --
 - 'get_div_areas' -- return list of areas made by div_list
@@ -50,12 +50,13 @@ class Patch:
     data_path : str
         Path to csv file containing census data.
     subset : dict
-        Dictionary of permanent subset to data, {'column_name': 'condition'}, 
-        which will limit all analysis to records in which column_name meets the 
-        condition, ie, {'year': '==2005', 'x': ('>20', '<40')} restricts 
-        analysis to year 2005 and x values between 20 and 40. These conditions 
-        can also be passed to the invididual methods, but subsetting the data 
-        table up front may save analysis time.
+        Dictionary of permanent subset to data, {'column_name': 'condition'},
+        which will limit all analysis to records in which column_name meets the
+        condition, ie, {'year': ('==', 2005), 'x': [('>', 20), ('<', 40)]}
+        restricts analysis to year 2005 and x values between 20 and 40. These
+        conditions can also be passed to the individual methods, but subsetting
+        the data table up front may save analysis time.  Subsetting on a string
+        would look something like {'name' : [('==', 'John'), ('==', 'Harry')]}
 
     Attributes
     ----------
@@ -71,7 +72,6 @@ class Patch:
         self.data_table.table = self.data_table.get_subtable(subset)
 
     
-    # TODO: Implement clean in sad function and remove from compare   
     def sad(self, criteria, clean=False):
         '''
         Calculates an empirical species abundance distribution given criteria.
@@ -225,13 +225,10 @@ class Patch:
             # Get levels of categorial or metric data
             if value == 'split':  # Categorial
                 levels = np.unique(self.data_table.table[key])
-                try:
-                    [eval(str(x)) for x in levels]
-                except:
-                    levels = np.array(['''"''' + x + '''"''' for x in levels])
-                levels_str = ['==' + str(x) for x in levels]
+                levels_str = [('==' , x.astype(levels.dtype)) for x in levels]
             elif value == 'whole':
-                levels_str = ['==all']
+                # Random string to minimize chance of overlap?
+                levels_str = [('==','whole')]
             else:  # Metric
 
                 # TODO: Throw a warning if the data is not divisible by the
@@ -245,10 +242,12 @@ class Patch:
                 step = (dmax + dprec - dmin) / value
                 starts = np.arange(dmin, dmax + dprec, step)
                 ends = starts + step
+                
 
-                starts_str = ['>=' + str(x) for x in starts]
-                ends_str = ['<' + str(x) for x in ends]
-                levels_str = zip(starts_str, ends_str)
+                starts_str = [('>=', x) for x in starts]
+                ends_str = [('<', x) for x in ends]
+                levels_str = [list(lvl) for lvl in zip(starts_str, ends_str)]
+
 
             # Add these levels to combinations dictionary
             if len(combinations) == 0:  # If first criteria
@@ -262,11 +261,12 @@ class Patch:
                         rec[key] = level
                     temp_comb += exist_recs
                 combinations = temp_comb
-
+        
         if len(combinations) == 0:
             combinations.append({})
         
         return spp_list, spp_col, count_col, engy_col, mass_col, combinations
+
 
 
     def sar(self, div_cols, div_list, criteria, form='sar'):
