@@ -50,14 +50,15 @@ class TestDataTable(unittest.TestCase):
         sub = xy1.get_subtable({})
         np.testing.assert_array_equal(sub, self.xyarr1)
 
-        sub = xy1.get_subtable({'x': ('>=0','<2'), 'y': ('>=0','<2')})
+        sub = xy1.get_subtable({'x': [('>=', 0),('<', 2)], 'y': [('>=', 0),
+                                ('<', 2)]})
         np.testing.assert_array_equal(sub, self.xyarr1)
 
         # Subset
-        sub = xy1.get_subtable({'spp_code': '==0'})
+        sub = xy1.get_subtable({'spp_code': ('==', 0)})
         np.testing.assert_array_equal(sub, self.xyarr1[0:3])
 
-        sub = xy1.get_subtable({'spp_code': '==0', 'x': '>0'})
+        sub = xy1.get_subtable({'spp_code': ('==', 0), 'x': ('>', 0)})
         np.testing.assert_array_equal(sub, self.xyarr1[2])
 
 class TestMetadata(unittest.TestCase):

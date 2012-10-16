@@ -91,7 +91,7 @@ class DataTable:
         ----------
         subset : dict
             Dictionary of conditions for subsetting data (see description in 
-            EPatch Class docstring).
+            Patch Class docstring).
 
         Returns
         -------
@@ -109,12 +109,22 @@ class DataTable:
 
         # TODO: Add ability to do logical or - and is just multiple subsets on 
         # same column.
-        for key, value in subset.iteritems():
-            if type(value) is not type(('a', 'b')):  # Make all iterables
-                value = (value,)
 
-            for this_value in value:
-                if this_value != '==all':
+        for key, value in subset.iteritems():
+            if type(value) is not type(['a']):  # Make all iterables
+                value = [value]
+            
+            # Merge tuples into a string
+            merged_values = []
+            for val in value:
+                try: # check if val[1] is a string
+                    eval(str(val[1]))
+                    merged_values.append(val[0] + str(val[1]))
+                except:
+                    merged_values.append(val[0]  + "'" +  val[1] + "'")
+                    
+            for this_value in merged_values:
+                if this_value != "=='whole'":
                     this_valid = eval("self.table[key]" + this_value)
                     valid = np.logical_and(valid, this_valid)
 

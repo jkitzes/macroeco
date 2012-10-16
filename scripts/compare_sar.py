@@ -75,7 +75,7 @@ if __name__ == '__main__':
         sad_criteria = params['sar_criteria']
         for nm in params['div_cols']:
             sad_criteria[nm] = 'whole'
-
+        
         patch = Patch(data_path, subset=params['subset'])
         sad = patch.sad(sad_criteria)
         sar = patch.sar(params['div_cols'], params['div_list'],
