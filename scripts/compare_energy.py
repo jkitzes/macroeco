@@ -18,7 +18,7 @@ gui_name = '''Energetics Analysis'''
 summary = '''Compares a dataset's observed energy distributions against 
              theoretical energy distributions'''
 
-explantion = ''' This script allows the user to compare observed energy
+explanation = ''' This script allows the user to compare observed energy
 distributions against predicted energy distributions.  This script can compare
 the individual community distribution (psi) and/or the species-level energy
 distribution (theta). The choice of which energy metrics to compare can be
