@@ -50,10 +50,11 @@ make the plot.
 
 '''
 
-required_params = {'subset' : 'Initial subsetting of the data', 'div_cols' : 
+required_params = {'subset' : 'Initial subsetting of the data','div_cols' : 
                    'Tuple of column names to divide', 'sar_criteria' :
                    'Dictionary with sar criteria', 'curve_list' : 'List of' +\
-                   ' curves to compare', 'names' : 'List of plot titles'}
+                   ' curves to compare', 'names' : 'List of plot titles',
+		   'div_list': 'List of pairs of division values'}
 
 if __name__ == '__main__':
 
