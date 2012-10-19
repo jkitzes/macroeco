@@ -189,7 +189,8 @@ class Curve(object):
         # methods can inherit this docstring.
         pass
 
-    def univ_curve(self, num_iter=5, direction='down', param=None):
+    def univ_curve(self, num_iter=5, direction='down', param='tot_obs',
+                                                iterative=False):
         '''
         Generating a univsersal curve for different curves.  A universal curve
         is defined as the slope value (z) at a function y = f(x) at a given x
@@ -206,6 +207,10 @@ class Curve(object):
         param : string
             If not None, will look for the given string in the self.params
             dict and set multiplier to this value. If None, multiplier is one.
+        iterative : bool
+            If False, uses the one-shot method calculate z via curve.vals.  If
+            iterative is true, uses the iterative method to calculate z via
+            Curve.iter_vals.
 
         '''
         
@@ -217,10 +222,20 @@ class Curve(object):
             multiplier = 1
 
         # Calculating z using equation from Harte et al. 2009
-        def z(a):
-            return (0.5 * (np.log(self.vals(a)['items'] / self.vals(0.5 *
-                        a)['items']) + np.log(self.vals(2 * a)['items'] / 
-                        self.vals(a)['items']))) / np.log(2)
+        if iterative:
+            def z(a):
+                a1 = self.iter_vals(a, non_iter=True)['items']
+                a2 = self.iter_vals(2*a, non_iter=True)['items']
+                a3 = self.iter_vals(.5 * a, non_iter=True)['items']
+                return \
+                    (0.5 * (np.log(a1 / a3) + np.log(a2 / a1))) / np.log(2), a1
+
+        else:
+            def z(a):
+                a1 = self.vals(a)['items']
+                return (0.5 * (np.log(a1 / self.vals(0.5 *
+                            a)['items']) + np.log(self.vals(2 * a)['items'] / 
+                            a1))) / np.log(2), a1
         
         # Get the area list
         if direction == 'down':
@@ -233,9 +248,10 @@ class Curve(object):
             raise ValueError('%s not a recognized direction' % direction)
 
         # Compute universal curve parameters
+        a_list.sort()
         a_list = np.array(a_list)
-        zs = z(a_list)
-        x_over_y = (a_list * multiplier) / self.vals(a_list)['items']
+        zs, base_a = z(a_list)
+        x_over_y = (a_list * multiplier) / base_a 
 
         uni =  np.array(zip(zs, x_over_y), dtype=
                                       [('z', np.float),('x_over_y', np.float)])
@@ -2227,23 +2243,10 @@ class mete_sar_iter(Curve):
         assert N > 0, "S must be greater than 0"
         if not np.iterable(a_list) and a_list is not None:
             raise TypeError('a_list is not an array-like object')
-        
+
         anch = 1
-        if a_list != None:
-            mint = np.min(a_list)
-            maxt = np.max(a_list)
-            if mint == anch and maxt == anch: 
-                upscale = 0; downscale = 0
-            elif (mint > anch or mint == anch) and maxt > anch:
-                upscale = np.int(np.ceil(np.log2(maxt / anch)))
-                downscale = 0
-            elif mint < anch and (maxt < anch or maxt == anch):
-                downscale = np.int(np.ceil(np.abs(np.log2(mint / anch)))) 
-                upscale = 0
-            elif mint < anch and maxt > anch:
-                upscale = np.int(np.ceil(np.log2(maxt / anch)))
-                downscale = np.int(np.ceil(np.abs(np.log2(mint / anch)))) 
-    
+        upscale, downscale = set_up_and_down(anch, a_list)
+        
         if upscale == 0 and downscale == 0:
             return np.array((S, anch), dtype=[('items', np.float),
                                                 ('area', np.float)])
@@ -2251,7 +2254,7 @@ class mete_sar_iter(Curve):
         sar = np.empty(len(areas), dtype=[('items', np.float),
                                       ('area', np.float)])
         sar['area'] = areas
-        if upscale != 0: 
+        if upscale != 0:
             sar['items'][downscale:] = _upscale_sar_(areas[downscale:], N, S)
         if downscale != 0:
             sar['items'][:downscale + 1] =\
@@ -2298,7 +2301,7 @@ class mete_sar_iter(Curve):
             a1 = self.vals(a, non_iter=True)['items']
             a2 = self.vals(2*a, non_iter=True)['items']
             a3 = self.vals(.5 * a, non_iter=True)['items']
-            return (0.5 * (np.log(a1 / a3) + np.log(a2 / a1))) / np.log(2)
+            return (0.5 * (np.log(a1 / a3) + np.log(a2 / a1))) / np.log(2), a1
 
         # Get area list
         if direction == 'down':
@@ -2312,8 +2315,8 @@ class mete_sar_iter(Curve):
         
         a_list.sort()
         a_list = np.array(a_list)
-        zs = z(a_list)
-        x_over_y = (a_list * multiplier) / self.vals(a_list, non_iter=True)['items']
+        zs, base_a = z(a_list)
+        x_over_y = (a_list * multiplier) / base_a 
 
         uni =  np.array(zip(zs, x_over_y), dtype=
                                       [('z', np.float),('x_over_y', np.float)])
@@ -2473,6 +2476,92 @@ class gen_sar(Curve):
         self.ssad = ssad
         self.params = kwargs
 
+    def iter_vals(self, a_list, upscale=0, downscale=0, non_iter=False):
+        '''
+        Calculates values in a_list by iteration.
+
+        Parameters
+        ----------
+        a_list : array-like object
+            List of area fractions at which to calculate the SAR
+
+        Returns
+        -------
+        : structured np.array
+            A structured np.array with dtype=[('items', np.float),
+            ('area', np.float)]. Items can be species.
+        '''
+
+        S, N = self.get_params(['n_samp', 'tot_obs'])
+        assert S < N, "S must be less than N"
+        assert S > 1, "S must be greater than 1"
+        assert N > 0, "S must be greater than 0"
+        if not np.iterable(a_list) and a_list is not None:
+            raise TypeError('a_list is not an array-like object')
+
+        anch = 1
+        upscale, downscale = set_up_and_down(anch, a_list)
+
+        if upscale == 0 and downscale == 0:
+            return np.array((S, anch), dtype=[('items', np.float),
+                                                ('area', np.float)])
+        areas = _generate_areas_(anch, upscale, downscale)
+        sar = np.empty(len(areas), dtype=[('items', np.float),
+                                      ('area', np.float)])
+        sar['area'] = areas
+
+        def up_down_scale(areas, up_down):
+            N_list = []; S_list = [] 
+            
+            if up_down == 'up':
+                a = 2 #iterate by doubling
+            else:
+                a = 0.5 # iterate by halving
+
+            for i, da in enumerate(areas):
+                
+                if i == 0: #Base area calculation. Not always exactly S
+
+                    self.params['tot_obs'] = N 
+                    self.params['n_samp'] = S
+                    S_list.append(self.vals([da])['items'][0])
+                    N_list.append(N)
+
+                else:
+                    self.params['tot_obs'] = N_list[i - 1] 
+                    self.params['n_samp'] = S_list[i - 1]
+                    S_list.append(self.vals([a])['items'][0])
+
+                    # Can't have less then one individual
+                    if N * da < 1:
+                        raise DownscaleError("Can't downscale %i iterations below"
+                            % (downscale) + " %.2f individuals at the anchor scale"
+                            % (N))
+                    N_list.append(N * da)
+
+            # Reset anchor values
+            self.params['tot_obs'] = N
+            self.params['n_samp'] = S
+
+            if up_down == 'down':
+                return np.array(S_list)[::-1]
+            else:
+                return np.array(S_list)
+        
+        if upscale != 0:
+            sar['items'][downscale:] = up_down_scale(areas[downscale:], 'up')
+
+        if downscale != 0:
+            sar['items'][:downscale + 1] = up_down_scale(areas[:downscale +
+                                                              1][::-1], 'down')
+        if non_iter == False:
+            return sar
+        else:
+            ind = np.zeros(len(sar), dtype=bool)
+            for a in a_list:
+                ind = np.bitwise_or(ind, sar['area'] == a)
+            return sar[ind]
+
     def vals(self, a_list):
         '''
 
@@ -2489,9 +2578,16 @@ class gen_sar(Curve):
 
         '''
         
-        # TODO: Really only need n_samp and tot_obs for everything other than
-        # plognorm.  Could calulate the full sad here. 
-        sad, S = self.get_params(['sad_pmf', 'n_samp'])
+        # If sad is plognorm or plognorm_lt Throw and error for now
+        nm = self.sad.__class__.__name__
+        if nm == 'plognorm' or nm == 'plognorm_lt':
+            raise ValueError("SAD %s not supported" % (nm))
+    
+        # Calculating sad in this method, not in fit.  More flexible this way.
+        # However, this is a bit slower
+        S, N = self.get_params(['n_samp', 'tot_obs'])
+        self.sad.params['n_samp'] = S; self.sad.params['tot_obs'] = N
+        sad = self.sad.pmf(np.arange(1, N + 1))[0][0]
         ssad = self.ssad
         sar = []
 
@@ -2509,8 +2605,7 @@ class gen_sar(Curve):
                 def eq(Sbig, abig, S):
 
                     # Setting distribution parameters for guess at upscale
-                    # TODO: upscaling plognorm does not refit with the current 
-                    # setup
+                    # NOTE: You can't refit plognorm when you upscale. 
                     Nbig = abig * self.params['tot_obs']
                     self.sad.params['tot_obs'] = Nbig
                     self.sad.params['n_samp'] = Sbig
@@ -3240,6 +3335,7 @@ class nu(Distribution):
 
     def rad(self):
         '''
+        Need to test this rad.
         '''
 
         n_samp, tot_obs, E = self.get_params(['n_samp', 'tot_obs', 'E'])
@@ -3443,6 +3539,29 @@ def _ln_choose(n, k):
     gammaln = scipy.special.gammaln
     return gammaln(n + 1) - (gammaln(k + 1) + gammaln(n - k + 1))
 
+def set_up_and_down(anch, a_list):
+    '''
+    Sets the number of upscales and downscales given an a_list.  Only allows
+    halvings and doublings
+    '''
+
+    if a_list != None:
+        mint = np.min(a_list)
+        maxt = np.max(a_list)
+        if mint == anch and maxt == anch: 
+            upscale = 0; downscale = 0
+        elif (mint > anch or mint == anch) and maxt > anch:
+            upscale = np.int(np.ceil(np.log2(maxt / anch)))
+            downscale = 0
+        elif mint < anch and (maxt < anch or maxt == anch):
+            downscale = np.int(np.ceil(np.abs(np.log2(mint / anch)))) 
+            upscale = 0
+        elif mint < anch and maxt > anch:
+            upscale = np.int(np.ceil(np.log2(maxt / anch)))
+            downscale = np.int(np.ceil(np.abs(np.log2(mint / anch))))
+    
+    return upscale, downscale
+
 def _upscale_sar_(up_areas, N, S):
     '''
     This function is used to upscale from the anchor area.
@@ -3518,8 +3637,6 @@ def _downscale_sar_(down_areas, N, S):
                      * (1 - ((x**N_A) / (N_A + 1))))
             spp[i] = ShalfA
     return spp[::-1]
-
-
 
 def _generate_areas_(anchor_area, upscale, downscale):
     '''
