@@ -349,7 +349,7 @@ class Grid_Data:
 
     def remove_and_replace(self, remove, replace):
         '''
-        Removes a string and replaces it with another one
+        Removes a string from a grid cell and replaces it with another one
 
         Paramters
         ---------
@@ -450,10 +450,24 @@ class Grid_Data:
             self.dense_data.append(matrix)
         self.Dense_Object = Dense_Data(self.dense_data)
 
-    def output_data_matricies(self, filenames):
+    def output_grid_data(self, filenames):
+        '''
+        This function prints the data within self.grids with the given
+        filenames.
+
+        '''
+
+        assert len(filenames) == len(self.grids), "Number of filenames\
+                                 must be the same as the number of datasets"
+        for i, data in enumerate(self.grids):
+            output_form(data, filenames[i]) 
+
+
+    def output_dense_data(self, filenames):
         '''
         This function prints the data within self.dense_data with the given
         filenames.  If self.dense_data has not been filled, error is thrown.
+
 
 
         Parameters
@@ -467,7 +481,7 @@ class Grid_Data:
 
         assert len(filenames) == len(self.dense_data), "Number of filenames\
                                  must be the same as the number of datasets"
-        for i, data in self.dense_data:
+        for i, data in enumerate(self.dense_data):
             output_form(data, filenames[i]) 
 
     

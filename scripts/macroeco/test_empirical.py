@@ -130,12 +130,12 @@ tery, 2, 2, 0
         self.pat4 = Patch('xyfile8.csv')
         self.pat4.data_table.meta = self.xymeta8
         self.xyfile9 = open('xyfile9.csv','w')
-        self.xyfile9.write('''spp_code, x, y, count, energy
-grt, .1, .1, 2, 1
-grt, .1, .2, 1, 2
-grt, .1, .3, 1, 3
-rty, .1, .2, 1, 4
-rty, .2, .3, 1, 5''')
+        self.xyfile9.write('''spp_code, x, y, count, energy, mass
+grt, .1, .1, 2, 1, 34
+grt, .1, .2, 1, 2, 12
+grt, .1, .3, 1, 3, 23
+rty, .1, .2, 1, 4, 45
+rty, .2, .3, 1, 5, 110''')
         self.xyfile9.close()
         self.xymeta9 = {('x', 'maximum'): .2, ('x', 'minimum'): .1, ('x',
         'precision'): .1, ('x', 'type'): 'interval', ('y', 'maximum'): .3,
@@ -170,6 +170,32 @@ d, 1, 1, 1''')
         'precision'): None, ('count', 'type'): 'ratio'}
         self.pat6 = Patch('xyfile10.csv')
         self.pat6.data_table.meta = self.xymeta10
+        self.xyfile11 = open('xyfile11.csv', 'w')
+        self.xyfile11.write('''spp_code, x, y, count, reptile
+a, 0, 0, 1, lizard
+b, 0, 0, 1, lizard
+d, 0, 0, 3, snake
+b, 0, 1, 4, lizard
+d, 0, 1, 1, turtle
+a, 1, 0, 1, snake
+c, 1, 0, 3, lizard
+d, 1, 0, 1, snake
+b, 1, 1, 1, tuatara
+c, 1, 1, 3, turtle
+d, 1, 1, 1, snake''')
+        self.xyfile11.close()
+        self.xymeta11 = {('x', 'maximum'): 1, ('x', 'minimum'): 0, ('x',
+        'precision'): 1, ('x', 'type'): 'interval', ('y', 'maximum'): 1,
+        ('y', 'minimum'): 0, ('y', 'precision'): 1, ('y', 'type'): 'interval',
+        ('spp_code', 'maximum'): None, ('spp_code', 'minimum'): None,
+        ('spp_code', 'precision'): None, ('spp_code', 'type'): 'ordinal',
+        ('count', 'maximum'): None, ('count', 'minimum'): None, ('count',
+        'precision'): None, ('count', 'type'): 'ratio', ('reptile', 'maximum')
+        : None, ('reptile', 'minimum') : None, ('reptile', 'precision'):None,
+        ('reptile', 'type') : 'ordinal'}
+        self.pat7 = Patch('xyfile11.csv')
+        self.pat7.data_table.meta = self.xymeta11
+
 
 
 
@@ -180,6 +206,7 @@ d, 1, 1, 1''')
         os.remove('xyfile8.csv')
         os.remove('xyfile9.csv')
         os.remove('xyfile10.csv')
+        os.remove('xyfile11.csv')
 
     #
     # init and set_attributes
@@ -192,16 +219,16 @@ d, 1, 1, 1''')
         self.assertTrue(len(self.pat2.data_table.table) == 16)
 
         # Test that subsetting works
-        pat = Patch('xyfile6.csv', {'spp_code': ("!='a'", "!='b'", "!='c'")})
+        pat = Patch('xyfile6.csv', {'spp_code': [('!=','a'), ('!=', 'b'),
+                                    ('!=','c')]})
         self.assertTrue(np.all(pat.data_table.table['spp_code'] == 'd'))
-        pat = Patch('xyfile7.csv', {'spp_code': "=='tery'"})
+        pat = Patch('xyfile7.csv', {'spp_code': ('==', "tery")})
         self.assertTrue(sum(pat.data_table.table['count']) == 2)
 
         # Testing that metadata was set correctly
         self.assertTrue(self.pat1.data_table.meta[('x', 'maximum')] == .2)
         
     def test_sad(self):
-        # TODO: Test 'split'
         
         # Test correct result with 'whole' and one division
         sad = self.pat1.sad({'spp_code': 'species', 'count': 'count', 
@@ -224,6 +251,25 @@ d, 1, 1, 1''')
         'whole'})
         self.assertTrue(np.array_equal(sad1[0][1], sad2[0][1]))
 
+        # Test that 'split' keyword returns the correct results
+        sad = self.pat5.sad({'spp_code' :'species', 'energy':'split', 'count'
+                             : 'count'})
+        self.assertTrue(len(sad) == 5)
+        self.assertTrue(np.array_equal(sad[0][1], np.array([2,0])))
+
+        # Test split and clean on numeric column
+        sad = self.pat5.sad({'spp_code' :'species', 'energy':'split', 'count'
+                             : 'count'}, clean=True)
+        self.assertTrue(len(sad) == 5)
+        self.assertTrue(np.array_equal(sad[0][1], np.array([2])))
+
+        # Test that cleaning sad and split works on string
+        sad = self.pat7.sad({'spp_code' : 'species', 'count' : 'count',
+                             'reptile' : 'split'}, clean=True)
+        self.assertTrue(len(sad) == 4)
+        self.assertTrue(np.array_equal(sad[0][1], np.array([1,5,3])))
+        self.assertTrue(np.array_equal(sad[2][1], np.array([1])))
+        self.assertTrue(sad[2][2][0] == 'b')
 
     def test_parse_criteria(self):
 
@@ -233,10 +279,11 @@ d, 1, 1, 1''')
         self.assertTrue(pars[1] == 'spp_code')
         self.assertTrue(pars[2] == 'count')
 
-        # TODO: Remove energy return
+        # Test that energy, mass and count col are None
         pars = self.pat4.parse_criteria({'spp_code': 'species', 
                                                 'y': 'whole'})
-        self.assertTrue((pars[2] == None) and (pars[3] == None))
+        self.assertTrue((pars[2] == None) and (pars[3] == None) and (pars[4] ==
+                        None))
 
         # If species is not specified correctly an error is thrown
         self.assertRaises(ValueError, self.pat3.parse_criteria, {'spp_col'
@@ -256,9 +303,6 @@ d, 1, 1, 1''')
                                 'count'})
         self.assertTrue(pars[5] == [{}])
 
-
-
-        # TODO: Write a test where we parse on a string
         # TODO: Test that error is thrown if step < prec
 
     def test_sar(self):
@@ -315,7 +359,6 @@ d, 1, 1, 1''')
         self.assertTrue(set(ssad[1]['c']) == {0, 0, 3, 3})
         self.assertTrue(set(ssad[1]['d']) == {3, 1, 1, 1})
     
-    # TODO: Test mass columns
     def test_ied(self):
         
         # Test correct length of result
@@ -333,7 +376,16 @@ d, 1, 1, 1''')
         self.assertTrue(np.array_equal(eng[1][1], np.array([1])))
         self.assertTrue(len(eng[0][1]) == 5)
 
-        # TODO: Test correct result without normalize
+        # Test mass column and normalize
+        eng = self.pat5.ied({'spp_code': 'species', 'count': 'count',
+                        'mass' : 'mass'}, exponent=1, normalize=False)
+        self.assertTrue(np.array_equal(eng[0][1], np.array([17,17,12,23,45,
+                                    110])))
+
+        # Test that energy overrides mass 
+        eng = self.pat5.ied({'spp_code': 'species', 'count': 'count',
+                        'mass' : 'mass', 'energy' : 'energy'}, normalize=False)
+        self.assertTrue(np.array_equal(eng[0][1], np.array([.5,.5,2,3,4,5])))
 
     def test_sed(self):
 
