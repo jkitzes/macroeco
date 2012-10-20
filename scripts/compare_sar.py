@@ -79,14 +79,14 @@ if __name__ == '__main__':
         except:
             logging.info("Adding base area to parameter 'div_list': (1,1)")
             params['div_list'].append((1,1))
-        sad_criteria = params['sar_criteria']
+        sad_criteria = params['criteria']
         for nm in params['div_cols']:
             sad_criteria[nm] = 'whole'
         
         patch = Patch(data_path, subset=params['subset'])
         sad = patch.sad(sad_criteria)
         sar = patch.sar(params['div_cols'], params['div_list'],
-                                                    params['sar_criteria'])
+                                                    params['criteria'])
         cmpr = comp.CompareSARCurve([sar], params['curve_list'],
                                                     [sad[0][1]], patch=True)
         srout = SAROutput(output_ID)

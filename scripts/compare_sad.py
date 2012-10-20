@@ -88,7 +88,6 @@ if __name__ == '__main__':
                                                             svers=__version__)
     
     for data_path, output_ID, params in wf.single_datasets():
-
         patch = Patch(data_path, subset=params['subset'])
         sad = patch.sad(params['criteria'], clean=True)
 

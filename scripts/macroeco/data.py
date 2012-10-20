@@ -109,7 +109,6 @@ class DataTable:
 
         # TODO: Add ability to do logical or - and is just multiple subsets on 
         # same column.
-
         for key, value in subset.iteritems():
             if type(value) is not type(['a']):  # Make all iterables
                 value = [value]
