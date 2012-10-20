@@ -72,9 +72,11 @@ included.''' % (global_str.SAD_distributions)
 rarity_measure = global_str.rarity_measure + ''' In this analysis, the rarity
 counts refer to individuals per species.'''
 
-required_params = {'subset' : subset, 'criteria' : criteria,
-                   'predicted_SAD_distributions' : predicted_SAD_distributions,
-                   'rarity_measure' : rarity_measure}
+required_params = {'criteria' : 'Dictionary of how to split the data',
+                   'dist_list' : 'List of distributions to compare',
+                   'rarity_measure' : 'A list of values to consider rare'}
+
+optional_params = {'subset' : 'Dictionary of initial subsets'}
 
 if __name__ == '__main__':
 
@@ -84,12 +86,17 @@ if __name__ == '__main__':
     import macroeco.compare as comp
     from macroeco.output import DistOutput
 
-    wf = Workflow(required_params=required_params, clog=True, 
-                                                            svers=__version__)
+    wf = Workflow(required_params=required_params,
+                  clog=True, svers=__version__)
     
     for data_path, output_ID, params in wf.single_datasets():
-
-        patch = Patch(data_path, subset=params['subset'])
+        try:
+            subset = params['subset']
+        except:
+            logging.info("Not subsetting anything (default value)")
+            subset = {}
+        
+        patch = Patch(data_path, subset)
         sad = patch.sad(params['criteria'], clean=True)
 
         cmpr = comp.CompareDistribution(sad,
