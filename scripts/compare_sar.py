@@ -13,10 +13,12 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
-#TODO: Need to fill out docstrings and all that good stuff
-gui_name = '''Species-Area Relationship'''
+import macroeco.utils.global_strings as global_str
 
-summary = '''Compares a dataset's observed SAR against theoretical SARs'''
+gui_name = ''' Analyze Species-Area Relationships'''
+
+summary = '''Compares a dataset's observed species-area relationships against 
+theoretical species-area relationships'''
 
 explanation = '''This script takes in a dataset(s) and list of curves to which
 compare the observed datasets SAR will be compared.  The required parameters
@@ -50,8 +52,12 @@ make the plot.
 
 '''
 
+subset = global_str.subset
+
+criteria = global_str.criteria
+
 required_params = {'subset' : 'Initial subsetting of the data','div_cols' : 
-                   'Tuple of column names to divide', 'sar_criteria' :
+                   'Tuple of column names to divide', 'criteria' :
                    'Dictionary with sar criteria', 'curve_list' : 'List of' +\
                    ' curves to compare', 'names' : 'List of plot titles',
 		   'div_list': 'List of pairs of division values'}

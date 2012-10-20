@@ -2245,7 +2245,8 @@ class mete_sar_iter(Curve):
             raise TypeError('a_list is not an array-like object')
 
         anch = 1
-        upscale, downscale = set_up_and_down(anch, a_list)
+        if a_list != None:
+            upscale, downscale = set_up_and_down(anch, a_list)
         
         if upscale == 0 and downscale == 0:
             return np.array((S, anch), dtype=[('items', np.float),
@@ -2500,7 +2501,8 @@ class gen_sar(Curve):
             raise TypeError('a_list is not an array-like object')
 
         anch = 1
-        upscale, downscale = set_up_and_down(anch, a_list)
+        if a_list != None:
+            upscale, downscale = set_up_and_down(anch, a_list)
 
         if upscale == 0 and downscale == 0:
             return np.array((S, anch), dtype=[('items', np.float),
@@ -3545,20 +3547,19 @@ def set_up_and_down(anch, a_list):
     halvings and doublings
     '''
 
-    if a_list != None:
-        mint = np.min(a_list)
-        maxt = np.max(a_list)
-        if mint == anch and maxt == anch: 
-            upscale = 0; downscale = 0
-        elif (mint > anch or mint == anch) and maxt > anch:
-            upscale = np.int(np.ceil(np.log2(maxt / anch)))
-            downscale = 0
-        elif mint < anch and (maxt < anch or maxt == anch):
-            downscale = np.int(np.ceil(np.abs(np.log2(mint / anch)))) 
-            upscale = 0
-        elif mint < anch and maxt > anch:
-            upscale = np.int(np.ceil(np.log2(maxt / anch)))
-            downscale = np.int(np.ceil(np.abs(np.log2(mint / anch))))
+    mint = np.min(a_list)
+    maxt = np.max(a_list)
+    if mint == anch and maxt == anch: 
+        upscale = 0; downscale = 0
+    elif (mint > anch or mint == anch) and maxt > anch:
+        upscale = np.int(np.ceil(np.log2(maxt / anch)))
+        downscale = 0
+    elif mint < anch and (maxt < anch or maxt == anch):
+        downscale = np.int(np.ceil(np.abs(np.log2(mint / anch)))) 
+        upscale = 0
+    elif mint < anch and maxt > anch:
+        upscale = np.int(np.ceil(np.log2(maxt / anch)))
+        downscale = np.int(np.ceil(np.abs(np.log2(mint / anch))))
     
     return upscale, downscale
 

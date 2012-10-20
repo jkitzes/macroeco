@@ -13,51 +13,56 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
+import macroeco.utils.global_strings as global_str
+
 gui_name = '''Rarity Analysis'''
 
-summary = '''Compares a dataset's observed rarity against theoretical rarity'''
+summary = '''Compares a dataset's observed rarity against predicted rarity'''
 
-explantion = '''This script takes in a dataset(s) and a list of distributions
-and examines the observed and predicted rarity for each dataset against each
-distribution.  Rarity is defined by the parameter 'rarity_measure'.
-The required parameters for this script are the following: 
+explanation = '''This script allows you to compare the rarity in your observed
+species abundance distributions (SAD) to the rarity predicted by a predicted
+SAD. An SAD is a distribution of the number of individuals within each species
+for an entire community.  If you were to fully census a community with S
+species and N individuals, the N individuals would be distributed among the
+S species in a certain way. 
 
-'subset' : How one would like to initially subset his data (see DataTable 
-class docstring). 
+This script outputs csv files containing the headings 'data_name', 'criteria',
+and 'obs'.  The remainder of the headings are the names of the distributions to
+which you are comparing your observed rarity.  The column 'data_name' contains
+the name of the data that you are examining, the column 'criteria' specifies
+the criteria that you imposed upon the data (i.e. how you split up the data in
+the 'criteria' parameter), and the rest of the columns are the observed and
+predicted rarity measurements. The file name of the csv specifies which level
+of rarity is being examined in the csv file.  For example, if the file name
+contained the phrase 'rarity_<=_10' the csv file is looking at rarity less then
+or equal to 10.
 
-'criteria' : How one would like to divide her dataset when caluculating the 
-rarity. The theoretical distributions are compared against every dataset that is 
-generated from the cutting specified in this parameter.  See Patch class 
-docstring for details
+For more information on SADs and rarity please see the following reference and
+the references therein:
 
-'dist_list' : The list of distributions to which one could compare her observed
-data.  The full list of distributions can be found in distributions.py
+Harte, J. 2011. Maximum Entropy and Ecology: A Theory of Abundance,
+Distribution, and Energetics. Oxford University Press.
 
-'patch_type' :  Rarity can be compared between either sads or ssads.  This
-parameter is a string of either 'sad' or 'ssad'.  Depending on which form
-patch_type takes, sads or ssads will be examined.
-
-'rarity_measure' : This parameter specifies what the user would like to
-consider rare for a given analysis.  For example, setting this parameter to
-[10, 1] would specify that the user would like to consider all counts less than
-or equal to 10 as rare and all counts less than or equal to 1 as rare.
-
-For each dataset, a csv file(s) is generated with multiple columns.  The first
-column is always the criteria used split the data set and the remaining columns
-are observed rarity and predicted rarity.  Each row in the csv file displays
-the observed and predicted rarity for the given subset displayed in the
-criteria column.  So, if one divides the original data set into two smaller
-data sets, the resulting csv file will have two rows (not including the column
-names).  The file name specifies what measure of rarity was used. The number of
-outputed csv files is equal to the number of values in the rarity_measure
-parameter.
 
 '''
 
-required_params = {'subset' : 'Dictionary of initial subsets', 'criteria' :
-        'Dictionary of how to split the data', 'dist_list' : 'List of' +\
-        'distributions to compare', 'patch_type' : 'Either sad or ssad',
-        'rarity_measure' : 'A list of values to consider rare'}
+subset = global_str.subset
+
+criteria = global_str.criteria
+
+predicted_SAD_distributions = '''This parameter is a list of SAD
+distributions that you can test against your observed rarity.
+
+You may use any number of the following SAD distributions : %s
+
+Example input: ['logser', 'plognorm_lt'] or ['nbd_lt']. The brackets MUST be
+included.''' % (global_str.SAD_distributions)
+
+rarity_measure = global_str.rarity_measure 
+
+required_params = {'subset' : subset, 'criteria' : criteria,
+        'predicted_SAD_distributions' : predicted_SAD_distributions,
+        'rarity_measure' : rarity_measure}
 
 if __name__ == '__main__':
 
@@ -75,20 +80,16 @@ if __name__ == '__main__':
     for data_path, output_ID, params in wf.single_datasets():
 
         patch = Patch(data_path, subset=params['subset'])
+        
+        # NOTE: Only looks at rarity for SADs 
+        patch_out = patch.sad(params['criteria'], clean=True)
 
-        if params['patch_type'] == 'sad':
-            patch_out = patch.sad(params['criteria'], clean=True)
-        elif params['patch_type'] == 'ssad':
-            patch_out = patch.ssad(params['criteria'])
-        else:
-            raise ValueError('%s not a recognized patch type' %
-                                                        params['patch_type'])
-
-        cmpr = comp.CompareDistribution(patch_out, params['dist_list'], 
-                                                   patch=params['patch_type'])
+        cmpr = comp.CompareDistribution(patch_out, 
+                 params['predicted_SAD_distributions'], patch='sad')
         rarity = cmpr.compare_rarity(cmpr.compare_rads(),
                                             mins_list=params['rarity_measure'])
-        
+       
+        # NOTE: We could wrap all this in an output function if we want to
         # Make dtype
         keys = list(rarity.viewkeys())
         dtype = [(kw, np.int) for kw in keys]

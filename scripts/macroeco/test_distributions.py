@@ -471,7 +471,7 @@ class TestDistributions(unittest.TestCase):
         self.assertRaises(ValueError, sar.univ_curve, direction='asf')
         self.assertRaises(AssertionError, sar.univ_curve, param='apple')
         res1 = sar.univ_curve(num_iter=5, param='tot_obs')
-        res2 = sar.univ_curve(num_iter=5)
+        res2 = sar.univ_curve(num_iter=5, param=None)
         self.assertTrue(not(np.array_equal(res1['x_over_y'],
                                                             res2['x_over_y'])))
         self.assertTrue((np.array_equal(res1['z'], res2['z'])))
