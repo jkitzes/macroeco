@@ -72,11 +72,11 @@ included.''' % (global_str.SAD_distributions)
 rarity_measure = global_str.rarity_measure + ''' In this analysis, the rarity
 counts refer to individuals per species.'''
 
-required_params = {'criteria' : 'Dictionary of how to split the data',
-                   'dist_list' : 'List of distributions to compare',
-                   'rarity_measure' : 'A list of values to consider rare'}
+required_params = {'criteria' : criteria, 
+                   'predicted_SAD_distributions' : predicted_SAD_distributions,
+                   'rarity_measure' : rarity_measure}
 
-optional_params = {'subset' : 'Dictionary of initial subsets'}
+optional_params = {'subset' : subset}
 
 if __name__ == '__main__':
 
