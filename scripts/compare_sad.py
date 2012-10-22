@@ -13,7 +13,6 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
-import macroeco.utils.global_strings as global_str
 
 gui_name = '''Analysis of Species Abundance Distributions'''
 
@@ -54,6 +53,49 @@ Evolution of Communities (eds M. L. Cody and J. M. Diamond), Harvard University
 Press.
 
 '''
+class global_str:
+    subset = '''You should examine the columns in your data set and decide if you
+	would like to subset your data in some particular way before the analysis
+	begins. It is important to note that only the subsetted data will be analyzed.
+	For example,  if you have a column named 'year' in your data set with values
+	1998, 1999, and 2000 and you only want to look at the year 2000 for a
+	particular analysis, you should select the == operator from the drop down list
+	and type 2000 in the value field.  Similarly, you could use <, >, <=, >=, or
+	!='''
+
+    criteria = '''You should examine the columns in your dataset and decide if you
+	would like to divide the data in a particular way for this analysis. For
+	example, if the you have a spatial dataset with x,y coordinates and you are
+	interested in examining macroecological metrics for two separate halves of your
+	plot along the x coordinate, you could cut the x coordinate in two halves by
+	giving the 'x' column a value of 2.  If the column that you would like to
+	divide contains discrete values (e.g. year), you could enter the keyword
+	'split' and each unique value will be analyzed separately. Conversely, the
+	value 'whole' could be given to specify the entire column.  The value 'whole'
+	is equivalent to 1 or leaving the value blank.\n\n
+
+	There are four special words that can be used on a given column: 'species',
+	'energy', 'count', and 'mass'.  When assigned to a column in your data set, the
+	special word 'species' indicates the column that contains your species IDs, the
+	special word 'energy' indicates the column that contains some type of energy
+	measure, the special word 'mass' indicates a column that contains some type of
+	mass measure, and the special word 'count' indicates the column that contains
+	your species counts.  In the GUI, these special words can be chosen from the
+	dropdown menu next to each column header. The special word 'species' MUST be
+	assigned for every analysis.  If the special word 'count' is not assigned, the
+	species counts are all assumed to be one.\n\n'''
+
+    rarity_measure = '''This parameter allows you to specify the counts that
+	you will consider rare.  If, for example, you want to know how many species in
+	your plot have an abundance of 2 or less you would set this parameter to 2. If
+	you enter more then one value, each value will be examined. Example input: [2]
+	or [2, 5]. The brackets MUST be included.'''
+
+    SAD_distributions = ''' 'logser','logser_ut', 'logser_ut_appx', 'plognorm_lt',
+'nbd_lt', 'geo_ser', 'broken_stick', 'lognorm' '''
+
+    SSAD_distributions = ''' 'nbd', 'binm', 'tgeo', 'fgeo', 'fnbd', 'pois' '''
+
 
 subset = global_str.subset
 
@@ -61,22 +103,23 @@ criteria = global_str.criteria
 
 # NOTE: Need to find a different way to specify which distributions they can
 # use
-predicted_SAD_distributions = '''This parameter is the list of SAD
+predicted_SAD_distributions = '''A list of  SAD
 distributions to which you can compare your observed data. 
 
-You may use any number of the following SAD distributions: %s 
+You may use any number of the following SAD distributions: {!s} 
 
 Example input: ['logser', 'plognorm_lt'] or ['nbd_lt']. The brackets MUST be
-included.''' % (global_str.SAD_distributions)
+included.'''.format(global_str.SAD_distributions)
 
 rarity_measure = global_str.rarity_measure + ''' In this analysis, the rarity
 counts refer to individuals per species.'''
 
-required_params = {'criteria' : criteria, 
-                   'predicted_SAD_distributions' : predicted_SAD_distributions,
-                   'rarity_measure' : rarity_measure}
+required_params = {'criteria' : 'Dictionary of how to split the data',
+                   'rarity_measure' : 'A list of values to consider rare',
+		   'predicted_SAD_distributions': predicted_SAD_distributions}
 
-optional_params = {'subset' : subset}
+optional_params = {'subset' : ('''Dictionary of initial subsets. Optional.
+                                Default: ''', {})}
 
 if __name__ == '__main__':
 
@@ -88,15 +131,15 @@ if __name__ == '__main__':
 
     wf = Workflow(required_params=required_params,
                   clog=True, svers=__version__)
+
+	    
     
     for data_path, output_ID, params in wf.single_datasets():
-        try:
-            subset = params['subset']
-        except:
-            logging.info("Not subsetting anything (default value)")
-            subset = {}
-        
-        patch = Patch(data_path, subset)
+	for optpar in optional_params: # TODO: move into Workflow
+	    if not optpar in params:
+                logging.info('''Default value for {!s}: {!s}'''.format(			        optpar, str(optional_params[optpar][1])))
+		params[optpar] = optional_params[optpar][1]
+        patch = Patch(data_path, params['subset'])
         sad = patch.sad(params['criteria'], clean=True)
 
         cmpr = comp.CompareDistribution(sad,
