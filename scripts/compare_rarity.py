@@ -13,59 +13,84 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
-class global_str:
-    subset = '''You should examine the columns in your data set and decide if you
-	would like to subset your data in some particular way before the analysis
-	begins. It is important to note that only the subsetted data will be analyzed.
-	For example,  if you have a column named 'year' in your data set with values
-	1998, 1999, and 2000 and you only want to look at the year 2000 for a
-	particular analysis, you should select the == operator from the drop down list
-	and type 2000 in the value field.  Similarly, you could use <, >, <=, >=, or
-	!='''
-
-    criteria = '''You should examine the columns in your dataset and decide if you
-	would like to divide the data in a particular way for this analysis. For
-	example, if the you have a spatial dataset with x,y coordinates and you are
-	interested in examining macroecological metrics for two separate halves of your
-	plot along the x coordinate, you could cut the x coordinate in two halves by
-	giving the 'x' column a value of 2.  If the column that you would like to
-	divide contains discrete values (e.g. year), you could enter the keyword
-	'split' and each unique value will be analyzed separately. Conversely, the
-	value 'whole' could be given to specify the entire column.  The value 'whole'
-	is equivalent to 1 or leaving the value blank.\n\n
-
-	There are four special words that can be used on a given column: 'species',
-	'energy', 'count', and 'mass'.  When assigned to a column in your data set, the
-	special word 'species' indicates the column that contains your species IDs, the
-	special word 'energy' indicates the column that contains some type of energy
-	measure, the special word 'mass' indicates a column that contains some type of
-	mass measure, and the special word 'count' indicates the column that contains
-	your species counts.  In the GUI, these special words can be chosen from the
-	dropdown menu next to each column header. The special word 'species' MUST be
-	assigned for every analysis.  If the special word 'count' is not assigned, the
-	species counts are all assumed to be one.\n\n'''
-
-    rarity_measure = '''This parameter allows you to specify the counts that
-	you will consider rare.  If, for example, you want to know how many species in
-	your plot have an abundance of 2 or less you would set this parameter to 2. If
-	you enter more then one value, each value will be examined. Example input: [2]
-	or [2, 5]. The brackets MUST be included.'''
-
-    SAD_distributions = ''' 'logser','logser_ut', 'logser_ut_appx', 'plognorm_lt',
-'nbd_lt', 'geo_ser', 'broken_stick', 'lognorm' '''
-
-    SSAD_distributions = ''' 'nbd', 'binm', 'tgeo', 'fgeo', 'fnbd', 'pois' '''
-
 gui_name = '''Rarity Analysis'''
 
 summary = '''Compares a dataset's observed rarity against predicted rarity'''
 
-explanation = '''This script allows you to compare the rarity in your observed
+class global_str:
+    subset = '''You should examine the columns in your data set and decide if
+    you would like to subset your data in some particular way before the
+    analysis begins. It is important to note that only the subsetted data will
+    be analyzed.  For example,  if you have a column named 'year' in your data
+    set with values 1998, 1999, and 2000 and you only want to look at the year
+    2000 for a particular analysis, you should select the == operator from the
+    drop down list and type 2000 in the value field.  Similarly, you could use
+    <, >, <=, >=, or !='''
+
+    criteria = '''You should examine the columns in your dataset and decide if
+    you would like to divide the data in a particular way for this analysis.
+    For example, if the you have a spatial dataset with x,y coordinates and you
+    are interested in examining macroecological metrics for two separate halves
+    of your plot along the x coordinate, you could cut the x coordinate in two
+    halves by giving the 'x' column a value of 2.  If the column that you would
+    like to divide contains discrete values (e.g. year), you could enter the
+    keyword 'split' and each unique value will be analyzed separately.
+    Conversely, the value 'whole' could be given to specify the entire column.
+    The value 'whole' is equivalent to 1 or leaving the value blank. If you
+    would like to divide a given column, please select the word 'division' from
+    the GUI dropdown menu and input a value as discussed above.\n\n
+
+    There are four special words that can be used on a given column: 'species',
+    'energy', 'count', and 'mass'.  When assigned to a column in your data set,
+    the special word 'species' indicates the column that contains your species
+    IDs, the special word 'energy' indicates the column that contains some type
+    of energy measure, the special word 'mass' indicates a column that contains
+    some type of mass measure, and the special word 'count' indicates the
+    column that contains your species counts.  In the GUI, these special words
+    can be chosen from the dropdown menu next to each column header. The
+    special word 'species' MUST be assigned for every analysis.  If the special
+    word 'count' is not assigned, the species counts are all assumed to be
+    one.\n\n'''
+
+    rarity_measure = '''This parameter allows you to specify the counts that
+    you will consider rare.  If, for example, you want to know how many species
+    in your plot have an abundance of 2 or less you would set this parameter to
+    2. If you enter more then one value, each value will be examined. Example
+    input: [2] or [2, 5]. The brackets MUST be included.'''
+
+    SAD_distributions = ''' 'logser','logser_ut', 'logser_ut_appx',
+    'plognorm_lt', 'nbd_lt', 'geo_ser', 'broken_stick', 'lognorm' '''
+
+    SSAD_distributions = ''' 'nbd', 'binm', 'tgeo', 'fgeo', 'fnbd', 'pois' '''
+
+subset = '''Specifications for how you want to subset your data before the
+analysis.  Only the subsetted data will be included in the analysis.  See
+explanation link for more detail.'''
+
+criteria = '''Specifications for how you want to divide your data during the
+analysis.  See explanation link for more detail.'''
+
+predicted_SAD_distributions = '''This parameter is a list of SAD
+distributions that you can test against your observed rarity.
+
+You may use any number of the following SAD distributions : %s
+
+Example input: ['logser', 'plognorm_lt'] or ['nbd_lt']. The brackets MUST be
+included.''' % (global_str.SAD_distributions)
+
+rarity_measure = global_str.rarity_measure + ''' In this analysis, the rarity
+counts refer to individuals per species.'''
+
+explanation = '''
+ANALYSIS EXPLANATION\n
+This script allows you to compare the rarity in your observed
 species abundance distributions (SAD) to the rarity predicted by a predicted
 SAD. An SAD is a distribution of the number of individuals within each species
 for an entire community.  If you were to fully census a community with S
 species and N individuals, the N individuals would be distributed among the
-S species in a certain way. 
+S species in a certain way. This analysis looks at both observed and predicted
+SADs and determines how many species have the number of individuals less than 
+or equal to the rarity value(s) that you specify in the rarity parameter.
 
 This script outputs csv files containing the headings 'data_name', 'criteria',
 and 'obs'.  The remainder of the headings are the names of the distributions to
@@ -78,35 +103,40 @@ of rarity is being examined in the csv file.  For example, if the file name
 contained the phrase 'rarity_<=_10' the csv file is looking at rarity less then
 or equal to 10.
 
-For more information on SADs and rarity please see the following reference and
+For more information on SADs and rarity please see the reference and
 the references therein:
+
+PARAMETER EXPLANATIONS
+
+*** subset ***:
+
+{0}
+
+*** criteria ***:
+
+{1}
+
+*** rarity_measure ***:
+
+{2}
+
+*** predicted_SAD_distributions ***:
+
+{3}
+
+
+REFERENCES
 
 Harte, J. 2011. Maximum Entropy and Ecology: A Theory of Abundance,
 Distribution, and Energetics. Oxford University Press.
-
-
-'''
-
-subset = global_str.subset
-
-criteria = global_str.criteria
-
-predicted_SAD_distributions = '''This parameter is a list of SAD
-distributions that you can test against your observed rarity.
-
-You may use any number of the following SAD distributions : %s
-
-Example input: ['logser', 'plognorm_lt'] or ['nbd_lt']. The brackets MUST be
-included.''' % (global_str.SAD_distributions)
-
-rarity_measure = global_str.rarity_measure 
+'''.format(global_str.subset, global_str.criteria, global_str.rarity_measure,
+predicted_SAD_distributions)
 
 required_params = { 'criteria' : criteria,
         'predicted_SAD_distributions' : predicted_SAD_distributions,
         'rarity_measure' : rarity_measure}
 
-optional_params = {'subset' : ('''Dictionary of initial subsets. Optional.
-                                Default: ''', {})}
+optional_params = {'subset' : (subset + ''' Optional. Default: ''', {})}
 
 
 if __name__ == '__main__':
@@ -123,10 +153,11 @@ if __name__ == '__main__':
                                                             svers=__version__)
     
     for data_path, output_ID, params in wf.single_datasets():
-	for optpar in optional_params: # TODO: move into Workflow
-	    if not optpar in params:
-                logging.info('''Default value for {!s}: {!s}'''.format(			        optpar, str(optional_params[optpar][1])))
-		params[optpar] = optional_params[optpar][1]
+        for optpar in optional_params: #TODO: Move to workflow
+            if not optpar in params:
+                logging.info("Default value for {!s}: {!s}".format(optpar,
+                              str(optional_params[optpar][1])))
+                params[optpar] = optional_params[optpar][1]
 
         patch = Patch(data_path, subset=params['subset'])
         

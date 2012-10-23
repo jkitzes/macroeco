@@ -13,27 +13,46 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
-gui_name = '''Get Betas'''
+gui_name = '''Calculate Beta from Given N and S'''
 
-summary = '''Calculate the Lagrange multiplier 'beta' for a given set of S and N.'''
+summary = '''Calculate the Lagrange multiplier 'beta' for a given set of S and
+N.'''
 
-explanation = '''This script takes in a csv file with columns 'S' and 'N' and
-calculates the beta parameter associated with each 'S' and 'N' pair.  The beta
-parameter is present in the METE logseries (see logser_ut and logser_ut_appx
-classes) and can be calculated with or without an approximation. 
-The parameter needed for this analysis is:
-
-'approximation' : This parameter can be either 'True' or 'False'.  If it is
+approximation = '''This parameter can be either 'True' or 'False'.  If it is
 'False', the beta parameter will be calculated without an approximation and if
-it is 'True', the beta parameter will be calculated with an approximation. 
+it is 'True', the beta parameter will be calculated with an approximation. When
+N and S are large, both methods will return similar results.'''
+
+explanation = '''
+ANALYSIS EXPLANATION: \n This script takes in a csv file with columns 'S' and
+'N' and calculates the beta value associated with each S and N pair. S
+represents the total number of species in a given census and N represents the
+total number of individuals.  The beta value is present in
+the METE logseries and can be calculated with or without an approximation. The
+beta value is a combination of lagrange multipliers that are derived from
+maximizing entropy given some constraints. See references for more information
+about beta and METE.
 
 This script saves a csv file with columns 'N', 'S', and 'beta', where the
-'beta' column contains the 'beta' for the given 'N' and 'S'.  
+'beta' column contains the beta for the given N and S.  
 
-'''
+PARAMETER EXPLANATION
 
-required_params = {'approximation' : 'A boolean that determines if beta is ' +\
-                    ' approximated'}
+*** approximation ***:
+
+{0}
+
+REFERENCES
+
+Harte, J. 2011. Maximum Entropy and Ecology: A Theory of Abundance,
+Distribution, and Energetics. Oxford University Press.
+
+'''.format(approximation)
+
+required_params = {'approximation' : approximation}
+
+optional_params = {'subset' : ('''Not applicable for this analysis ''', {}),
+                   'criteria' : ('Not applicable for this analysis', {})}
 
 if __name__ == '__main__':
 

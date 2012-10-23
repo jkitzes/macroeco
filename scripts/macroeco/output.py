@@ -73,7 +73,13 @@ class DistOutput(object):
                                    " number of data arrays under consideration"
         ob = smry['obs']
         for i in xrange(tot_sad):
-            fout = open(self.out_dir + '_summary_table_' + str(i) + '.txt', 'w')
+            if criteria != None and np.all([type(crt) != dict for crt in
+                                                                  criteria]):
+                fout = open(self.out_dir + '_summary_table_' +
+                                                str(criteria[i]) + '.txt', 'w')
+            else:
+                fout = open(self.out_dir + '_summary_table_' + str(i) + '.txt',
+                                                                           'w')
             if criteria != None:
                 fout.write('CRITERIA: ' + str(criteria[i]) + '\n\n')
             else:

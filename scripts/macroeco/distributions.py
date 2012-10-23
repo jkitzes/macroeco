@@ -2664,7 +2664,7 @@ class gen_sar(Curve):
         # Get N/tot_obs and S/n_samp from full sad
         self.params['n_samp'] = len(full_sad)
         self.params['tot_obs'] = sum(full_sad)
-
+        
         self.sad.fit([full_sad])
         self.params['sad_pmf'] = self.sad.pmf(np.arange(1, 
                                         self.params['tot_obs'] + 1))[0][0]
