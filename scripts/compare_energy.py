@@ -131,7 +131,10 @@ PARAMETER EXPLANATIONS
 *** criteria ***:
 
 {1}
-A column must be designated as 'energy' and/or 'mass' for this analysis.
+A column must be designated as 'energy' and/or 'mass' for this analysis.  If a
+column is designated mass, all values will be raised to the 3/4 power in
+accordance with metabolic scaling theory and then normalized as described in 
+the analysis explanation.
 
 *** predicted_SED_distributions ***:
 
