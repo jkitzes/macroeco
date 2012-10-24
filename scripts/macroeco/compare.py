@@ -147,7 +147,7 @@ class CompareDistribution(object):
         -------
         : dict
             Has len(self.dist_list) + 1.  All the distribution class names
-            passed to the constructor are key words as well as 'obs' which
+            passed to the constructor are key words as well as 'observed' which
             references the observed data, self.data_list. Each keyword looks up
             a list of arrays.  Each list is len(self.data_list) long and
             contains the predicted rads for the empirical data sets for the
@@ -155,7 +155,7 @@ class CompareDistribution(object):
 
         '''
         rads_dict = {}
-        rads_dict['obs'] = self.data_list
+        rads_dict['observed'] = self.data_list
         for i, dist in enumerate(self.dist_list):
             dist.fit(self.data_list)
             #Different Identifier?
@@ -170,7 +170,7 @@ class CompareDistribution(object):
         -------
         :dict
             Has len(self.dist_list) + 1.  All the distribution class names
-            passed to the constructor are key words as well 'obs' which
+            passed to the constructor are key words as well 'observed' which
             references the observed data, self.data_list. Each keyword looks up
             a list of arrays.  Each list is len(self.data_list) long and
             contains the predicted cdfs for the empirical data sets for the
@@ -180,7 +180,7 @@ class CompareDistribution(object):
         '''
 
         cdfs_dict = {}
-        cdfs_dict['obs'] = [empirical_cdf(data) for data in self.data_list]
+        cdfs_dict['observed'] = [empirical_cdf(data) for data in self.data_list]
         for i, dist in enumerate(self.dist_list):
             dist.fit(self.data_list)
             cdfs_dict[get_name(dist)] = dist.cdf(self.data_list)[0] 
@@ -284,7 +284,7 @@ class CompareDistribution(object):
         -------
         : dict
             Dictionary of dictionaries of length self.dist_list + 1.  Each
-            sub-dictionary other than 'obs' contains the keywords balls, urns,
+            sub-dictionary other than 'observed' contains the keywords balls, urns,
             max, tot_min, aic, aic_d, aic_w, and par_num.  Each of these
             keywords contains a list that is the same length as the number of
             sads under consideration.
@@ -382,13 +382,13 @@ class CompareSARCurve(object):
         : list of dicts
             The list is the same length self.sar_list and each dictionary is
             the length of self.curve_list + 1.  Each keyword in a dictionary
-            references either the observed SAR ('obs') or the SAR generate by
+            references either the observed SAR ('observed') or the SAR generate by
             one of the curve objects. 
         '''
         pred_sar = []
         for sar, a, sad in zip(self.sar_list, self.a_list, self.full_sad):
             psar = {}
-            psar['obs'] = np.array(zip(sar, a), dtype=[('items', np.float),
+            psar['observed'] = np.array(zip(sar, a), dtype=[('items', np.float),
                                         ('area', np.float)])
             for cur in self.curve_list:
                 cur.fit(sad, (a, sar))
@@ -462,7 +462,7 @@ class CompareIED(object):
         -------
         : dict
             Has len(self.dist_list) + 1.  All the distribution class names
-            passed to the constructor are key words as well as 'obs' which
+            passed to the constructor are key words as well as 'observed' which
             references the observed data. Each keyword looks up
             a list of arrays.  Each list is len(self.ied_list) long and
             contains the predicted reds for the empirical data sets for the
@@ -471,7 +471,7 @@ class CompareIED(object):
         '''
 
         reds_dict = {}
-        reds_dict['obs'] = self.ied_list
+        reds_dict['observed'] = self.ied_list
         for dist in self.dist_list:
             dist.fit((self.ied_list, self.sad_list))
             reds_dict[get_name(dist)] = dist.rad()
@@ -589,7 +589,7 @@ class CompareSED(object):
         -------
         : dict
             Has len(self.dist_list) + 1.  All the distribution class names
-            passed to the constructor are key words as well as 'obs' which
+            passed to the constructor are key words as well as 'observed' which
             references the observed data. Each keyword looks up
             a list of arrays.  Each list is len(self.ied_list) long and
             contains the predicted reds for the empirical data sets for the
@@ -601,7 +601,7 @@ class CompareSED(object):
 
         '''
         reds_dict = {}
-        reds_dict['obs'] = self.sed_list
+        reds_dict['observed'] = self.sed_list
         for dist in self.dist_list:
             dist.fit((self.sed_list, self.ied_list, self.sad_list))
             reds_dict[get_name(dist)] = dist.rad()
@@ -672,14 +672,14 @@ class CompareASED(object):
         -------
         : dict
             Has len(self.dist_list) + 1.  All the distribution class names
-            passed to the constructor are key words as well as 'obs' which
+            passed to the constructor are key words as well as 'observed' which
             references the observed data. Each keyword looks up
             a list of arrays.  Each list is len(self.ied_list) long and
             contains the predicted reds for the empirical data sets for the
             given distribution.
         '''
         rads_dict = {}
-        rads_dict['obs'] = self.ased_list
+        rads_dict['observed'] = self.ased_list
         for dist in self.dist_list:
             dist.fit((self.ied_list, self.sad_list))
             #Different Identifier?
