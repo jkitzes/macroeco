@@ -17,16 +17,16 @@ gui_name = '''Analysis of Macroecological Energy Metrics'''
 summary = '''Compares a dataset's observed energy metrics against predicted
 energy metrics'''
 
-class global_str: 
-
+class global_str:
     subset = '''You should examine the columns in your data set and decide if
     you would like to subset your data in some particular way before the
     analysis begins. It is important to note that only the subsetted data will
     be analyzed.  For example,  if you have a column named 'year' in your data
     set with values 1998, 1999, and 2000 and you only want to look at the year
-    2000 for a particular analysis, you should select the == operator from the
-    drop down list and type 2000 in the value field.  Similarly, you could use
-    <, >, <=, >=, or !='''
+    2000 for a particular analysis, you should select the column year from
+    left-hand most dropdown list, select the == operator from the operator
+    dropdown list and type 2000 in the value field.  Similarly, you could use
+    <, >, <=, >=, or != with any column and value in your data.'''
 
     criteria = '''You should examine the columns in your dataset and decide if
     you would like to divide the data in a particular way for this analysis.
@@ -37,21 +37,25 @@ class global_str:
     like to divide contains discrete values (e.g. year), you could enter the
     keyword 'split' and each unique value will be analyzed separately.
     Conversely, the value 'whole' could be given to specify the entire column.
-    The value 'whole' is equivalent to 1 or leaving the value blank.  If you
+    The value 'whole' is equivalent to 1 or leaving the value blank. If you
     would like to divide a given column, please select the word 'division' from
-    the GUI dropdown menu and input a value as discussed above.\n\n
+    the dropdown menu and input a value as discussed above.\n\n
 
-    There are four special words that can be used on a given column: 'species',
-    'energy', 'count', and 'mass'.  When assigned to a column in your data set,
-    the special word 'species' indicates the column that contains your species
-    IDs, the special word 'energy' indicates the column that contains some type
-    of energy measure, the special word 'mass' indicates a column that contains
-    some type of mass measure, and the special word 'count' indicates the
-    column that contains your species counts.  In the GUI, these special words
-    can be chosen from the dropdown menu next to each column header. The
-    special word 'species' MUST be assigned for every analysis.  If the special
-    word 'count' is not assigned, the species counts are all assumed to be
-    one.\n\n'''
+    There are four other special words that can be used on a given column:
+    'species', 'energy', 'count', and 'mass'.  When assigned to a column in
+    your data set, the special word 'species' indicates the column that
+    contains your species IDs, the special word 'energy' indicates the column
+    that contains some type of energy measure, the special word 'mass'
+    indicates a column that contains some type of mass measure, and the special
+    word 'count' indicates the column that contains your species counts.  These
+    special words can be chosen from the dropdown menu next to each column
+    header. The special word 'species' MUST be assigned for every analysis.  If
+    the special word 'count' is not assigned, the species counts are all
+    assumed to be one.
+    
+    If there are columns in your data that are not relevant for this analysis
+    leave the value in the dropdown box as 'NA'.  Columns designated 'NA' will
+    not influence the analysis.\n\n'''
 
     rarity_measure = '''This parameter allows you to specify the counts that
     you will consider rare.  If, for example, you want to know how many species
@@ -59,19 +63,38 @@ class global_str:
     2. If you enter more then one value, each value will be examined. Example
     input: [2] or [2, 5]. The brackets MUST be included.'''
 
-    SAD_distributions = ''' 'logser','logser_ut', 'logser_ut_appx',
-    'plognorm_lt', 'nbd_lt', 'geo_ser', 'broken_stick', 'lognorm' '''
+    SAD_distributions = ''' 
+    'logser' : Fisher's logseries distribution;
+    'logser_ut' : Upper-truncated logseries derived from MaxEnt;
+    'logser_ut_appx' : Approximation for the upper-truncated logseries;
+    'lognorm' : Lognormal distribution;
+    'plognorm_lt' : Poisson lognormal distribution with 0 truncated;
+    'nbd_lt' : Negative binomial distribution with 0 truncated;
+    'geo_ser' : Geometric series distribution;
+    'broken_stick' : McArthur's broken stick distribution '''
 
-    SSAD_distributions = ''' 'nbd', 'binm', 'tgeo', 'fgeo', 'fnbd', 'pois' '''
+    SSAD_distributions = ''' 
+    'binm' : Binomial distribution;
+    'pois' : Poisson distribution;
+    'nbd' : Negative binomial distribution;
+    'fnbd' : Finite-negative binomial distribution;
+    'geo' : Geometric distribution;
+    'fgeo' : Finite-geometric distribution;
+    'tgeo' : Truncated geometric distrbituion derived from MaxEnt'''
 
 subset = '''Specifications for how you want to subset your data before the
-analysis.  Only the subsetted data will be included in the analysis.  See
-explanation link for more detail.'''
+analysis. Note that only the subsetted data will be included in the analysis.
+The left-hand dropdown box contains all the columns of your dataset and you may
+choose one or more to subset. Please see analysis explanation for more detail
+and examples.'''
 
 criteria = '''Specifications for how you want to divide your data during the
-analysis. A 'species' column and an energy and/or mass column MUST be assigned
-for this particular analysis. See explanation link for more detail.'''
-
+analysis. The words you see below are the shared columns of your dataset(s).
+For this compare_energy anlysis, you must designate your species column with
+the special word 'species' and your mass or energy column with the special word
+'mass' or 'energy'.  These special words can be found in the dropdown menu. You
+are not required to fill any additional columns for this analysis. Please see
+analysis explanation for more detail and examples.'''
 
 predicted_SED_distributions = '''This parameter is the list of SED
 distributions to which you can compare your observed data. 
@@ -109,18 +132,19 @@ The SED is a distribution of the energy of each individual within a species.
 So, for example, a community with 30 speices would have 30 SED's, one for each
 species.  The entire community's energy distribution is normalized in the exact
 same way as the IED and then individuals are placed into their respective
-species and the SED's are generated. 
-
-
-This script outputs rank energy distribution (rad) plots in which the observed
-energy distribution is compared to the distributions given in the required
-parameter predicted_SED_distributions and/or predicted_IED_distributions.  For
-each plot, a corresponding csv file with the same name as the plot except with
-a .csv extension is output containing the data used to make the plot. For all
-SED plots, the species name is printed on the top of the plot.
-
-For more information on energy distributions please see the reference and
+species and the SED's are generated. For more information on energy distributions please see the reference and
 references therein.
+
+OUTPUT
+
+This script outputs rank energy distribution (red) plots in which the observed
+energy distribution is compared to the distributions given in the required
+parameter predicted_SED_distributions and/or predicted_IED_distributions. These
+files are output as .png files. For each plot, a corresponding csv file with
+the same name as the plot except with a .csv extension is output containing the
+data used to make the plot. For all SED plots, the species name is printed on
+the top of the plot.  For all of the IED plots, the criteria used to make plot
+is printed on the top of the plot. 
 
 PARAMETER EXPLANATIONS
 
@@ -131,7 +155,9 @@ PARAMETER EXPLANATIONS
 *** criteria ***:
 
 {1}
-A column must be designated as 'energy' and/or 'mass' for this analysis.
+
+A column must be designated as 'energy' and/or 'mass' for this analysis. If
+not, your analysis will not run.
 
 *** predicted_SED_distributions ***:
 
@@ -159,7 +185,8 @@ required_params = {'criteria' : criteria,
                    'predicted_IED_distributions' : predicted_IED_distributions,
                    'energy_metrics' : energy_metrics}
 
-optional_params = {'subset' : (subset + ''' Optional. Default: ''', {})}
+optional_params = {'subset' : (subset + ''' Subsetting is optional. Default: 
+                    ''', {})}
 
 if __name__ == '__main__':
 

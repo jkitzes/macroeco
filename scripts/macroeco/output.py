@@ -46,7 +46,7 @@ class DistOutput(object):
     def write_summary_table(self, smry, criteria=None):
         '''
         Parameters
-        ----------
+        ---------
         smry : tuple
             A tuple of length two in which the first object is a dictionary as
             returned by the fucntion compare_summary within the 
@@ -67,11 +67,11 @@ class DistOutput(object):
         '''
         logging.info('Writing summary table')
 
-        tot_sad = len(smry['obs']['balls'])
+        tot_sad = len(smry['observed']['balls'])
         if criteria != None:
             assert len(criteria) == tot_sad, "len(criteria) must  equal" + \
                                    " number of data arrays under consideration"
-        ob = smry['obs']
+        ob = smry['observed']
         for i in xrange(tot_sad):
             if criteria != None and np.all([type(crt) != dict for crt in
                                                                   criteria]):
@@ -96,7 +96,7 @@ class DistOutput(object):
                     str(ob['max'][i]) + '\nObserved Rarity = ' +
                     str(ob_rare) + '\n\n')
             for kw in smry.iterkeys():
-                if kw != 'obs':
+                if kw != 'observed':
                     dt= smry[kw]
                     
                     # Getting rarity
@@ -131,7 +131,7 @@ class DistOutput(object):
         SADs.
 
         '''
-        tot_sad = len(rads['obs'])
+        tot_sad = len(rads['observed'])
         recs = make_rec_from_dict(rads, tot_sad)
         if criteria != None:
             assert len(criteria) == tot_sad, "len(criteria) must  equal" + \
@@ -147,17 +147,26 @@ class DistOutput(object):
                                                                     criteria]):
                 plt.title('RAD criteria: ' + str(criteria[i]))
                 logging.info('Saving figure and csv ' + self.out_dir + 
-                                         '_rank_abundance_' + str(criteria[i]))
-                plt.savefig(self.out_dir + '_rank_abundance_' + 
+                                    '_rank_abundance_plot_' + str(criteria[i]))
+                plt.savefig(self.out_dir + '_rank_abundance_plot_' + 
                                                               str(criteria[i]))
-                output_form(recs[i], self.out_dir + '_rank_abundance_' +
+                output_form(recs[i], self.out_dir + '_rank_abundance_plot_' +
                                                               str(criteria[i]))
+            elif criteria != None and np.all([type(crt) == dict for crt in
+                                                                    criteria]):
+                plt.title('RAD criteria: ' + str(criteria[i]))
+                logging.info('Saving figure ' + self.out_dir + 
+                                              '_rank_abundance_plot_' + str(i))
+                plt.savefig(self.out_dir + '_rank_abundance_plot_' + str(i))
+                output_form(recs[i], self.out_dir + '_rank_abundance_plot_' + 
+                                                                        str(i))
             else:
                 plt.title('RAD: plot number ' + str(i))
                 logging.info('Saving figure ' + self.out_dir + 
-                                                   '_rank_abundance_' + str(i))
-                plt.savefig(self.out_dir + '_rank_abundance_' + str(i))
-                output_form(recs[i], self.out_dir + '_rank_abundance_' + str(i))
+                                              '_rank_abundance_plot_' + str(i))
+                plt.savefig(self.out_dir + '_rank_abundance_plot_' + str(i))
+                output_form(recs[i], self.out_dir + '_rank_abundance_plot_' + 
+                                                                        str(i))
             
             plt.clf()
     
@@ -178,7 +187,7 @@ class DistOutput(object):
             A list of arrays.  The observed sad(s)
 
         '''
-        tot_sad = len(cdfs['obs'])
+        tot_sad = len(cdfs['observed'])
         recs = make_rec_from_dict(cdfs, tot_sad)
         if criteria != None:
             assert len(criteria) == tot_sad, "len(criteria) must  equal" + \
@@ -205,6 +214,13 @@ class DistOutput(object):
                 plt.savefig(self.out_dir + '_cdf_plot_' + str(criteria[i]))
                 output_form(n_rec, self.out_dir + '_cdf_plot_' +
                                                             str(criteria[i]))
+            elif criteria != None and np.all([type(crt) == dict for crt in
+                                                                    criteria]):
+                plt.title('RAD criteria: ' + str(criteria[i]))
+                logging.info('Saving figure ' + self.out_dir + 
+                                                   '_cdf_plot_' + str(i))
+                plt.savefig(self.out_dir + '_cdf_plot_' + str(i))
+                output_form(recs[i], self.out_dir + '_cdf_plot_' + str(i))
 
             else:
                 plt.title('CDF: plot number ' + str(i))
@@ -250,12 +266,18 @@ class SAROutput(object):
             legend = []
             for kw in sar.iterkeys():
                 legend.append(kw)
-                if kw == 'obs':
+                if kw == 'observed':
                     plt.plot(sar[kw]['area'], sar[kw]['items'], '-o')
                 else:
                     plt.plot(sar[kw]['area'], sar[kw]['items'])
+
+                # Change dtype names and output
+                defnm = sar[kw].dtype.names
+                sar[kw].dtype.names = ('species', 'area_fraction')
                 output_form(sar[kw], self.out_dir + '_SAR_plot_' + str(i) + '_'
                                                                           + kw)
+                sar[kw].dtype.names = defnm
+
             plt.loglog()
             plt.legend(tuple(legend), loc='best')
             plt.xlabel('log(Area Fraction)')
@@ -303,7 +325,7 @@ class IEDOutput(object):
         given subset.  
 
         '''
-        tot_reds = len(reds['obs'])
+        tot_reds = len(reds['observed'])
         recs = make_rec_from_dict(reds, tot_reds)
         if criteria != None:
             assert len(criteria) == tot_reds, "len(criteria) must  equal" + \
@@ -362,7 +384,7 @@ class SEDOutput(object):
 
         '''
         spp = reds[1]
-        tot_reds = len(reds[0]['obs'])
+        tot_reds = len(reds[0]['observed'])
         recs = make_rec_from_dict(reds[0], tot_reds)
         if criteria != None:
             assert len(criteria) == tot_reds, "len(criteria) must  equal" + \
@@ -377,20 +399,27 @@ class SEDOutput(object):
             if spp != None:
                 if criteria != None:
                     plt.title('Species Code: ' + str(spp[i]) + ' Criteria: ' +
-                        str(criteria[i]))
+                        str(criteria[i])) 
                 else:
-                    plt.title('Species Code: ' + str(spp[i]))           
+                    plt.title('Species Code: ' + str(spp[i]))
+                logging.info('Saving figure ' + self.out_dir + 
+                              '_sed_rank_energy_' + str(spp[i]) + '_' + str(i))
+                plt.savefig(self.out_dir + '_sed_rank_energy_' +
+                                                    str(spp[i]) + '_' + str(i))
+                output_form(recs[i], self.out_dir + '_sed_rank_energy_' +
+                                                    str(spp[i]) + '_' + str(i))
             elif spp == None:
                 if criteria != None:
                     plt.title('Criteria: ' + str(criteria[i]))
                 else:
                     plt.title('Plot number ' + str(i))
             
-            logging.info('Saving figure ' + self.out_dir + '_sed_rank_energy_' 
-                          + str(i))
-            plt.savefig(self.out_dir + '_sed_rank_energy_' + str(i))
+                logging.info('Saving figure ' + self.out_dir + 
+                                                  '_sed_rank_energy_' + str(i))
+                plt.savefig(self.out_dir + '_sed_rank_energy_' + str(i))
+                output_form(recs[i], self.out_dir + '_sed_rank_energy_' + 
+                                                                        str(i))
             plt.clf()
-            output_form(recs[i], self.out_dir + '_sed_rank_energy_' + str(i))
 
 def make_rec_from_dict(dist_dict, num, dt=np.float):
     '''
@@ -428,7 +457,7 @@ def plot_rec_columns(rec_array):
     # If their are more arrays than symbols just change colors of lines
     if len(names) > len(plot_symbols):
         for nm in names:
-            if nm == 'obs':
+            if nm == 'observed':
                 plt.plot(np.arange(1, len(rec_array) + 1),
                                         np.sort(rec_array[nm])[::-1], '-o',
                                         color='black')
@@ -442,7 +471,7 @@ def plot_rec_columns(rec_array):
         # Counter is 0
         cnt = 0
         for nm in names:
-            if nm == 'obs':
+            if nm == 'observed':
                 plt.plot(np.arange(1, len(rec_array) + 1),
                                         np.sort(rec_array[nm])[::-1], '-o',
                                         color='black')
@@ -523,14 +552,14 @@ def sad_cdf_obs_pred_plot(sad, outputID, params={}, interactive=False):
                     prm[key] = params[key]
           
     cdf = sad_analysis.get_obs_vs_pred_cdf(sad, prm['distr'])
-    jitt_x, jitt_y = jitter(cdf['pred'], cdf['obs'], jitter_scale=prm['jit_scl'])
-    plt.plot([0] + list(cdf['obs']),[0] +  list(cdf['obs']),\
+    jitt_x, jitt_y = jitter(cdf['pred'], cdf['observed'], jitter_scale=prm['jit_scl'])
+    plt.plot([0] + list(cdf['observed']),[0] +  list(cdf['observed']),\
                                             color=prm['ln_clr'], linestyle='--')
         
     plt.scatter(jitt_x, jitt_y, color=prm['clr_jit']) 
-    plt.scatter(cdf['pred'], cdf['obs'], color=prm['clr_sct'])
+    plt.scatter(cdf['pred'], cdf['observed'], color=prm['clr_sct'])
     '''for s in xrange(len(cdf)):
-        plt.text(cdf['pred'][s], cdf['obs'][s] + 0.01, "n=" + str(cdf['n'][s]),\
+        plt.text(cdf['pred'][s], cdf['observed'][s] + 0.01, "n=" + str(cdf['n'][s]),\
                                 fontsize=7)'''
     plt.ylabel(prm['ylbl'])
     plt.xlabel(prm['xlbl'])

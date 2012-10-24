@@ -24,9 +24,10 @@ class global_str:
     analysis begins. It is important to note that only the subsetted data will
     be analyzed.  For example,  if you have a column named 'year' in your data
     set with values 1998, 1999, and 2000 and you only want to look at the year
-    2000 for a particular analysis, you should select the == operator from the
-    drop down list and type 2000 in the value field.  Similarly, you could use
-    <, >, <=, >=, or !='''
+    2000 for a particular analysis, you should select the column year from
+    left-hand most dropdown list, select the == operator from the operator
+    dropdown list and type 2000 in the value field.  Similarly, you could use
+    <, >, <=, >=, or != with any column and value in your data.'''
 
     criteria = '''You should examine the columns in your dataset and decide if
     you would like to divide the data in a particular way for this analysis.
@@ -39,19 +40,24 @@ class global_str:
     Conversely, the value 'whole' could be given to specify the entire column.
     The value 'whole' is equivalent to 1 or leaving the value blank. If you
     would like to divide a given column, please select the word 'division' from
-    the GUI dropdown menu and input a value as discussed above.\n\n
+    the dropdown menu and input a value as discussed above.\n\n
 
-    There are four special words that can be used on a given column: 'species',
-    'energy', 'count', and 'mass'.  When assigned to a column in your data set,
-    the special word 'species' indicates the column that contains your species
-    IDs, the special word 'energy' indicates the column that contains some type
-    of energy measure, the special word 'mass' indicates a column that contains
-    some type of mass measure, and the special word 'count' indicates the
-    column that contains your species counts.  In the GUI, these special words
-    can be chosen from the dropdown menu next to each column header. The
-    special word 'species' MUST be assigned for every analysis.  If the special
-    word 'count' is not assigned, the species counts are all assumed to be
-    one.\n\n'''
+    There are four other special words that can be used on a given column:
+    'species', 'energy', 'count', and 'mass'.  When assigned to a column in
+    your data set, the special word 'species' indicates the column that
+    contains your species IDs, the special word 'energy' indicates the column
+    that contains some type of energy measure, the special word 'mass'
+    indicates a column that contains some type of mass measure, and the special
+    word 'count' indicates the column that contains your species counts.  These
+    special words can be chosen from the dropdown menu next to each column
+    header. The special word 'species' MUST be assigned for every analysis.  If
+    the special word 'count' is not assigned, the species counts are all
+    assumed to be one.\n\n
+    
+    If there are columns in your data that are not relevant for this analysis
+    leave the value in the dropdown box as 'NA'.  Columns designated 'NA'
+    will not influence the analysis.\n\n'''
+
 
     rarity_measure = '''This parameter allows you to specify the counts that
     you will consider rare.  If, for example, you want to know how many species
@@ -59,17 +65,36 @@ class global_str:
     2. If you enter more then one value, each value will be examined. Example
     input: [2] or [2, 5]. The brackets MUST be included.'''
 
-    SAD_distributions = ''' 'logser','logser_ut', 'logser_ut_appx',
-    'plognorm_lt', 'nbd_lt', 'geo_ser', 'broken_stick', 'lognorm' '''
+    SAD_distributions = ''' 
+    'logser' : Fisher's logseries distribution;
+    'logser_ut' : Upper-truncated logseries derived from MaxEnt;
+    'logser_ut_appx' : Approximation for the upper-truncated logseries;
+    'lognorm' : Lognormal distribution;
+    'plognorm_lt' : Poisson lognormal distribution with 0 truncated;
+    'nbd_lt' : Negative binomial distribution with 0 truncated;
+    'geo_ser' : Geometric series distribution;
+    'broken_stick' : McArthur's broken stick distribution '''
 
-    SSAD_distributions = ''' 'nbd', 'binm', 'tgeo', 'fgeo', 'fnbd', 'pois' '''
+    SSAD_distributions = ''' 
+    'binm' : Binomial distribution;
+    'pois' : Poisson distribution;
+    'nbd' : Negative binomial distribution;
+    'fnbd' : Finite-negative binomial distribution;
+    'geo' : Geometric distribution;
+    'fgeo' : Finite-geometric distribution;
+    'tgeo' : Truncated geometric distrbituion derived from MaxEnt'''
 
 subset = '''Specifications for how you want to subset your data before the
-analysis.  Only the subsetted data will be included in the analysis.  See
-explanation link for more detail.'''
+analysis. Note that only the subsetted data will be included in the analysis.
+The left-hand dropdown box contains all the columns of your dataset and you may
+choose one or more to subset. Please see analysis explanation for more detail
+and examples.'''
 
 criteria = '''Specifications for how you want to divide your data during the
-analysis.  See explanation link for more detail.'''
+analysis. The words you see below are the shared columns of your dataset(s).
+You must designate your species column with the special word 'species' found in
+the dropdown menu. You are not required to fill any additional columns for this
+analysis. Please see analysis explanation for more detail and examples.'''
 
 columns_to_divide = '''This parameter specifies which spatial columns you would
 like to divide for the SAR analysis.  For example, if your data had spatial
@@ -81,7 +106,9 @@ example, if you specified that you wanted to divide on columns 'x' and 'y' in
 the parameter columns_to_divide and you wanted to divide your plot into fourths
 and eighths you would input: [(2,2), (2,4)].  The first value splits the plot
 into fourths and the second splits the plot into eighths.  The values within
-each parentheses are divisions on 'x' and 'y', respectively.  '''
+each parentheses are divisions on 'x' and 'y', respectively.  Please note that
+the number of species of the entire plot will be calculated even if you do not
+enter the division (1,1).'''
 
 predicted_SAR_curves = '''A list of SAR curves to which you can compare your
 observed data.
@@ -96,8 +123,6 @@ name = '''A name for the plot that will be generated.
 
 Example input: My SAR Plot
 '''
-
-
 
 explanation = '''ANALYSIS EXPALANTION\n
 This script allows you to compare observed species-area relationships (SAR)
@@ -116,14 +141,21 @@ all of the smaller plots. Therefore, you can have a fractional average number
 of species per areas. For additional information on SARs, please see the
 provided references and the references therein.
 
-This script ouputs log(species) vs. log(area fraction) plots.  Area fraction
-means that the anchor area (largest area) for the plot is 1 and all smaller
-subplots are fractions less than one. Each plot will have the observed SAR and
-any SAR generated by a predicted SAR specified in the predicted_SAR_curves
-parameter. In addition to this plot, this script will output csv files with the
-same file name as the plot, but with the name of the predicted SAR appended to
-the end.  These files contain the data for the given SAR used to make the plot.
-With this data, you can re-plot the data in anyway you chose.
+OUTPUT
+
+This script outputs log(species) vs. log(area fraction) plot as a .png file.
+Area fraction means that the anchor area (largest area) for the plot is 1 and
+all smaller subplots are fractions less than one. Each plot will have the
+observed SAR and any SAR generated by a predicted SAR specified in the
+predicted_SAR_curves parameter. In addition to this plot, this script will
+output csv files with the same file name as the plot, but with the name of the
+predicted SAR appended to the end.  These files contain the data for the given
+SAR used to make the plot.  For example, if you choose two predicted SARs and
+run the analysis, you will get three csv files: two with the predicted SAR data
+and one with the observed data. With these files, you can re-plot the data in
+anyway you chose.  Please note that the file names provide a detailed
+description of each file and should provide you with a basic understanding of
+what the file contains.
 
 PARAMETER EXPLANATIONS
 
@@ -135,10 +167,15 @@ PARAMETER EXPLANATIONS
 
 {1}
 
-For this (compare_sar) analysis, if the columns you filled in the parameter
-columns_to_divide are repeated in the parameter criteria, the values that you
-assigned in criteria will be ignored. Generating multiple SARs is not currently
-implemented. 
+For the compare_sar analysis (this analysis), you DO NOT need to enter your
+divisions in the 'criteria' parameter.  Instead, you enter them in the
+'columns_to_divide' and 'list_of_divisions_on_columns' parameters.  If the
+columns you entered in the parameter 'columns_to_divide' are repeated in the
+parameter criteria, the values that you assigned in criteria will be ignored.
+For example, if you want to divide the columns 'x' and 'y' for your SAR
+analysis you would input them into columns to divide as ('x', 'y'). If you were
+to give columns 'x' and/or 'y' a value in the 'criteria' parameter, it would
+then be ignored. Generating multiple SARs is not yet implemented. 
 
 *** columns_to_divide **
 
@@ -175,7 +212,8 @@ required_params = {'criteria' : criteria,
                    'predicted_SAR_curves' : predicted_SAR_curves,
                    'name' : name}
 
-optional_params = {'subset' : (subset + ''' Optional. Default: ''', {})}
+optional_params = {'subset' : (subset + ''' Subsetting is optional. Default: 
+                                ''', {})}
 
 if __name__ == '__main__':
 
