@@ -633,8 +633,40 @@ class logser(Distribution):
    
         return pmf, var
 
-    # TODO: Add custom method for cdf based on equation
-    
+    @doc_inherit
+    def cdf(self, n):
+        
+        # Get parameters
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
+        
+        # Calculate pmf
+        stop = 1 - 1e-10
+        start = -2
+        eq = lambda x, n_samp, tot_obs: (((tot_obs/x) - tot_obs) * 
+                                                (-(np.log(1 - x)))) - n_samp
+
+        cdf = []
+        var = {}
+        var['p'] = []
+
+        for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
+            # Catching cryptic brentq error
+            try:
+                tp = scipy.optimize.brentq(eq, start, stop, 
+                                            args=(tn_samp,ttot_obs), disp=True)
+            except(ValueError):
+                raise ValueError("No solution to %s.cdf when tot_obs = %.2f"\
+                                  % (self.__class__.__name__, ttot_obs) + 
+                                  " and n_samp = %.2f" % (tn_samp)) 
+            tcdf = stats.logser.cdf(tn, tp)
+            var['p'].append(tp)
+            cdf.append(tcdf)
+   
+        return cdf, var
 
 class logser_ut(Distribution):
     __doc__ = Distribution.__doc__ + \

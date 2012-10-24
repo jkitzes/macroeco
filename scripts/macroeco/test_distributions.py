@@ -21,6 +21,7 @@ Weecology functions from https://github.com/weecology/macroecotools.
 import unittest
 from macroeco.distributions import *
 import numpy as np
+import scipy.stats as stats
 
 # TODO: Need to add fit functions to tests with new fit functions. 
 
@@ -47,6 +48,8 @@ class TestDistributions(unittest.TestCase):
         self.assertRaises(AssertionError, logser(n_samp=234, tot_obs=67).pmf, 
                                                                              1)
         self.assertRaises(AssertionError, logser(n_samp=34, tot_obs=0).pmf, 1)
+
+        # Testing the logser raises error when given data with zeros
         self.assertRaises(ValueError, logser().fit, [[0,1,2,3,4]])
 
         # Test pmf against value in Fisher's paper Fisher et al. 1943
@@ -58,7 +61,10 @@ class TestDistributions(unittest.TestCase):
                                                                     decimals=1)
         self.assertTrue(cdf == 1)
 
-        # TODO: Test known value of cdf
+        # Test known value of cdf when p = 0.90335
+        known_cdf = 0.737623 # From scipy.stats.logser
+        pred_cdf = logser(n_samp=14, tot_obs=56).cdf(4)[0][0][0]
+        self.assertTrue(np.round(pred_cdf, decimals = 6) == known_cdf)
 
 
     def test_logser_ut(self):
@@ -144,6 +150,16 @@ class TestDistributions(unittest.TestCase):
         self.assertTrue(sum(np.round(plognorm(mu=3,sigma=-3).\
                                      pmf([1,2,3,4,5])[0][0], decimals=3)) == 0)
 
+        # Test that MLE fit matches R package poilog
+        Rmu = 1.31928; Rsigma = 1.18775
+        test_vec1 = np.array([1,1,1,1,1,2,2,2,3,3,4,4,5,5,6,6,12,45,67])
+        test_plog = plognorm().fit([test_vec1])
+        print test_plog.params
+        self.assertTrue(np.round(test_plog.params['mu'][0], decimals = 5) ==
+                            Rmu)
+        self.assertTrue(np.round(test_plog.params['sigma'][0], decimals = 5) ==
+                            Rsigma)
+
         # Test that these don't fail
         plognorm().fit([self.abund_list[0]])
         plognorm(mu=2, sigma=2).cdf(5)
@@ -151,22 +167,32 @@ class TestDistributions(unittest.TestCase):
     
     def test_plognorm_lt(self):
         # TODO: No test below - should test pmf and cdf, at minimum
-        
-        # Test that these don't fail
-        plognorm_lt(mu=[2,3], sigma=[2,3]).cdf(5)
-        plognorm_lt(mu=2, sigma=2).pmf([2,3,4,5,23])
-        plognorm_lt().fit([self.abund_list[0]])
-        plognorm_lt(mu=10, sigma=1).cdf(45)
 
-        # Test fit against Ethan White results
+        #Test our pmf against R's poilog
+        R_zero_trun = [0.11620, 0.07216, 0.05201, 0.04049, 0.02783, 0.02398,
+                       0.00686]
+        pred_plog = plognorm_lt(mu=2, sigma=3).pmf([1,2,3,4,6,7,23])[0][0] 
+        self.assertTrue(np.array_equal(R_zero_trun, np.round(pred_plog,
+                                                                  decimals=5)))
+
+        # Test fit against Ethan White results and poilog
         EW_fit = {'mu' :.90, 'sigma' : 2.18}
+        R_fit = {'mu' : .904, 'sigma' : 2.184}
         sad = [1,1,1,1,2,3,5,6,12,13,15,23,45,67,112]
         dist = plognorm_lt().fit([sad])
         mu = dist.params['mu'][0]
         sigma = dist.params['sigma'][0]
         self.assertTrue(EW_fit['mu'] == np.round(mu, decimals=2))
         self.assertTrue(EW_fit['sigma'] == np.round(sigma, decimals=2))
-    
+        self.assertTrue(R_fit['mu'] == np.round(mu, decimals=3))
+        self.assertTrue(R_fit['sigma'] == np.round(sigma, decimals=3))
+
+        # Test that these don't fail
+        plognorm_lt(mu=[2,3], sigma=[2,3]).cdf(5)
+        plognorm_lt(mu=2, sigma=2).pmf([2,3,4,5,23])
+        plognorm_lt().fit([self.abund_list[0]])
+        plognorm_lt(mu=10, sigma=1).cdf(45)
+        
     
     def test_lognorm(self):
 
