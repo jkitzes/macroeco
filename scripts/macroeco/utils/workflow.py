@@ -295,6 +295,8 @@ class Parameters:
         for run_name in self.params.keys():
             run_params = self.params[run_name]
             if not set(req_params.keys()).issubset(set(run_params.keys())):
+		logging.error('In run {!s}, missing parameters {!s}'.format(
+			       run_name, set(req_params.keys()).difference(set(run_params.keys()))))
                 status = 0
         return status
 
