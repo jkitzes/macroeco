@@ -1973,7 +1973,7 @@ class fnbd(Distribution):
             var['k'].append(tk)
         return pmf, var
     
-    def fit(self, data, upper_bnd=5):
+    def fit(self, data, upper_bnd=10):
         '''
         Fit method.
 
@@ -2004,7 +2004,8 @@ class fnbd(Distribution):
                 self.params['n_samp'] = tn_samp
                 self.params['k'] = k
                 return -sum(np.log(self.pmf(tdata)[0][0]))
-
+            
+            #mlek = scipy.optimize.fmin(
             mlek = scipy.optimize.brute(nll_nb, ((1e-10, upper_bnd),))
             tempk.append(mlek)
 
@@ -2205,11 +2206,18 @@ class tgeo(Distribution):
 
             else:
                 try:
+                    
                     x = scipy.optimize.brentq(eq, 0, min((sys.float_info[0] *
-                        ta)**(1/float(ttot_obs)), 2), args=(ttot_obs, ta), 
-                        disp=False)
-                except:
-                    raise ValueError("No solution to %s.pmf when tot_obs = " %
+                        ta)**(1/float(ttot_obs)), 8), args=(ttot_obs, ta), 
+                        disp=False, xtol=1e-60)
+                except: 
+                    try: # Allows it to pass, but optimizer starts rounding.
+                         # Not Sure why it is doing this.
+                        x = scipy.optimize.brentq(eq, 8.0, 50.0, \
+                                   args=(ttot_obs, ta), disp=False, xtol=1e-60)
+                    except:
+
+                        raise ValueError("No solution to %s.pmf when tot_obs = " %
                                      (self.__class__.__name__) +
                                      "%.2f, n_samp = %.10f and a = %.10f" % 
                                      (ttot_obs, tn_samp, ta))
@@ -2267,7 +2275,8 @@ class mete_sar_iter(Curve):
         Returns
         -------
         : 1D structured np.array
-            The structured array has fields 'items' and 'area'
+            The structured array has fields 'items' and 'area'. 'items' is
+            equivalent to species.
 
         Notes
         -----
@@ -2380,7 +2389,7 @@ class mete_sar_iter(Curve):
         Notes
         -----
         full_sad is the first argument in the tuple args.  If there is a second
-        argument, it should be a tuple or array like objects.
+        argument, mete_sar_iter.fit() will ignore it.
         
 
         '''
@@ -2425,7 +2434,7 @@ class powerlaw(Curve):
         -------
         : structured np.array
             A structured np.array with dtype=[('items', np.float),
-            ('area', np.float)]. 
+            ('area', np.float)]. 'items' can be thought of as 'species'. 
     
         '''
         z, c = self.get_params(['z', 'c'])
@@ -2439,7 +2448,7 @@ class powerlaw(Curve):
     
     def fit(self, *args):
         '''
-        This fit method fills the required parameters for a mete_sar_iter 
+        This fit method fills the required parameters for a powerlaw 
         object.
 
         Parameters
@@ -2492,9 +2501,10 @@ class gen_sar(Curve):
 
     Notes
     -----
-    In order to use gen_sar method vals(), self.params['sad_pmf'] must exist.
-    Running gen_sar method fit() fills self.params['sad_pmf'] or it can be
-    filled manually.  
+    plognorm and plognorm_lt are not supported by gen_sar. If one would like
+    them to be supported, the full pmf for the sad must be calculated in the
+    fit method.
+    
 
     '''
 
@@ -2519,7 +2529,8 @@ class gen_sar(Curve):
         self.ssad = ssad
         self.params = kwargs
 
-    def iter_vals(self, a_list=None, upscale=0, downscale=0, non_iter=False, base=2):
+    def iter_vals(self, a_list=None, upscale=0, downscale=0, non_iter=False, 
+                                                                       base=2):
         '''
         Calculates values in a_list by iteration.
 
@@ -2529,17 +2540,19 @@ class gen_sar(Curve):
             List of area fractions at which to calculate the SAR
         upscale : int
             Number of iterations up from the anchor scale.  Each iteration 
-            doubles the previous area. Only active if a_list is None.
+            multiplies the previous area by base parameter. Only active if 
+            a_list is None.
         downscale : int
             Number of iterations down from the anchor scale. Each iteration 
-            halves the previous area. Only active if a_list is None.
+            multiplies the previous area by 1 / base. Only active if a_list 
+            is None.
         non_iter : bool
             If False, returns all iterations.  If True, only returns iterations
             that match a_list.
         base : int
             Specifies the base of the logarithm.  In other words, whether you
             would like to iterate via double and half (base = 2), triple and
-            third (base = 3).
+            third (base = 3), etc.
 
 
 
@@ -2612,7 +2625,7 @@ class gen_sar(Curve):
         if downscale != 0:
             sar['items'][:downscale + 1] = up_down_scale(areas[:downscale +
                                                               1][::-1], 'down')
-        if non_iter == False:
+        if non_iter == False or a_list == None:
             return sar
         else:
             ind = np.zeros(len(sar), dtype=bool)
@@ -3285,6 +3298,10 @@ class nu(Distribution):
         Total number of individuals / observations
     E : int or iterable
         Total energy output of community
+
+    Notes
+    -----
+    This is a discrete distribution.
     '''
 
     @doc_inherit
@@ -3300,7 +3317,8 @@ class nu(Distribution):
         The nu distribution is only defined at e values given by 
         e = 1 + (1 / (lambda2 * n)). While this function will return a pmf 
         value for all e greater than or equal to one, note that the pmf will
-        only sum to one when provided with the proper support.
+        only sum to one when provided with the proper support. lambda2 can be
+        calculated by the equation: n_samp / (E - tot_obs) or S / (E - N)
 
         '''
 
@@ -3314,7 +3332,7 @@ class nu(Distribution):
         stop = 2                                                           
         flmax = sys.float_info[0]
 
-        pdf = []
+        pmf = []
         var = {}
         var['beta'] = []
         var['l2'] = []
@@ -3338,15 +3356,15 @@ class nu(Distribution):
             tsigma = tl1 + tE * tl2
             Z = sum((np.exp(-tbeta * k) - np.exp(-tsigma * k)) / (tl2 * k))
 
-            tpdf = (1 / Z) * (np.exp(-tbeta / (tl2 * (te - 1))) - np.exp(-tsigma / (tl2 *
-                (te - 1)))) / (1 / (te - 1))
+            tpmf = (1 / Z) * (np.exp(-tbeta / (tl2 * (te - 1))) - 
+                    np.exp(-tsigma / (tl2 * (te - 1)))) / (1 / (te - 1))
 
-            pdf.append(tpdf)
+            pmf.append(tpmf)
             var['beta'].append(tbeta)
             var['l2'].append(tl2)
             var['sigma'].append(tsigma)
 
-        return pdf, var
+        return pmf, var
     
     @doc_inherit
     def cdf(self, e):
@@ -3394,7 +3412,18 @@ class nu(Distribution):
 
     def rad(self):
         '''
-        Need to test this rad.
+        This rad uses the observed cdf for a given nu distribution and the
+        predicted cdf to calculate the rank energy distribution.  
+
+        Returns
+        -------
+        : list
+            A list of rank energy distributions 
+
+        Notes
+        -----
+        Because nu is discrete, this rad will have distinct steps on a rank
+        energy plot. 
         '''
 
         n_samp, tot_obs, E = self.get_params(['n_samp', 'tot_obs', 'E'])
@@ -3409,7 +3438,7 @@ class nu(Distribution):
             pred_cdf = self.cdf(possible_e)[0][0]
             
             # Observed cdf. Not quite true if some energys overlap
-            obs_cdf = np.arange(1/(tn_samp), 1, 1/tn_samp)
+            obs_cdf = np.arange(1/(tn_samp), 1 + (1/(tn_samp)), 1/tn_samp)
 
             list_bools = [np.array(obs < pred_cdf) for obs in obs_cdf]
             

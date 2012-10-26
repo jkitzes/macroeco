@@ -21,6 +21,8 @@ Weecology functions from https://github.com/weecology/macroecotools.
 import unittest
 from macroeco.distributions import *
 import numpy as np
+import scipy.stats as stats
+import matplotlib.pyplot as plt
 
 # TODO: Need to add fit functions to tests with new fit functions. 
 
@@ -264,7 +266,11 @@ class TestDistributions(unittest.TestCase):
 
       
     def test_geo_ser(self):
-        # TODO: Test pmf
+        # TODO: Test pmf.
+        # Visually, the CDF should be a straight line on a log(abundance) vs.
+        # cumulative density plot.  This is true.  However, not sure that my
+        # normalization of the continuous geometric series provided by May is
+        # ok...
 
         # Data from Magurran (1998)
         obs_sad = [370,210,120,66,35,31,15,9,3,2,1]
@@ -339,6 +345,7 @@ class TestDistributions(unittest.TestCase):
 
      
     def test_binm(self):
+        # Using scipy.binom which is already unitted tested.
         
         # Check that pdf and cdf give correct answers
         dist = binm(tot_obs=8123, n_samp=10)
@@ -354,6 +361,7 @@ class TestDistributions(unittest.TestCase):
         dist = binm().fit(self.abund_list)
      
     def test_pois(self):
+        # Using scipy.poisson which is already nitted tested
 
         # Check that pdf and cdf give correct answers
         dist = pois(tot_obs=112, n_samp=20)
@@ -386,7 +394,6 @@ class TestDistributions(unittest.TestCase):
         self.assertTrue(np.round(dist.params['k'][0], decimals=1) == 1)
     
     def test_nbd_lt(self):
-
         # TODO: test pmf
 
         # Test that cdf is about one
@@ -405,6 +412,39 @@ class TestDistributions(unittest.TestCase):
         b = np.round(cdf[0][0][0], decimals=1)
         self.assertTrue(a == b)
 
+        # Test pmf against scipy
+        mu = 500 * (1. / 20); k = 2; p = 1. / (mu / k + 1)
+        scipy_0 = stats.nbinom.pmf(0, k, p)
+        vals = np.array([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17])
+        test_vals = stats.nbinom.pmf(vals, k, p) / (1 - scipy_0)
+        pred_vals = nbd_lt(tot_obs=500, n_samp=20, k=2).pmf(vals)[0][0]
+        self.assertTrue(np.array_equal(test_vals, pred_vals))
+
+        # Test pmf against Published Truncated NBD. Sampford 1955, The
+        # Truncated Negative Binomial Distribution. 
+        def test_pmf(n, p, k):
+            om = (1 / (1 + (mu/k))); eta = 1 - om
+
+            norm = np.math.gamma(k + n) / (np.math.gamma(k) *
+                                            np.math.gamma(n + 1))
+
+            kernel = (om**k / (1 - om**k)) * (eta**n)
+            return norm * kernel
+
+        test_vals = np.array([test_pmf(x, p, k) for x in vals])
+        test_vals = np.round(test_vals, decimals=7)
+        pred_vals = np.round(test_vals, decimals=7)
+        self.assertTrue(np.array_equal(test_vals, pred_vals))
+        
+        # Test cdf against Published TNBD:
+        pred_cdf = nbd_lt(tot_obs=500, n_samp=20, k=2).cdf(vals)[0][0]
+        pred_cdf = np.round(pred_cdf, decimals=7)
+        test_vals = np.array([test_pmf(x, p, k) for x in vals])
+        test_cdf = np.round(np.cumsum(test_vals), decimals=7)
+        self.assertTrue(np.array_equal(pred_cdf, test_cdf))
+
+        
+        
 
     def test_fnbd(self):
 
@@ -425,20 +465,124 @@ class TestDistributions(unittest.TestCase):
         self.assertTrue(a == b)
 
         # Test that fit of of geometric data gives k=1
+        # NOTE: Testing the fit of FNBD against Zillio and He values is
+        # difficult because the abundance data is not given.
         np.random.seed(345)
         p = 0.001
         geo_data = np.random.geometric(p, size=10000)
         dist = fnbd().fit([geo_data])
         self.assertTrue(np.round(dist.params['k'][0], decimals=1) == 1)
 
-    
+        # Test against published data in Zillio and He 2010
+        # Generated plots match exactly with plots in Zillio and He, 2010
+        # Code to generate plots: Unquote and nosetest if you want to see the
+        # plots
+
+        '''a = np.array([0.1, .3, .8])
+        k = np.array([.1, 1, 10])
+        fnbd_vec = []
+        nbd_vec = []
+        binm_vec = []
+        descrip = []
+        for ta in a:
+            for tk in k:
+                fnbd_vec.append(fnbd(tot_obs=100, n_samp = 1./ta,
+                                            k=tk).pmf(np.arange(1,101))[0][0])
+                nbd_vec.append(nbd(tot_obs=100, n_samp = 1./ta,
+                                              k=tk).pmf(np.arange(1,101))[0][0])
+                binm_vec.append(binm(tot_obs=100, n_samp = 1./ta
+                                              ).pmf(np.arange(1,101))[0][0])
+
+                descrip.append("a=%s, k=%s" % (ta, tk))
+        for i in xrange(len(fnbd_vec)):
+            plt.clf()
+            plt.plot(np.arange(1,101), fnbd_vec[i])
+            plt.plot(np.arange(1,101), nbd_vec[i], '--')
+            plt.plot(np.arange(1,101), binm_vec[i], '.-')
+            plt.legend(('fnbd', 'nbd', 'binm'), loc='best')
+            plt.xlabel('abundance')
+            plt.ylabel('P(x)')
+            plt.text(plt.xlim()[1] * 0.6, plt.ylim()[1] * 0.8, descrip[i])
+            plt.show()'''
+
+    def test_geo(self):
+        # This is just a wrapper function for nbd. Already tested. Will just
+        # confirm that everything runs.
+
+        # Test fit work and returns expected results
+        test = geo().fit([[0,0,0,1,4,67], [1,1,3,5,23]])
+        self.assertTrue(np.all(test.params['tot_obs'] == np.array([72, 33])))
+        self.assertTrue(np.all(test.params['n_samp'] == np.array([6,5])))
+        
+        # Test that tot_obs is broadcast
+        test  = geo(tot_obs=456, n_samp = [34,56,12])
+        test.pmf(0)
+        self.assertTrue(np.all(test.params['tot_obs'] == np.array(
+                                                               [456,456,456])))
+
+        # Test that error is thrown if broadcasting can't be done
+        test = geo(tot_obs=[456,320], n_samp = [34,56,12])
+        self.assertRaises(ValueError, test.pmf, 0)
+
+        # Test that cdf and pdf return same value as nbd with k = 1
+        test_geo = geo(tot_obs=[50, 34], n_samp=2).pmf([0,1,2])[0]
+        test_nbd = nbd(tot_obs=[50,34], n_samp=2, k=1).pmf([0,1,2])[0]
+        self.assertTrue((len(test_geo) == len(test_nbd)) and (len(test_geo) ==
+                                                                            2))
+        for i in xrange(len(test_geo)):
+            self.assertTrue(np.array_equal(test_geo[i], test_nbd[i]))
+
+    def test_fgeo(self):
+        
+        # Test fit work and returns expected results
+        test = fgeo().fit([[0,0,0,1,4,67], [1,1,3,5,23]])
+        self.assertTrue(np.all(test.params['tot_obs'] == np.array([72, 33])))
+        self.assertTrue(np.all(test.params['n_samp'] == np.array([6,5])))
+        
+        # Test that tot_obs is broadcast
+        test  = fgeo(tot_obs=456, n_samp = [34,56,12])
+        test.pmf(0)
+        self.assertTrue(np.all(test.params['tot_obs'] == np.array(
+                                                               [456,456,456])))
+
+        # Test that error is thrown if broadcasting can't be done
+        test = fgeo(tot_obs=[456,320], n_samp = [34,56,12])
+        self.assertRaises(ValueError, test.pmf, 0)
+
+        # Test that cdf and pdf return same value as fnbd with k = 1
+        test_fgeo = fgeo(tot_obs=[50, 34], n_samp=2).pmf([0,1,2])[0]
+        test_fnbd = fnbd(tot_obs=[50,34], n_samp=2, k=1).pmf([0,1,2])[0]
+        self.assertTrue((len(test_fgeo) == len(test_fnbd)) and (len(test_fgeo) ==
+                                                                            2))
+        for i in xrange(len(test_fgeo)):
+            self.assertTrue(np.array_equal(test_fgeo[i], test_fnbd[i]))
+
     def test_tgeo(self):
 
         # Test tgeo cdf is one
         dist = tgeo(n_samp=10, tot_obs=2345)
         self.assertTrue(np.round(dist.cdf(2345)[0][0][0], decimals=1) == 1.0)
 
-        #It would be good to test against values in Harte book.
+        # Testing Lagrange multiplier against values generated by hand
+        # [(n=60, a=.1), (n=340, a=.6), (n=34, a=.9), (n=12, a=.9), (n=2, .9),
+        # (n=1, a=.1),(n=1, a=0.0001),
+        x_vals = np.array([.8572, 1.0036, 1.2937, 1.8298, 5.6056, 0.1111])
+        pred_vals = tgeo(tot_obs=[60,340,34,12, 2, 1], 
+                         n_samp=(1./.1, 1/.6, 1/.9, 1/.9, 1/.9, 1/.1))\
+                         .pmf(0)[1]
+        pred_vals = np.round(pred_vals['x'], decimals=4)
+        self.assertTrue(np.array_equal(x_vals, pred_vals))
+        
+        x_vals = np.array([1.0e-4, 1.0e-5])
+        pred_vals = tgeo(tot_obs=[1,1], n_samp=[1/.0001, 1/.00001]).pmf(0)[1]
+        pred_vals = np.round(pred_vals['x'], decimals=6)
+        self.assertTrue(np.array_equal(x_vals, pred_vals))
+        
+        # Optimizer is starting to round. Tried brentq, bisect and fsolve 
+        x_vals = np.array([9, 11])
+        pred_vals = tgeo(tot_obs=[1,10], n_samp=[1/.9, 1/.99]).pmf(0)[1]
+        pred_vals = np.round(pred_vals['x'], decimals=4)
+        self.assertTrue(np.array_equal(x_vals, pred_vals))
 
         # Test that pdf and cdf give correct values
         check = dist.pmf([1,1,2,3,4,5,12,34,65])
@@ -446,7 +590,8 @@ class TestDistributions(unittest.TestCase):
         self.assertTrue(dist.cdf(23)[0][0][0] == 
                     np.sum(dist.pmf(np.arange(0,24))[0][0]))
 
-        # Test that fit provides the correct number of tot_obs
+        # Test that fit provides the correct number of tot_obs. Already have
+        # tested generic fit method.
         dist = tgeo().fit(self.abund_list)
         self.assertTrue(len(dist.params['tot_obs']) == 4)
     
@@ -551,7 +696,46 @@ class TestDistributions(unittest.TestCase):
         
         # Testing that gen_sar actually runs.  Not sure what values to test it
         # against.
-        sar = gen_sar(logser(), geo()).fit(self.sad)
+
+        # Test that mete_sar_iter and mete_sar iterated return similar values.
+        # They will be slightly different because approximations are used in
+        # mete_sar_iter.
+        msi = mete_sar_iter(tot_obs=600, n_samp=40).vals([1,2,.8,.2,.1])
+        ms = mete_sar(tot_obs=600, n_samp=40).iter_vals([1,2,.8,.2,.1])
+        self.assertTrue(len(msi) == len(ms))
+        error = 0.001 * msi['items']
+        diff = np.abs(msi['items'] - ms['items'])
+        self.assertTrue(np.all(diff <= error))
+
+        # Test that changing the base changes the value of iter_vals
+        gnsar = gen_sar(broken_stick(), binm(), n_samp=40, tot_obs=600)
+        base2 = gnsar.iter_vals([1,2,.8,.2,.3], base=2)
+        base3 = gnsar.iter_vals([1,2,.8,.2,.3], base=3)
+        self.assertTrue(not(np.array_equal(base2['area'], base3['area'])))
+        
+
+        # Test that non_iter=False, returns only areas that match a_list
+        a_list1 = [1,2,.5,.25,.1]
+        a_list2 = [1,2.1,.4,.1]
+        a_list3 = [3,(1/3.), .35]
+        areas = gnsar.iter_vals(a_list1, base=2, non_iter=True)['area']
+        self.assertTrue(set(areas) == set([1,2,.5,.25]))
+        areas = gnsar.iter_vals(a_list2, base=2, non_iter=True)['area']
+        self.assertTrue(set(areas) == set([1]))
+        areas = gnsar.iter_vals(a_list3, base=3, non_iter=True)['area']
+        self.assertTrue(set(areas) == set([3, (1/3.)]))
+
+        # Test if I don't specify an a_list I can still upscale and down scale
+        sar_arr = gnsar.iter_vals(downscale=1, upscale=1)
+        self.assertTrue(len(sar_arr) == 3)
+        # Non_iter should be overridden
+        sar_arr = gnsar.iter_vals(downscale=1, upscale=1, non_iter=True)
+        self.assertTrue(len(sar_arr) == 3)
+        
+
+        # Test vals and fit performs properly.  Test that fit ignores all args
+        # but the first one too.
+        sar = gen_sar(logser(), geo()).fit(self.sad, 4, [456,678])
         g = sar.vals([.001,.04, .5, 1])
         self.assertTrue(np.round(g['items'][3], decimals=0) == 155)
         sar2 = gen_sar(logser(), geo())
@@ -561,10 +745,10 @@ class TestDistributions(unittest.TestCase):
         s1 = sar.vals([.5]); s2 = sar2.vals([0.5])
         self.assertTrue(s1['items'][0] == s2['items'][0])
 
-        # Test univ_curve upscales and downscales
-        #sar3 = gen_sar(broken_stick(), binm()).fit(self.sad)
-        #sar3.univ_curve(num_iter=2, direction='up')
-        #sar3.univ_curve(num_iter=2, direction='down')
+        # Test universal curve can iterate and not iterate
+        itera = gnsar.univ_curve(num_iter=3, iterative=True)
+        non_iter = gnsar.univ_curve(num_iter=3)
+        self.assertTrue(len(itera) == len(non_iter))
 
     #More testing should be done
     def test_theta(self):
@@ -614,13 +798,38 @@ class TestDistributions(unittest.TestCase):
         self.assertTrue(np.round(var['l2'], decimals=4) == 0.0013)
 
         # Test cdf
-        print ps.cdf(E)[0][0][0]
         self.assertTrue(np.round(ps.cdf(E)[0][0][0], decimals=0) == 1)
         self.assertTrue(ps.cdf(1)[0][0][0] == 0)
 
         # Test rad doesn't throw an error
         ps.rad()
+
+    def test_nu(self):
         
+        # Test error is raised when pdf called
+        self.assertRaises(NotImplementedError, nu(n_samp=30, tot_obs=400,
+                            E=5000).pdf, 0)
+
+        # Check that pmf sums to one with appropriate values of e
+        nudist = nu(tot_obs=500, n_samp=50, E=50000)
+        pmf, var = nudist.pmf(3)
+        l2 = var['l2'][0]
+        e_vals = (lambda n: 1 + (1 / (l2 * n)))(np.arange(1,501))
+        full_pmf = nudist.pmf(e_vals)[0][0]
+        self.assertTrue(np.round(sum(full_pmf), decimals=1) == 1.0)
+        
+        #Check that the last value in cdf is 1
+        self.assertTrue(nudist.cdf(e_vals[0])[0][0][0] == 1)
+
+        # Test that rad works
+        g = nudist.rad()
+        self.assertTrue((len(g[0]) == 50))
+
+        # Test fit
+        g = nu().fit(([[1,2,3,4,5,6,7]], [[1,2,3,4,5,6,7]]))
+        self.assertTrue(g.params['tot_obs'][0] == 28)
+        self.assertTrue(g.params['n_samp'][0] == 7)
+        self.assertTrue(g.params['E'][0] == 28)
 
 
 
