@@ -190,7 +190,7 @@ class Curve(object):
         pass
 
     def univ_curve(self, num_iter=5, direction='down', param='tot_obs',
-                                                iterative=False):
+                                                      iterative=False, base=2):
         '''
         Generating a univsersal curve for different curves.  A universal curve
         is defined as the slope value (z) at a function y = f(x) at a given x
@@ -211,6 +211,15 @@ class Curve(object):
             If False, uses the one-shot method calculate z via curve.vals.  If
             iterative is true, uses the iterative method to calculate z via
             Curve.iter_vals.
+        base : int
+            Specifies whether you would like each iteration to double/half
+            (base=2), triple/third (base=3), etc
+
+        Returns
+        -------
+        : structured array
+            An array with dtype = [('z', np.float), ('x_over_y', np.float)]
+            that contains the slope and the quantity x * multiplier / y
 
         '''
         
@@ -221,28 +230,28 @@ class Curve(object):
         else:
             multiplier = 1
 
-        # Calculating z using equation from Harte et al. 2009
+        
         if iterative:
             def z(a):
-                a1 = self.iter_vals(a, non_iter=True)['items']
-                a2 = self.iter_vals(2*a, non_iter=True)['items']
-                a3 = self.iter_vals(.5 * a, non_iter=True)['items']
+                a1 = self.iter_vals(a, non_iter=True, base=base)['items']
+                a2 = self.iter_vals(base * a, non_iter=True, base=base)['items']
+                a3 = self.iter_vals((1. / base) * a, non_iter=True, base=base)['items']
                 return \
-                    (0.5 * (np.log(a1 / a3) + np.log(a2 / a1))) / np.log(2), a1
+                 (0.5 * (np.log(a1 / a3) + np.log(a2 / a1))) / np.log(base), a1
 
         else:
             def z(a):
                 a1 = self.vals(a)['items']
-                return (0.5 * (np.log(a1 / self.vals(0.5 *
-                            a)['items']) + np.log(self.vals(2 * a)['items'] / 
-                            a1))) / np.log(2), a1
+                return (0.5 * (np.log(a1 / self.vals((1./base) *
+                            a)['items']) + np.log(self.vals(base * a)['items'] / 
+                            a1))) / np.log(base), a1
         
         # Get the area list
         if direction == 'down':
-            a_list = [1 / (2**(i)) for i in np.arange(num_iter + 1)]
+            a_list = [1 / (base**(i)) for i in np.arange(num_iter + 1)]
 
         elif direction == 'up':
-            a_list = [2**(i) for i in np.arange(num_iter + 1)]
+            a_list = [base**(i) for i in np.arange(num_iter + 1)]
 
         else:
             raise ValueError('%s not a recognized direction' % direction)
@@ -1172,11 +1181,12 @@ class lognorm(Distribution):
         # Get parameters
         tot_obs, n_samp, sigma = self.get_params(['tot_obs','n_samp','sigma'])
         
+        #mu, sigma = self.get_params(['mu','sigma'])
         # TODO: Additional parameter checks
-        n = expand_n(n, len(tot_obs))
-
+        n = expand_n(n, len(sigma))
+        
         # Calculate mu
-        mu = np.log(tot_obs / n_samp) - (sigma / 2)
+        mu = np.log(tot_obs / n_samp) - (sigma**2 / 2)
 
         # Calculate pmf
         pmf = []
@@ -1196,7 +1206,7 @@ class lognorm(Distribution):
         n = expand_n(n, len(tot_obs))
 
         # Calculate mu
-        mu = np.log(tot_obs / n_samp) - (sigma / 2)
+        mu = np.log(tot_obs / n_samp) - (sigma**2 / 2)
 
         #Calculate cdf
         cdf = []
@@ -1280,7 +1290,6 @@ class geo_ser(Distribution):
         # Get parameters
         n_samp, tot_obs, k = self.get_params(['n_samp', 'tot_obs', 'k'])
         n = expand_n(n, len(n_samp))
-        
         assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
         assert np.all(k > 0) and np.all(k <= 1), ('k must be in the '
                                                   'interval (0, 1]')
@@ -2183,7 +2192,8 @@ class tgeo(Distribution):
         for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
             ta = 1 / tn_samp
 
-            if ta == 0.5: #Compute probability directly to save time
+            #Compute probability directly to save time
+            if ta == 0.5: 
                 x = 1
                 tpmf = np.repeat(1 / (1 + ttot_obs), len(tn))
 
@@ -2201,8 +2211,8 @@ class tgeo(Distribution):
                 except:
                     raise ValueError("No solution to %s.pmf when tot_obs = " %
                                      (self.__class__.__name__) +
-                                     "%.2f and n_samp = %.2f" % (ttot_obs,
-                                     tn_samp))
+                                     "%.2f, n_samp = %.10f and a = %.10f" % 
+                                     (ttot_obs, tn_samp, ta))
                 z = (1 - x ** (ttot_obs + 1)) / (1 - x)
                 tpmf = (1 / z) * (x ** tn)
 
@@ -2235,7 +2245,7 @@ class mete_sar_iter(Curve):
     def __init__(self, **kwargs):
         self.params = kwargs
 
-    def vals(self, a_list, upscale=0, downscale=0, non_iter=False):
+    def vals(self, a_list=None, upscale=0, downscale=0, non_iter=False):
         '''
         Predict the universal SAR curve for the given S and N found at 
         the given anchor scale
@@ -2509,7 +2519,7 @@ class gen_sar(Curve):
         self.ssad = ssad
         self.params = kwargs
 
-    def iter_vals(self, a_list, upscale=0, downscale=0, non_iter=False):
+    def iter_vals(self, a_list=None, upscale=0, downscale=0, non_iter=False, base=2):
         '''
         Calculates values in a_list by iteration.
 
@@ -2517,6 +2527,21 @@ class gen_sar(Curve):
         ----------
         a_list : array-like object
             List of area fractions at which to calculate the SAR
+        upscale : int
+            Number of iterations up from the anchor scale.  Each iteration 
+            doubles the previous area. Only active if a_list is None.
+        downscale : int
+            Number of iterations down from the anchor scale. Each iteration 
+            halves the previous area. Only active if a_list is None.
+        non_iter : bool
+            If False, returns all iterations.  If True, only returns iterations
+            that match a_list.
+        base : int
+            Specifies the base of the logarithm.  In other words, whether you
+            would like to iterate via double and half (base = 2), triple and
+            third (base = 3).
+
+
 
         Returns
         -------
@@ -2534,12 +2559,12 @@ class gen_sar(Curve):
 
         anch = 1
         if a_list != None:
-            upscale, downscale = set_up_and_down(anch, a_list)
+            upscale, downscale = set_up_and_down(anch, a_list, base=base)
 
         if upscale == 0 and downscale == 0:
             return np.array((S, anch), dtype=[('items', np.float),
                                                 ('area', np.float)])
-        areas = _generate_areas_(anch, upscale, downscale)
+        areas = _generate_areas_(anch, upscale, downscale, base=base)
         sar = np.empty(len(areas), dtype=[('items', np.float),
                                       ('area', np.float)])
         sar['area'] = areas
@@ -2548,12 +2573,11 @@ class gen_sar(Curve):
             N_list = []; S_list = [] 
             
             if up_down == 'up':
-                a = 2 #iterate by doubling
+                a = base #iterate up given base
             else:
-                a = 0.5 # iterate by halving
+                a = 1. / base # iterate down given base
 
             for i, da in enumerate(areas):
-                
                 if i == 0: #Base area calculation. Not always exactly S
 
                     self.params['tot_obs'] = N 
@@ -2593,7 +2617,8 @@ class gen_sar(Curve):
         else:
             ind = np.zeros(len(sar), dtype=bool)
             for a in a_list:
-                ind = np.bitwise_or(ind, sar['area'] == a)
+                ind = np.bitwise_or(ind, np.round(sar['area'], decimals=8) ==
+                                                       np.round(a, decimals=8))
             return sar[ind]
 
     def vals(self, a_list):
@@ -3573,10 +3598,27 @@ def _ln_choose(n, k):
     gammaln = scipy.special.gammaln
     return gammaln(n + 1) - (gammaln(k + 1) + gammaln(n - k + 1))
 
-def set_up_and_down(anch, a_list):
+def set_up_and_down(anch, a_list, base=2):
     '''
-    Sets the number of upscales and downscales given an a_list.  Only allows
-    halvings and doublings
+    Sets the number of upscales and downscales given an a_list.
+    By setting the base parameter, you can specify whether you would like to
+    double and half (base = 2), triple an third (base=3), etc.
+    
+    Parameters
+    ----------
+    anch : float
+        The anchor area
+    a_list : array-like object
+        List of areas
+    base : int
+        Base of the logarithm
+    
+    Returns
+    -------
+    : tuple
+        Number of upscale and downscales required to cover the whole range
+        specified in a_list.
+
     '''
 
     mint = np.min(a_list)
@@ -3584,14 +3626,14 @@ def set_up_and_down(anch, a_list):
     if mint == anch and maxt == anch: 
         upscale = 0; downscale = 0
     elif (mint > anch or mint == anch) and maxt > anch:
-        upscale = np.int(np.ceil(np.log2(maxt / anch)))
+        upscale = np.int(np.ceil(np.log(maxt / anch) / np.log(base)))
         downscale = 0
     elif mint < anch and (maxt < anch or maxt == anch):
-        downscale = np.int(np.ceil(np.abs(np.log2(mint / anch)))) 
+        downscale = np.int(np.ceil(np.abs(np.log(mint / anch) / np.log(base)))) 
         upscale = 0
     elif mint < anch and maxt > anch:
-        upscale = np.int(np.ceil(np.log2(maxt / anch)))
-        downscale = np.int(np.ceil(np.abs(np.log2(mint / anch))))
+        upscale = np.int(np.ceil(np.log(maxt / anch) / np.log(base)))
+        downscale = np.int(np.ceil(np.abs(np.log(mint / anch) / np.log(base))))
     
     return upscale, downscale
 
@@ -3671,7 +3713,7 @@ def _downscale_sar_(down_areas, N, S):
             spp[i] = ShalfA
     return spp[::-1]
 
-def _generate_areas_(anchor_area, upscale, downscale):
+def _generate_areas_(anchor_area, upscale, downscale, base=2):
     '''
     Utility function that makes the area list
     
@@ -3680,8 +3722,8 @@ def _generate_areas_(anchor_area, upscale, downscale):
     areas = np.empty(upscale + downscale + 1)
     areas[downscale] = anchor_area
     for i in range(downscale)[::-1]:
-        areas[i] = areas[i + 1] / 2
+        areas[i] = areas[i + 1] / base
     for i in xrange(downscale + 1, len(areas)):
-        areas[i] = areas[i - 1] * 2
+        areas[i] = areas[i - 1] * base
 
     return areas

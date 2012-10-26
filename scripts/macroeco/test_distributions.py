@@ -21,7 +21,6 @@ Weecology functions from https://github.com/weecology/macroecotools.
 import unittest
 from macroeco.distributions import *
 import numpy as np
-import scipy.stats as stats
 
 # TODO: Need to add fit functions to tests with new fit functions. 
 
@@ -166,7 +165,6 @@ class TestDistributions(unittest.TestCase):
 
     
     def test_plognorm_lt(self):
-        # TODO: No test below - should test pmf and cdf, at minimum
 
         #Test our pmf against R's poilog
         R_zero_trun = [0.11620, 0.07216, 0.05201, 0.04049, 0.02783, 0.02398,
@@ -174,6 +172,12 @@ class TestDistributions(unittest.TestCase):
         pred_plog = plognorm_lt(mu=2, sigma=3).pmf([1,2,3,4,6,7,23])[0][0] 
         self.assertTrue(np.array_equal(R_zero_trun, np.round(pred_plog,
                                                                   decimals=5)))
+
+        # Test that cdf sums appropriately
+        pred_pmf_plog = plognorm_lt(mu=1.2, sigma=1.5).\
+                                                   pmf([1,2,3,4,5,6,7,8])[0][0]
+        pred_cdf_plog = plognorm_lt(mu=1.2, sigma=1.5).cdf(8)[0][0][0]
+        self.assertTrue(np.sum(pred_pmf_plog) == pred_cdf_plog)
 
         # Test fit against Ethan White results and poilog
         EW_fit = {'mu' :.90, 'sigma' : 2.18}
@@ -200,16 +204,50 @@ class TestDistributions(unittest.TestCase):
         r_output = [0.1210, .0806, .0601, 0.0476, 0.0391, .0331,  0.0285,\
                     0.0249, 0.0221, 0.0197]
 
-        rcdf = np.array([0.3319, 0.3319, 0.4869, 0.5127, 0.6124])
-        lnorm = np.round(lognorm(tot_obs=np.exp(3), n_samp=1, sigma=2).\
+        r_output2 = [0.1522, 0.1326, 0.1048, 0.0827, 0.0662, 0.0538, 0.0443,
+                     0.0198, 0.0012]
+
+        lnorm = np.round(lognorm(tot_obs=np.exp(4), n_samp=1, sigma=2).\
                                     pmf(np.arange(1,11))[0][0], decimals=4)
         diff = r_output - lnorm
         self.assertTrue(np.all(diff == 0))
 
+        lnorm = np.round(lognorm(tot_obs = np.exp(1.5 + (1.2**2 / 2)) * 50, 
+                         n_samp=50,sigma=1.2).pmf([1,2,3,4,5,6,7,12,45])[0][0],
+                         decimals=4)
+        diff = r_output2 - lnorm
+        self.assertTrue(np.all(diff == 0))
+
         # Test cdf against R cdf
-        pycdf = np.round(lognorm(tot_obs=np.exp(1.5 + (3.45 / 2)), n_samp=1, 
+        rcdf = np.array([0.3319, 0.3319, 0.4869, 0.5127, 0.6124])        
+        pycdf = np.round(lognorm(tot_obs=np.exp(1.5 + (3.45**2 / 2)), n_samp=1, 
                             sigma=3.45).cdf([1,1,4,5,12])[0][0], decimals=4)
         diff = rcdf - pycdf
+        self.assertTrue(np.all(diff == 0))
+
+        # Test fit function returns expected result: R code
+        '''
+        pmf <- function(x, N, S, sigma){
+	        mu = log(N / S) - (sigma^2 / 2)
+	        dlnorm(x, meanlog=mu, sdlog=sigma)
+        }
+
+        mle <- function(sdlog, x, N, S){
+	        -sum(log(pmf(x, N, S, sdlog)))
+        }
+
+        params <- function(x){
+	        N = sum(x);
+	        S = length(x);
+	    optimize(mle, interval=c(0,5), x, N, S)
+        }'''
+        fit_array1 = [1,1,1,1,1,2,2,3,3,4,5,6,123,456]
+        fit_array2 = [2,2,2,4,67,34,152,9]
+        r_lognorm_fits = np.array([2.07598, 1.59213])
+        pyfit1 = lognorm().fit([fit_array1]).params['sigma'][0]
+        pyfit2 = lognorm().fit([fit_array2]).params['sigma'][0]
+        diff = r_lognorm_fits - np.round([pyfit1, pyfit2], decimals=5)
+        print diff
         self.assertTrue(np.all(diff == 0))
         
         # Test that these don't fail
@@ -219,7 +257,6 @@ class TestDistributions(unittest.TestCase):
         lognorm(tot_obs=tot_obs, n_samp=n_samp, mu=2, sigma=5).rad()
 
         # Test fit parameter length is correct
-        # TODO: Test fit
         dist = lognorm().fit(self.abund_list)
         dist.pmf(3)
         dist.pmf([[3],[4],[5],[6]])
@@ -227,7 +264,7 @@ class TestDistributions(unittest.TestCase):
 
       
     def test_geo_ser(self):
-        # TODO: Test pmf, cdf
+        # TODO: Test pmf
 
         # Data from Magurran (1998)
         obs_sad = [370,210,120,66,35,31,15,9,3,2,1]
@@ -273,8 +310,14 @@ class TestDistributions(unittest.TestCase):
         # Test that these don't fail 
         broken_stick(n_samp=23, tot_obs=500).cdf([1,2,500])
         broken_stick(n_samp=23, tot_obs=500).rad()
-        broken_stick().fit(self.abund_list)
-    
+
+        # Test basic fit
+        check = broken_stick().fit(self.abund_list)
+        self.assertTrue(np.all(check.params['tot_obs'] == np.array([sum(ab) for
+                        ab in self.abund_list])))
+        self.assertTrue(np.all(check.params['n_samp'] == np.array([len(ab) for
+                        ab in self.abund_list])))
+
     
     def test_sugihara(self):
         # Data from A. J. Baczkowski 1997
@@ -289,9 +332,10 @@ class TestDistributions(unittest.TestCase):
         ind = np.abs(diff) <= error
         self.assertTrue(np.all(ind))
 
-        # Test that error is raised for cdf and pdf methods
+        # Test that error is raised for cdf, pdf, pmf methods
         self.assertRaises(NotImplementedError, sugihara().pmf, 67)
         self.assertRaises(NotImplementedError, sugihara().cdf, 34)
+        self.assertRaises(NotImplementedError, sugihara().pdf, 23)
 
      
     def test_binm(self):
