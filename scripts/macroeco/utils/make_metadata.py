@@ -27,7 +27,7 @@ else:
             traitlist = []
             typelist = []
             print "Examining file '" + metawriter.filename + "'..."
-            for name in metawriter.datafile.dtype.names:
+            for name in metawriter.column_names:
                 cat = raw_input("Is column name '" + name +\
                                     "' categorical? ")
                 if cat == "No" or cat == "no" or cat == "n" or\

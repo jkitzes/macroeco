@@ -37,7 +37,7 @@ class Columnar_Data:
     '''
 
     def __init__(self, datalist, delimiter=',', missingd=None,\
-                delete_missing=True):
+                delete_missing=True, archival=True):
         '''
         This __init__ method takes in data and stores it in rec_arrays.
         If specified,  it will located missing data points and remove them
@@ -60,41 +60,81 @@ class Columnar_Data:
             If True, deletes all of the missing values. If False, only deletes
             the NaNs from the data.
 
+        archival : bool
+            If True, a copy of self.columnar_data is made and stored in
+            self.columnar_archival. If dataset is very large, set to False.
+
+        Note
+        ----
+        If column type is integer, missing values are set to -1.  If column
+        type is float, missing values are set to NaN.  If column type is
+        string, missing values are set to ''.  If column type is object,
+        missing values are set to None.
+
         '''
         if type(datalist) == str:
             datalist = [datalist]
 
         if np.all(np.array([type(x) == str for x in datalist])):
-            self.data_list = []
+            self.columnar_data = []
             self.data_names = []
             for file_name in datalist:
-                self.data_list.append(csv2rec(file_name, delimiter=delimiter,\
+                self.columnar_data.append(csv2rec(file_name, delimiter=delimiter,\
                               missingd=missingd))
                 self.data_names.append(file_name)
             if missingd != None:
                 if delete_missing:
-                    for key in missingd.iterkeys():
-                        for data in self.data_list:
-                            notNaN = (False == np.isnan(data[key]))
-                            notBlank = (data[key] != '')
-                            ind = np.bitwise_or(notNaN, notBlank)
+                    trun_data = []
+                    for data in self.columnar_data:
+                        for key in missingd.iterkeys():
+                            try:
+                                # Missing float
+                                notNaN = (False == np.isnan(data[key]))
+                            except:
+                                notNaN = np.ones(len(data[key]), dtype=bool)
+                            notBlank = np.array([it != '' for it in data[key]])
+                            notMinusOne = (data[key] != -1)# Missing int
+                            # Missing other
+                            notNone = np.array([i != None for i in data[key]])
+                            ind = np.bitwise_and(notNaN, notBlank)
+                            ind = np.bitwise_and(ind, notMinusOne)
+                            ind = np.bitwise_and(ind, notNone)
                             data = data[ind]
+                        trun_data.append(data)
+                    self.columnar_data = trun_data
                 else:
-                    for key in missingd.iterkeys():
-                        for data in self.data_list:
-                            notNaN = (False == np.isnan(data[key]))
+                    trun_data = []
+                    for data in self.columnar_data:
+                        for key in missingd.iterkeys():
+                            try:
+                                notNaN = (False == np.isnan(data[key]))
+                            except:
+                                notNaN = np.ones(len(data[key]), dtype=bool)
                             data = data[notNaN]
+                        trun_data.append(data)
+                    self.columnar_data = trun_data
         elif np.all(np.array([type(x) == np.ndarray for x in datalist])):
-            self.data_list = datalist
-        self.archival_data = [np.copy(data) for data in self.data_list]
+            self.columnar_data = datalist
 
-    def reset_data_list(self):
+        if archival:
+            self.columnar_archival = [np.copy(data) for data in 
+                                                            self.columnar_data]
+        else:
+            self.columnar_archival = []
+
+    def reset_columnar_data(self):
         '''
-        Resets self.data_list to self.archival_data
+        Resets self.columnar_data to self.columnar_archival
         
         Need to be careful about excessive memory usage!
         '''
-        self.data_list = [np.copy(data) for data in self.archival_data]
+        if len(self.columnar_archival) == 0:
+            raise ValueError("The self.columnar_archival attribute of this %s"
+                             % (self.__class__.__name__) + " object has not" 
+                             + " been initialized")
+        else:
+            self.columnar_data = [np.copy(data) for data in 
+                                                        self.columnar_archival]
 
     def split_up_data_by_field(self, split_columns):
         '''
@@ -113,8 +153,7 @@ class Columnar_Data:
         
         Notes
         -----
-        Saves the split array as self.data_list
-        
+        Saves the split array as self.columnar_data
         
         '''
         #Note: If they enter the wrong column name nothing will be removed
@@ -127,14 +166,14 @@ class Columnar_Data:
         given_col_names = np.array(given_col_names)
 
 
-        for data in self.data_list:
+        for data in self.columnar_data:
             for tup in split_columns:
                 ind = np.ones(len(given_col_names), dtype=bool)
                 for name in tup:
                     ind = np.bitwise_and((name != given_col_names), ind)
                 remove_names = given_col_names[ind]
                 split_data.append(drop_fields(data, list(remove_names)))
-        self.data_list = split_data
+        self.columnar_data = split_data
     
     def change_column_names(self, change, changed_to):
         '''
@@ -150,7 +189,7 @@ class Columnar_Data:
 
         '''
         
-        for data in self.data_list:
+        for data in self.columnar_data:
             column_names = np.array(data.dtype.names)
             for name in change:
                 find = np.where((name == column_names))[0]
@@ -163,7 +202,7 @@ class Columnar_Data:
         This functions adds given fields and values to the data list. The
         length of values should be the same length as fields and the length of
         each tuple within each element of values should be the same length as
-        the self.data_list
+        the self.columnar_data
 
         Parameters
         ----------
@@ -171,16 +210,16 @@ class Columnar_Data:
             A list of strings specifying field names
         values : list of tuples
             A list of tuples with the length of each tuple equalling the length
-            of self.data_list
+            of self.columnar_data
 
         '''
         #NOTE: Should probably make a single dictionary for field/values
-        self.data_list = add_data_fields(self.data_list, fields, values)
+        self.columnar_data = add_data_fields(self.columnar_data, fields, values)
 
     def remove_columns(self, col_names):
         '''
         This function will remove the all the columns within with names in
-        col_names from all the datasets in self.data_list.
+        col_names from all the datasets in self.columnar_data.
 
         Parameters
         ----------
@@ -193,16 +232,14 @@ class Columnar_Data:
         else:
             col_names = list(col_names)
         removed_data = []
-        for data in self.data_list:
+        for data in self.columnar_data:
             removed_data.append(drop_fields(data, col_names))
-        self.data_list = removed_data
+        self.columnar_data = removed_data
 
     def fractionate_data(self, wid_len, step, col_names):
         '''
-        fractionate_data(self, wid_len, step, col_names)
-
         This function converts grid numbers to length measurements in
-        self.data_list
+        self.columnar_data
 
         Parameters
         ----------
@@ -218,7 +255,7 @@ class Columnar_Data:
             that will be fractionated
 
         '''
-        self.data_list = fractionate(self.data_list, wid_len, step, col_names)
+        self.columnar_data = fractionate(self.columnar_data, wid_len, step, col_names)
 
 
     def merge_data(self):
@@ -227,11 +264,11 @@ class Columnar_Data:
         the data in data_list must be identical or this function will fail.
         '''
 
-        self.merged_data = merge_formatted(self.data_list)
+        self.merged_data = merge_formatted(self.columnar_data)
 
     def output_merged_data(self, filename):
         '''
-        This function merges self.data_list and outputs the merged data.
+        This function merges self.columnar_data and outputs the merged data.
 
         Parameters
         ----------
@@ -243,9 +280,9 @@ class Columnar_Data:
         self.merge_data()
         output_form(self.merged_data, filename)
 
-    def output_data_list(self, filenames):
+    def output_columnar_data(self, filenames):
         '''
-        This function outputs the self.data_list
+        This function outputs the self.columnar_data
 
         Parameters
         ----------
@@ -253,10 +290,10 @@ class Columnar_Data:
             A list of filenames
 
         '''
-        assert len(filenames) == len(self.data_list), "Number of filenames\
+        assert len(filenames) == len(self.columnar_data), "Number of filenames\
                                  must be the same as the number of datasets"
         for i, name in enumerate(filenames):
-            output_form(self.data_list[i], name)
+            output_form(self.columnar_data[i], name)
 
 class Grid_Data:
     '''This class handles data should look like the EarthFlow data after a 
@@ -268,7 +305,7 @@ class Grid_Data:
     NOTE: Need to consider things that might break this class
     '''
 
-    def __init__(self, filenames, num_cols):
+    def __init__(self, filenames, num_cols, archival=True):
         '''
         Pass in the file name(s) of the grid data that you want converted and
         the number of columns in each grid.
@@ -284,6 +321,10 @@ class Grid_Data:
             of columns for all grids with in filenames.  If a list of
             len(filename) this list specifies the number of columns for each
             individual grid.
+
+        archival : bool
+            If True, a copy of self.grid_data is made and stored in
+            self.grid_archival. If dataset is very large, set to False.
 
         '''
         #NOTE: Handle missing data!!!!
@@ -317,13 +358,25 @@ class Grid_Data:
         #Remove all '\n' from the end of each cell in grid
         #Not technically necessary but just being clean
         self.grids = remove_char(self.grids)
-        '''for grid in self.grids:
-            for name in grid.dtype.names:
-                for i in xrange(len(grid[name])): 
-                    while grid[name][i][::-1].find('\n') == 0:
-                        grid[name][i] = grid[name][i][:-1]'''
 
-        self.grids_archival = [np.copy(data) for data in self.grids]
+        if archival == True:
+            self.grid_archival = [np.copy(data) for data in self.grids]
+        else:
+            self.grid_archival = []
+
+    def reset_grid_data(self):
+        '''
+        Resets self.grid_data to self.archival_data
+        
+        Need to be careful about excessive memory usage!
+        '''
+
+        if len(self.grid_archival) == 0:
+            raise ValueError("The self.grid_archival attribute of this %s"
+                             % (self.__class__.__name__) + " object has not" 
+                             + " been initialized")
+        else:
+            self.grid_data = [np.copy(data) for data in self.grid_archival]
 
     def truncate_grid_cells(self, symbol):
         '''
@@ -455,6 +508,11 @@ class Grid_Data:
         This function prints the data within self.grids with the given
         filenames.
 
+        Parameters
+        -----------
+        filenames : list
+            A list of filnames to which the data will be saved
+
         '''
 
         assert len(filenames) == len(self.grids), "Number of filenames\
@@ -462,55 +520,93 @@ class Grid_Data:
         for i, data in enumerate(self.grids):
             output_form(data, filenames[i]) 
 
-
-    def output_dense_data(self, filenames):
-        '''
-        This function prints the data within self.dense_data with the given
-        filenames.  If self.dense_data has not been filled, error is thrown.
-
-
-
-        Parameters
-        ----------
-        filenames : list
-            A list of filenames to which the data will be saved
-    
-        '''
-        if len(self.dense_data) == 0:
-            raise Exception("No data in self.dense_data")
-
-        assert len(filenames) == len(self.dense_data), "Number of filenames\
-                                 must be the same as the number of datasets"
-        for i, data in enumerate(self.dense_data):
-            output_form(data, filenames[i]) 
-
     
 class Dense_Data:
-    '''This class handles data that are in the dense format
-
-    MORE DOC STRING
+    '''This class handles data that are in the dense format.  An example of the
+    dense format is a csv file that has columns named 'row' and 'column' and
+    the remainder of columns named after each species in the plot.  The values
+    within each species column are the counts within the cell specified by the
+    columns names 'row' and 'column'.
 
     Note: Need to consider how I might break this class
     '''
 
-    def __init__(self, datalist, delim=','):
+    def __init__(self, datalist, delim=',', replace=None, archival=True):
         '''
-        Going to duck-type datalist to find out whether it is list of data or
-        a list of strings!
+
+        Parameters
+        -----------
+        datalist : list of strings or list of arrays
+            List of filenames to be loaded or list of arrays to be set to
+            self.dense_data
+        delim : string
+            The file delimiter
+        missingd : dict
+            A dictionary mapping column names to values which signfy the that
+            the value is missing in the field. If dtype is string value is set
+            to '', if dtype is int value is set to -1, if dtype is float value
+            is set to NaN, if dtype is object value is set to None.
+        replace : tuple
+            A tuple of length 2.  The first element is a string which
+            represents the missing values that you would like to replace.  The
+            second element is the value with which you would like to replace
+            the missing values.
+        archival : bool
+            If True, a copy of self.dense_data is made and stored in
+            self.dense_archival. If dataset is very large, set to False.
 
         '''
         #TODO: What kind of files could break this
-        #NOTE: What about missing values?
         if type(datalist) == str:
             datalist = [datalist]
 
         self.columnar_data = []
         if np.all(np.array([type(x) == str for x in datalist])):
             self.dense_data = []
-            for name in datalist:
-                self.dense_data.append(csv2rec(name, delimiter=delim))
+            if replace != None:
+                assert len(replace) == 2, "Replace must contain 2 elements"
+
+                for name in datalist:
+                    data = csv2rec(name, delimiter=delim, missing=replace[0])
+                    for nm in data.dtype.names:
+                        try:
+                            # Missing float
+                            isNaN = (np.isnan(data[nm]))
+                        except:
+                            isNaN = np.zeros(len(data[nm]), dtype=bool)
+                        isBlank = np.array([it == '' for it in data[nm]])
+                        isMinusOne = (data[nm] == -1)# Missing int
+                        # Missing other
+                        isNone = np.array([i == None for i in data[nm]])
+                        ind = np.bitwise_or(isNaN, isBlank)
+                        ind = np.bitwise_or(ind, isMinusOne)
+                        ind = np.bitwise_or(ind, isNone)
+                        data[nm][ind] = replace[1]
+                    self.dense_data.append(data)
+
         elif np.all(np.array([type(x) == np.ndarray for x in datalist])):
             self.dense_data = datalist
+
+        if archival:
+            self.dense_archival = [np.copy(data) for data in 
+                                                            self.dense_data]
+        else:
+            self.dense_archival = []
+
+    def reset_grid_data(self):
+        '''
+        Resets self.grid_data to self.archival_data
+        
+        Need to be careful about excessive memory usage!
+        '''
+
+        if len(self.dense_archival) == 0:
+            raise ValueError("The self.dense_archival attribute of this %s"
+                             % (self.__class__.__name__) + " object has not" 
+                             + " been initialized")
+        else:
+            self.dense_data = [np.copy(data) for data in self.dense_archival]
+
 
     def dense_to_columnar(self, spp_col_num, num_spp):
         '''
@@ -523,13 +619,30 @@ class Dense_Data:
             The column number in the dense array where the spp_names begin
 
         num_spp : tuple
-            Number of species in plot
+            Number of species in each dataset in self.dense_data
 
         '''
 
         self.columnar_data = format_dense(self.dense_data, spp_col_num,\
                                                                       num_spp)
         self.Columnar_Object = Columnar_Data(self.columnar_data)
+
+    def output_dense_data(self, filenames):
+        '''
+        This function prints the data within self.dense_data with the given
+        filenames.  If self.dense_data has not been filled, error is thrown.
+
+        Parameters
+        ----------
+        filenames : list
+            A list of filenames to which the data will be saved
+    
+        '''
+
+        assert len(filenames) == len(self.dense_data), "Number of filenames\
+                                 must be the same as the number of datasets"
+        for i, data in enumerate(self.dense_data):
+            output_form(data, filenames[i])
 
     def output_columnar_data(self, filenames):
         '''
@@ -562,8 +675,20 @@ class Transect_Data:
 
     '''
     
-    def __init__(self, filenames, delimiter=','):
+    def __init__(self, filenames, delimiter=',', archival=True):
         '''
+
+        Parameters
+        ----------
+        filenames : list
+            A list of filenames
+        delimiter : string
+            The file delimiter
+        archival : bool
+            If True, a copy of self.transect_data is made and stored in
+            self.transect_archival. If dataset is very large, set to False.
+
+
         '''
         self.columnar_data = []
         self.transect_data = []
@@ -574,11 +699,31 @@ class Transect_Data:
             data = csv2rec(name, delimiter=delimiter)
             self.transect_data.append(data)
 
+        if archival:
+            self.transect_archival = [np.copy(data) for data in 
+                                                            self.transect_data]
+        else:
+            self.transect_archival = []
+
+    def reset_transect_data(self):
+        '''
+        Resets self.transect_data to self.transect_archival
+        
+        Need to be careful about excessive memory usage!
+        '''
+        if len(self.transect_archival) == 0:
+            raise ValueError("The self.transect_archival attribute of this %s"
+                             % (self.__class__.__name__) + " object has not" 
+                             + " been initialized")
+        else:
+            self.transect_data = [np.copy(data) for data in 
+                                                        self.transect_archival]
+
     def transect_to_columnar(self, stop_col_num, stop_name, tot_stops,\
                                                     count_name='count'):
         '''
         This function takes transect data and convertes it into columnar data.
-        In addition it saves the columnar data as a Columnat_Data object. 
+        In addition it saves the columnar data as a Columnar_Data object. 
         
 
         Parameters
@@ -599,7 +744,7 @@ class Transect_Data:
 
         Notes
         -----
-        This function assumes that all data in self.transect_data is formatted
+        This function assumes that all data in self.transect_data are formatted
         the same way.  For example, the column that contains species names or
         codes has the same name throughout all data sets.
 

@@ -8,7 +8,6 @@ metadata
 
 
 import xml.etree.ElementTree as ET
-from matplotlib.mlab import csv2rec
 import os
 
 
@@ -40,9 +39,11 @@ class MetaWriter:
         '''
         assert datapath[-4:] == '.csv', "%s must end in .csv" % (datapath)
         self.filename = datapath.split('.')[0]
-        self.datafile = csv2rec(datapath)
+        fin = open(datapath, 'r')
+        self.column_names = fin.readline().strip().split(',')
+        fin.close()
         self.root = ET.Element('eml:eml')
-        self.root.attrib = {'packageID' : datapath, 'system' : 'knb',
+        self.root.attrib = {'packageID' : self.filename, 'system' : 'knb',
             "xmlns:eml" : "eml://ecoinformatics.org/eml-2.1.0", 'xmlns:xsi': 
             "http://www.w3.org/2001/XMLSchema-instance", "xsi:schemaLocation"
             : "eml://ecoinformatics.org/eml-2.1.0 eml.xsd"}
@@ -53,7 +54,7 @@ class MetaWriter:
         self.attributeList = ET.SubElement(self.dataTable, 'attributeList')
         self.attributes = []
         self.attributeTypes = []
-        for i, name in enumerate(self.datafile.dtype.names):
+        for i, name in enumerate(self.column_names):
             attribute = ET.SubElement(self.attributeList, 'attribute')
             attributeName = ET.SubElement(attribute, 'attributeName')
             attributeType = ET.SubElement(attribute, 'unknown')

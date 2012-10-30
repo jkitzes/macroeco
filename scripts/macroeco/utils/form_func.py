@@ -303,12 +303,12 @@ def open_nan_data(filenames, missing_value, site, delim, col_labels):
 
 def fractionate(datayears, wid_len, step, col_names):
     '''
-    This function takes in a list of formatted data yearsand converts the grid
-    numbers into meter measurements. Forexample, LBRI is a 16x16 grid and each
-    cell is labeled withintegers.  However, the length (and width) of a cell is
-    0.5m. This function converts each integer cell number to the appropriate
-    integer (i.e. for LBRI cell (2,2) (counting from 1) becomes cell
-    (0.5, 0.5)).
+    This function takes in a list of formatted data years and converts the grid
+    numbers into meter measurements. For example, LBRI is a 16x16 grid and each
+    cell is labeled with integers.  However, the length (and width) of a cell
+    is 0.5m. This function converts each integer cell number to the appropriate
+    integer (i.e. for LBRI cell (2,2) (counting from 1) becomes cell (0.5,
+    0.5)).
     
     Parameters
     ----------
