@@ -369,8 +369,8 @@ def make_map(data_paths, run_name, whole_globe=False):
     Map will be given the name of a run. If multiple runs have the same name, 
     only the map associated with the first run of that name will be saved.
 
-    The label for each site will be the first 4 letters of the data file name 
-    (e.g., LBRI_2000.csv and LBRI.csv will both be labeled LBRI).
+    The label for each site will be the data file base name 
+    (e.g., LBRI_2000.csv and LBRI.csv will be LBRI_2000 and LBRI respectively).
     '''
 
     # Check if Basemap present - if not, log and return
@@ -405,7 +405,7 @@ def make_map(data_paths, run_name, whole_globe=False):
             lons.append(bounds[1])
             
             fname, fext = os.path.splitext(os.path.split(path)[-1])
-            names.append(fname[:4])  # First 4 letters of data set name
+            names.append(fname)  # First 4 letters of data set name
         except:
             logging.info('No location data found in %s, no map point '
                          'added.' % x)
