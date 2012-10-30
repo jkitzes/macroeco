@@ -285,8 +285,29 @@ class Parameters:
                             value = elt.get('value')
                             self.params[run_name][param] = value
                         if elt.tag == 'data':
-                            self.data_path[run_name].append(elt.text)
-
+                            data_type = elt.get('type')
+                            data_location = elt.get('location')
+                            if data_location == 'system':
+                                # User responsible for sys paths, security, etc
+                                prepend = ''
+                            else:
+                                prepend = os.path.join('..','..','data',
+                                                       'formatted')
+                            if data_type == '' or data_type == None:
+                                logging.warning(('No data type specified,'
+                                                'assuming .csv'))
+                                data_type = 'csv'
+                            if data_type == 'csv':
+                                directory = elt.find('directory').text
+                                data_file = os.path.extsep.join((elt.find('file').text,
+                                                                'csv'))
+                                data_path = os.path.join(prepend,
+                                                         directory, data_file)
+                                self.data_path[run_name].append(data_path)
+                            else:
+                                logging.error('Data type {!s} not yet handled; '
+                                              'not using this data.'.format(
+                                                  data_type))
                             
     def required_params_present(self, req_params):
         ''' Check if any required parameters missing from any runs. '''
