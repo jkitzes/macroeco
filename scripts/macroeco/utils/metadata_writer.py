@@ -9,6 +9,8 @@ metadata
 
 import xml.etree.ElementTree as ET
 from matplotlib.mlab import csv2rec
+import os
+
 
 __author__ = "Mark Wilber"
 __copyright__ = "Copyright 2012, Regents of University of California"
@@ -39,8 +41,15 @@ class MetaWriter:
         assert datapath[-4:] == '.csv', "%s must end in .csv" % (datapath)
         self.filename = datapath.split('.')[0]
         self.datafile = csv2rec(datapath)
-        self.root = ET.Element('dataset')
-        self.dataTable = ET.SubElement(self.root, 'dataTable')
+        self.root = ET.Element('eml:eml')
+        self.root.attrib = {'packageID' : datapath, 'system' : 'knb',
+            "xmlns:eml" : "eml://ecoinformatics.org/eml-2.1.0", 'xmlns:xsi': 
+            "http://www.w3.org/2001/XMLSchema-instance", "xsi:schemaLocation"
+            : "eml://ecoinformatics.org/eml-2.1.0 eml.xsd"}
+        self.dataset = ET.SubElement(self.root, 'dataset')
+        self.dataTable = ET.SubElement(self.dataset, 'dataTable')
+        self.entityName = ET.SubElement(self.dataTable, 'entityName')
+        self.entityName.text = os.path.split(datapath)[1]
         self.attributeList = ET.SubElement(self.dataTable, 'attributeList')
         self.attributes = []
         self.attributeTypes = []
