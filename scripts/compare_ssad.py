@@ -31,7 +31,7 @@ class global_str:
 
     criteria = '''You should examine the columns in your dataset and decide if
     you would like to divide the data in a particular way for this analysis.
-    For example, if the you have a spatial dataset with x,y coordinates and you
+    For example, if you have a spatial dataset with x,y coordinates and you
     are interested in examining macroecological metrics for two separate halves
     of your plot along the x coordinate, you could cut the x coordinate in two
     halves by giving the 'x' column a value of 2.  If the column that you would
@@ -159,12 +159,8 @@ PARAMETER EXPLANATIONS
 
 REFERENCES
 
-Magurran, A. E. 1988. Ecological Diversity and Its Measuremnt. Princeton
-University Press.
-
-May, R. M. 1975. Patterns of species abundance and diversity. In Ecology and
-Evolution of Communities (eds M. L. Cody and J. M. Diamond), Harvard University
-Press.
+Harte, J. 2011. Maximum Entropy and Ecology: A Theory of Abundance,
+Distribution, and Energetics. Oxford University Press.
 '''.format(global_str.subset, global_str.criteria, rarity_measure,
 predicted_SSAD_distributions)
 
@@ -194,8 +190,8 @@ if __name__ == '__main__':
         patch = Patch(data_path, subset=params['subset'])
         ssad = patch.ssad(params['criteria'])
 
-        cmpr = comp.CompareDistribution(ssad,
-                           params['predicted_SSAD_distributions'],patch='ssad')
+        cmpr = comp.CompareSSAD(ssad,
+                           params['predicted_SSAD_distributions'], patch=True)
         rads = cmpr.compare_rads()
 
         sout = DistOutput(output_ID, 'ssad')

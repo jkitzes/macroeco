@@ -30,7 +30,7 @@ class global_str:
 
     criteria = '''You should examine the columns in your dataset and decide if
     you would like to divide the data in a particular way for this analysis.
-    For example, if the you have a spatial dataset with x,y coordinates and you
+    For example, if you have a spatial dataset with x,y coordinates and you
     are interested in examining macroecological metrics for two separate halves
     of your plot along the x coordinate, you could cut the x coordinate in two
     halves by giving the 'x' column a value of 2.  If the column that you would

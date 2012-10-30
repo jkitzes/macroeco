@@ -30,7 +30,7 @@ class global_str:
 
     criteria = '''You should examine the columns in your dataset and decide if
     you would like to divide the data in a particular way for this analysis.
-    For example, if the you have a spatial dataset with x,y coordinates and you
+    For example, if you have a spatial dataset with x,y coordinates and you
     are interested in examining macroecological metrics for two separate halves
     of your plot along the x coordinate, you could cut the x coordinate in two
     halves by giving the 'x' column a value of 2.  If the column that you would
@@ -122,18 +122,18 @@ against predicted energy metrics. There are two energy metrics that this script
 can compare: individual energy distributions (IED) and species-level energy
 distributions (SED).  The IED is a distribution of the energy of each
 individual within a community.  The energy of each individual can be calculated
-from the the biomass using the 3/4 allometric scaling law.  Other proxies for
+from the biomass using the 3/4 allometric scaling law.  Other proxies for
 energy, such as leaf surface area, can be used as well.  The IED is species
 blind; it does not consider what species an individual belongs to. For
 normalization purposes, each value of the empirical IED is divided by the
 smallest empirical energy value. 
 
 The SED is a distribution of the energy of each individual within a species.
-So, for example, a community with 30 speices would have 30 SED's, one for each
+For example, a community with 30 speices would have 30 SED's, one for each
 species.  The entire community's energy distribution is normalized in the exact
 same way as the IED and then individuals are placed into their respective
-species and the SED's are generated. For more information on energy distributions please see the reference and
-references therein.
+species and the SED's are generated. For more information on energy
+distributions please see the reference and references therein.
 
 OUTPUT
 

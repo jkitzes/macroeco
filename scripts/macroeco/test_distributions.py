@@ -345,7 +345,7 @@ class TestDistributions(unittest.TestCase):
 
      
     def test_binm(self):
-        # Using scipy.binom which is already unitted tested.
+        # Using scipy.binom which is already unit tested.
         
         # Check that pdf and cdf give correct answers
         dist = binm(tot_obs=8123, n_samp=10)
@@ -361,7 +361,7 @@ class TestDistributions(unittest.TestCase):
         dist = binm().fit(self.abund_list)
      
     def test_pois(self):
-        # Using scipy.poisson which is already nitted tested
+        # Using scipy.poisson which is already unit tested
 
         # Check that pdf and cdf give correct answers
         dist = pois(tot_obs=112, n_samp=20)
@@ -475,8 +475,8 @@ class TestDistributions(unittest.TestCase):
 
         # Test against published data in Zillio and He 2010
         # Generated plots match exactly with plots in Zillio and He, 2010
-        # Code to generate plots: Unquote and nosetest if you want to see the
-        # plots
+        # Code to generate plots: Unquote and run nosetest if you want to see
+        # the plots
 
         '''a = np.array([0.1, .3, .8])
         k = np.array([.1, 1, 10])
@@ -504,6 +504,9 @@ class TestDistributions(unittest.TestCase):
             plt.ylabel('P(x)')
             plt.text(plt.xlim()[1] * 0.6, plt.ylim()[1] * 0.8, descrip[i])
             plt.show()'''
+
+        # Based on Zillio and He 2010, Calculating a few pmf values by hand.
+        # Going to test the fnbd against these values. 
 
     def test_geo(self):
         # This is just a wrapper function for nbd. Already tested. Will just
