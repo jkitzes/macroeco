@@ -187,8 +187,8 @@ if __name__ == '__main__':
     for data_path, output_ID, params in wf.single_datasets():
         for optpar in optional_params: #TODO: Move to workflow
             if not optpar in params:
-                logging.info("Default value for {!s}: {!s}".format(optpar,
-                              str(optional_params[optpar][1])))
+                logging.info("Default value for {!s} in {!s}: {!s}".format(optpar,
+                              output_ID,  str(optional_params[optpar][1])))
                 params[optpar] = optional_params[optpar][1]
 
         patch = Patch(data_path, subset=params['subset'])
