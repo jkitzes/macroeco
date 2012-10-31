@@ -65,7 +65,6 @@ class DistOutput(object):
         Writes out a formatted txt file to self.out_dir 
 
         '''
-        logging.info('Writing summary table')
 
         tot_sad = len(smry['observed']['balls'])
         if criteria != None:
@@ -75,11 +74,16 @@ class DistOutput(object):
         for i in xrange(tot_sad):
             if criteria != None and np.all([type(crt) != dict for crt in
                                                                   criteria]):
-                fout = open(self.out_dir + '_summary_table_' +
-                                                str(criteria[i]) + '.txt', 'w')
+                filename = self.out_dir + '_summary_table_' + str(criteria[i])\
+                            + '.txt.'
+                
             else:
-                fout = open(self.out_dir + '_summary_table_' + str(i) + '.txt',
-                                                                           'w')
+                filename = self.out_dir + '_summary_table_' + str(i) + '.txt'
+
+            fout = open(filename, 'w')
+            logging.info('Writing summary table %s' % filename)
+
+
             if criteria != None:
                 fout.write('CRITERIA: ' + str(criteria[i]) + '\n\n')
             else:
