@@ -233,15 +233,19 @@ class Patch:
 
                 # TODO: Throw a warning if the data is not divisible by the
                 # divisions specified.
+                try:
+                    dmin = self.data_table.meta[(key, 'minimum')]
+                    dmax = self.data_table.meta[(key, 'maximum')]
+                    dprec = self.data_table.meta[(key, 'precision')]
 
-                dmin = self.data_table.meta[(key, 'minimum')]
-                dmax = self.data_table.meta[(key, 'maximum')]
-                dprec = self.data_table.meta[(key, 'precision')]
-
-                # TODO: Error if step < prec
-                step = (dmax + dprec - dmin) / value
-                starts = np.arange(dmin, dmax + dprec, step)
-                ends = starts + step
+                    # TODO: Error if step < prec
+                    step = (dmax + dprec - dmin) / value
+                    starts = np.arange(dmin, dmax + dprec, step)
+                    ends = starts + step
+                except TypeError:
+                    raise TypeError('Unable to proceed to with values ' +
+                                    'obtained from metadata.  Please check ' + 
+                                    'the metadata file')
                 
 
                 starts_str = [('>=', x) for x in starts]
