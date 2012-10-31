@@ -140,8 +140,8 @@ class Workflow:
             for data_path in self.parameters.data_path[run_name]:
                 abs_data_path = os.path.abspath(os.path.join(self.output_path, 
                                                              data_path))
-                output_ID = '_'.join([self.script_name, clean_name(data_path), 
-                                      run_name])
+                output_ID = '_'.join([self.script_name, 
+                                      run_name, clean_name(data_path)])
                 logging.info('Beginning %s' % output_ID)
                 yield (abs_data_path, output_ID, 
                        self.parameters.params[run_name])
@@ -285,8 +285,29 @@ class Parameters:
                             value = elt.get('value')
                             self.params[run_name][param] = value
                         if elt.tag == 'data':
-                            self.data_path[run_name].append(elt.text)
-
+                            data_type = elt.get('type')
+                            data_location = elt.get('location')
+                            if data_location == 'system':
+                                # User responsible for sys paths, security, etc
+                                prepend = ''
+                            else:
+                                prepend = os.path.join('..','..','data',
+                                                       'formatted')
+                            if data_type == '' or data_type == None:
+                                logging.warning(('No data type specified,'
+                                                ' assuming .csv'))
+                                data_type = 'csv'
+                            if data_type == 'csv':
+                                directory = elt.find('directory').text
+                                data_file = os.path.extsep.join((elt.find('file').text,
+                                                                'csv'))
+                                data_path = os.path.join(prepend,
+                                                         directory, data_file)
+                                self.data_path[run_name].append(data_path)
+                            else:
+                                logging.error('Data type {!s} not yet handled; '
+                                              'not using this data.'.format(
+                                                  data_type))
                             
     def required_params_present(self, req_params):
         ''' Check if any required parameters missing from any runs. '''
@@ -348,8 +369,8 @@ def make_map(data_paths, run_name, whole_globe=False):
     Map will be given the name of a run. If multiple runs have the same name, 
     only the map associated with the first run of that name will be saved.
 
-    The label for each site will be the first 4 letters of the data file name 
-    (e.g., LBRI_2000.csv and LBRI.csv will both be labeled LBRI).
+    The label for each site will be the data file base name 
+    (e.g., LBRI_2000.csv and LBRI.csv will be LBRI_2000 and LBRI respectively).
     '''
 
     # Check if Basemap present - if not, log and return
@@ -384,7 +405,7 @@ def make_map(data_paths, run_name, whole_globe=False):
             lons.append(bounds[1])
             
             fname, fext = os.path.splitext(os.path.split(path)[-1])
-            names.append(fname[:4])  # First 4 letters of data set name
+            names.append(fname)  # First 4 letters of data set name
         except:
             logging.info('No location data found in %s, no map point '
                          'added.' % x)
