@@ -295,7 +295,7 @@ class Parameters:
                                                        'formatted')
                             if data_type == '' or data_type == None:
                                 logging.warning(('No data type specified,'
-                                                'assuming .csv'))
+                                                ' assuming .csv'))
                                 data_type = 'csv'
                             if data_type == 'csv':
                                 directory = elt.find('directory').text
