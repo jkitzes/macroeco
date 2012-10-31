@@ -140,8 +140,8 @@ class Workflow:
             for data_path in self.parameters.data_path[run_name]:
                 abs_data_path = os.path.abspath(os.path.join(self.output_path, 
                                                              data_path))
-                output_ID = '_'.join([self.script_name, 
-                                      run_name, clean_name(data_path)])
+                output_ID = '_'.join([self.script_name, clean_name(data_path), 
+                                      run_name])
                 logging.info('Beginning %s' % output_ID)
                 yield (abs_data_path, output_ID, 
                        self.parameters.params[run_name])
