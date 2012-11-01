@@ -56,7 +56,8 @@ class Workflow:
         If parameters are needed, sets of parameter values are named runs
     '''
 
-    def __init__(self, required_params={}, clog=False, svers=None):
+    def __init__(self, required_params={}, optional_params={}, clog=False, 
+                                                                   svers=None):
 
         # Store script name from command line call
         script_path, script_extension = os.path.splitext(sys.argv[0])
@@ -98,7 +99,7 @@ class Workflow:
         assert type(required_params) == type({}), ('Required params must be a' 
                                                    ' dict.')
         self.parameters = Parameters(self.script_name, self.script_vers,
-                                     required_params)
+                                     required_params, optional_params)
         self.interactive = self.parameters.interactive
 
         
@@ -146,6 +147,50 @@ class Workflow:
                 yield (abs_data_path, output_ID, 
                        self.parameters.params[run_name])
 
+    def all_datasets(self):
+        ''' Generator that yields a list of data files and descriptive
+        parameters for each run.
+
+        Yields
+        ------
+        data_path : list
+            A list of paths to data to analyze
+        output_ID : list
+            A list of IDs that concatenate script, run, and dataset.
+        run_params : dict
+            Dictionary of parameters for each script_name and run
+
+        '''
+        
+        def clean_name(fp):  # Extract file name from path
+            return os.path.splitext(os.path.split(fp)[-1])[0]
+
+        # Run script on all runs (parameter sets), and data sets
+        for run_name in self.parameters.params.keys():
+        # TODO: Check for output_ID conflicts (must be unique)
+
+            # Check if data_paths in params. If not, add one empty data_path
+            # for the loop below. If so, make a map.
+            if len(self.parameters.data_path) == 0:
+                logging.debug(('No data paths given for run %s, no map of '
+                              'sites created') % run_name)
+                self.parameters.data_path[run_name] = ['']
+            else:
+                make_map(self.parameters.data_path[run_name], run_name)
+
+            abs_data_paths = [os.path.abspath(os.path.join(self.output_path,
+                             data_path)) for data_path in self.parameters.
+                             data_path[run_name]]
+            output_IDs = ['_'.join([self.script_name, run_name,
+                         clean_name(data_path)]) for data_path in
+                         self.parameters.data_path[run_name]]
+            logging.info('Beginning %s script' % self.script_name)
+            yield (abs_data_paths, output_IDs, 
+                                self.parameters.params[run_name], run_name,
+                                self.script_name)
+
+            
+
         
 class Parameters:
     '''
@@ -181,8 +226,8 @@ class Parameters:
         
     '''
     
-    def __init__(self, script_name, script_vers, required_params, 
-                 output_path=False):
+    def __init__(self, script_name, script_vers, required_params,
+                 optional_params, output_path=False):
 
         # Store initial attributes
         self.script_name = script_name
@@ -213,6 +258,10 @@ class Parameters:
         # Check that all required parameters present in all runs
         if not self.required_params_present(required_params):
             raise IOError('Required parameters missing')
+
+        # If optional params are missing, set to default
+        self.set_optional_params(optional_params, script_name)
+        
         logging.info('Parameters: %s' % str(self.params))
         logging.info('Data: %s' % str(self.data_path))
 
@@ -290,6 +339,9 @@ class Parameters:
                             if data_location == 'system':
                                 # User responsible for sys paths, security, etc
                                 prepend = ''
+                            elif data_location == 'archival':
+                                prepend = os.path.join('..','..', 'data',
+                                                        'archival')
                             else:
                                 prepend = os.path.join('..','..','data',
                                                        'formatted')
@@ -321,6 +373,15 @@ class Parameters:
                 status = 0
         return status
 
+    def set_optional_params(self, opt_params, script_name):
+        ''' Set optional params with default values if params are missing'''
+        for run_name in self.params.keys():
+            run_params = self.params[run_name]
+            for optpar in opt_params:
+                if not optpar in run_params:
+                    logging.info("Default value for {!s} in {!s}: {!s}".format(optpar,
+                              script_name,  str(opt_params[optpar][1])))
+                    run_params[optpar] = opt_params[optpar][1]
 
     def eval_params(self):
         '''

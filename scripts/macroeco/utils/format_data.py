@@ -28,7 +28,7 @@ class Columnar_Data:
     '''
     This is the data form that the macroeco software package wants the data
     file in.  All other canonical data sets are converted to columnar data and
-    then turned into Columnar_Data obejcts.
+    then turned into Columnar_Data objects.
 
     Examples of columnar data include BCIS, LUQU, and COCO
 
@@ -136,11 +136,11 @@ class Columnar_Data:
             self.columnar_data = [np.copy(data) for data in 
                                                         self.columnar_archival]
 
-    def split_up_data_by_field(self, split_columns):
+    def split_up_data_by_field(self, split_columns=None):
         '''
         This function will take in the split-columns list and and split the
         data into separate arrays based on the list.  For example, if one were
-        to pass in dbh1, dbh2,  dbh3 the data three copies of the data would be
+        to pass in dbh1, dbh2,  dbh3 three copies of the data would be
         made, each being identical except that each would only contain one of
         the instances of dbh. One could also pass [(dbh1, recr1), (dbh2, recr2),
         (dbh3, recr3)].  All other fields in split_columns will be excluded
@@ -153,29 +153,30 @@ class Columnar_Data:
         
         Notes
         -----
-        Saves the split array as self.columnar_data
+        Saves the split array as self.columnar_data.
         
         '''
         #Note: If they enter the wrong column name nothing will be removed
         #Should I error check for this?
-        split_data = []
-        given_col_names = []
-        for tup in split_columns:
-            for name in tup:
-                given_col_names.append(name)
-        given_col_names = np.array(given_col_names)
-
-
-        for data in self.columnar_data:
+        if split_columns != None:
+            split_data = []
+            given_col_names = []
             for tup in split_columns:
-                ind = np.ones(len(given_col_names), dtype=bool)
                 for name in tup:
-                    ind = np.bitwise_and((name != given_col_names), ind)
-                remove_names = given_col_names[ind]
-                split_data.append(drop_fields(data, list(remove_names)))
-        self.columnar_data = split_data
+                    given_col_names.append(name)
+            given_col_names = np.array(given_col_names)
+
+
+            for data in self.columnar_data:
+                for tup in split_columns:
+                    ind = np.ones(len(given_col_names), dtype=bool)
+                    for name in tup:
+                        ind = np.bitwise_and((name != given_col_names), ind)
+                    remove_names = given_col_names[ind]
+                    split_data.append(drop_fields(data, list(remove_names)))
+            self.columnar_data = split_data
     
-    def change_column_names(self, change, changed_to):
+    def change_column_names(self, change=None, changed_to=None):
         '''
         This function takes a list of column names to be changed and a name
         that they should be changed to
@@ -187,17 +188,22 @@ class Columnar_Data:
         changed_to : string
             Name to be changed to
 
+        Notes
+        -----
+        This function useful if you would like to merge self.columnar_data but
+        the dtype.names are different.
+
         '''
+        if change != None and changed_to != None: 
+            for data in self.columnar_data:
+                column_names = np.array(data.dtype.names)
+                for name in change:
+                    find = np.where((name == column_names))[0]
+                    if len(find) != 0:
+                        column_names[find[0]] = changed_to
+                        data.dtype.names = tuple(column_names)
         
-        for data in self.columnar_data:
-            column_names = np.array(data.dtype.names)
-            for name in change:
-                find = np.where((name == column_names))[0]
-                if len(find) != 0:
-                    column_names[find[0]] = changed_to
-                    data.dtype.names = tuple(column_names)
-        
-    def add_fields_to_data_list(self, fields, values):
+    def add_fields_to_data_list(self, fields=None, values=None):
         '''
         This functions adds given fields and values to the data list. The
         length of values should be the same length as fields and the length of
@@ -214,9 +220,11 @@ class Columnar_Data:
 
         '''
         #NOTE: Should probably make a single dictionary for field/values
-        self.columnar_data = add_data_fields(self.columnar_data, fields, values)
+        if fields != None and values != None:
+            self.columnar_data = add_data_fields(self.columnar_data, fields,\
+                                                                        values)
 
-    def remove_columns(self, col_names):
+    def remove_columns(self, col_names=None):
         '''
         This function will remove the all the columns within with names in
         col_names from all the datasets in self.columnar_data.
@@ -227,16 +235,18 @@ class Columnar_Data:
             The name or names of columns to be removed
 
         '''
-        if type(col_names) == str:
-            col_names = [col_names]
-        else:
-            col_names = list(col_names)
-        removed_data = []
-        for data in self.columnar_data:
-            removed_data.append(drop_fields(data, col_names))
-        self.columnar_data = removed_data
+        
+        if col_names != None:
+            if type(col_names) == str:
+                col_names = [col_names]
+            else:
+                col_names = list(col_names)
+            removed_data = []
+            for data in self.columnar_data:
+                removed_data.append(drop_fields(data, col_names))
+            self.columnar_data = removed_data
 
-    def fractionate_data(self, wid_len, step, col_names):
+    def fractionate_data(self, wid_len=None, step=None, col_names=None):
         '''
         This function converts grid numbers to length measurements in
         self.columnar_data
@@ -255,7 +265,9 @@ class Columnar_Data:
             that will be fractionated
 
         '''
-        self.columnar_data = fractionate(self.columnar_data, wid_len, step, col_names)
+        if wid_len != None and step != None and col_names != None:
+            self.columnar_data = fractionate(self.columnar_data, wid_len, step,
+                                                                     col_names)
 
 
     def merge_data(self):
@@ -329,8 +341,6 @@ class Grid_Data:
         '''
         #NOTE: Handle missing data!!!!
 
-        self.dense_data = []
-
         if type(filenames) == str:
             filenames = [filenames]
 
@@ -342,7 +352,7 @@ class Grid_Data:
         assert len(num_cols) == len(filenames) or len(num_cols) == 1, 'Length\
                        of num_cols must be 1 or equal len(filenames)'
 
-        self.grids = []
+        self.grid_data = []
         self.cols = []
         self.rows =[]
 
@@ -351,16 +361,17 @@ class Grid_Data:
                 self.cols.append(num_cols[0])
             else:
                 self.cols.append(num_cols[i])
-            self.grids.append(csv2rec(name, names=list(np.arange(0,\
+            self.grid_data.append(csv2rec(name, names=list(np.arange(0,\
                                             self.cols[i]).astype('S10'))))
-            self.rows.append(len(self.grids[i]))
+            self.rows.append(len(self.grid_data[i]))
 
         #Remove all '\n' from the end of each cell in grid
         #Not technically necessary but just being clean
-        self.grids = remove_char(self.grids)
+        self.grid_data = remove_char(self.grid_data)
+        self.grid_data = remove_white_spaces(self.grid_data)
 
         if archival == True:
-            self.grid_archival = [np.copy(data) for data in self.grids]
+            self.grid_archival = [np.copy(data) for data in self.grid_data]
         else:
             self.grid_archival = []
 
@@ -378,7 +389,7 @@ class Grid_Data:
         else:
             self.grid_data = [np.copy(data) for data in self.grid_archival]
 
-    def truncate_grid_cells(self, symbol):
+    def truncate_grid_cells(self, symbol=None):
         '''
         This function will look at each cell in grid list and truncated the
         string within the cell at AND after the first instance of a given
@@ -389,18 +400,24 @@ class Grid_Data:
         symbol : char (string of length one)
             The symbol at which to being truncation
 
+        Notes
+        -----
+        symbol is a keyword argument because format_grid_data script gives the
+        option to run every method.
+
         '''
-        
-        for i in xrange(len(self.grids)):
-            for nm in self.grids[i].dtype.names:
-                for j in xrange(len(self.grids[i][nm])):
-                    ind = self.grids[i][nm][j].find(symbol)
-                    if ind != -1:
-                        self.grids[i][nm][j] = self.grids[i][nm][j][:ind]
+        if symbol != None: 
+            for i in xrange(len(self.grid_data)):
+                for nm in self.grid_data[i].dtype.names:
+                    for j in xrange(len(self.grid_data[i][nm])):
+                        ind = self.grid_data[i][nm][j].find(symbol)
+                        if ind != -1:
+                            self.grid_data[i][nm][j] = \
+                                                 self.grid_data[i][nm][j][:ind]
 
-        self.grids = remove_char(self.grids)
+            self.grid_data = remove_char(self.grid_data)
 
-    def remove_and_replace(self, remove, replace):
+    def remove_and_replace(self, remove=None, replace=None):
         '''
         Removes a string from a grid cell and replaces it with another one
 
@@ -412,14 +429,15 @@ class Grid_Data:
             String to replace removed string
 
         '''
-
-        for i in xrange(len(self.grids)):
-            for nm in self.grids[i].dtype.names:
-                for j in xrange(len(self.grids[i][nm])):
-                    ind = self.grids[i][nm][j].find(remove)
-                    if ind != -1:
-                        self.grids[i][nm][j] =\
-                                self.grids[i][nm][j].replace(remove, replace)
+        
+        if remove != None and replace != None:
+            for i in xrange(len(self.grid_data)):
+                for nm in self.grid_data[i].dtype.names:
+                    for j in xrange(len(self.grid_data[i][nm])):
+                        ind = self.grid_data[i][nm][j].find(remove)
+                        if ind != -1:
+                            self.grid_data[i][nm][j] =\
+                              self.grid_data[i][nm][j].replace(remove, replace)
 
     def find_unique_spp_in_grid(self, spacer='-', spp_sep='\n'):
         '''
@@ -438,7 +456,7 @@ class Grid_Data:
 
         '''
         self.unq_spp_lists = []
-        for num, data in enumerate(self.grids):
+        for num, data in enumerate(self.grid_data):
             spp_names = []
             for col in data.dtype.names:
                 for row in xrange(self.rows[num]):
@@ -453,10 +471,10 @@ class Grid_Data:
                                                                     strip())
             self.unq_spp_lists.append(np.unique(np.array(spp_names)))
 
-    def grid_to_dense(self, spacer='-', spp_sep='\n'):
+    def grid_to_dense(self, spacer='-', spp_sep='\n', archival=True):
         '''
         This function converts a the list of gridded data sets into dense 
-        data sets and stores them in self.dense_data.  In addition, it
+        data sets and stores them in dense_data.  In addition, it
         makes a Dense_Data object out of the newly converted data.
 
         Parameters
@@ -473,8 +491,8 @@ class Grid_Data:
         '''
 
         self.find_unique_spp_in_grid(spacer=spacer, spp_sep=spp_sep)
-        self.dense_data = []
-        for i, data in enumerate(self.grids):
+        dense_data = []
+        for i, data in enumerate(self.grid_data):
             dtype_list = [('cell', np.int), ('row', np.int), ('column', np.int)]
             for name in self.unq_spp_lists[i]:
                 tuple_type = (name, np.int)
@@ -488,24 +506,37 @@ class Grid_Data:
                     matrix['row'][count] = row
                     matrix['column'][count] = int(col)
                     for spp_name in self.unq_spp_lists[i]:
+
+                        # Check if cell has species
                         start = data[col][row].find(spp_name)
                         if start != -1:
-                            raw = data[col][row][start:].split('-')[1]
-                            if raw.find(spp_sep) != -1:
-                                tot_spp = raw.split(spp_sep)[0].strip()
-                                matrix[spp_name][count] = int(tot_spp)
+                            # could be nested in another word
+                            if data[col][row][start + len(spp_name)] == spacer:
+                               # The nesting could be at the end of the word
+                               if start == 0 or data[col][row][start - 1] ==\
+                                                                       spp_sep:
+
+                                    raw = data[col][row][start:].split(spacer)[1]
+                                    if raw.find(spp_sep) != -1:
+                                        tot_spp = raw.split(spp_sep)[0].strip()
+                                        matrix[spp_name][count] = int(tot_spp)
+                                    else:
+                                        tot_spp = raw.split()[0].strip()
+                                        matrix[spp_name][count] = int(tot_spp)
+                               else:
+                                    matrix[spp_name][count] = 0
                             else:
-                                tot_spp = raw.split()[0].strip()
-                                matrix[spp_name][count] = int(tot_spp)
+                                matrix[spp_name][count] = 0
                         else:
                             matrix[spp_name][count] = 0
                     count += 1
-            self.dense_data.append(matrix)
-        self.Dense_Object = Dense_Data(self.dense_data)
+            dense_data.append(matrix)
+        self.Dense_Object = Dense_Data(dense_data, archival=archival)
 
+                    
     def output_grid_data(self, filenames):
         '''
-        This function prints the data within self.grids with the given
+        This function prints the data within self.grid_data with the given
         filenames.
 
         Parameters
@@ -515,9 +546,9 @@ class Grid_Data:
 
         '''
 
-        assert len(filenames) == len(self.grids), "Number of filenames\
+        assert len(filenames) == len(self.grid_data), "Number of filenames\
                                  must be the same as the number of datasets"
-        for i, data in enumerate(self.grids):
+        for i, data in enumerate(self.grid_data):
             output_form(data, filenames[i]) 
 
     
@@ -536,7 +567,7 @@ class Dense_Data:
 
         Parameters
         -----------
-        datalist : list of strings or list of arrays
+        datalist : string, list of strings or list of arrays
             List of filenames to be loaded or list of arrays to be set to
             self.dense_data
         delim : string
@@ -560,7 +591,6 @@ class Dense_Data:
         if type(datalist) == str:
             datalist = [datalist]
 
-        self.columnar_data = []
         if np.all(np.array([type(x) == str for x in datalist])):
             self.dense_data = []
             if replace != None:
@@ -582,6 +612,10 @@ class Dense_Data:
                         ind = np.bitwise_or(ind, isMinusOne)
                         ind = np.bitwise_or(ind, isNone)
                         data[nm][ind] = replace[1]
+                    self.dense_data.append(data)
+            else:
+                for name in datalist:
+                    data = csv2rec(name, delimiter=delim)
                     self.dense_data.append(data)
 
         elif np.all(np.array([type(x) == np.ndarray for x in datalist])):
@@ -608,7 +642,7 @@ class Dense_Data:
             self.dense_data = [np.copy(data) for data in self.dense_archival]
 
 
-    def dense_to_columnar(self, spp_col_num, num_spp):
+    def dense_to_columnar(self, spp_col_num, num_spp, archival=True):
         '''
         This function uses a function in form_func to convert dense data into
         columnar data. Stores the columnar data as a Columnar Object.
@@ -623,9 +657,9 @@ class Dense_Data:
 
         '''
 
-        self.columnar_data = format_dense(self.dense_data, spp_col_num,\
+        columnar_data = format_dense(self.dense_data, spp_col_num,\
                                                                       num_spp)
-        self.Columnar_Object = Columnar_Data(self.columnar_data)
+        self.Columnar_Object = Columnar_Data(columnar_data, archival=archival)
 
     def output_dense_data(self, filenames):
         '''
@@ -643,26 +677,6 @@ class Dense_Data:
                                  must be the same as the number of datasets"
         for i, data in enumerate(self.dense_data):
             output_form(data, filenames[i])
-
-    def output_columnar_data(self, filenames):
-        '''
-        This function prints the data within self.columnar_data with the given
-        filenames.  If self.columnar_data has not been filled, an error is 
-        thrown.
-
-        Parameters
-        ----------
-        filenames : list
-            A list of filenames to which the data will be saved
-        '''
-        if len(self.columnar_data) == 0:
-            raise Exception("No data in self.columnar_data")
-
-        assert len(filenames) == len(self.columnar_data), "Number of filenames\
-                                 must be the same as the number of datasets"
-        for i, data in enumerate(self.columnar_data):
-            output_form(data, filenames[i]) 
-
 
 class Transect_Data:
     '''
@@ -775,7 +789,7 @@ class Transect_Data:
             self.columnar_data.append(column_data)
         self.Columnar_Object = Columnar_Data(self.columnar_data)
 
-    def output_columnar_data(self, filenames):
+    def output_transect_data(self, filenames):
         '''
         This function prints the data within self.columnar_data with the given
         filenames.  If self.columnar_data has not been filled, an error is 
@@ -788,12 +802,10 @@ class Transect_Data:
             same length as self.columnar_data
 
         '''
-        if len(self.columnar_data) == 0:
-            raise Exception("No data in self.columnar_data")
 
-        assert len(filenames) == len(self.columnar_data), "Number of filenames\
+        assert len(filenames) == len(self.transect_data), "Number of filenames\
                                  must be the same as the number of datasets"
-        for i, data in self.columnar_data:
+        for i, data in self.transect_data:
             output_form(data, filenames[i]) 
 
 
@@ -808,6 +820,17 @@ def remove_char(grid_list, char='\n'):
                 while grid[name][i][::-1].find('\n') == 0:
                     grid[name][i] = grid[name][i][:-1]
     
+    return grid_list
+
+def remove_white_spaces(grid_list):
+    '''
+    Removes all of the white spaces from strings.
+    '''
+    for grid in grid_list:
+        for name in grid.dtype.names:
+            for i in xrange(len(grid[name])): 
+                grid[name][i] = ''.join(grid[name][i].strip(' '))
+
     return grid_list
 
 

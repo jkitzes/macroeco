@@ -180,16 +180,11 @@ if __name__ == '__main__':
     from macroeco.output import DistOutput
 
     wf = Workflow(required_params=required_params,
-                  clog=True, svers=__version__)
+                 optional_params=optional_params, clog=True, svers=__version__)
 
 	    
     
     for data_path, output_ID, params in wf.single_datasets():
-        for optpar in optional_params: #TODO: Move to workflow
-            if not optpar in params:
-                logging.info("Default value for {!s} in {!s}: {!s}".format(optpar,
-                              output_ID,  str(optional_params[optpar][1])))
-                params[optpar] = optional_params[optpar][1]
 
         patch = Patch(data_path, params['subset'])
         sad = patch.sad(params['criteria'], clean=True)
