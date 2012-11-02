@@ -75,7 +75,7 @@ class DataTable:
             self.asklist.append((name, 'minimum'))
             self.asklist.append((name, 'maximum'))
             self.asklist.append((name, 'precision'))
-            self.asklist.append((name, 'type'))  # TODO: Confirm field name
+            self.asklist.append((name, 'type'))  
         
         # Load metadata from file
         meta = Metadata(data_path, self.asklist).meta_dict

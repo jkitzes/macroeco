@@ -12,6 +12,7 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
+ds = ''' Optional. Default: '''
 
 delimiter = '''temp'''
 replace_missing_with_value = '''temp'''
@@ -22,6 +23,7 @@ add_column_names_and_values = '''temp'''
 names_of_columns_to_be_removed = '''temp'''
 how_and_where_to_fractionate = '''temp'''
 merge_data = '''temp'''
+subset = '''temp'''
 
 number_of_first_species_column = '''temp'''
 number_of_species_in_census = '''temp'''
@@ -31,21 +33,18 @@ required_params = {'number_of_first_species_column' :
                     'number_of_species_in_census' :
                     number_of_species_in_census}
 
-optional_params = {'delimiter' : (delimiter + ''' Optional.
-                    Default: ''', [',']), 'replace_missing_with_value':
-                    (replace_missing_with_value + ''' Optional. Default: ''',
-                    None), 'columns_to_split' : (columns_to_split + '''
-                    Optional. Default : ''', None),
-                    'change_column_names' : (change_column_names + '''
-                    Optional. Default: ''', (None, None)),
-                    'add_column_names_and_values' :
-                    (add_column_names_and_values + ''' Optional. Default: ''',
-                    (None, None)), 'names_of_columns_to_be_removed' :
-                    (names_of_columns_to_be_removed + ''' Optional. Default:
-                    ''', None), 'how_and_where_to_fractionate' :
-                    (how_and_where_to_fractionate + ''' Optional, Default:
-                    ''', (None, None, None)), 'merge_data' : (merge_data +
-                    ''' Optional. Default: ''', 'No')}
+optional_params = {'delimiter' : (delimiter + ds, [',']), 
+                    'replace_missing_with_value': (replace_missing_with_value +
+                    ds, None), 'columns_to_split' : (columns_to_split + ds,
+                    None), 'change_column_names' : (change_column_names + ds,
+                    (None, None)), 'add_column_names_and_values' :
+                    (add_column_names_and_values + ds, (None, None)),
+                    'names_of_columns_to_be_removed' :
+                    (names_of_columns_to_be_removed + ds, None),
+                    'how_and_where_to_fractionate' :
+                    (how_and_where_to_fractionate + ds , (None, None, None)),
+                    'merge_data' : (merge_data + ds, 'No'), 'subset' : (subset
+                    + ds, {})}
 
 if __name__ == '__main__':
 
@@ -80,6 +79,8 @@ if __name__ == '__main__':
 
         columnar_obj.change_column_names(params['change_column_names'][0],
                                          params['change_column_names'][1])
+
+        columnar_obj.subset_data(params['subset'])
 
         columnar_obj.add_fields_to_data_list(params['add_column_names_and_values'][0],
                                              params['add_column_names_and_values'][1])

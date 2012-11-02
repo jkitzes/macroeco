@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
-'''This script will allow users to convert gridded data into the columnar
-form'''
+'''This script will allow users to convert columnar data into a new form of
+columnar data'''
 
 __author__ = "Mark Wilber"
 __copyright__ = "Copyright 2012, Regents of the University of California"
@@ -12,16 +12,12 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
-ds = ''' Optional. Default: '''
-
-# Grid parameter descriptions
-truncation_symbols = '''temp'''
-remove_replace_values = '''temp'''
-char_btwn_species_and_count = '''temp'''
-char_btwn_species = '''temp'''
-number_of_columns = '''temp'''
+ds = ''' Optional. Default: ''' 
 
 # Columnar parameter descriptions
+delimiter = '''temp'''
+missing_values_from_a_given_column = '''temp'''
+delete_missing_values = '''temp'''
 columns_to_split = '''temp'''
 change_column_names = '''temp'''
 add_column_names_and_values = '''temp'''
@@ -30,19 +26,17 @@ how_and_where_to_fractionate = '''temp'''
 merge_data = '''temp'''
 subset = '''temp'''
 
-required_params = {'number_of_columns' : number_of_columns}
-
-optional_params = {'truncation_symbols' : (truncation_symbols + ds, [None]), 
-                    'remove_replace_values': (remove_replace_values + ds,
-                    [(None, None)]), 'char_btwn_species_and_count' :
-                    (char_btwn_species_and_count + ds, ['-']),
-                    'char_btwn_species': (char_btwn_species + ds, ['\n']),
-                    'columns_to_split' : (columns_to_split + ds, None),
+required_params = {}
+optional_params = {'delimiter' : (delimiter + ds,
+                    [',']), 'missing_values_from_a_given_column' :
+                    (missing_values_from_a_given_column + ds, None),
+                    'delete_missing_values' : (delete_missing_values + ds,
+                    False), 'columns_to_split' : (columns_to_split + ds, None),
                     'change_column_names' : (change_column_names + ds, (None,
                     None)), 'add_column_names_and_values' :
                     (add_column_names_and_values + ds, (None, None)),
                     'names_of_columns_to_be_removed' :
-                    (names_of_columns_to_be_removed + ds, None),
+                    (names_of_columns_to_be_removed + ds , None),
                     'how_and_where_to_fractionate' :
                     (how_and_where_to_fractionate + ds, (None, None, None)),
                     'merge_data' : (merge_data + ds, 'No'), 'subset' : (subset
@@ -57,40 +51,16 @@ if __name__ == '__main__':
     wf = Workflow(required_params=required_params,
                  optional_params=optional_params, clog=True, svers=__version__)
     
-    # What about formatting for multiple data sets simultaneously?  In this
-    # case it would be nice to have Workflow yield all the datasets in a given
-    # run.
     for data_paths, output_IDs, params, run_name, script_name in\
                                                              wf.all_datasets():
-        # Each script handles one specific type of data.  This script deals
-        # with gridded data.
+    
+        columnar_obj = form.Columnar_Data(data_paths, params['delimiter'][0],
+                                  params['missing_values_from_a_given_column'],
+                                  params['delete_missing_values'],
+                                  archival=False)
 
-        grid_data = form.Grid_Data(data_paths, params['number_of_columns'],
-                                   archival=False)
-        
-        # Allowing user to truncated grid cells.  They can do it multple times.
-        # Therefore, parameter should be a list
-        for symbol in params['truncation_symbols']:
-            grid_data.truncate_grid_cells(symbol=symbol)
-
-        #  User can remove and replace multiple things.  This should be a list
-        #  of tuples with each tuple having two elements. 
-        for rm_rp in params['remove_replace_values']:
-            grid_data.remove_and_replace(rm_rp[0], rm_rp[1])
-
-        # Convert gridded data to columnar data
-        grid_data.grid_to_dense(spacer=params['char_btwn_species_and_count'][0],
-                                spp_sep=params['char_btwn_species'][0],
-                                archival=False)
-        num_spp = len(grid_data.unq_spp_lists[0])
-        dense_obj = grid_data.Dense_Object
-        dense_obj.dense_to_columnar(3, (num_spp,), archival=False)
-
-        # Format Columnar Data
-        columnar_obj = dense_obj.Columnar_Object
-
+        # The order in which we do these operations can make a difference
         columnar_obj.split_up_data_by_field(params['columns_to_split'])
-
 
         columnar_obj.change_column_names(params['change_column_names'][0],
                                          params['change_column_names'][1])
@@ -106,9 +76,10 @@ if __name__ == '__main__':
                                     , params['how_and_where_to_fractionate'][1]
                                    , params['how_and_where_to_fractionate'][2])
 
+        import pdb; pdb.set_trace()
         for data_path in data_paths:
-            logging.info('Converted and formatted the grid data %s to' % 
-                         data_path + ' columnar data')
+            logging.info('Formatted the columnar data %s' % 
+                         data_path)
         
         # Merge data into one data file
         if params['merge_data'] == 'Yes' or params['merge_data'] == 'yes':
@@ -117,20 +88,12 @@ if __name__ == '__main__':
             logging.info("Merged and saved all data in run '%s' to file" % run_name
                    + ' {0}_{1}_merged_data.csv'.format(script_name, run_name)) 
         else:
-            columnar_obj.output_columnar_data([output_ID +
-                        '_grid_to_columnar' for output_ID in output_IDs])
-
-            for out in [ot + '_grid_to_columnar' for ot in output_IDs]:
+            for out in [ot + '_formatted_columnar' for ot in output_IDs]:
                 logging.info('Saving columnar data as %s' % out)
 
-    logging.info("Completed 'convert_grid_data.py' script")
-        
+            columnar_obj.output_columnar_data([output_ID +
+                        '_formatted_columnar' for output_ID in output_IDs])
 
-
-
-
-        
-
-
+    logging.info("Completed 'convert_columnar_data.py' script")
 
 

@@ -37,7 +37,7 @@ class Columnar_Data:
     '''
 
     def __init__(self, datalist, delimiter=',', missingd=None,\
-                delete_missing=True, archival=True):
+                delete_missing=False, archival=True):
         '''
         This __init__ method takes in data and stores it in rec_arrays.
         If specified,  it will located missing data points and remove them
@@ -136,6 +136,52 @@ class Columnar_Data:
             self.columnar_data = [np.copy(data) for data in 
                                                         self.columnar_archival]
 
+    def subset_data(self, subset={}):
+        '''
+        Subset any given column of the data
+        
+        Parameters
+        ----------
+        subset : dict
+            Dictionary of permanent subset to data, {'column_name':
+            'condition'}, which will limit all analysis to records in which
+            column_name meets the condition, ie, {'year': ('==', 2005), 'x':
+            [('>', 20), ('<', 40)]} restricts analysis to year 2005 and x
+            values between 20 and 40. These conditions can also be passed to
+            the individual methods, but subsetting the data table up front may
+            save analysis time.  Subsetting on a string would look something
+            like {'name' : [('==', 'John'), ('==', 'Harry')]}
+        '''
+
+        if subset != {}:
+            sub_data = []
+            for data in self.columnar_data:
+                valid = np.ones(len(data), dtype=bool)
+
+                for key, value in subset.iteritems():
+                    if type(value) is not type(['a']):  # Make all iterables
+                        value = [value]
+
+                    # Merge tuples into a string
+                    merged_values = []
+                    for val in value:
+                        try: # check if val[1] is a string
+                            eval(str(val[1]))
+                            merged_values.append(val[0] + str(val[1]))
+                        except:
+                            merged_values.append(val[0]  + "'" +  val[1] + "'")
+
+                    for this_value in merged_values:
+                        try:
+                            this_valid = eval("data[key]" + this_value)
+                            valid = np.logical_and(valid, this_valid)
+                        except ValueError: #If key can't be found do nothing
+                            pass
+                                        
+                sub_data.append(data[valid])
+
+            self.columnar_data = sub_data
+
     def split_up_data_by_field(self, split_columns=None):
         '''
         This function will take in the split-columns list and and split the
@@ -183,10 +229,13 @@ class Columnar_Data:
 
         Parameters
         ----------
-        change : list
-            List of column names.  Columns names are strings
-        changed_to : string
-            Name to be changed to
+        change : list of tuples
+            Each tuple contains column names. All the column names in the first
+            tuple will be changed to the first element in the changed_to list
+            and so on.
+        changed_to : list
+            A list of string that contain the names that the columns in change
+            will be changed to. 
 
         Notes
         -----
@@ -195,13 +244,17 @@ class Columnar_Data:
 
         '''
         if change != None and changed_to != None: 
+            if len(change) != len(changed_to):
+                raise ValueError('Length of params change and changed_to must'
+                                + ' be equal')
             for data in self.columnar_data:
                 column_names = np.array(data.dtype.names)
-                for name in change:
-                    find = np.where((name == column_names))[0]
-                    if len(find) != 0:
-                        column_names[find[0]] = changed_to
-                        data.dtype.names = tuple(column_names)
+                for i, name_tup in enumerate(change):
+                    for name in name_tup:
+                        find = np.where((name == column_names))[0]
+                        if len(find) != 0:
+                            column_names[find[0]] = changed_to[i]
+                            data.dtype.names = tuple(column_names)
         
     def add_fields_to_data_list(self, fields=None, values=None):
         '''
@@ -734,7 +787,7 @@ class Transect_Data:
                                                         self.transect_archival]
 
     def transect_to_columnar(self, stop_col_num, stop_name, tot_stops,\
-                                                    count_name='count'):
+                                     count_name='count', archival=True):
         '''
         This function takes transect data and convertes it into columnar data.
         In addition it saves the columnar data as a Columnar_Data object. 
@@ -786,8 +839,11 @@ class Transect_Data:
                     else:
                         column_data[name][i * nstops:(i + 1) * nstops] = \
                                                                   data[name][i]
+            # Remove all zeros
+            column_data = column_data[column_data[count_name] != 0]
             self.columnar_data.append(column_data)
-        self.Columnar_Object = Columnar_Data(self.columnar_data)
+        self.Columnar_Object = Columnar_Data(self.columnar_data,
+                                                             archival=archival)
 
     def output_transect_data(self, filenames):
         '''
@@ -828,8 +884,8 @@ def remove_white_spaces(grid_list):
     '''
     for grid in grid_list:
         for name in grid.dtype.names:
-            for i in xrange(len(grid[name])): 
-                grid[name][i] = ''.join(grid[name][i].strip(' '))
+            for i in xrange(len(grid[name])):
+                grid[name][i] = ''.join(grid[name][i].split(' '))
 
     return grid_list
 

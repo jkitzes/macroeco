@@ -356,6 +356,13 @@ class Parameters:
                                 data_path = os.path.join(prepend,
                                                          directory, data_file)
                                 self.data_path[run_name].append(data_path)
+                            elif data_type == 'txt':
+                                directory = elt.find('directory').text
+                                data_file = os.path.extsep.join((elt.find('file').text,
+                                                                'txt'))
+                                data_path = os.path.join(prepend,
+                                                         directory, data_file)
+                                self.data_path[run_name].append(data_path)
                             else:
                                 logging.error('Data type {!s} not yet handled; '
                                               'not using this data.'.format(

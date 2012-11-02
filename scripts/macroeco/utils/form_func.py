@@ -154,7 +154,7 @@ def output_form(data, filename):
 
     Parameters
     ----------
-    data : structures array
+    data : structured array
         An structured array containing the data to be output
 
     filename : string
@@ -404,9 +404,11 @@ def merge_formatted(data_form):
     if len(data_form) == 1:
         return np.array(data_form[0])
     else:
+        # Dtypes can be a bit of a pain here
         merged = np.array(data_form[0])
         for i in xrange(1, len(data_form)):
             if merged.dtype != data_form[i].dtype:
+                import pdb; pdb.set_trace()
                 raise TypeError("dtypes of data do not match")
             merged = np.concatenate((merged, np.array(data_form[i])))
         return merged
