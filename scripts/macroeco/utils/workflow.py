@@ -340,7 +340,7 @@ class Parameters:
                                 # User responsible for sys paths, security, etc
                                 prepend = ''
                             elif data_location == 'archival':
-                                prepend = os.path.join('..','..', 'data',
+                                prepend = os.path.join('..','..',
                                                         'archival')
                             else:
                                 prepend = os.path.join('..','..','data',
@@ -349,16 +349,18 @@ class Parameters:
                                 logging.warning(('No data type specified,'
                                                 ' assuming .csv'))
                                 data_type = 'csv'
+                            # Remove any data extension
+                            file_name = elt.find('file').text.split('.')[0]
                             if data_type == 'csv':
                                 directory = elt.find('directory').text
-                                data_file = os.path.extsep.join((elt.find('file').text,
+                                data_file = os.path.extsep.join((file_name,
                                                                 'csv'))
                                 data_path = os.path.join(prepend,
                                                          directory, data_file)
                                 self.data_path[run_name].append(data_path)
                             elif data_type == 'txt':
                                 directory = elt.find('directory').text
-                                data_file = os.path.extsep.join((elt.find('file').text,
+                                data_file = os.path.extsep.join((file_name,
                                                                 'txt'))
                                 data_path = os.path.join(prepend,
                                                          directory, data_file)

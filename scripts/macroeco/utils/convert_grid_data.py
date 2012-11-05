@@ -32,7 +32,7 @@ subset = '''temp'''
 
 required_params = {'number_of_columns' : number_of_columns}
 
-optional_params = {'truncation_symbols' : (truncation_symbols + ds, [None]), 
+optional_params = {'truncation_symbols' : (truncation_symbols + ds, None), 
                     'remove_replace_values': (remove_replace_values + ds,
                     [(None, None)]), 'char_btwn_species_and_count' :
                     (char_btwn_species_and_count + ds, ['-']),
@@ -69,9 +69,7 @@ if __name__ == '__main__':
                                    archival=False)
         
         # Allowing user to truncated grid cells.  They can do it multple times.
-        # Therefore, parameter should be a list
-        for symbol in params['truncation_symbols']:
-            grid_data.truncate_grid_cells(symbol=symbol)
+        grid_data.truncate_grid_cells(params['truncation_symbols'])
 
         #  User can remove and replace multiple things.  This should be a list
         #  of tuples with each tuple having two elements. 

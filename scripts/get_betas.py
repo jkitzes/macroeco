@@ -63,8 +63,8 @@ if __name__ == '__main__':
     from macroeco.utils.form_func import output_form
     from matplotlib.mlab import csv2rec
 
-    wf = Workflow(required_params=required_params, clog=True, 
-                                                            svers=__version__)
+    wf = Workflow(required_params=required_params,
+                optional_params=optional_params, clog=True, svers=__version__)
 
     for data_path, output_ID, params in wf.single_datasets():
         n_s = csv2rec(data_path)

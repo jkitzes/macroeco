@@ -43,6 +43,7 @@ explanation = '''This is a longer description of script actions, as long as necc
 operation of this script.'''
 
 required_params = {'x': 'A sample numeric value'}
+optional_params = {}
 
 if __name__ == '__main__':
 
@@ -52,7 +53,8 @@ if __name__ == '__main__':
     from csv import reader
 
     # Begin by creating a Workflow object
-    wf = Workflow(clog=True, required_params=required_params)
+    wf = Workflow(required_params=required_params,
+                optional_params=optional_params, clog=True, svers=__version__)
 
     # Loop through each dataset specified in params and run analysis. If
     # data_path is not a parameter, the loop below will run once with an empty

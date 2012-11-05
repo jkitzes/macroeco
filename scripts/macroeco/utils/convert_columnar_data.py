@@ -76,7 +76,6 @@ if __name__ == '__main__':
                                     , params['how_and_where_to_fractionate'][1]
                                    , params['how_and_where_to_fractionate'][2])
 
-        import pdb; pdb.set_trace()
         for data_path in data_paths:
             logging.info('Formatted the columnar data %s' % 
                          data_path)

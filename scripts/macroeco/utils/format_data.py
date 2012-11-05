@@ -370,7 +370,7 @@ class Grid_Data:
     NOTE: Need to consider things that might break this class
     '''
 
-    def __init__(self, filenames, num_cols, archival=True):
+    def __init__(self, filenames, num_cols, archival=True, spp_sep='\n'):
         '''
         Pass in the file name(s) of the grid data that you want converted and
         the number of columns in each grid.
@@ -420,7 +420,7 @@ class Grid_Data:
 
         #Remove all '\n' from the end of each cell in grid
         #Not technically necessary but just being clean
-        self.grid_data = remove_char(self.grid_data)
+        self.grid_data = remove_char(self.grid_data, char=spp_sep)
         self.grid_data = remove_white_spaces(self.grid_data)
 
         if archival == True:
@@ -450,7 +450,7 @@ class Grid_Data:
 
         Parameters
         ----------
-        symbol : char (string of length one)
+        symbol : string or list of strings
             The symbol at which to being truncation
 
         Notes
@@ -460,17 +460,25 @@ class Grid_Data:
 
         '''
         if symbol != None: 
+
+            if type(symbol) == str:
+                symbol = [symbol]
+            else:
+                symbol = list(symbol)
+
             for i in xrange(len(self.grid_data)):
                 for nm in self.grid_data[i].dtype.names:
                     for j in xrange(len(self.grid_data[i][nm])):
-                        ind = self.grid_data[i][nm][j].find(symbol)
-                        if ind != -1:
-                            self.grid_data[i][nm][j] = \
+                        for sym in symbol:
+                            ind = self.grid_data[i][nm][j].find(sym)
+                            if ind != -1:
+                                self.grid_data[i][nm][j] = \
                                                  self.grid_data[i][nm][j][:ind]
 
             self.grid_data = remove_char(self.grid_data)
-
-    def remove_and_replace(self, remove=None, replace=None):
+    
+    # List of remove replace tuples?
+    def remove_and_replace(self, remove=None, replace=''):
         '''
         Removes a string from a grid cell and replaces it with another one
 
@@ -487,9 +495,7 @@ class Grid_Data:
             for i in xrange(len(self.grid_data)):
                 for nm in self.grid_data[i].dtype.names:
                     for j in xrange(len(self.grid_data[i][nm])):
-                        ind = self.grid_data[i][nm][j].find(remove)
-                        if ind != -1:
-                            self.grid_data[i][nm][j] =\
+                        self.grid_data[i][nm][j] =\
                               self.grid_data[i][nm][j].replace(remove, replace)
 
     def find_unique_spp_in_grid(self, spacer='-', spp_sep='\n'):
@@ -560,28 +566,37 @@ class Grid_Data:
                     matrix['column'][count] = int(col)
                     for spp_name in self.unq_spp_lists[i]:
 
-                        # Check if cell has species
+                        # Check if cell has species. May be nested occurence!
+                        matrix[spp_name][count] = 0 # Set base to 0
                         start = data[col][row].find(spp_name)
-                        if start != -1:
-                            # could be nested in another word
-                            if data[col][row][start + len(spp_name)] == spacer:
-                               # The nesting could be at the end of the word
-                               if start == 0 or data[col][row][start - 1] ==\
-                                                                       spp_sep:
+
+                        if start == -1: # Nothing is there
+                            pass # Count already set to zero on line 564ish
+
+                        else: # Something is there, but is it nested?
+                            found = start
+                            while found != -1:
+                                # If this is true, it is nested
+                                if (data[col][row][start + len(spp_name)] !=\
+                                    spacer) or not(start == 0 or \
+                                    data[col][row][start - 1] == spp_sep):
+
+                                    pass
+
+                                else: # Actually a species, so add some
+                                      # abundance
 
                                     raw = data[col][row][start:].split(spacer)[1]
                                     if raw.find(spp_sep) != -1:
                                         tot_spp = raw.split(spp_sep)[0].strip()
-                                        matrix[spp_name][count] = int(tot_spp)
+                                        matrix[spp_name][count] += int(tot_spp)
+                                        
                                     else:
                                         tot_spp = raw.split()[0].strip()
-                                        matrix[spp_name][count] = int(tot_spp)
-                               else:
-                                    matrix[spp_name][count] = 0
-                            else:
-                                matrix[spp_name][count] = 0
-                        else:
-                            matrix[spp_name][count] = 0
+                                        matrix[spp_name][count] += int(tot_spp)
+                                found = data[col][row][start + 1
+                                                              :].find(spp_name)
+                                start += found + 1
                     count += 1
             dense_data.append(matrix)
         self.Dense_Object = Dense_Data(dense_data, archival=archival)
@@ -625,11 +640,6 @@ class Dense_Data:
             self.dense_data
         delim : string
             The file delimiter
-        missingd : dict
-            A dictionary mapping column names to values which signfy the that
-            the value is missing in the field. If dtype is string value is set
-            to '', if dtype is int value is set to -1, if dtype is float value
-            is set to NaN, if dtype is object value is set to None.
         replace : tuple
             A tuple of length 2.  The first element is a string which
             represents the missing values that you would like to replace.  The
@@ -647,6 +657,7 @@ class Dense_Data:
         if np.all(np.array([type(x) == str for x in datalist])):
             self.dense_data = []
             if replace != None:
+                
                 assert len(replace) == 2, "Replace must contain 2 elements"
 
                 for name in datalist:
@@ -873,7 +884,7 @@ def remove_char(grid_list, char='\n'):
     for grid in grid_list:
         for name in grid.dtype.names:
             for i in xrange(len(grid[name])): 
-                while grid[name][i][::-1].find('\n') == 0:
+                while grid[name][i][::-1].find(char) == 0:
                     grid[name][i] = grid[name][i][:-1]
     
     return grid_list

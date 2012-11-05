@@ -75,7 +75,7 @@ class DistOutput(object):
             if criteria != None and np.all([type(crt) != dict for crt in
                                                                   criteria]):
                 filename = self.out_dir + '_summary_table_' + str(criteria[i])\
-                            + '.txt.'
+                            + '.txt'
                 
             else:
                 filename = self.out_dir + '_summary_table_' + str(i) + '.txt'
