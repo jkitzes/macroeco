@@ -206,7 +206,7 @@ if __name__ == '__main__':
         patch = Patch(data_path, subset=params['subset'])
 
         # Calculate empirical metrics
-        sad = patch.sad(params['criteria'])
+        sad = patch.sad(params['criteria'], clean=True)
         if set(params['energy_metrics']) == set(['SED', 'IED']) or\
            set(params['energy_metrics']) == set(['sed', 'ied']) :
             cmengy = patch.ied(params['criteria'])
@@ -221,8 +221,8 @@ if __name__ == '__main__':
             # Make output objects and output plots
             sout = SEDOutput(output_ID)
             soup = IEDOutput(output_ID)
-            sout.plot_reds(cmprt.compare_reds(), criteria=cmprt.sad_criteria)
-            soup.plot_reds(cmprp.compare_reds(), criteria=cmprp.sad_criteria)
+            sout.plot_reds(cmprt.compare_rads(), criteria=cmprt.criteria)
+            soup.plot_reds(cmprp.compare_rads(), criteria=cmprp.criteria)
 
         elif set(params['energy_metrics']) == set(['IED']) or\
              set(params['energy_metrics']) == set(['ied']):
@@ -230,7 +230,7 @@ if __name__ == '__main__':
             cmprp = comp.CompareIED((cmengy, sad), 
                               params['predicted_IED_distributions'],patch=True)
             soup = IEDOutput(output_ID)
-            soup.plot_reds(cmprp.compare_reds(), criteria=cmprp.sad_criteria)
+            soup.plot_reds(cmprp.compare_rads(), criteria=cmprp.criteria)
 
         elif set(params['energy_metrics']) == set(['SED']) or\
              set(params['energy_metrics']) == set(['sed']):
@@ -240,7 +240,7 @@ if __name__ == '__main__':
             cmprt = comp.CompareSED((spengy, cmengy, sad),
                              params['predicted_SED_distributions'], patch=True)
             sout = SEDOutput(output_ID)
-            sout.plot_reds(cmprt.compare_reds(), criteria=cmprt.sad_criteria)
+            sout.plot_reds(cmprt.compare_rads(), criteria=cmprt.criteria)
 
         logging.info('Completed analysis %s\n' % output_ID)
     logging.info("Completed 'compare_energy.py' script")

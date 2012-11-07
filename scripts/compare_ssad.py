@@ -187,12 +187,11 @@ if __name__ == '__main__':
 
         cmpr = comp.CompareSSAD(ssad,
                            params['predicted_SSAD_distributions'], patch=True)
-        rads = cmpr.compare_rads()
 
         sout = DistOutput(output_ID, 'ssad')
-        sout.write_summary_table(cmpr.summary(rads,
-                   mins_list=params['rarity_measure']), criteria=cmpr.spp_list)
-        sout.plot_rads(rads, criteria=cmpr.spp_list)
+        summary = cmpr.summary(mins_list=params['rarity_measure'])
+        sout.write_summary_table(summary, criteria=cmpr.sad_spp_list)
+        sout.plot_rads(cmpr.compare_rads(), criteria=cmpr.sad_spp_list)
         sout.plot_cdfs(cmpr.compare_cdfs(), cmpr.data_list,
                         criteria=cmpr.spp_list)
         logging.info('Completed analysis %s\n' % output_ID)

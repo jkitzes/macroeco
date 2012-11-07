@@ -5,16 +5,17 @@ predicted macroecological metrics.
 
 Classes
 -------
-CompareDistribution : Base class to for CompareSAD and CompareSSAD
+CompareDistribution : Base class to for CompareSAD, CompareSSAD, CompareIED,
+CompareSED, CompareASED
 
-CompareSAD : Compares predicted species abundance distributions with empirical
-SADs
+CompareSAD : Compares predicted species abundance distributions (SAD) with
+empirical SADs
 
 CompareSSAD : Compares predicted species-level spatial abundance distributions
-with empirical SSADS
+(SSAD) with empirical SSADS
 
-CompareSAR : Compares predicted species-area relationship (SAR) curves 
-with empirical SAR curves
+CompareSAR : Compares predicted species-area relationship (SAR) curves with
+empirical SAR curves
 
 CompareIED : Compares predicted individual energy distributions (IED) with
 empirical IEDs  
@@ -23,7 +24,7 @@ CompareSED : Compares predicted species-level energy distributions (SED) with
 empirical SEDs 
 
 CompareASED : Compares predicted average species-level energy distributions
-(ASED) with empirical ASEDs. 
+(ASED) with empirical ASEDs.
 
 Functions
 ---------
@@ -59,35 +60,57 @@ class CompareDistribution(object):
     '''
     
     #TODO: Error Checking
-    def __init__(self, data_list, dist_list, patch=None):
+    def __init__(self, data_list, dist_list, observed_index):
         '''
         Parameters
         ----------
-        data_list : list of iterables or output from Patch object
-            List of np.arrays containing data
+        data_list : list of iterables or list of tuples of iterables 
+            data_list is any list of iterables or list of tuples of iterables
+            that will be passed to the fit functions of the distribution
+            objects in dist_list. data_list will be passed to fit functions for
+            each distribution.  data_list undergoes no validation in __init__
         dist_list : list
             List of distribution objects or strings that have the same name as 
-            a distribution object. If they are strings, they will be evaled 
-        patch : str
-            If 'sad', expects the output from the Patch.sad method and if
-            'ssad' expects the output from the Patch.ssad method. If None, 
-            expects a list of iterables.
+            a distribution object. If they are strings, they will be evaled
+        observed_index : int
+            The index of the desired observed metric in the tuples within
+            data_list.  If 0, data_list can be a list of data
+            rather than a list of tuples of data.  The index specified by
+            object_ind will be considered the observed data.
+        
+        Notes
+        -----
+        All distribution objects are fit in the __init__ method.
 
         '''
 
-        if patch == 'sad':
-            self.criteria, self.data_list, self.spp_list = unpack(data_list)
-        elif patch == 'ssad':
-            self.spp_list = list(data_list[1].viewkeys())
-            self.data_list = [np.array(data_list[1][nm]) for nm in
-                                                            self.spp_list]
-            self.criteria = data_list[0]
-        else:
-            self.data_list = [np.array(data) for data in data_list]
-            self.criteria = None
-            self.spp_list = None
-       
         self.dist_list = make_dist_list(dist_list)
+
+        # Fit the distributions objects 
+        [dist.fit(data_list) for dist in self.dist_list]
+        
+        # Set the observed data
+        if observed_index == 0 and np.all([type(dt) != type((1,)) for dt in
+                                                            data_list]):
+            self.observed_data = [np.array(dt) for dt in data_list]
+        elif np.all([type(dt) == type((1,)) for dt in data_list]):
+            self.observed_data = [np.array(dt[observed_index]) for dt in
+                                                                     data_list]
+
+        # Set this in __init__ so other methods can check if compare_rads() has
+        # been called
+        self.rads = None
+       
+        # If attributes have not been instantiated, set to None
+        try:
+            self.sad_spp_list
+        except:
+            self.sad_spp_list = None
+        try:
+            self.criteria
+        except:
+            self.criteria = None
+
 
     def compare_aic(self, crt=False):
         '''
@@ -97,26 +120,28 @@ class CompareDistribution(object):
         Parameters
         ----------
         crt : bool
-            If True, calculates the corected AIC for the given data. If False,
+            If True, calculates the corrected AIC for the given data. If False,
             calculates AIC.
 
         Returns
         -------
         : list
             A list of arrays.  The list has length = to number of data sets in
-            self.data_list.  Each array within list has the length of
+            self.observed_data.  Each array within list has the length of
             self.dist_list.
 
         '''
         aic_vals = []
         for dist in self.dist_list:
-            dist.fit(self.data_list)
             
-            nlls = nll(dist.pmf(self.data_list)[0])
+            try:
+                nlls = nll(dist.pmf(self.observed_data)[0])
+            except:
+                nlls = nll(dist.pdf(self.observed_data)[0])
             #NOTE: dist.par_num is the number of parameters of distribution
             k = np.repeat(dist.par_num, len(nlls))
             if crt:
-                obs = np.array([len(data) for data in self.data_list])
+                obs = np.array([len(data) for data in self.observed_data])
                 aic_vals.append(aicc(nlls, k, obs))
             else:
                 aic_vals.append(aic(nlls, k))
@@ -127,7 +152,7 @@ class CompareDistribution(object):
         Compare AIC weights, delta_AIC, and AIC values across the different 
         models. Output is a three item tuple where each item is a list of 
         arrays with each array having length equal to the number of models 
-        proposed and the length of the list is the lenth of self.data_lists.
+        proposed and the length of the list is the lenth of self.observed_datas.
         See Returns for tuple description.
         
         Parameters
@@ -139,9 +164,9 @@ class CompareDistribution(object):
         Returns
         -------
         : tuple
-            first element is a list of arrays with each array having length 
+            The first element is a list of arrays with each array having length 
             equal to the number of models proposed and the length of the list 
-            is the lenth of self.data_lists. The second element is the delta
+            is the length of self.observed_datas. The second element is the delta
             AIC values in the same format as the first tuple object. The third
             object are the AIC values in the same format as the output of the 
             compare_aic method. 
@@ -165,19 +190,29 @@ class CompareDistribution(object):
         : dict
             Has len(self.dist_list) + 1.  All the distribution class names
             passed to the constructor are key words as well as 'observed' which
-            references the observed data, self.data_list. Each keyword looks up
-            a list of arrays.  Each list is len(self.data_list) long and
+            references the observed data, self.observed_data. Each keyword looks up
+            a list of arrays.  Each list is len(self.observed_data) long and
             contains the predicted rads for the empirical data sets for the
-            given distribution. 
+            given distribution.
+
+        Note
+        ----
+        If self.rads has already been set in another method (i.e. is not None).
+        This method will not overwrite it.  To reset self.rads, set self.rads
+        = None and and then run self.compare_rads().
 
         '''
-        rads_dict = {}
-        rads_dict['observed'] = self.data_list
-        for i, dist in enumerate(self.dist_list):
-            dist.fit(self.data_list)
-            #Different Identifier?
-            rads_dict[get_name(dist)] = dist.rad()
-        return rads_dict
+        if self.rads == None:
+            rads_dict = {}
+            rads_dict['observed'] = self.observed_data
+            for i, dist in enumerate(self.dist_list):
+                #Different Identifier?
+                rads_dict[get_name(dist)] = dist.rad()
+
+            self.rads = rads_dict
+            return self.rads
+        else:
+            return self.rads
 
     def compare_cdfs(self):
         '''
@@ -188,8 +223,8 @@ class CompareDistribution(object):
         :dict
             Has len(self.dist_list) + 1.  All the distribution class names
             passed to the constructor are key words as well 'observed' which
-            references the observed data, self.data_list. Each keyword looks up
-            a list of arrays.  Each list is len(self.data_list) long and
+            references the observed data, self.observed_data. Each keyword looks up
+            a list of arrays.  Each list is len(self.observed_data) long and
             contains the predicted cdfs for the empirical data sets for the
             given distribution. 
 
@@ -197,13 +232,13 @@ class CompareDistribution(object):
         '''
 
         cdfs_dict = {}
-        cdfs_dict['observed'] = [empirical_cdf(data) for data in self.data_list]
+        cdfs_dict['observed'] = [empirical_cdf(data) for data in
+                                                            self.observed_data]
         for i, dist in enumerate(self.dist_list):
-            dist.fit(self.data_list)
-            cdfs_dict[get_name(dist)] = dist.cdf(self.data_list)[0] 
+            cdfs_dict[get_name(dist)] = dist.cdf(self.observed_data)[0] 
         return cdfs_dict
     
-#
+
     def compare_LRT(self, null_mdl):
         '''
         Performs a likelihood ratio test (LRT) on the distributions with in
@@ -220,18 +255,26 @@ class CompareDistribution(object):
         -------
         : dict
             A dictionary with keywords 'null_model, alternative model.' Each
-            keyword references a list of length len(self.data_list) which
+            keyword references a list of length len(self.observed_data) which
             contains tuples that contain the output of the function
             likelihood_ratio_test.  The LRT is performed on each data set in
-            self.data_list for each given model pair.
+            self.observed_data for each given model pair.
 
         '''
         LRT_list = {}
-        null_mdl.fit(self.data_list)
-        null_nlls = nll(null_mdl.pmf(self.data_list)[0])
+        null_mdl.fit(self.observed_data)
+
+        try:
+            null_nlls = nll(null_mdl.pmf(self.observed_data)[0])
+        except:
+            null_nlls = nll(null_mdl.pdf(self.observed_data)[0])
         for i, dist in enumerate(self.dist_list):
-            dist.fit(self.data_list)
-            alt_nlls = nll(dist.pmf(self.data_list)[0])
+            
+            try:
+                alt_nlls = nll(dist.pmf(self.observed_data)[0])
+            except:
+                alt_nlls = nll(dist.pdf(self.observed_data)[0])
+
             k = dist.par_num - null_mdl.par_num
             df = np.repeat(k, len(alt_nlls))
             lrt = likelihood_ratio_test(null_nlls, alt_nlls, df)
@@ -239,7 +282,7 @@ class CompareDistribution(object):
             LRT_list[comp_kw] = lrt
         return LRT_list
 
-    def compare_rarity(self, rads, mins_list):
+    def compare_rarity(self, mins_list):
         '''
         This script takes in the output from self.compare_rads and a list of
         minimum values against which to compare the observed and predicted
@@ -248,12 +291,10 @@ class CompareDistribution(object):
         distributions + observed).  Each keyword in this dict looks up a dict
         of len(mins_list) where the keywords are the values against which the
         rads will be <=.  Each one of these subdictionaries looks up a list
-        with len(self.data_list).
+        with len(self.observed_data).
 
         Parameters
         ----------
-        rads : dict
-            The output from self.compare_rads(). 
         mins_list : array-like object
             A list of numbers.  Each number number will be used in the
             following function: rad <= mins_list[i].
@@ -265,10 +306,17 @@ class CompareDistribution(object):
         distributions + observed).  Each keyword in this dict looks up a dict
         of len(mins_list) where the keywords are the values against which the
         rads will be <=.  Each one of these subdictionaries looks up a list
-        with len(self.data_list).
+        with len(self.observed_data).
 
 
         '''
+
+        # Don't remake rads if they have already been made
+        if self.rads == None:
+            rads = self.compare_rads()
+        else:
+            rads = self.rads
+
         mins_list = make_array(mins_list)
 
         rarity = {}
@@ -280,18 +328,16 @@ class CompareDistribution(object):
         return rarity
 
 
-    def summary(self, rads, mins_list=[10], crt=False):
+    def summary(self, mins_list=[10], crt=False):
         '''
         Summarizes the given datasets and the predicted rads. Looks at
         total balls sampled ('balls'), number of urns ('urns'), the max balls
         in a given urn ('max'), number of urns with less than MIN balls ('tot
         <= MIN'), and the fit of the the distributions in self.dist_list to the
-        data in self.data_list
+        data in self.observed_data
 
         Parameters
         ----------
-        rads : dict
-            The dictionary returned by self.compare_rads()
         mins_list : list
             Bins with balls less than or equal to 10
         crt : bool
@@ -309,12 +355,20 @@ class CompareDistribution(object):
             aic = AIC
             aic_d = Delta AIC
             aic_w = AIC weights
-            par_num = Parameer number of the given distribution
+            par_num = Parameter number of the given distribution
+            tot_min = total counts less than or equal numbers in min_list
 
 
         '''
         summary = {}
-        rarity = self.compare_rarity(rads, mins_list=mins_list)
+
+        # Check that rads is already set, if not set it
+        if self.rads == None:
+            rads = self.compare_rads()
+        else:
+            rads = self.rads
+
+        rarity = self.compare_rarity(mins_list=mins_list)
         for kw in rads.iterkeys():
             summary[kw] = {}
             summary[kw]['balls'] = [np.sum(data) for data in rads[kw]]
@@ -340,24 +394,24 @@ class CompareSAD(CompareDistribution):
 
     Attributes
     ----------
-    self.data_list : A list of arrays
+    self.observed_data : A list of arrays
         Each array in this list is an SAD.  Each of these SADs will be compared
         to the distributions in self.dist_list
     self.dist_list : a list of distribution objects
         Each object is a distribution object to which the SADs in
-        self.data_list will be compared.  
+        self.observed_data will be compared.  
     self.criteria : a list of dictionaries or None
         If not None, each dictionary specifies the divisions made on the plot
-        that generated each SAD in self.data_list.  self.criteria should be the
-        same length as self.data_list
-    self.spp_list : list of arrays or None
+        that generated each SAD in self.observed_data.  self.criteria should be the
+        same length as self.observed_data
+    self.sad_spp_list : list of arrays or None
         If not None, each array contains the species strings for the
-        corresponding SAD in self.data_list.  The length of self.spp_list
-        should be the same length as self.data_list and the length of any array
-        within self.spp_list should be the same length the corresponding array
-        in self.data_list. The indice of any species name within any array
-        within self.spp_list references the species count with the same
-        indice in self.data_list.
+        corresponding SAD in self.observed_data.  The length of self.sad_spp_list
+        should be the same length as self.observed_data and the length of any array
+        within self.sad_spp_list should be the same length the corresponding array
+        in self.observed_data. The indice of any species name within any array
+        within self.sad_spp_list references the species count with the same
+        indice in self.observed_data.
 
     '''
     
@@ -375,9 +429,11 @@ class CompareSAD(CompareDistribution):
             expects a list of iterables. Persumably, each iterable is an SAD.
         '''
         if patch == True:
-            super(CompareSAD, self).__init__(data_list, dist_list, patch='sad')
+            self.criteria, sad_data, self.sad_spp_list = unpack(data_list)
+            
+            super(CompareSAD, self).__init__(sad_data, dist_list, 0) 
         else:
-            super(CompareSAD, self).__init__(data_list, dist_list, patch=None)
+            super(CompareSAD, self).__init__(data_list, dist_list, 0)
 
 class CompareSSAD(CompareDistribution):
     '''
@@ -386,21 +442,21 @@ class CompareSSAD(CompareDistribution):
 
     Attributes
     ----------
-    self.data_list : A list of arrays
+    self.observed_data : A list of arrays
         Each array in this list is an SSAD.  Each of these SSADs will be
         compared to the distributions in dist_list
     self.dist_list : a list of distribution objects
         Each object is a distribution object to which the SSADs in
-        self.data_list will be compared.  
+        self.observed_data will be compared.  
     self.criteria : a list of dictionaries or None
         If not None, each dictionary specifies the divisions made on the plot
-        that generated each SAD in self.data_list.  self.criteria should be the
-        same length as self.data_list
-    self.spp_list : List of strings or None
-        If not None, self.spp_list is a list of strings where each string
-        refers to a species.  The length of self.spp_list should be the same
-        length as self.data_list.  Each species string has the same index
-        within the list as its corresponding SSAD in self.data_list. 
+        that generated each SAD in self.observed_data.  self.criteria should be the
+        same length as self.observed_data
+    self.sad_spp_list : List of strings or None
+        If not None, self.sad_spp_list is a list of strings where each string
+        refers to a species.  The length of self.sad_spp_list should be the same
+        length as self.observed_data.  Each species string has the same index
+        within the list as its corresponding SSAD in self.observed_data. 
 
     '''
     
@@ -418,10 +474,323 @@ class CompareSSAD(CompareDistribution):
             expects a list of iterables. Persumably, each iterable is an SAD.
         '''
         if patch == True:
-            super(CompareSSAD, self).__init__(data_list, dist_list, \
-                                                                  patch='ssad')
+
+            self.sad_spp_list = list(data_list[1].viewkeys())
+            ssad_data = [np.array(data_list[1][nm]) for nm in
+                                                            self.sad_spp_list]
+            self.criteria = data_list[0]
+
+            super(CompareSSAD, self).__init__(ssad_data, dist_list, 0) 
         else:
-            super(CompareSSAD, self).__init__(data_list, dist_list, patch=None)
+            super(CompareSSAD, self).__init__(data_list, dist_list, 0)
+
+
+
+class CompareIED(CompareDistribution):
+    '''
+    Class compares predicted individual energy distributions (IED) for the
+    entire community to observed IEDs
+
+    Attributes
+    ----------
+    self.observed_data : list of arrays
+        Observed individual energy distributions (IED)
+    self.ied_spp_lists : list of arrays
+        Each array contains species strings which pair to the values
+        contained in the corresponding array in self.ied_list. The length of
+        self.ied_spp_lists should be the same length as self.ied_list.
+    self.sad_spp_lists : list of arrays
+        If not None, each array contains the species strings for the
+        corresponding SAD in self.sad_list.  The length of self.sad_spp_lists
+        should be the same length as self.sad_list and the length of any array
+        within self.sad_spp_lists should be the same length the corresponding array
+        in self.sad_list. The indice of any species name within any array
+        within self.sad_spp_lists references the species count with the same
+        indice in self.sad_list.
+    self.criteria : a list of dictionaries or None
+        If not None, each dictionary specifies the divisions made on the plot
+        that generated each SAD and IED in self.sad_list and self.ied_list.
+        self.criteria should be the same length as self.sad_list and
+        self.ied_list. 
+    self.dist_list : a list of distribution objects
+        Each object is a distribution to which the IEDs in self.ied_list will
+        be compared.
+
+    '''
+
+    def __init__(self, data_list, dist_list, patch=False):
+        '''
+        Parameters
+        ----------
+        data_list : tuple of lists or output from Patch object
+            Tuple of length two. The first object in the tuple is a list of
+            np.arrays that are the empirical community energy distributions.
+            The second object is a list of np.arrays that are the empirical
+            sads. See patch argument for more information.
+        dist_list : list of strings or objects
+            Each string corresponds to a name of a psi distribution to which to
+            compare to the observed data. 
+        patch: bool
+            If True, expects a tuple of length 2 with the first object being
+            the output from Patch.ied and the second element being the
+            output from Patch.sad. If False expects what argument data_list
+            describes. sads and energy should be made with the same criteria.
+
+        Notes
+        -----
+        The __init__ method always removes zeros from the SADs
+        '''
+
+        if patch == True:
+            # Unpack sad. Store spp_lists in items
+            sad_criteria, sad_list, self.sad_spp_lists = \
+                                                    unpack(data_list[1])
+
+            # Unpack ied
+            ied_criteria, ied_list, self.ied_spp_lists = \
+                                                        unpack(data_list[0])
+            self.criteria = sad_criteria
+
+            super(CompareIED, self).__init__(zip(ied_list, sad_list),
+                                                                dist_list, 0)
+            
+        else:
+            super(CompareIED, self).__init__(data_list, dist_list, 0)
+            self.ied_spp_lists = None
+    
+    def summary(self, min_list=None, crt=False):
+        '''
+        Not yet implemented
+        '''
+        raise NotImplemented('%s.summary() is not implemented' %
+                                                            self.__class__name)
+
+
+class CompareSED(CompareDistribution):
+    '''
+    Class compares predicted species-level energy distribution(s) with the
+    observed species-level energy distribution(s)
+
+    Attributes
+    ----------
+    self.observed_data : list of iterables
+        Observed species energy distributions (SED)
+    self.criteria : a list of dictionaries or None
+        If not None, each dictionary specifies the divisions made on the plot
+        that generated each SED, IED, and SAD and IED in self.sed_list,
+        self.ied_list, and self.sad_list.  All self.criteria should have the
+        same length.
+    self.dist_list : a list of distribution objects
+        Each object is a distribution to which the IEDs in self.ied_list will
+        be compared.
+    self.sad_spp_lists : list of strings or None
+        If not None, each string in self.spp_names is a species ID which
+        corresponds to an array in self.sed_list.
+
+    '''
+
+    def __init__(self, data_list, dist_list, patch=False):
+        '''
+        Parameters
+        ----------
+        data_list : tuple of lists or output from Patch object
+            Tuple of length three. The first object is a list np.arrays that
+            contains species energy distributions. The second object in the
+            tuple is a list of np.arrays that are the empirical community
+            energy distributions. The third object is a list of np.arrays that
+            are the empirical SADs. All three lists should should be the same
+            length. See patch argument in this method for information about
+            Patch object output.
+        dist_list : list of strings or objects
+            Each string corresponds to a name of a psi distribution to which to
+            compare to the observed data. 
+        patch : bool
+            If True, expects a tuple of length 3 with the first object being
+            the complete output from Patch.sed, the second object being the
+            output from Patch.ied and the third element being the output from
+            Patch.sad. If False expects what argument data_list describes.
+            Empirical sads and energy distributions should be made with the
+            same criteria (See Patch class for criteria explanation).
+        '''
+
+        if patch:
+            # TODO: Check length of input objects!
+
+            #Sort species energy
+            sed_criteria = []
+            sed_list = []
+            spp_names = []
+            for obj in data_list[0]:
+                spp_names.append(list(obj[1].viewkeys()))
+                for kw in spp_names[-1]:
+                    sed_list.append(obj[1][kw])
+                    sed_criteria.append(obj[0])
+
+            #Sort community energy
+            ied_criteria = []
+            ied_list = []
+            for i, obj in enumerate(data_list[1]):
+
+                # For consistency I am copying the ied data for each species 
+                num = len(spp_names[i])
+                tcri = [obj[0] for i in xrange(num)]
+                ied_criteria += tcri
+                teng = [obj[1] for i in xrange(num)]
+                ied_list += teng
+
+            #Sort sad
+            sad_criteria = []
+            sad_list = []
+            for i, obj in enumerate(data_list[2]):
+
+                # Copy sad data for each species
+                num = len(spp_names[i])
+                tcri = [obj[0] for i in xrange(num)]
+                sad_criteria += tcri
+                tsad = [obj[1] for i in xrange(num)]
+                sad_list += tsad
+            
+            self.sad_spp_list = list(np.array(spp_names).flatten())
+            self.criteria = sad_criteria
+            super(CompareSED, self).__init__(zip(sed_list, ied_list, sad_list),
+                                                                  dist_list, 0)
+
+        else: #Extend IED and SAD lists
+            lr = [len(dt) for dt in data_list] # len list for checking
+            if lr[1] != lr[0]:
+                if lr[1] == 1:
+                    ied_list = [np.array(data_list[1][0]) for i in\
+                                                                 xrange(lr[0])]
+                else:
+                    raise AttributeError("Length of IED list must be 1 or the"\
+                                         + " same length as the SED list")
+            else:
+                ied_list = [np.array(data) for data in data_list[1]]
+
+            if lr[2] != lr[0]:
+                if lr[2] == 1:
+                    sad_list = [np.array(data_list[2][0]) for i in\
+                                                                 xrange(lr[0])]
+                else:
+                    raise AttributeError("Length of SAD list must be 1 or the"\
+                                         + " same length as the SED list")
+            else:
+                sad_list = [np.array(data) for data in data_list[2]]
+
+            sed_list = [np.array(data) for data in data_list[0]]
+            
+            super(CompareSED, self).__init__(zip(sed_list, ied_list, sad_list),
+                                                                dist_list, 0)
+
+        
+    def compare_rads(self):
+        '''
+        Comparison of species level energy distributions
+
+        Returns
+        -------
+        : dict
+            Has len(self.dist_list) + 1.  All the distribution class names
+            passed to the constructor are key words as well as 'observed' which
+            references the observed data. Each keyword looks up
+            a list of arrays.  Each list is len(self.ied_list) long and
+            contains the predicted reds for the empirical data sets for the
+            given distribution. 
+        : list or None
+            Returns self.sad_spp_list which could be a list of lists or None.
+            These names are the species names that correspond numerically with
+            the arrays in within each distribution.
+
+        '''
+        
+        return super(CompareSED, self).compare_rads(), self.sad_spp_list
+
+    def summary(self, min_list=None, crt=False):
+        '''
+        Not yet implemented
+        '''
+        raise NotImplemented('%s.summary() is not implemented' %
+                                                            self.__class__name)
+
+class CompareASED(CompareDistribution):
+    '''
+    Compares theoretical and observed ased's
+
+    Attributes
+    ----------
+    self.observed_data : list of arrays
+        Observed average species energy distributions (ASED)
+    self.sad_spp_lists : list of arrays
+        If not None, each array contains the species strings for the
+        corresponding SAD in self.sad_list.  The length of self.sad_spp_lists
+        should be the same length as self.sad_list and the length of any array
+        within self.sad_spp_lists should be the same length the corresponding array
+        in self.sad_list. The indice of any species name within any array
+        within self.sad_spp_lists references the species count with the same
+        indice in self.sad_list.
+    self.criteria : a list of dictionaries or None
+        If not None, each dictionary specifies the divisions made on the plot
+        that generated each SAD and IED in self.sad_list and self.ied_list.
+        self.criteria should be the same length as self.sad_list and
+        self.ied_list. 
+    self.dist_list : a list of distribution objects
+        Each object is a distribution to which the IEDs in self.ied_list will
+        be compared.
+
+    '''
+
+    def __init__(self, data_list, dist_list, patch=False):
+        '''
+        Parameters
+        ----------
+        data_list : tuple of lists or output from Patch object
+            Tuple of length three. The first object is a list np.arrays that
+            are the the average species energy distributions. 
+            The second object in the tuple is a list of np.arrays that are the 
+            empirical community energy distributions. The third object is a 
+            list of np.arrays that are the empirical sads. See patch argument 
+            in this method for information about Patch object output.
+        dist_list : list of strings or objects
+            Each string corresponds to a name of a ased distribution to which to
+            compare to the observed data. 
+        patch : bool
+            If True, expects a tuple of length 3 with the first object being
+            the complete output from Patch.ased, the second object being
+            the output from Patch.ied and the third element being the
+            output from Patch.sad. If False expects what argument data_list
+            describes. Empirical sads and energy distributions should be made 
+            with the same criteria.
+        '''
+
+        if patch:
+
+            # Unpack sad. Store spp_lists in items
+            sad_criteria, sad_list, sad_spp_lists = \
+                                                unpack(data_list[2])
+
+            # Unpack ased 
+            ased_criteria, ased_list, ased_species = \
+                                                        unpack(data_list[0])
+
+            # Unpack ied
+            ied_criteria, ied_list, ied_spp = unpack(data_list[1])
+
+            self.criteria = sad_criteria
+            self.sad_spp_lists = ased_species
+
+            super(CompareASED, self).__init__(zip(ased_list, ied_list,
+                                                       sad_list), dist_list, 0)
+
+
+        else:
+            super(CompareASED, self).__init__(data_list, dist_list, 0)
+
+    def summary(self, min_list=None, crt=False):
+        '''
+        Not yet implemented
+        '''
+        raise NotImplemented('%s.summary() is not implemented' %
+                                                            self.__class__name)
 
 class CompareSAR(object):
     '''
@@ -518,358 +887,6 @@ class CompareSAR(object):
                 psar[kw].sort(order='area')
             pred_sar.append(psar)
         return pred_sar
-
-class CompareIED(object):
-    '''
-    Class compares predicted individual energy distributions (IED) for the entire
-    community to observed IEDs
-
-    Attributes
-    ----------
-    self.ied_list : list of arrays
-        Each array in this list is an IED.  Each of these IEDs will be compared
-        to the distributions in self.dist_list
-    self.ied_items : list of arrays
-        Each array contains species strings which pair to the values
-        contained in the corresponding array in self.ied_list. The length of
-        self.ied_items should be the same length as self.ied_list.
-    self.sad_list : list of arrays
-        Each array in this list is an species abundance distribution (SAD).  
-        self.sad_list should have the same length as self.ied_list.  Each SAD
-        corresponds the IED with the same index and should have been generated
-        with the same criteria. 
-    self.sad_items : list of arrays
-        If not None, each array contains the species strings for the
-        corresponding SAD in self.sad_list.  The length of self.sad_items
-        should be the same length as self.sad_list and the length of any array
-        within self.sad_items should be the same length the corresponding array
-        in self.sad_list. The indice of any species name within any array
-        within self.sad_items references the species count with the same
-        indice in self.sad_list.
-    self.*_criteria : a list of dictionaries or None
-        If not None, each dictionary specifies the divisions made on the plot
-        that generated each SAD and IED in self.sad_list and self.ied_list.
-        self.*_criteria should be the same length as self.sad_list and
-        self.ied_list. 
-    self.dist_list : a list of distribution objects
-        Each object is a distribution to which the IEDs in self.ied_list will
-        be compared.
-
-    '''
-
-    def __init__(self, data_list, dist_list, patch=False):
-        '''
-        Parameters
-        ----------
-        data_list : tuple of lists or output from Patch object
-            Tuple of length two. The first object in the tuple is a list of
-            np.arrays that are the empirical community energy distributions.
-            The second object is a list of np.arrays that are the empirical
-            sads. See patch argument for more information.
-        dist_list : list of strings or objects
-            Each string corresponds to a name of a psi distribution to which to
-            compare to the observed data. 
-        patch: bool
-            If True, expects a tuple of length 2 with the first object being
-            the output from Patch.ied and the second element being the
-            output from Patch.sad. If False expects what argument data_list
-            describes. sads and energy should be made with the same criteria.
-
-        Notes
-        -----
-        The __init__ method always removes zeros from the SADs
-        '''
-
-        if patch:
-            # Unpack sad. Store spp_lists in items
-            self.sad_criteria, self.sad_list, self.sad_items = \
-                                                    unpack(data_list[1])
-
-            # Unpack ied
-            self.ied_criteria, self.ied_list, self.ied_items = \
-                                                        unpack(data_list[0])
-            
-        else:
-            self.sad_list = [np.array(data) for data in data_list[1]]
-            self.sad_criteria = None
-            self.sad_items = None
-            self.ied_list = [np.array(data) for data in data_list[0]]
-            self.ied_criteria = None
-
-        # Clean SADs
-        self.sad_list = [data[data != 0] for data in self.sad_list]
-
-        # Check if dist_list is a list of strings or list of objects
-        self.dist_list = make_dist_list(dist_list)
-
-        assert len(self.sad_list) == len(self.ied_list), 'SAD list and' \
-                                        + 'IED list must be the same length'
-
-    def compare_reds(self):
-        '''
-        Compare the rank energy distributions against the given distribution
-        list
-
-        Returns
-        -------
-        : dict
-            Has len(self.dist_list) + 1.  All the distribution class names
-            passed to the constructor are key words as well as 'observed' which
-            references the observed data. Each keyword looks up
-            a list of arrays.  Each list is len(self.ied_list) long and
-            contains the predicted reds for the empirical data sets for the
-            given distribution. 
-
-        '''
-
-        reds_dict = {}
-        reds_dict['observed'] = self.ied_list
-        for dist in self.dist_list:
-            dist.fit((self.ied_list, self.sad_list))
-            reds_dict[get_name(dist)] = dist.rad()
-        return reds_dict
-
-class CompareSED(object):
-    '''
-    Class compares predicted species-level energy distribution (s) with the
-    observed species-level energy distribution (s)
-
-    Attributes
-    ----------
-    self.sed_list : list of arrays
-        Each array in this list is a species-level energy distribution (SED).
-        Each SED will be compared to the distributions given in dist_list.
-    self.ied_list : list of arrays
-        Each array in this list is an individual energy distribution (IED).
-        self.ied_list will always have the same length as self.sed_list.
-        CompareSED will broadcast ied_list to sed_list if only one IED is
-        given. 
-    self.sad_list : list of arrays
-        Each array in this list is an species abundance distribution (SAD).  
-        self.sad_list should have the same length as self.ied_list and
-        self.sed_list.  If only one SAD is given, it will be broadcast to the
-        length of self.sed_list.   
-    self.*_criteria : a list of dictionaries or None
-        If not None, each dictionary specifies the divisions made on the plot
-        that generated each SED, IED, and SAD and IED in self.sed_list,
-        self.ied_list, and self.sad_list.  All self.*_criteria should have the
-        same length.
-    self.dist_list : a list of distribution objects
-        Each object is a distribution to which the IEDs in self.ied_list will
-        be compared.
-    self.spp_names : list of strings or None
-        If not None, each string in self.spp_names is a species ID which
-        corresponds to an array in self.sed_list.
-
-    '''
-
-    def __init__(self, data_list, dist_list, patch=False):
-        '''
-        Parameters
-        ----------
-        data_list : tuple of lists or output from Patch object
-            Tuple of length three. The first object is a list np.arrays that
-            contains species energy distributions. The second object in the
-            tuple is a list of np.arrays that are the empirical community
-            energy distributions. The third object is a list of np.arrays that
-            are the empirical SADs. All three lists should should be the same
-            length. See patch argument in this method for information about
-            Patch object output.
-        dist_list : list of strings or objects
-            Each string corresponds to a name of a psi distribution to which to
-            compare to the observed data. 
-        patch : bool
-            If True, expects a tuple of length 3 with the first object being
-            the complete output from Patch.sed, the second object being the
-            output from Patch.ied and the third element being the output from
-            Patch.sad. If False expects what argument data_list describes.
-            Empirical sads and energy distributions should be made with the
-            same criteria (See Patch class for criteria explanation).
-        '''
-
-        if patch:
-            # TODO: Check length of input objects!
-
-            #Sort species energy
-            self.sed_criteria = []
-            self.sed_list = []
-            self.spp_names = []
-            for obj in data_list[0]:
-                self.spp_names.append(list(obj[1].viewkeys()))
-                for kw in self.spp_names[-1]:
-                    self.sed_list.append(obj[1][kw])
-                    self.sed_criteria.append(obj[0])
-
-            #Sort community energy
-            self.ied_criteria = []
-            self.ied_list = []
-            for i, obj in enumerate(data_list[1]):
-
-                # For consistency I am copying the ied data for each species 
-                num = len(self.spp_names[i])
-                tcri = [obj[0] for i in xrange(num)]
-                self.ied_criteria += tcri
-                teng = [obj[1] for i in xrange(num)]
-                self.ied_list += teng
-
-            #Sort sad
-            self.sad_criteria = []
-            self.sad_list = []
-            for i, obj in enumerate(data_list[2]):
-
-                # Copy sad data for each species
-                num = len(self.spp_names[i])
-                tcri = [obj[0] for i in xrange(num)]
-                self.sad_criteria += tcri
-                tsad = [obj[1] for i in xrange(num)]
-                self.sad_list += tsad
-
-            self.spp_names = list(np.array(self.spp_names).flatten())
-
-        else:
-            lr = [len(dt) for dt in data_list] # len list for checking
-            if lr[1] != lr[0]:
-                if lr[1] == 1:
-                    self.ied_list = [np.array(data_list[1][0]) for i in\
-                                                                 xrange(lr[0])]
-                else:
-                    raise AttributeError("Length of IED list must be 1 or the"\
-                                         + " same length as the SED list")
-            else:
-                self.ied_list = [np.array(data) for data in data_list[1]]
-
-            if lr[2] != lr[0]:
-                if lr[2] == 1:
-                    self.sad_list = [np.array(data_list[2][0]) for i in\
-                                                                 xrange(lr[0])]
-                else:
-                    raise AttributeError("Length of SAD list must be 1 or the"\
-                                         + " same length as the SED list")
-            else:
-                self.sad_list = [np.array(data) for data in data_list[2]]
-
-            self.sad_criteria = None
-            self.ied_criteria = None
-            self.sed_list = [np.array(data) for data in data_list[0]]
-            self.sed_criteria = None
-            self.spp_names = None
-
-        # Clean SADs just in case they have not been cleaned
-        self.sad_list = [data[data != 0] for data in self.sad_list]        
-
-        self.dist_list = make_dist_list(dist_list)
-        
-        # Double checking lengths
-        assert len(self.sad_list) == len(self.ied_list), 'sad_list and' \
-                                        + ' eng_list must be the same length'
-        assert len(self.sed_list) == len(self.ied_list), 'speng_list and ' \
-                                        + ' eng_list must be the same length'
-    
-    def compare_reds(self):
-        '''
-        Comparison of species level energy distributions
-
-        Returns
-        -------
-        : dict
-            Has len(self.dist_list) + 1.  All the distribution class names
-            passed to the constructor are key words as well as 'observed' which
-            references the observed data. Each keyword looks up
-            a list of arrays.  Each list is len(self.ied_list) long and
-            contains the predicted reds for the empirical data sets for the
-            given distribution. 
-        : list or None
-            Returns self.spp_names which could be a list of lists or None.
-            These names are the species names that correspond numerically with
-            the arrays in within each distribution.
-
-        '''
-        reds_dict = {}
-        reds_dict['observed'] = self.sed_list
-        for dist in self.dist_list:
-            dist.fit((self.sed_list, self.ied_list, self.sad_list))
-            reds_dict[get_name(dist)] = dist.rad()
-
-        return reds_dict, self.spp_names
-
-class CompareASED(object):
-    '''
-    Compares theoretical and observed ased's
-
-    '''
-
-    def __init__(self, data_list, dist_list, patch=False):
-        '''
-        Parameters
-        ----------
-        data_list : tuple of lists or output from Patch object
-            Tuple of length three. The first object is a list np.arrays that
-            are the the average species energy distributions. 
-            The second object in the tuple is a list of np.arrays that are the 
-            empirical community energy distributions. The third object is a 
-            list of np.arrays that are the empirical sads. See patch argument 
-            in this method for information about Patch object output.
-        dist_list : list of strings or objects
-            Each string corresponds to a name of a ased distribution to which to
-            compare to the observed data. 
-        patch : bool
-            If True, expects a tuple of length 3 with the first object being
-            the complete output from Patch.ased, the second object being
-            the output from Patch.ied and the third element being the
-            output from Patch.sad. If False expects what argument data_list
-            describes. Empirical sads and energy distributions should be made 
-            with the same criteria.
-        '''
-
-        if patch:
-
-            # Unpack sad. Store spp_lists in items
-            self.sad_criteria, self.sad_list, self.sad_items = \
-                                                unpack(data_list[2])
-
-            # Unpack ased 
-            self.ased_items, self.ased_criteria, self.ased_list = \
-                                                        unpack(data_list[0])
-
-            # Unpack ied
-            self.ied_criteria, self.ied_list = unpack(data_list[1])
-        else:
-            self.sad_list = [np.array(data) for data in data_list[2]]
-            self.sad_items = None
-            self.sad_criteria = None
-            self.ased_list = [np.array(data) for data in data_list[0]]
-            self.ased_items = None
-            self.ased_criteria = None
-            self.ied_list = [np.array(data) for data in data_list[1]]
-            self.ied_criteria = None
-
-        # Clean SADs
-        self.sad_list = [data[data != 0] for data in self.sad_list]
-
-        self.dist_list = make_dist_list(dist_list)
-
-    def compare_rads(self):
-        '''
-        Comparison of average species energy distribution
-
-        Returns
-        -------
-        : dict
-            Has len(self.dist_list) + 1.  All the distribution class names
-            passed to the constructor are key words as well as 'observed' which
-            references the observed data. Each keyword looks up
-            a list of arrays.  Each list is len(self.ied_list) long and
-            contains the predicted reds for the empirical data sets for the
-            given distribution.
-        '''
-        rads_dict = {}
-        rads_dict['observed'] = self.ased_list
-        for dist in self.dist_list:
-            dist.fit((self.ied_list, self.sad_list))
-            #Different Identifier?
-            rads_dict[get_name(dist)] = dist.rad()
-
-        return rads_dict
 
 def nll(pdist):
     '''

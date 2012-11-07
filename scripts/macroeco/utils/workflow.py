@@ -350,8 +350,9 @@ class Parameters:
                                                 ' assuming .csv'))
                                 data_type = 'csv'
                             # Remove any data extension
-                            file_name = elt.find('file').text.split('.')[0]
                             if data_type == 'csv':
+                                file_name = elt.find('file').text.split('.')[0]
+                                
                                 directory = elt.find('directory').text
                                 data_file = os.path.extsep.join((file_name,
                                                                 'csv'))
@@ -359,6 +360,8 @@ class Parameters:
                                                          directory, data_file)
                                 self.data_path[run_name].append(data_path)
                             elif data_type == 'txt':
+                                file_name = elt.find('file').text.split('.')[0]
+                            
                                 directory = elt.find('directory').text
                                 data_file = os.path.extsep.join((file_name,
                                                                 'txt'))

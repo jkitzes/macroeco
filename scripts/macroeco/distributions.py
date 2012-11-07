@@ -2988,6 +2988,7 @@ class psi(Distribution):
     def __init__(self, **kwargs):
 
         self.params = kwargs
+        self.par_num = 2        
         self.min_supp = 1
 
     @doc_inherit
@@ -3128,23 +3129,27 @@ class psi(Distribution):
     
     def fit(self, data):
         '''
-        Fit the energy distribution to data
+        Fit the community individual energy distribution data
         
         Parameters
         ----------
-        data : tuple
-            A tuple containing two objects.  The first object is a list of
-            iterables with each iterable containing an empirical community 
-            energy distribution.  The second object is a list of iterables with
-            each iterable containing an empirical sad.
+        data : list of tuples
+            
+            A list containing tuples of length two.  The first object in a
+            tuple an iterable containing the community individual energy
+            distribution.  The second object in a tuple is an iterable
+            containing the empirical species abundance distribution. 
 
         '''
 
+        # Unpack the list of tuples
+        ied, sad = unpack(data)
+
         # Use base class fit
-        super(psi, self).fit(data[1])
+        super(psi, self).fit(sad)
 
         # Format and check energy data
-        data_eng = check_list_of_iterables(data[0])
+        data_eng = check_list_of_iterables(ied)
 
         # Store energy data in self.params
         E = [np.sum(np.array(edata)) for edata in data_eng]
@@ -3180,6 +3185,7 @@ class theta(Distribution):
     def __init__(self, **kwargs): 
 
         self.params = kwargs
+        self.par_num = 2
         self.min_supp = 1
     
     @doc_inherit
@@ -3261,23 +3267,28 @@ class theta(Distribution):
 
         Parameters
         ----------
-        data : tuple
-            A tuple of length 3.  The first object is a list of np.arrays
-            containing empirical species energy distributions.  The second
-            object is a list of np.arrays containing community energy
-            distributions, and the third object is a list of np.arrays
-            containing sads.
+        data : list of tuples
+
+            A list of tuple where each tuple has length 3.  The first object in
+            a tuple is an iterable containing the empirical species energy
+            distribution.  The second object is a tuple is a community
+            individual energy distribution.  The third object in a tuple is a
+            empirical species abundance distribution.
 
         '''
-        super(theta, self).fit(data[2])
+        #TODO: Check format of data? 
+        # Unpack the tuples
+        sed, ied, sad = unpack(data)
+
+        super(theta, self).fit(sad)
 
         # Check and set energy data
-        data_eng = check_list_of_iterables(data[1])
+        data_eng = check_list_of_iterables(ied)
         E = [np.sum(np.array(edata)) for edata in data_eng]
         self.params['E'] = E
         
         # Check and set species abundance data
-        n_data = check_list_of_iterables(data[0])
+        n_data = check_list_of_iterables(sed)
         n = [len(np.array(ndata)) for ndata in n_data]
         self.params['n'] = n
 
@@ -3307,6 +3318,7 @@ class nu(Distribution):
     @doc_inherit
     def __init__(self, **kwargs):
         self.params = kwargs
+        self.par_num = 2
         self.min_supp = 1
 
     @doc_inherit
@@ -3458,23 +3470,37 @@ class nu(Distribution):
 
     def fit(self, data):
         '''
-        Fit the nu energy distribution to data
+        Fit the average species energy distribution to data
         
         Parameters
         ----------
-        data : tuple
-            A tuple containing two objects.  The first object is a list of
-            iterables with each iterable containing an empirical community 
-            energy distribution.  The second object is a list of iterables with
-            each iterable containing an empirical sad.
+        data : list of tuples
+            
+            A list containing tuples of length two or a list containing tuples
+            of length three.  If the tuples are of length two, the first object
+            in a tuple an iterable containing the community individual energy
+            distribution.  The second object in a tuple is an iterable
+            containing the empirical species abundance distribution. If the
+            tuples are of length three, the first object in the tuple is an
+            iterable containing the average energy distribution. The second object
+            in a tuple an iterable containing the community individual energy
+            distribution.  The third object in a tuple is an iterable
+            containing the empirical species abundance distribution.  
 
         '''
 
+        # Unpack the list of tuples
+        # Can either take 
+        if len(data[0]) == 2:
+            ied, sad = unpack(data)
+        elif len(data[0]) == 3:
+            ased, ied, sad = unpack(data)
+
         # Use base class fit
-        super(nu, self).fit(data[1])
+        super(nu, self).fit(sad)
 
         # Format and check energy data
-        data_eng = check_list_of_iterables(data[0])
+        data_eng = check_list_of_iterables(ied)
 
         # Store energy data in self.params
         E = [np.sum(np.array(edata)) for edata in data_eng]
@@ -3756,3 +3782,13 @@ def _generate_areas_(anchor_area, upscale, downscale, base=2):
         areas[i] = areas[i - 1] * base
 
     return areas
+
+def unpack(zipped_data):
+    '''
+    Unpacks zipped data
+
+    '''
+
+    unzipped_data = zip(*zipped_data)
+    unzipped_data = [list(tup) for tup in unzipped_data]
+    return tuple(unzipped_data)

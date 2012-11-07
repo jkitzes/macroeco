@@ -182,8 +182,6 @@ if __name__ == '__main__':
     wf = Workflow(required_params=required_params,
                  optional_params=optional_params, clog=True, svers=__version__)
 
-	    
-    
     for data_path, output_ID, params in wf.single_datasets():
 
         patch = Patch(data_path, params['subset'])
@@ -191,13 +189,12 @@ if __name__ == '__main__':
 
         cmpr = comp.CompareSAD(sad,
                             params['predicted_SAD_distributions'], patch=True)
-        rads = cmpr.compare_rads()
-        summary = cmpr.summary(rads, mins_list=params['rarity_measure'])
+        summary = cmpr.summary(mins_list=params['rarity_measure'])
         
         sout = DistOutput(output_ID, 'sad')
         sout.write_summary_table(summary, criteria=cmpr.criteria)
-        sout.plot_rads(rads, criteria=cmpr.criteria)
-        sout.plot_cdfs(cmpr.compare_cdfs(), cmpr.data_list,
+        sout.plot_rads(cmpr.compare_rads(), criteria=cmpr.criteria)
+        sout.plot_cdfs(cmpr.compare_cdfs(), cmpr.observed_data,
                         criteria=cmpr.criteria)
         logging.info('Completed analysis %s\n' % output_ID)
     logging.info("Completed 'compare_sad.py' script")
