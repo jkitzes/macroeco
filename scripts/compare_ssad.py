@@ -92,7 +92,7 @@ required_params = {'criteria' : gb.short_criteria + gb.req,
                   + gb.req}
 
 optional_params = {'subset' : (gb.short_subset + gb.optional, 
-                  {}), 'rarity_measure' : (rarity_measure + gb.optional, [10])}
+                  {}), 'rarity_measure' : (rarity_measure + gb.optional, [1])}
 
 if __name__ == '__main__':
 

@@ -16,6 +16,7 @@ ds = ''' Optional. Default: '''
 
 information_about_stops = '''temp'''
 delimiter = '''temp'''
+replace = '''temp'''
 
 # Columnar parameter descriptions
 columns_to_split = '''temp'''
@@ -28,7 +29,8 @@ subset = '''temp'''
 
 required_params = {'information_about_stops' : information_about_stops}
 optional_params = {'delimiter' : (delimiter + ds,
-                    [',']), 'columns_to_split' : (columns_to_split + ds, None),
+                    [',']), 'replace' : (replace + ds, None),
+                    'columns_to_split' : (columns_to_split + ds, None),
                     'change_column_names' : (change_column_names + ds, (None,
                     None)), 'add_column_names_and_values' :
                     (add_column_names_and_values + ds, (None, None)),
@@ -52,11 +54,13 @@ if __name__ == '__main__':
     for data_paths, output_IDs, params, run_name, script_name in\
                                                              wf.all_datasets():
     
-        transect_data = form.Transect_Data(data_paths, params['delimiter'][0],
-                                           archival=False)
+        transect_data = form.Transect_Data(data_paths, \
+                        delim=params['delimiter'][0],
+                        replace=params['replace'], archival=False)
 
         # Convert transect data into columnar form
-        transect_data.transect_to_columnar(params['information_about_stops'][0]
+        transect_data.transect_to_columnar(
+                                       params['information_about_stops'][0] - 1
                                          , params['information_about_stops'][1]
                                         , params['information_about_stops'][2])
 

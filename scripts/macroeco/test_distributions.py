@@ -829,7 +829,7 @@ class TestDistributions(unittest.TestCase):
         self.assertTrue((len(g[0]) == 50))
 
         # Test fit
-        g = nu().fit(([[1,2,3,4,5,6,7]], [[1,2,3,4,5,6,7]]))
+        g = nu().fit([([1,2,3,4,5,6,7], [1,2,3,4,5,6,7])])
         self.assertTrue(g.params['tot_obs'][0] == 28)
         self.assertTrue(g.params['n_samp'][0] == 7)
         self.assertTrue(g.params['E'][0] == 28)

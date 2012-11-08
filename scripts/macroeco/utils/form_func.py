@@ -215,10 +215,11 @@ def format_dense(datayears, spp_col, num_spp):
         The column in the dense array where the spp_names begin. 0 is the first
         column.
 
-    num_spp : tuple
+    num_spp : tuple or int
         Total number of species in plot. Each element in the tuple is the
         number of species in the corresponding rec array in data year.
-        Therefore, len(num_spp) should equal len(datayears).
+        Therefore, len(num_spp) should equal len(datayears).  If num_spp is an
+        int, it is converted to a tuple and extended to len(datayears)
 
     Returns
     -------
@@ -226,6 +227,20 @@ def format_dense(datayears, spp_col, num_spp):
         A list of formatted structured arrays.
 
     '''
+    # Handle and broadcast num_spp
+    if type(num_spp) == int:
+        num_spp = (num_spp,)
+    else:
+        num_spp = tuple(num_spp)
+
+    if (len(num_spp) != len(datayears)):
+        if len(num_spp) == 1:
+            num_spp = tuple(np.repeat(num_spp[0], len(datayears)))
+        else:
+            raise TypeError('len(num_spp) must equal len(datayears)')
+
+
+
     data_formatted = []
     for k, data in enumerate(datayears):
         ls = len(data.dtype.names[spp_col:spp_col + num_spp[k]])

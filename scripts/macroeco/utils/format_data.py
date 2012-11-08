@@ -661,22 +661,8 @@ class Dense_Data:
                 assert len(replace) == 2, "Replace must contain 2 elements"
 
                 for name in datalist:
-                    data = csv2rec(name, delimiter=delim, missing=replace[0])
-                    for nm in data.dtype.names:
-                        try:
-                            # Missing float
-                            isNaN = (np.isnan(data[nm]))
-                        except:
-                            isNaN = np.zeros(len(data[nm]), dtype=bool)
-                        isBlank = np.array([it == '' for it in data[nm]])
-                        isMinusOne = (data[nm] == -1)# Missing int
-                        # Missing other
-                        isNone = np.array([i == None for i in data[nm]])
-                        ind = np.bitwise_or(isNaN, isBlank)
-                        ind = np.bitwise_or(ind, isMinusOne)
-                        ind = np.bitwise_or(ind, isNone)
-                        data[nm][ind] = replace[1]
-                    self.dense_data.append(data)
+                    self.dense_data.append(replace_vals(name, replace,
+                                                                  delim=delim))
             else:
                 for name in datalist:
                     data = csv2rec(name, delimiter=delim)
@@ -694,7 +680,7 @@ class Dense_Data:
     def reset_grid_data(self):
         '''
         Resets self.grid_data to self.archival_data
-        
+
         Need to be careful about excessive memory usage!
         '''
 
@@ -716,11 +702,11 @@ class Dense_Data:
         spp_col_num : int
             The column number in the dense array where the spp_names begin
 
-        num_spp : tuple
-            Number of species in each dataset in self.dense_data
+        num_spp : tuple or int
+            Number of species in each dataset in self.dense_data. If it is an
+            int, it will be broadcasted to the length of self.dense_data
 
         '''
-
         columnar_data = format_dense(self.dense_data, spp_col_num,\
                                                                       num_spp)
         self.Columnar_Object = Columnar_Data(columnar_data, archival=archival)
@@ -753,29 +739,41 @@ class Transect_Data:
 
     '''
     
-    def __init__(self, filenames, delimiter=',', archival=True):
+    def __init__(self, filenames, delim=',', replace=None, archival=True):
         '''
 
         Parameters
         ----------
         filenames : list
             A list of filenames
-        delimiter : string
+        delim : string
             The file delimiter
+        replace : tuple
+            A tuple of length 2.  The first element is a string which
+            represents the missing values that you would like to replace.  The
+            second element is the value with which you would like to replace
+            the missing values.
         archival : bool
             If True, a copy of self.transect_data is made and stored in
             self.transect_archival. If dataset is very large, set to False.
 
 
         '''
-        self.columnar_data = []
         self.transect_data = []
         if type(filenames) == str:
             filenames = [filenames]
 
-        for name in filenames:
-            data = csv2rec(name, delimiter=delimiter)
-            self.transect_data.append(data)
+        if replace != None:
+                
+            assert len(replace) == 2, "Replace must contain 2 elements"
+
+            for name in filenames:
+                self.transect_data.append(replace_vals(name, replace,
+                                                                  delim=delim))
+        else:
+            for name in filenames:
+                data = csv2rec(name, delimiter=delim)
+                self.transect_data.append(data)
 
         if archival:
             self.transect_archival = [np.copy(data) for data in 
@@ -797,7 +795,7 @@ class Transect_Data:
             self.transect_data = [np.copy(data) for data in 
                                                         self.transect_archival]
 
-    def transect_to_columnar(self, stop_col_num, stop_name, tot_stops,\
+    def transect_to_columnar(self, stop_col_num, tot_stops, stop_name='stop',
                                      count_name='count', archival=True):
         '''
         This function takes transect data and convertes it into columnar data.
@@ -806,15 +804,17 @@ class Transect_Data:
 
         Parameters
         ----------
-        stop_col_num : int
-            The column number where the stop counts begin (1 is the first
-            column)
+        stop_col_num : iterable or int
+            The column number where the stop counts begin (0 is the first
+            column). Can be len(transect_data) or length == 1. Broadcast if
+            length equals 1.
+
+        tot_stops : iterable or int
+            The number of columns with stops. Can be len(transect_data) or 
+            length == 1. Broadcast if length equals 1.
         
         stop_name : str
             The name of the new stop column in the formatted data
-
-        tot_stops : int
-            The number of columns with stops
 
         count_name : str
             The name of the count column. Default is "count"
@@ -827,9 +827,14 @@ class Transect_Data:
         codes has the same name throughout all data sets.
 
         '''
-        for data in self.transect_data:
-            nstops = tot_stops
-            dtypes = data.dtype.descr[ : stop_col_num - 1]
+        # Broadcast stop_col_num
+        stop_col_num = broadcast(len(self.transect_data), stop_col_num)
+        tot_stops = broadcast(len(self.transect_data), tot_stops)
+
+        columnar_data = []
+        for j, data in enumerate(self.transect_data):
+            nstops = tot_stops[j]
+            dtypes = data.dtype.descr[ : stop_col_num[j] ]
             if (len(dtypes) + nstops) != len(data.dtype.names):
                 #Accounting for data fields after stops
                 end_dtypes = data.dtype.descr[(len(dtypes) + nstops) : ]
@@ -845,16 +850,15 @@ class Transect_Data:
                                                            np.arange(0, nstops)
                     elif name is count_name:
                         column_data[name][i * nstops:(i + 1) * nstops] = \
-                                   np.array(list(data[i]))[stop_col_num - 1 : \
+                                   np.array(list(data[i]))[stop_col_num[j] : \
                                                               -len(end_dtypes)]
                     else:
                         column_data[name][i * nstops:(i + 1) * nstops] = \
                                                                   data[name][i]
             # Remove all zeros
             column_data = column_data[column_data[count_name] != 0]
-            self.columnar_data.append(column_data)
-        self.Columnar_Object = Columnar_Data(self.columnar_data,
-                                                             archival=archival)
+            columnar_data.append(column_data)
+        self.Columnar_Object = Columnar_Data(columnar_data, archival=archival)
 
     def output_transect_data(self, filenames):
         '''
@@ -899,6 +903,64 @@ def remove_white_spaces(grid_list):
                 grid[name][i] = ''.join(grid[name][i].split(' '))
 
     return grid_list
+
+def broadcast(length, item):
+    '''
+    Broadcasts item to length = length if possible. Else raises error.
+
+    length -- int
+
+    item -- int of iterable
+
+    '''
+    # Handle and broadcast item
+    if type(item) == int:
+        item = (item,)
+    else:
+        item = tuple(item)
+
+    if (len(item) != length):
+        if len(item) == 1:
+            item = tuple(np.repeat(item[0], length))
+        else:
+            raise ValueError('Could not broadcast %s to length $s' %
+                                                    (str(item), str(length)))
+    return item
+
+def replace_vals(filename, replace, delim=','):
+    '''
+    Replace the values in filename with specified values in replace_values
+    
+    Parameters
+    ----------
+    filename : string 
+        Will be read into a rec array
+
+    replace_values : tuple
+        First object is value to replace and second object is what to replace
+        it with
+
+    
+    '''
+    data = csv2rec(filename, delimiter=delim, missing=replace[0])
+    for nm in data.dtype.names:
+        try:
+            # Missing float
+            isNaN = (np.isnan(data[nm]))
+        except:
+            isNaN = np.zeros(len(data[nm]), dtype=bool)
+        isBlank = np.array([it == '' for it in data[nm]])
+        isMinusOne = (data[nm] == -1)# Missing int
+        # Missing other
+        isNone = np.array([i == None for i in data[nm]])
+        ind = np.bitwise_or(isNaN, isBlank)
+        ind = np.bitwise_or(ind, isMinusOne)
+        ind = np.bitwise_or(ind, isNone)
+        data[nm][ind] = replace[1]
+    return data
+
+
+
 
 
 

@@ -51,6 +51,31 @@ class TestFormatData(unittest.TestCase):
                                 1,1,1,1,1,1,1''')
         self.dense2.close()
 
+        self.dense3 = open('dense3.csv', 'w')
+        self.dense3.write('''column, row, fry, the, eggs, well, please, j
+                                0,0,1,2,3,4,5,2
+                                0,1,0,0,NA,0,23,5
+                                1,0,NA,NA,5,45,0,6
+                                1,1,1,1,1,1,1,7''')
+        self.dense3.close()
+
+        self.dense4 = open('dense4.csv', 'w')
+        self.dense4.write('''column, row, fry, the, eggs, well, please, j,h
+                                0,0,1,2,3,4,5,2,t
+                                0,1,0,0,0,0,23,5,u
+                                1,0,1,0,5,45,0,6,k
+                                1,1,1,1,1,1,1,7,m''')
+        self.dense4.close()
+
+        self.trans1 = open('trans1.csv', 'w')
+        self.trans1.write(
+'''spp, island, tree, b1, b2, b3, b4, b5, nm, fun
+h,Marta,1,1,2,3,4,5,j,56
+t,Marta,2,1,1,1,1,0,k,78
+h,Garry,1,2,3,4,5,6,j,123
+t,Garry,2,0,1,2,0,5,u,456''')
+        self.trans1.close()
+
 
     def tearDown(self):
         os.remove('grid1.csv')
@@ -58,6 +83,9 @@ class TestFormatData(unittest.TestCase):
         os.remove('grid3.csv')
         os.remove('dense1.csv')
         os.remove('dense2.csv')
+        os.remove('dense3.csv')
+        os.remove('dense4.csv')
+        os.remove('trans1.csv')
 
     def test_Grid_Data(self):
         grid = form.Grid_Data('grid1.csv', 2, spp_sep='+')
@@ -193,7 +221,8 @@ class TestFormatData(unittest.TestCase):
         spp_arr = np.array([5,23,0,1])
         read_in = dense.dense_data[0]['please']
         self.assertTrue(np.all(spp_arr == read_in))
-
+        
+        # NAs should all be turned to 0's
         dense = form.Dense_Data('dense1.csv', replace=('NA', 0))
         spp_arr = np.array([1,0,0,1])
         read_in = dense.dense_data[0]['fry']
@@ -211,28 +240,69 @@ class TestFormatData(unittest.TestCase):
         read_in = dense.dense_data[0]['please']
         self.assertTrue(np.all(spp_arr == read_in))
 
-        # Test Dense to Columnar
+        # Test dense_to_columnar
+        dense = form.Dense_Data(['dense2.csv', 'dense3.csv'], replace=('NA',0))
+        dense.dense_to_columnar(2, (5,6))
+        col = dense.Columnar_Object
+        col.merge_data()
+        unq_spp = np.unique(['eggs', 'fry', 'the', 'well', 'please', 'j'])
+        pred_unq_spp = np.unique(col.merged_data['spp'])
+        self.assertTrue(np.all(unq_spp == pred_unq_spp))
+        count = [1,2,3,4,5]
+        self.assertTrue(np.all(count == col.merged_data['count'][:5]))
+        count = [1,1,1,1,1,7]        
+        self.assertTrue(np.all(count == col.merged_data['count'][-6:]))
+        self.assertTrue(len(col.merged_data) == 30)
+        self.assertTrue(col.merged_data['count'][5] == 23)
+        self.assertTrue(col.merged_data['spp'][5] == 'please')
 
+        # Test correct extension of num_spp
+        dense = form.Dense_Data(['dense2.csv', 'dense2.csv'], replace=('NA',0))
+        self.assertRaises(TypeError, dense.dense_to_columnar, 2, (5,6,7))
+        dense.dense_to_columnar(2, 5)
+        col = dense.Columnar_Object
+        count = np.array([1,2,3,4,5])
+        self.assertTrue(np.all(col.columnar_data[0]['count'][:5] == count))
+        self.assertTrue(np.all(col.columnar_data[1]['count'][:5] == count))
 
+        # Test trailing column after species
+        dense = form.Dense_Data(['dense4.csv'])
+        dense.dense_to_columnar(2, 5)
+        col = dense.Columnar_Object
+        comp = np.array([2,2,2,2,2,5,6,6,6,7,7,7,7,7])
+        self.assertTrue(np.all(comp == col.columnar_data[0]['j']))
+        comp = np.array(['t', 't', 't', 't', 't', 'u', 'k', 'k', 'k', 'm', 'm',
+                            'm', 'm', 'm'])
+        self.assertTrue(np.all(comp == col.columnar_data[0]['h']))
 
-
-
+    def test_Transect_Data(self):
         
-        
 
+        # Already tested replace_vals test_Dense_Data
+        trans = form.Transect_Data('trans1.csv', replace=('0', 1))
+        trans.transect_to_columnar(3, 5)
+        col = trans.Columnar_Object
+        count = np.array([1,2,3,4,5,1,1,1,1,1,2,3,4,5,6,1,1,2,1,5])
+        print col.columnar_data[0]['count']
+        self.assertTrue(np.all(count == col.columnar_data[0]['count']))
 
-        
-        
+        # Test that transect data reads in correctly and converts to columnar
+        trans = form.Transect_Data('trans1.csv')
+        trans.transect_to_columnar(3, 5)
+        col = trans.Columnar_Object
+        print col.columnar_data
+        count = np.array([1,2,3,4,5,1,1,1,1,2,3,4,5,6,1,2,5])
+        self.assertTrue(np.all(count == col.columnar_data[0]['count']))
 
-
-
-
-
-
-
-
-
-
+        # Test multiple datasets are converted correctly
+        trans = form.Transect_Data(['trans1.csv', 'trans1.csv'])
+        trans.transect_to_columnar(3,5)
+        col = trans.Columnar_Object
+        col.merge_data()
+        self.assertTrue(np.all(np.concatenate((count, count)) ==
+                                                    col.merged_data['count']))
+    def test_Columnar_Data(self):
+        pass
 
 if __name__ == '__main__':
     unittest.main()

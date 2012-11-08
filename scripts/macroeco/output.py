@@ -35,7 +35,7 @@ appended to the file name after {5} in order to make each file unique.  It is
 either a species identifier or a number.'''
 
 readme_info_summary=\
-'''
+u"""
 FOLDER DESCRIPTION
 ------------------
 
@@ -43,13 +43,13 @@ The folder {0} contains {1} txt files.  Each file contains a summary for
 the plot generate by the criteria at the header of the file.  The
 criteria are either a species name or string that looks like
 
-{'y': [('>=', 0.0), ('<', 150.0)], 'x': [('>=', 0.0), ('<', 50.0)]}
+'y': [('>=', 0.0), ('<', 150.0)], 'x': [('>=', 0.0), ('<', 50.0)]
 
 This can be interpreted as follows.  The plot under consideration has 'y' values
 greater than or equal to 0 and less than 150 and 'x' values greater than or
 equal to 0 and less than 50.  Similarly a criteria string of the form
 
-{'year' : ('==' , 1998)}
+'year' : ('==' , 1998)
 
 can be interpreted as the plot under consideration has 'year' values equal to
 1998. 
@@ -59,7 +59,7 @@ distribution to which the observed data was compared. Each file name is a
 concatenation of the following strings: analysis name, data name and
 summary_table.  An additional identifier is appended to the file name after
 summary_table in order to make each file unique.  It is either a species
-identifier or a number.'''
+identifier or a number."""
 
 readme_info_rarity =\
 '''
@@ -99,6 +99,7 @@ class DistributionOutput(object):
         self.rad_y_axis = 'Abundance'
         self.cdf_x_axis = 'Abundance'
         self.cdf_y_axis = 'Cumulative Probability'
+        self.variable = 'abundance'
 
 
     def write_summary_table(self, smry, criteria=None):
@@ -205,7 +206,7 @@ class DistributionOutput(object):
         Notes
         -----
         Saves RAD plots to given out_dir.  Saves as many plots as there are
-        SADs.
+        observed distributions.
 
         '''
         folder_name = 'rank_abundance_plots_' + self.out_dir
@@ -228,7 +229,6 @@ class DistributionOutput(object):
             
             if criteria != None and np.all([type(crt) != dict for crt in
                                                                     criteria]):
-
                 plt.title('RAD criteria: ' + str(criteria[i]))
                 filename = os.path.join(folder_name, self.out_dir +
                                     '_rank_abundance_plot_' + str(criteria[i]))
@@ -375,7 +375,7 @@ class SADOutput(DistributionOutput):
         self.rad_y_axis = 'Abundance'
         self.cdf_x_axis = 'Abundance'
         self.cdf_y_axis = 'Cumulative Probability'
-        self.variable = self.variable
+        self.variable = 'abundance'
 
 class SSADOutput(DistributionOutput):
     '''
@@ -397,7 +397,7 @@ class SSADOutput(DistributionOutput):
         self.rad_y_axis = 'Abundance'
         self.cdf_x_axis = 'Abundance'
         self.cdf_y_axis = 'Cumulative Probability'
-        self.variable = self.variable
+        self.variable = 'abundance'
 
 class SAROutput(object):
     '''
@@ -762,7 +762,7 @@ def plot_rec_columns(rec_array):
     names = rec_array.dtype.names
     legend = []
 
-    # If their are more arrays than symbols just change colors of lines
+    # If there are more arrays than symbols just change colors of lines
     if len(names) > len(plot_symbols):
         for nm in names:
             if nm != 'species':
@@ -784,6 +784,7 @@ def plot_rec_columns(rec_array):
         for nm in names:
             if nm != 'species':
                 if nm == 'observed':
+                    
                     plt.plot(np.arange(1, len(rec_array) + 1),
                                         np.sort(rec_array[nm])[::-1], '-o',
                                         color='black')
