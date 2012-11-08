@@ -13,24 +13,12 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
-from macroeco.utils import global_strings
+import macroeco.utils.global_strings as gb 
 
 gui_name = '''Rarity Analysis'''
 
 summary = '''Compares a dataset's observed rarity against predicted rarity'''
 
-
-subset = '''Specifications for how you want to subset your data before the
-analysis. Note that only the subsetted data will be included in the analysis.
-The left-hand dropdown box contains all the columns of your dataset and you may
-choose one or more to subset. Please see analysis explanation for more detail
-and examples.'''
-
-criteria = '''Specifications for how you want to divide your data during the
-analysis. The words you see below are the shared columns of your dataset(s).
-You must designate your species column with the special word 'species' found in
-the dropdown menu. You are not required to fill any additional columns for this
-analysis. Please see analysis explanation for more detail and examples.'''
 
 predicted_SAD_distributions = '''This parameter is a list of SAD
 distributions that you can test against your observed rarity.
@@ -38,9 +26,9 @@ distributions that you can test against your observed rarity.
 You may use any number of the following SAD distributions : %s
 
 Example input: ['logser', 'plognorm_lt'] or ['nbd_lt']. The brackets MUST be
-included.''' % (global_strings.SAD_distributions)
+included.''' % (gb.SAD_distributions)
 
-rarity_measure = global_strings.rarity_measure + ''' In this analysis, the rarity
+rarity_measure = gb.rarity_measure + ''' In this analysis, the rarity
 counts refer to individuals per species.'''
 
 explanation = '''
@@ -92,14 +80,14 @@ REFERENCES
 
 Harte, J. 2011. Maximum Entropy and Ecology: A Theory of Abundance,
 Distribution, and Energetics. Oxford University Press.
-'''.format(global_strings.subset, global_strings.criteria, global_strings.rarity_measure,
+'''.format(gb.subset, gb.criteria, gb.rarity_measure,
 predicted_SAD_distributions)
 
-required_params = { 'criteria' : criteria,
-        'predicted_SAD_distributions' : predicted_SAD_distributions,
-        'rarity_measure' : rarity_measure}
+required_params = { 'criteria' : gb.short_criteria + gb.req,
+        'predicted_SAD_distributions' : predicted_SAD_distributions + gb.req,
+        'rarity_measure' : rarity_measure + gb.req}
 
-optional_params = {'subset' : (subset + ''' Optional. Default: ''', {})}
+optional_params = {'subset' : (gb.short_subset + gb.optional, {})}
 
 
 if __name__ == '__main__':

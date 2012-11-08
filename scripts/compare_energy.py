@@ -11,27 +11,13 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
-from macroeco.utils import global_strings
+import macroeco.utils.global_strings as gb 
 
 gui_name = '''Analysis of Macroecological Energy Metrics'''
 
 summary = '''Compares a dataset's observed energy metrics against predicted
 energy metrics'''
 
-
-subset = '''Specifications for how you want to subset your data before the
-analysis. Note that only the subsetted data will be included in the analysis.
-The left-hand dropdown box contains all the columns of your dataset and you may
-choose one or more to subset. Please see analysis explanation for more detail
-and examples.'''
-
-criteria = '''Specifications for how you want to divide your data during the
-analysis. The words you see below are the shared columns of your dataset(s).
-For this compare_energy anlysis, you must designate your species column with
-the special word 'species' and your mass or energy column with the special word
-'mass' or 'energy'.  These special words can be found in the dropdown menu. You
-are not required to fill any additional columns for this analysis. Please see
-analysis explanation for more detail and examples.'''
 
 predicted_SED_distributions = '''This parameter is the list of SED
 distributions to which you can compare your observed data. 
@@ -114,17 +100,16 @@ REFERENCES
 Harte, J. 2011. Maximum Entropy and Ecology: A Theory of Abundance,
 Distribution, and Energetics. Oxford University Press.
 
-'''.format(global_strings.subset, global_strings.criteria, predicted_SED_distributions,
+'''.format(gb.subset, gb.criteria, predicted_SED_distributions,
 predicted_IED_distributions, energy_metrics)
 
 
-required_params = {'criteria' : criteria,
-                   'predicted_SED_distributions' : predicted_SED_distributions,
-                   'predicted_IED_distributions' : predicted_IED_distributions,
-                   'energy_metrics' : energy_metrics}
+required_params = {'criteria' : gb.short_criteria + gb.req,
+        'predicted_SED_distributions' : predicted_SED_distributions + gb.req,
+        'predicted_IED_distributions' : predicted_IED_distributions + gb.req,
+        'energy_metrics' : energy_metrics + gb.req}
 
-optional_params = {'subset' : (subset + ''' Subsetting is optional. Default: 
-                    ''', {})}
+optional_params = {'subset' : (gb.short_subset + gb.optional, {})}
 
 if __name__ == '__main__':
 

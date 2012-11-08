@@ -13,24 +13,12 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
-from macroeco.utils import global_strings
+import macroeco.utils.global_strings as gb
 
 gui_name = '''Analysis of Species-level Spatial Abundance Distributions'''
 
 summary = '''Compares a dataset's observed species-level spatial abundance
 distribution against predicted species-level spatial abundance distributions'''
-
-subset = '''Specifications for how you want to subset your data before the
-analysis. Note that only the subsetted data will be included in the analysis.
-The left-hand dropdown box contains all the columns of your dataset and you may
-choose one or more to subset. Please see analysis explanation for more detail
-and examples.'''
-
-criteria = '''Specifications for how you want to divide your data during the
-analysis. The words you see below are the shared columns of your dataset(s).
-You must designate your species column with the special word 'species' found in
-the dropdown menu. You are not required to fill any additional columns for this
-analysis. Please see analysis explanation for more detail and examples.'''
 
 # NOTE: Need to find a different way to specify which distributions they can
 # use
@@ -40,9 +28,9 @@ distributions to which you can compare your observed data.
 You may use any number of the following SSAD distributions: {!s} 
 
 Example input: ['binm', 'pois'] or ['fnbd']. The brackets MUST be
-included.'''.format(global_strings.SSAD_distributions)
+included.'''.format(gb.SSAD_distributions)
 
-rarity_measure = global_strings.rarity_measure + ''' In this analysis, the rarity
+rarity_measure = gb.rarity_measure + ''' In this analysis, the rarity
 counts refer to the number of individuals of a single species per cell.'''
 
 explanation = '''
@@ -96,13 +84,15 @@ REFERENCES
 
 Harte, J. 2011. Maximum Entropy and Ecology: A Theory of Abundance,
 Distribution, and Energetics. Oxford University Press.
-'''.format(global_strings.subset, global_strings.criteria, rarity_measure,
+'''.format(gb.subset, gb.criteria, rarity_measure,
 predicted_SSAD_distributions)
 
-required_params = {'criteria' : criteria, 'rarity_measure' : rarity_measure,
-		           'predicted_SSAD_distributions': predicted_SSAD_distributions}
+required_params = {'criteria' : gb.short_criteria + gb.req,
+                  'predicted_SSAD_distributions': predicted_SSAD_distributions
+                  + gb.req}
 
-optional_params = {'subset' : (subset + ''' Optional. Default: ''', {})}
+optional_params = {'subset' : (gb.short_subset + gb.optional, 
+                  {}), 'rarity_measure' : (rarity_measure + gb.optional, [10])}
 
 if __name__ == '__main__':
 

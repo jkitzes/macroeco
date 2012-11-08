@@ -13,25 +13,12 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
-from macroeco.utils import global_strings
+import macroeco.utils.global_strings as gb
 
 gui_name = ''' Analyze Species-Area Relationships'''
 
 summary = '''Compares a dataset's observed species-area relationships against 
 theoretical species-area relationships'''
-
-
-subset = '''Specifications for how you want to subset your data before the
-analysis. Note that only the subsetted data will be included in the analysis.
-The left-hand dropdown box contains all the columns of your dataset and you may
-choose one or more to subset. Please see analysis explanation for more detail
-and examples.'''
-
-criteria = '''Specifications for how you want to divide your data during the
-analysis. The words you see below are the shared columns of your dataset(s).
-You must designate your species column with the special word 'species' found in
-the dropdown menu. You are not required to fill any additional columns for this
-analysis. Please see analysis explanation for more detail and examples.'''
 
 columns_to_divide = '''This parameter specifies which spatial columns you would
 like to divide for the SAR analysis.  For example, if your data had spatial
@@ -138,19 +125,18 @@ Distribution, and Energetics. Oxford University Press.
 Rosenzweig, M. L. 1995. Species Diversity in Space and Time. Cambridge
 University Press.
 
-'''.format(global_strings.subset, global_strings.criteria, columns_to_divide,
+'''.format(gb.subset, gb.criteria, columns_to_divide,
 list_of_divisions_on_columns, predicted_SAR_curves, name)
 
 
-required_params = {'criteria' : criteria,
-                   'columns_to_divide' : columns_to_divide,
+required_params = {'criteria' : gb.short_criteria + gb.req,
+                   'columns_to_divide' : columns_to_divide + gb. req,
                    'list_of_divisions_on_columns' :
-                   list_of_divisions_on_columns,
-                   'predicted_SAR_curves' : predicted_SAR_curves,
-                   'name' : name}
+                   list_of_divisions_on_columns + gb.req,
+                   'predicted_SAR_curves' : predicted_SAR_curves + gb.req}
 
-optional_params = {'subset' : (subset + ''' Subsetting is optional. Default: 
-                                ''', {})}
+optional_params = {'subset' : (gb.short_subset + gb.optional, {}), 'name' : 
+                    (name + gb.optional, 'Plot')}
 
 if __name__ == '__main__':
 
