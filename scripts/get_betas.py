@@ -13,6 +13,7 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
+
 gui_name = '''Calculate Beta from Given N and S'''
 
 summary = '''Calculate the Lagrange multiplier 'beta' for a given set of S and
