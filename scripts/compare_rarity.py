@@ -172,9 +172,7 @@ if __name__ == '__main__':
     from macroeco.utils.workflow import Workflow
     from macroeco.empirical import Patch
     import macroeco.compare as comp
-    from macroeco.utils.form_func import output_form
-    import numpy as np
-    import os
+    from macroeco.output import OutputRarity
 
     wf = Workflow(required_params=required_params,
                 optional_params=optional_params, clog=True, svers=__version__)
@@ -186,34 +184,12 @@ if __name__ == '__main__':
         # NOTE: Only looks at rarity for SADs 
         patch_out = patch.sad(params['criteria'], clean=True)
 
-        cmpr = comp.CompareDistribution(patch_out, 
-                 params['predicted_SAD_distributions'], patch='sad')
-        rarity = cmpr.compare_rarity(cmpr.compare_rads(),
-                                            mins_list=params['rarity_measure'])
+        cmpr = comp.CompareSAD(patch_out, 
+                 params['predicted_SAD_distributions'], patch=True)
+        rarity = cmpr.compare_rarity(mins_list=params['rarity_measure'])
        
-        # NOTE: We could wrap all this in an output function if we want to
-        # Make dtype
-        keys = list(rarity.viewkeys())
-        dtype = [(kw, np.int) for kw in keys]
-        max_len = np.max([len(str(crit)) for crit in cmpr.criteria])
-        dtype.insert(0, ('criteria', 'S90')) # arbitrary length
-        dtype.insert(0, ('data_name', 'S90')) # arbitrary length
-
-        # Get a list of my minimums
-        rare_list = []
-        mins = list(rarity['observed'].viewkeys())
-        for mn in mins:
-            rarity_array = np.empty(len(cmpr.data_list), dtype=dtype)
-            rarity_array['criteria'] = cmpr.criteria
-            nm = os.path.split(data_path)[1].split('.')[0]
-            rarity_array['data_name'] = np.repeat(nm, len(rarity_array))
-            for kw in keys:
-                rarity_array[kw] = rarity[kw][mn]
-            rare_list.append(rarity_array)
-        
-        # Output results
-        for i, rare in enumerate(rare_list):
-            output_form(rare, output_ID + '_rarity_<=_' + str(mins[i]))
+        OutputRarity(output_ID).output_rarity(rarity, data_path,
+                                    cmpr.observed_data, criteria=cmpr.criteria)
         
         logging.info('Completed analysis %s\n' % output_ID)
     logging.info("Completed 'compare_rarity.py' script")

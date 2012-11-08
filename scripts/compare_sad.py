@@ -177,7 +177,7 @@ if __name__ == '__main__':
     from macroeco.utils.workflow import Workflow
     from macroeco.empirical import Patch
     import macroeco.compare as comp
-    from macroeco.output import DistOutput
+    from macroeco.output import SADOutput
 
     wf = Workflow(required_params=required_params,
                  optional_params=optional_params, clog=True, svers=__version__)
@@ -191,11 +191,12 @@ if __name__ == '__main__':
                             params['predicted_SAD_distributions'], patch=True)
         summary = cmpr.summary(mins_list=params['rarity_measure'])
         
-        sout = DistOutput(output_ID, 'sad')
+        sout = SADOutput(output_ID)
         sout.write_summary_table(summary, criteria=cmpr.criteria)
-        sout.plot_rads(cmpr.compare_rads(), criteria=cmpr.criteria)
+        sout.plot_rads(cmpr.compare_rads(), criteria=cmpr.criteria,
+                                        species=cmpr.sad_spp_list)
         sout.plot_cdfs(cmpr.compare_cdfs(), cmpr.observed_data,
-                        criteria=cmpr.criteria)
+                        criteria=cmpr.criteria, species=cmpr.sad_spp_list)
         logging.info('Completed analysis %s\n' % output_ID)
     logging.info("Completed 'compare_sad.py' script")
 

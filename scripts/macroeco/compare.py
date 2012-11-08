@@ -42,6 +42,7 @@ from __future__ import division
 import numpy as np
 import scipy.stats as stats
 from distributions import *
+import copy
 
 __author__ = "Mark Wilber"
 __copyright__ = "Copyright 2012, Regents of University of California"
@@ -199,12 +200,12 @@ class CompareDistribution(object):
         ----
         If self.rads has already been set in another method (i.e. is not None).
         This method will not overwrite it.  To reset self.rads, set self.rads
-        = None and and then run self.compare_rads().
+        = None and then run self.compare_rads().
 
         '''
         if self.rads == None:
             rads_dict = {}
-            rads_dict['observed'] = self.observed_data
+            rads_dict['observed'] = copy.deepcopy(self.observed_data)
             for i, dist in enumerate(self.dist_list):
                 #Different Identifier?
                 rads_dict[get_name(dist)] = dist.rad()
@@ -430,7 +431,6 @@ class CompareSAD(CompareDistribution):
         '''
         if patch == True:
             self.criteria, sad_data, self.sad_spp_list = unpack(data_list)
-            
             super(CompareSAD, self).__init__(sad_data, dist_list, 0) 
         else:
             super(CompareSAD, self).__init__(data_list, dist_list, 0)

@@ -9,6 +9,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import logging
 from macroeco.utils.form_func import output_form, add_field
+import copy as cp
+import os
+import shutil
 
 __author__ = "Mark Wilber"
 __copyright__ = "Copyright 2012, Regents of the University of California"
@@ -18,30 +21,85 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
-class DistOutput(object):
+readme_info_plots =\
+'''
+FOLDER DESCRIPTION
+-------------------
+
+The folder {3} contains {0} files.  There are {1} {4} represented as png
+files and {2} csv files which contain the data required to generate each
+plot.  The csv files have identical names to the png files to which they
+correspond. Each file name is a concatenation of the following strings:
+analysis name, run name, data name, and {5}.  An additional identifier is
+appended to the file name after {5} in order to make each file unique.  It is
+either a species identifier or a number.'''
+
+readme_info_summary=\
+'''
+FOLDER DESCRIPTION
+------------------
+
+The folder {0} contains {1} txt files.  Each file contains a summary for
+the plot generate by the criteria at the header of the file.  The
+criteria are either a species name or string that looks like
+
+{'y': [('>=', 0.0), ('<', 150.0)], 'x': [('>=', 0.0), ('<', 50.0)]}
+
+This can be interpreted as follows.  The plot under consideration has 'y' values
+greater than or equal to 0 and less than 150 and 'x' values greater than or
+equal to 0 and less than 50.  Similarly a criteria string of the form
+
+{'year' : ('==' , 1998)}
+
+can be interpreted as the plot under consideration has 'year' values equal to
+1998. 
+
+Each summary file contains summary statistics for the observed data and each
+distribution to which the observed data was compared. Each file name is a
+concatenation of the following strings: analysis name, data name and
+summary_table.  An additional identifier is appended to the file name after
+summary_table in order to make each file unique.  It is either a species
+identifier or a number.'''
+
+readme_info_rarity =\
+'''
+FOLDER DESCRIPTION
+------------------
+
+The folder {0} contains {1} csv files.  Each file contains the
+columns 'data_name', 'criteria', 'observed', and any number of columns with
+distribution names.  These are the distributions to which the data was
+compared.  The column data_name gives the name of the data being examined, the
+column criteria describes the specifications that made the given plot, the
+remaining columns describe the number of items that had a value below a
+prespecified minimum.  The prespecified minimum can be found in the file name
+immediately after '_<=_'.   Each file name is a concatenation of the following
+strings: analysis name, data name and 'rarity_<=_' some minimum.
+'''
+
+
+class DistributionOutput(object):
     '''
     This formats and outputs analyses on distributions
 
     '''
 
-    def __init__(self, out_dir, name):
+    def __init__(self, out_dir):
         '''
         Parameters
         ----------
         out_dir : string
             Output directory of object
-        name : string
-            Either 'sad' or 'ssad'. This argument dicatates how plots and files
-            are named in the output. 
         '''
 
         self.out_dir = out_dir
-        if name == 'sad':
-            self.urns = 'S'
-            self.balls = 'N'
-        if name == 'ssad':
-            self.urns = 'Cells'
-            self.balls = 'Individuals'
+        self.urns = 'Urns'
+        self.balls = 'Balls'
+        self.rad_x_axis = 'Rank'
+        self.rad_y_axis = 'Abundance'
+        self.cdf_x_axis = 'Abundance'
+        self.cdf_y_axis = 'Cumulative Probability'
+
 
     def write_summary_table(self, smry, criteria=None):
         '''
@@ -65,20 +123,26 @@ class DistOutput(object):
         Writes out a formatted txt file to self.out_dir 
 
         '''
-
+        # Make output folder
+        folder_name = 'summary_statistics_' + self.out_dir
+        make_directory(folder_name)
+        
         tot_sad = len(smry['observed']['balls'])
         if criteria != None:
             assert len(criteria) == tot_sad, "len(criteria) must  equal" + \
                                    " number of data arrays under consideration"
         ob = smry['observed']
+
+        count = 0
         for i in xrange(tot_sad):
             if criteria != None and np.all([type(crt) != dict for crt in
                                                                   criteria]):
-                filename = self.out_dir + '_summary_table_' + str(criteria[i])\
-                            + '.txt'
+                filename = os.path.join(folder_name, self.out_dir + \
+                        '_summary_table_' + str(criteria[i]) + '.txt')
                 
             else:
-                filename = self.out_dir + '_summary_table_' + str(i) + '.txt'
+                filename = os.path.join(folder_name, self.out_dir + 
+                                    '_summary_table_' + str(i) + '.txt')
 
             fout = open(filename, 'w')
             logging.info('Writing summary table %s' % filename)
@@ -118,8 +182,13 @@ class DistOutput(object):
                     str(dt['max'][i]) + '\nPredicted Rarity = ' +
                     str(dt_rare) + '\n\n')
             fout.close()
+            count += 1
 
-    def plot_rads(self, rads, criteria=None):
+        fout = open(os.path.join(folder_name, 'README'), 'w')
+        fout.write(readme_info_summary.format(folder_name, count))
+        fout.close()
+
+    def plot_rads(self, rads, criteria=None, species=None):
         '''
         Plotting the observed and predicted rank abundance distributions
 
@@ -127,7 +196,11 @@ class DistOutput(object):
         ----------
         rads : dict
             A dictionary that is returned from the function compare_rads in the
-            CompareDistribution class. 
+            CompareDistribution class.
+
+        criteria : list of objects
+            If not none, the objects in criteria will be printed a strings in
+            the plots and file names.
 
         Notes
         -----
@@ -135,46 +208,66 @@ class DistOutput(object):
         SADs.
 
         '''
+        folder_name = 'rank_abundance_plots_' + self.out_dir
+        make_directory(folder_name)
+
         tot_sad = len(rads['observed'])
-        recs = make_rec_from_dict(rads, tot_sad)
+        recs = make_rec_from_dict(rads, tot_sad, species=species)
+
         if criteria != None:
             assert len(criteria) == tot_sad, "len(criteria) must  equal" + \
                                    " number of data arrays under consideration"
+        count = 0
         for i, data in enumerate(recs):
             
             # Plot all columns of the rec array
             plot_rec_columns(data)
             plt.semilogy()
-            plt.ylabel('log(abundance)')
-            plt.xlabel('rank')
+            plt.ylabel('Log ' + self.rad_y_axis)
+            plt.xlabel(self.rad_x_axis)
+            
             if criteria != None and np.all([type(crt) != dict for crt in
                                                                     criteria]):
+
                 plt.title('RAD criteria: ' + str(criteria[i]))
-                logging.info('Saving figure and csv ' + self.out_dir + 
+                filename = os.path.join(folder_name, self.out_dir +
                                     '_rank_abundance_plot_' + str(criteria[i]))
-                plt.savefig(self.out_dir + '_rank_abundance_plot_' + 
-                                                              str(criteria[i]))
-                output_form(recs[i], self.out_dir + '_rank_abundance_plot_' +
-                                                              str(criteria[i]))
+
+                logging.info('Saving figure and csv ' + filename)
+                plt.savefig(filename)
+                output_form(recs[i], filename)
+                count += 2
+
             elif criteria != None and np.all([type(crt) == dict for crt in
                                                                     criteria]):
                 plt.title('RAD criteria: ' + str(criteria[i]))
-                logging.info('Saving figure ' + self.out_dir + 
+
+                filename = os.path.join(folder_name,  self.out_dir + 
                                               '_rank_abundance_plot_' + str(i))
-                plt.savefig(self.out_dir + '_rank_abundance_plot_' + str(i))
-                output_form(recs[i], self.out_dir + '_rank_abundance_plot_' + 
-                                                                        str(i))
+                logging.info('Saving figure ' + filename)
+                plt.savefig(filename)
+                output_form(recs[i], filename)
+                count += 2
+
             else:
                 plt.title('RAD: plot number ' + str(i))
-                logging.info('Saving figure ' + self.out_dir + 
+                
+                filename = os.path.join(folder_name, self.out_dir + 
                                               '_rank_abundance_plot_' + str(i))
-                plt.savefig(self.out_dir + '_rank_abundance_plot_' + str(i))
-                output_form(recs[i], self.out_dir + '_rank_abundance_plot_' + 
-                                                                        str(i))
+                logging.info('Saving figure ' + filename)
+                plt.savefig(filename)
+                output_form(recs[i], filename)
+                count += 2
             
             plt.clf()
+
+        fout = open(os.path.join(folder_name, 'README'), 'w')
+        fout.write(readme_info_plots.format(count, count /2, count/2,
+            folder_name, 'rank abundance plots (RAD)', 'rank_abundance_plot'))
+        fout.close()
+
     
-    def plot_cdfs(self, cdfs, obs_sads, criteria=None):
+    def plot_cdfs(self, cdfs, obs_sads, criteria=None, species=None):
         '''
 
         Plots observed vs predicted cdfs and returns a csv file with values
@@ -191,48 +284,120 @@ class DistOutput(object):
             A list of arrays.  The observed sad(s)
 
         '''
+        # Make directory
+        folder_name = 'cdf_plots_' + self.out_dir
+        make_directory(folder_name)
+
         tot_sad = len(cdfs['observed'])
         recs = make_rec_from_dict(cdfs, tot_sad)
         if criteria != None:
             assert len(criteria) == tot_sad, "len(criteria) must  equal" + \
                                    " number of data arrays under consideration"
+
+        count = 0
         for i, data in enumerate(recs):
             
             names = data.dtype.names
             for nm in names:
                 plt.plot(np.sort(obs_sads[i]), np.sort(data[nm]), '-o')
             plt.legend(names, loc='best')
-            #plt.semilogx()
-            plt.ylabel('cumulative probability')
-            plt.xlabel('abundance')
+            plt.semilogx()
+            plt.ylabel(self.cdf_y_axis)
+            plt.xlabel('Log ' + self.cdf_x_axis)
             
             # Add observed to cdf array
-            n_rec = add_field(data, [('n', np.int)])
-            n_rec['n'] = obs_sads[i]
+            if species != None:
+                sorted_ab, sorted_spp = sort_rank_abund([obs_sads[i]],
+                                                                [species[i]])
+                n_rec = add_field(data, [(self.variable, np.float)])
+                n_rec = add_field(n_rec, [('species', 'S40')])
+                n_rec[self.variable] = sorted_ab[0]
+                n_rec['species'] = sorted_spp[0]
+            else:
+                n_rec = add_field(data, [(self.variable, np.float)])
+                n_rec[self.variable] = np.sort(obs_sads[i])
 
             if criteria != None and np.all([type(crt) != dict for crt in
                                                                     criteria]):
                 plt.title('CDF criteria: ' + str(criteria[i]))
-                logging.info('Saving figure and csv ' + self.out_dir +
+
+                filename = os.path.join(folder_name, self.out_dir +
                                                '_cdf_plot_' + str(criteria[i]))
-                plt.savefig(self.out_dir + '_cdf_plot_' + str(criteria[i]))
-                output_form(n_rec, self.out_dir + '_cdf_plot_' +
-                                                            str(criteria[i]))
+                logging.info('Saving figure and csv ' + filename)
+                plt.savefig(filename)
+                output_form(n_rec, filename)
+                count += 2
+
             elif criteria != None and np.all([type(crt) == dict for crt in
                                                                     criteria]):
-                plt.title('RAD criteria: ' + str(criteria[i]))
-                logging.info('Saving figure ' + self.out_dir + 
-                                                   '_cdf_plot_' + str(i))
-                plt.savefig(self.out_dir + '_cdf_plot_' + str(i))
-                output_form(recs[i], self.out_dir + '_cdf_plot_' + str(i))
+                plt.title('CDF criteria: ' + str(criteria[i]))
+
+                filename = os.path.join(folder_name, self.out_dir + 
+                                                   '_cdf_plot_' + str(i)) 
+                logging.info('Saving figure ' + filename)
+                plt.savefig(filename)
+                output_form(n_rec, filename)
+                count += 2
 
             else:
                 plt.title('CDF: plot number ' + str(i))
-                logging.info('Saving figure and csv ' + self.out_dir +
-                                                        '_cdf_plot_' + str(i))
-                plt.savefig(self.out_dir + '_cdf_plot_' + str(i))
-                output_form(n_rec, self.out_dir + '_cdf_plot_' + str(i))
+                filename = os.path.join(folder_name, self.out_dir +
+                                                        '_cdf_plot_' + str(i)) 
+                logging.info('Saving figure and csv ' + filename)
+                plt.savefig(filename)
+                output_form(n_rec, filename)
+                count += 2
+
             plt.clf()
+
+        fout = open(os.path.join(folder_name, 'README'), 'w')
+        fout.write(readme_info_plots.format(count, count/2, count/2,
+                folder_name, 'cumulative density plots (cdf)', 'cdf_plot'))
+        fout.close()
+
+class SADOutput(DistributionOutput):
+    '''
+    Derived class for SAD output
+    '''
+
+    def __init__(self, out_dir):
+        '''
+        Parameters
+        ----------
+        out_dir : string
+            Output directory of object
+
+        '''
+        self.out_dir = out_dir
+        self.urns = 'Species'
+        self.balls = 'Total Individuals'
+        self.rad_x_axis = 'Rank'
+        self.rad_y_axis = 'Abundance'
+        self.cdf_x_axis = 'Abundance'
+        self.cdf_y_axis = 'Cumulative Probability'
+        self.variable = self.variable
+
+class SSADOutput(DistributionOutput):
+    '''
+    Derived class for SSAD output
+    '''
+
+    def __init__(self, out_dir):
+        '''
+        Parameters
+        ----------
+        out_dir : string
+            Output directory of object
+
+        '''
+        self.out_dir = out_dir
+        self.urns = 'Cells'
+        self.balls = 'Individuals'
+        self.rad_x_axis = 'Rank'
+        self.rad_y_axis = 'Abundance'
+        self.cdf_x_axis = 'Abundance'
+        self.cdf_y_axis = 'Cumulative Probability'
+        self.variable = self.variable
 
 class SAROutput(object):
     '''
@@ -318,7 +483,7 @@ class IEDOutput(object):
         Parameters
         ----------
         reds : tuple
-            The output from the ComparePsiEnergy.compare_reds method
+            The output from the CompareIED.compare_rads method
         criteria : list or None
             A list of dicts with the criteria for divisions.  See Patch.sad
 
@@ -329,11 +494,16 @@ class IEDOutput(object):
         given subset.  
 
         '''
+        folder_name = 'ied_rank_energy_plots_' + self.out_dir
+        make_directory(folder_name)
+
+        
         tot_reds = len(reds['observed'])
         recs = make_rec_from_dict(reds, tot_reds)
         if criteria != None:
             assert len(criteria) == tot_reds, "len(criteria) must  equal" + \
                                       " number of reds under consideration"
+        count = 0                             
         for i, data in enumerate(recs):
             
             #Plot all data in a single rec array
@@ -345,14 +515,24 @@ class IEDOutput(object):
             else:
                 plt.title('RED: plot number ' + str(i))
             plt.loglog()
-            plt.ylabel('log(energy)')
-            plt.xlabel('log(rank)')
-            logging.info('Saving figure ' + self.out_dir + '_ied_rank_energy_' 
-                          + str(i))
-            plt.savefig(self.out_dir + '_ied_rank_energy_' + str(i))
-            plt.clf()
-            output_form(recs[i], self.out_dir + '_ied_rank_energy_' + str(i))
+            plt.ylabel('Log Energy)')
+            plt.xlabel('Log Rank')
 
+            filename = os.path.join(folder_name, self.out_dir +
+                                                  '_ied_rank_energy_' + str(i))
+ 
+            logging.info('Saving figure ' + filename)
+            plt.savefig(filename)
+            plt.clf()
+            output_form(recs[i], filename)
+            count += 2
+
+        fout = open(os.path.join(folder_name, 'README'), 'w')
+        fout.write(readme_info_plots.format(count, count/2, count/2,
+                   folder_name, 
+                   'individual energy distribution rank energy (RED) plots',
+                   'ied_rank_energy'))
+        fout.close()
 
 class SEDOutput(object):
     '''
@@ -377,7 +557,7 @@ class SEDOutput(object):
         Parameters
         ----------
         reds : tuple
-            The output from the CompareThetaEnergy.compare_reds method
+            The output from the CompareSED.compare_rads method
         criteria : list or None
             A list of dicts with the criteria for divisions.  See Patch.sad
 
@@ -387,18 +567,22 @@ class SEDOutput(object):
         predicted species-level rank energy curves.  
 
         '''
+        folder_name = 'sed_rank_energy_plots_' + self.out_dir
+        make_directory(folder_name)
+
         spp = reds[1]
         tot_reds = len(reds[0]['observed'])
         recs = make_rec_from_dict(reds[0], tot_reds)
         if criteria != None:
             assert len(criteria) == tot_reds, "len(criteria) must  equal" + \
                                       " number of reds under consideration"
+        count = 0
         for i, data in enumerate(recs):
 
             plot_rec_columns(data)
             plt.semilogx()
             plt.ylabel('Energy')
-            plt.xlabel('log(rank)')
+            plt.xlabel('Log Rank')
 
             if spp != None:
                 if criteria != None:
@@ -406,26 +590,91 @@ class SEDOutput(object):
                         str(criteria[i])) 
                 else:
                     plt.title('Species Code: ' + str(spp[i]))
-                logging.info('Saving figure ' + self.out_dir + 
+
+                filename = os.path.join(folder_name, self.out_dir + 
                               '_sed_rank_energy_' + str(spp[i]) + '_' + str(i))
-                plt.savefig(self.out_dir + '_sed_rank_energy_' +
-                                                    str(spp[i]) + '_' + str(i))
-                output_form(recs[i], self.out_dir + '_sed_rank_energy_' +
-                                                    str(spp[i]) + '_' + str(i))
+
+                logging.info('Saving figure ' + filename)
+                plt.savefig(filename)
+                output_form(recs[i], filename)
+                count += 2
+
             elif spp == None:
                 if criteria != None:
                     plt.title('Criteria: ' + str(criteria[i]))
                 else:
                     plt.title('Plot number ' + str(i))
-            
-                logging.info('Saving figure ' + self.out_dir + 
+                
+                filename = os.path.join(folder_name, self.out_dir + 
                                                   '_sed_rank_energy_' + str(i))
-                plt.savefig(self.out_dir + '_sed_rank_energy_' + str(i))
-                output_form(recs[i], self.out_dir + '_sed_rank_energy_' + 
-                                                                        str(i))
+                logging.info('Saving figure ' + filename)
+                plt.savefig(filename)
+                output_form(recs[i], filename)
             plt.clf()
 
-def make_rec_from_dict(dist_dict, num, dt=np.float):
+        fout = open(os.path.join(folder_name, 'README'), 'w')
+        fout.write(readme_info_plots.format(count, count/2, count/2,
+                   folder_name, 
+                   'species-level energy distribution rank energy (RED) plots',
+                   'sed_rank_energy'))
+        fout.close()
+
+class OutputRarity(object):
+    '''
+    This object accepts output from the Compare.compare_rarity method to 
+    output rarity
+
+    '''
+
+    def __init__(self, out_dir):
+        '''
+
+        Parameters
+        ----------
+        out_dir : string
+            The output directory ID
+
+        '''
+
+        self.out_dir = out_dir
+
+    def output_rarity(self, rarity, data_path, data, criteria=None):
+        '''
+        '''
+        folder_name = 'rarity_values_' + self.out_dir
+        make_directory(folder_name)
+
+        keys = list(rarity.viewkeys())
+        dtype = [(kw, np.int) for kw in keys]
+        dtype.insert(0, ('criteria', 'S90')) # arbitrary length
+        dtype.insert(0, ('data_name', 'S90')) # arbitrary length
+
+        # Get a list of my minimums
+        rare_list = []
+        mins = list(rarity['observed'].viewkeys())
+        for mn in mins:
+            rarity_array = np.empty(len(data), dtype=dtype)
+            rarity_array['criteria'] = criteria
+            nm = os.path.split(data_path)[1].split('.')[0]
+            rarity_array['data_name'] = np.repeat(nm, len(rarity_array))
+            for kw in keys:
+                rarity_array[kw] = rarity[kw][mn]
+            rare_list.append(rarity_array)
+        
+        # Output results
+        count = 0
+        for i, rare in enumerate(rare_list):
+            filename = os.path.join(folder_name, self.out_dir + '_rarity_<=_' +
+                                                                  str(mins[i]))
+            logging.info('Saving rarity data ' + filename)
+            output_form(rare, filename)
+            count += 1
+
+        fout = open(os.path.join(folder_name, 'README'), 'w')
+        fout.write(readme_info_rarity.format(folder_name, count))
+        fout.close()
+
+def make_rec_from_dict(dist_dict, num, species=None, dt=np.float):
     '''
     Makes a structured/rec array from a dictionary
 
@@ -437,16 +686,70 @@ def make_rec_from_dict(dist_dict, num, dt=np.float):
     num : int
         Number of rec_arrays to return in list
 
+    species : None or list of iterables
+        If not None, species should be a list of iterables that is the same
+        length as the list of iterables in any keyword in dist_dict.
+
     '''
+    
+    # Check that species has the appropriate length
+    if species != None:
+        species = cp.deepcopy(species)
+        for val in dist_dict.itervalues():
+            if len(species) != len(val):
+                raise TypeError('Species must contain the same number of ' +
+                                 'iterables as each value in dist_dict')
+    # Sort Observed and species list
+    if species != None:
+        dist_dict['observed'], species = sort_rank_abund(dist_dict['observed'],
+                                                                       species)
     recs = []
     names = list(dist_dict.viewkeys())
     dtype = zip(names, np.repeat(dt, len(names)))
+    if species != None:
+        dtype.insert(0, ('species', 'S40'))
     for i in xrange(num):
         temp = np.empty(len(dist_dict[names[0]][i]), dtype=dtype)
+        if species != None:
+            temp['species'] = species[i]
         for kw in dist_dict.iterkeys():
-            temp[kw] = dist_dict[kw][i]
+            temp[kw] = np.sort(dist_dict[kw][i])
         recs.append(temp)
     return recs
+
+def sort_rank_abund(abund_list, spp_list):
+    '''
+    Sorts and returns two lists based on abundannce
+    
+    Parameters
+    ----------
+    abund_list : list of arrays
+    
+    spp_list : list of arrays
+
+    Returns
+    -------
+    :tuple
+        sorted_abund, sorted_spp
+
+    '''
+
+    assert len(abund_list) == len(spp_list), 'Lengths of arguments not equal'
+    assert np.all([len(a) == len(b) for a,b in zip(abund_list, spp_list)]),\
+                        'Lengths of all corresponding iterables not equal'
+    abund_list = [np.array(t) for t in abund_list]
+    spp_list = [np.array(t) for t in spp_list]
+
+    sorted_abund = []
+    sorted_spp = []
+    for i in xrange(len(abund_list)):
+        temp = np.array(zip(abund_list[i], spp_list[i]), dtype=[('a',
+                               abund_list[i].dtype), ('s', spp_list[i].dtype)])
+        temp_sorted = np.sort(temp, order='a')
+        sorted_abund.append(temp_sorted['a'])
+        sorted_spp.append(temp_sorted['s'])
+
+    return sorted_abund, sorted_spp
 
 def plot_rec_columns(rec_array):
     '''
@@ -457,17 +760,21 @@ def plot_rec_columns(rec_array):
     plot_symbols = ['+', 's', 'd', '*', 'x', '8', 'H', '1', 'p', '2', '3',
                                                         '4', '|', 4, 5, 6, 7]
     names = rec_array.dtype.names
+    legend = []
 
     # If their are more arrays than symbols just change colors of lines
     if len(names) > len(plot_symbols):
         for nm in names:
-            if nm == 'observed':
-                plt.plot(np.arange(1, len(rec_array) + 1),
+            if nm != 'species':
+                if nm == 'observed':
+                    plt.plot(np.arange(1, len(rec_array) + 1),
                                         np.sort(rec_array[nm])[::-1], '-o',
                                         color='black')
-            else:
-                plt.plot(np.arange(1, len(rec_array) + 1),
+                    legend.append(nm)
+                else:
+                    plt.plot(np.arange(1, len(rec_array) + 1),
                                         np.sort(rec_array[nm])[::-1], '-o')
+                    legend.append(nm)
 
     # Else, use different symbols/markers for each line
     elif len(names) <= len(plot_symbols):
@@ -475,17 +782,34 @@ def plot_rec_columns(rec_array):
         # Counter is 0
         cnt = 0
         for nm in names:
-            if nm == 'observed':
-                plt.plot(np.arange(1, len(rec_array) + 1),
+            if nm != 'species':
+                if nm == 'observed':
+                    plt.plot(np.arange(1, len(rec_array) + 1),
                                         np.sort(rec_array[nm])[::-1], '-o',
                                         color='black')
-            else:
-                plt.plot(np.arange(1, len(rec_array) + 1),
+                    legend.append(nm)
+                else:
+                    plt.plot(np.arange(1, len(rec_array) + 1),
                                         np.sort(rec_array[nm])[::-1], '-' +
                                         str(plot_symbols[cnt]))
+                    legend.append(nm)
                 cnt += 1
 
-    plt.legend(names, loc='best')
+    plt.legend(tuple(legend), loc='best')
+
+def make_directory(folder_name):
+    '''Makes a directory named folder_name.  If the directory exists it
+    is overwritten
+
+    folder_name - Name of the directory
+    '''
+
+    try:
+        os.mkdir(folder_name)
+    except OSError:
+        shutil.rmtree(folder_name)
+        os.mkdir(folder_name)
+
             
 
 
