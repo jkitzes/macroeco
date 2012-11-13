@@ -15,7 +15,7 @@ __status__ = "Development"
 
 import macroeco.utils.global_strings as gb
 
-gui_name = '''Analysis of Species-level Spatial Abundance Distributions'''
+gui_name = '''SSAD'''#'''Analysis of Species-level Spatial Abundance Distributions'''
 
 summary = '''Compares a dataset's observed species-level spatial abundance
 distribution against predicted species-level spatial abundance distributions'''

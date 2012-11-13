@@ -14,7 +14,7 @@ __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
 
-gui_name = '''Calculate Beta from Given N and S'''
+gui_name = '''Get METE Betas'''#'''Calculate Beta from Given N and S'''
 
 summary = '''Calculate the Lagrange multiplier 'beta' for a given set of S and
 N.'''
