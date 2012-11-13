@@ -22,7 +22,7 @@ theoretical species-area relationships'''
 
 columns_to_divide = '''This parameter specifies which spatial columns you would
 like to divide for the SAR analysis.  For example, if your data had spatial
-columns 'x' and 'y' you would enter: ('x', 'y')'''
+columns 'x' and 'y' you would enter: ('x', 'y') '''
 
 list_of_divisions_on_columns = '''This parameter specifies how you would like
 to divide the columns you named in the columns_to_divide parameter.  For
@@ -40,12 +40,12 @@ observed data.
 You may use any number of the following SAR distributions: 'powerlaw',
 'mete_sar', 'mete_sar_iter', 'logser_ut_binm', 'lognorm_binm', etc.
 
-Example input: ['mete_sar', 'powerlaw', 'mete_sar_iter']
+Example input: ['mete_sar', 'powerlaw', 'mete_sar_iter']  
 '''
 
 name = '''A name for the plot that will be generated.
 
-Example input: My SAR Plot
+Example input: My SAR Plot  
 '''
 
 explanation = '''ANALYSIS EXPALANTION\n
