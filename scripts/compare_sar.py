@@ -15,7 +15,7 @@ __status__ = "Development"
 
 import macroeco.utils.global_strings as gb
 
-gui_name = ''' Analyze Species-Area Relationships'''
+gui_name = '''SAR'''#''' Analyze Species-Area Relationships'''
 
 summary = '''Compares a dataset's observed species-area relationships against 
 theoretical species-area relationships'''

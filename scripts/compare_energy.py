@@ -13,7 +13,7 @@ __status__ = "Development"
 
 import macroeco.utils.global_strings as gb 
 
-gui_name = '''Analysis of Macroecological Energy Metrics'''
+gui_name = '''Energy Metrics'''#'''Analysis of Macroecological Energy Metrics'''
 
 summary = '''Compares a dataset's observed energy metrics against predicted
 energy metrics'''
