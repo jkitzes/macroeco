@@ -367,7 +367,7 @@ def fractionate(datayears, wid_len, step, col_names):
         frct_array.append(data)
     return frct_array
 
-def add_data_fields(data_list, fields, values):
+def add_data_fields(data_list, fields_values, descr='S20'):
     '''
     Add fields to data based on given names and values
 
@@ -376,26 +376,32 @@ def add_data_fields(data_list, fields, values):
     data_list : list 
         List of data to which a field will be appended
 
-    fields : list
-        List of field names to be added
+    fields_values : dict
+        dictionary with keyword being the the field name to be added and the
+        value being a tuple with length data_list specifying the
+        values to be added to each field in each data set.
 
-    values : list
-        List of tuples corresponding to fields.  Must be same length as fields.
-        These values are added to the new field. Length of tuple should only be 
-        length of data sets.
+    descr : list of data types or single data type
+            The data type of the keys in fields_values.  A single value will be
+            broadcast to appropriate length
 
     Returns 
     -------
     : list
         A list containing the structured arrays with the new fields appended
 
+    Notes
+    -----
+    All added fields have default dtypes of 'S20'
+
     '''
     #TODO: Check that data in data list share dtypes
+    descr = broadcast(len(fields_values), descr)
     alt_data = []
     for i, data in enumerate(data_list):
-        for j, name in enumerate(fields):
-            data = add_field(data, [(name, 'S20')])
-            data[name] = values[j][i]
+        for j, name in enumerate(list(fields_values.viewkeys())):
+            data = add_field(data, [(name, descr[j])])
+            data[name] = str(fields_values[name][i])
         alt_data.append(data)
     return alt_data
 
@@ -423,7 +429,6 @@ def merge_formatted(data_form):
         merged = np.array(data_form[0])
         for i in xrange(1, len(data_form)):
             if merged.dtype != data_form[i].dtype:
-                import pdb; pdb.set_trace()
                 raise TypeError("dtypes of data do not match")
             merged = np.concatenate((merged, np.array(data_form[i])))
         return merged
@@ -452,6 +457,33 @@ def add_field(a, descr):
     for name in a.dtype.names:
         b[name] = a[name]
     return b
+
+def broadcast(length, item):
+    '''
+    Broadcasts item to length = length if possible. Else raises error.
+
+    length -- int
+
+    item -- int of iterable
+
+    '''
+    # Handle and broadcast item
+    if type(item) == int:
+        item = (item,)
+    elif type(item) == type:
+        item = (item,)
+    elif type(item) == str:
+        item = (item,)
+    else:
+        item = tuple(item)
+
+    if (len(item) != length):
+        if len(item) == 1:
+            item = tuple(np.repeat(item[0], length))
+        else:
+            raise ValueError('Could not broadcast %s to length $s' %
+                                                    (str(item), str(length)))
+    return item
 
     
 

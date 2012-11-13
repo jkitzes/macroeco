@@ -75,6 +75,23 @@ t,Marta,2,1,1,1,1,0,k,78
 h,Garry,1,2,3,4,5,6,j,123
 t,Garry,2,0,1,2,0,5,u,456''')
         self.trans1.close()
+        
+        self.col1 = open('col1.csv', 'w')
+        self.col1.write('''spp, x, y, dbh1, dbh2, john
+l,1,1,34,38,g
+y,2,1,100,10,g
+h,1,2,1,1,g
+y,2,1,300,2,f''')
+        self.col1.close()
+
+        self.col2 = open('col2.csv', 'w')
+        self.col2.write('''spp, x, y, dbh1, dbh2, john
+l,1,,34,38,g
+y,2,1,100,10,g
+h,,2,1,1,NA
+y,2,1,300,2,f''')
+        self.col2.close()
+
 
 
     def tearDown(self):
@@ -86,6 +103,8 @@ t,Garry,2,0,1,2,0,5,u,456''')
         os.remove('dense3.csv')
         os.remove('dense4.csv')
         os.remove('trans1.csv')
+        os.remove('col1.csv')
+        os.remove('col2.csv')
 
     def test_Grid_Data(self):
         grid = form.Grid_Data('grid1.csv', 2, spp_sep='+')
@@ -283,14 +302,12 @@ t,Garry,2,0,1,2,0,5,u,456''')
         trans.transect_to_columnar(3, 5)
         col = trans.Columnar_Object
         count = np.array([1,2,3,4,5,1,1,1,1,1,2,3,4,5,6,1,1,2,1,5])
-        print col.columnar_data[0]['count']
         self.assertTrue(np.all(count == col.columnar_data[0]['count']))
 
         # Test that transect data reads in correctly and converts to columnar
         trans = form.Transect_Data('trans1.csv')
         trans.transect_to_columnar(3, 5)
         col = trans.Columnar_Object
-        print col.columnar_data
         count = np.array([1,2,3,4,5,1,1,1,1,2,3,4,5,6,1,2,5])
         self.assertTrue(np.all(count == col.columnar_data[0]['count']))
 
@@ -302,7 +319,108 @@ t,Garry,2,0,1,2,0,5,u,456''')
         self.assertTrue(np.all(np.concatenate((count, count)) ==
                                                     col.merged_data['count']))
     def test_Columnar_Data(self):
-        pass
+
+        # Testing missing values
+        col = form.Columnar_Data('col2.csv', missingd={'y' : '', 'x' : '',
+                                            'john' : 'NA'}, delete_missing=True)
+        self.assertTrue(len(col.columnar_data[0]) == 2)
+        self.assertTrue(np.all(col.columnar_data[0]['spp'] == np.array(['y',
+                                                                        'y'])))
+        self.assertTrue(np.all(col.columnar_data[0]['dbh1'] == np.array([100,
+                                                                        300])))
+
+        # No missing values; Test subsetting
+        col = form.Columnar_Data('col1.csv')
+        col.subset_data({'john' : ('!=', 'f')})
+        self.assertTrue(np.all(col.columnar_data[0]['john'] == np.array(['g',
+                                                                   'g', 'g'])))
+        # Test reset
+        col.reset_columnar_data()
+        check = np.array(['g','g','g','f'])
+        self.assertTrue(np.all(col.columnar_data[0]['john'] == check))
+
+        # Test splitting
+        col.split_up_data_by_field([('dbh1',), ('dbh2',)])
+        self.assertTrue(len(col.columnar_data) == 2)
+        dbh1 = np.array([34,100,1,300])
+        dbh2 = np.array([38,10,1,2])
+        try:
+            col.columnar_data[0]['dbh2']
+        except ValueError:
+            pass
+
+        try:
+            col.columnar_data[1]['dbh1']
+        except ValueError:
+            pass
+
+        self.assertTrue(np.all(col.columnar_data[0]['dbh1'] == dbh1))
+        self.assertTrue(np.all(col.columnar_data[1]['dbh2'] == dbh2))
+
+        col.reset_columnar_data()
+
+        col.split_up_data_by_field([('spp', 'x'), ('y',)])
+        self.assertTrue(len(col.columnar_data) == 2)
+        td1 = np.array(['spp', 'x', 'dbh1', 'dbh2', 'john'])
+        td2 = np.array(['y', 'dbh1', 'dbh2', 'john'])
+        d1 = np.array(col.columnar_data[0].dtype.names)
+        d2 = np.array(col.columnar_data[1].dtype.names)
+        self.assertTrue(np.all(d1 == td1))
+        self.assertTrue(np.all(d2 == td2))
+        
+        # Test change column names
+        col.reset_columnar_data()
+        col.split_up_data_by_field([('dbh1',), ('dbh2',)])
+        self.assertRaises(ValueError,col.change_column_names, [('x', 'y')], 
+                            ['hello'])
+
+        col.reset_columnar_data()
+        col.split_up_data_by_field([('dbh1',), ('dbh2',)])
+        col.change_column_names([('dbh1', 'dbh2'), ('john',)], ['dbh', 'harry'])
+        nms = np.array(['spp', 'x', 'y', 'dbh', 'harry'])
+        dtnms1 = np.array(col.columnar_data[0].dtype.names)
+        dtnms2 = np.array(col.columnar_data[1].dtype.names)
+        self.assertTrue(np.all(nms == dtnms1))
+        self.assertTrue(np.all(nms == dtnms2))
+
+        # Test if long names added
+        col.reset_columnar_data()
+        col.split_up_data_by_field([('dbh1',), ('dbh2',)])
+        col.change_column_names([('dbh1', 'dbh2')], ['goofy_chew'])
+        nms = np.array(['spp', 'x', 'y', 'goofy_chew', 'john'])
+        dtnms1 = np.array(col.columnar_data[0].dtype.names)
+        dtnms2 = np.array(col.columnar_data[1].dtype.names)
+        self.assertTrue(np.all(nms == dtnms1))
+        self.assertTrue(np.all(nms == dtnms2))
+
+        # Test adding fields to data
+        col.reset_columnar_data()
+        col.split_up_data_by_field([('dbh1',), ('dbh2',)])
+        col.change_column_names([('dbh1', 'dbh2')], ['dbh'])
+        col.add_fields_to_data_list({'year' : (1998, 2001), 'body' : ('large',
+                                                                     'small')})
+        year1 = np.repeat('1998', 4)
+        year2 = np.repeat('2001', 4)
+        body1 = np.repeat('large', 4)
+        body2 = np.repeat('small', 4)
+        self.assertTrue(np.all(year1 == col.columnar_data[0]['year']))
+        self.assertTrue(np.all(year2 == col.columnar_data[1]['year']))
+        self.assertTrue(np.all(body1 == col.columnar_data[0]['body']))
+        self.assertTrue(np.all(body2 == col.columnar_data[1]['body']))
+        
+        # import pdb; pdb.set_trace()
+
+
+
+
+
+        
+
+        
+        
+
+
+
 
 if __name__ == '__main__':
     unittest.main()

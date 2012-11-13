@@ -234,13 +234,13 @@ class Columnar_Data:
             tuple will be changed to the first element in the changed_to list
             and so on.
         changed_to : list
-            A list of string that contain the names that the columns in change
+            A list of strings that contain the names that the columns in change
             will be changed to. 
 
         Notes
         -----
-        This function useful if you would like to merge self.columnar_data but
-        the dtype.names are different.
+        This function is useful if you would like to merge self.columnar_data
+        but the dtype.names are different.
 
         '''
         if change != None and changed_to != None: 
@@ -253,10 +253,14 @@ class Columnar_Data:
                     for name in name_tup:
                         find = np.where((name == column_names))[0]
                         if len(find) != 0:
+                            max_len = np.max([len(x) for x in column_names])
+                            if max_len < len(changed_to[i]):
+                                column_names = column_names.astype('S' +
+                                                       str(len(changed_to[i])))
                             column_names[find[0]] = changed_to[i]
                             data.dtype.names = tuple(column_names)
         
-    def add_fields_to_data_list(self, fields=None, values=None):
+    def add_fields_to_data_list(self, fields_values=None, descr='S20'):
         '''
         This functions adds given fields and values to the data list. The
         length of values should be the same length as fields and the length of
@@ -265,17 +269,17 @@ class Columnar_Data:
 
         Parameters
         ----------
-        fields : list
-            A list of strings specifying field names
-        values : list of tuples
-            A list of tuples with the length of each tuple equalling the length
-            of self.columnar_data
-
+        fields_values : dict
+            dictionary with keyword being the the field name to be added and
+            the value being a tuple with length self.columnar_data specifying
+            the values to be added to each field in each data set.
+         descr : list of data types or single data type
+            The data type of the keys in fields_values.  A single value will be
+            broadcast to appropriate length
         '''
-        #NOTE: Should probably make a single dictionary for field/values
-        if fields != None and values != None:
-            self.columnar_data = add_data_fields(self.columnar_data, fields,\
-                                                                        values)
+        if fields_values != None:
+            self.columnar_data = add_data_fields(self.columnar_data,
+                                                fields_values, descr=descr)
 
     def remove_columns(self, col_names=None):
         '''
@@ -903,29 +907,6 @@ def remove_white_spaces(grid_list):
                 grid[name][i] = ''.join(grid[name][i].split(' '))
 
     return grid_list
-
-def broadcast(length, item):
-    '''
-    Broadcasts item to length = length if possible. Else raises error.
-
-    length -- int
-
-    item -- int of iterable
-
-    '''
-    # Handle and broadcast item
-    if type(item) == int:
-        item = (item,)
-    else:
-        item = tuple(item)
-
-    if (len(item) != length):
-        if len(item) == 1:
-            item = tuple(np.repeat(item[0], length))
-        else:
-            raise ValueError('Could not broadcast %s to length $s' %
-                                                    (str(item), str(length)))
-    return item
 
 def replace_vals(filename, replace, delim=','):
     '''
