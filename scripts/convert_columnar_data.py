@@ -34,7 +34,7 @@ optional_params = {'delimiter' : (delimiter + ds,
                     False), 'columns_to_split' : (columns_to_split + ds, None),
                     'change_column_names' : (change_column_names + ds, (None,
                     None)), 'add_column_names_and_values' :
-                    (add_column_names_and_values + ds, (None, None)),
+                    (add_column_names_and_values + ds, None),
                     'names_of_columns_to_be_removed' :
                     (names_of_columns_to_be_removed + ds , None),
                     'how_and_where_to_fractionate' :
@@ -67,8 +67,7 @@ if __name__ == '__main__':
 
         columnar_obj.subset_data(params['subset'])
 
-        columnar_obj.add_fields_to_data_list(params['add_column_names_and_values'][0],
-                                             params['add_column_names_and_values'][1])
+        columnar_obj.add_fields_to_data_list(params['add_column_names_and_values'])
 
         columnar_obj.remove_columns(params['names_of_columns_to_be_removed'])
 

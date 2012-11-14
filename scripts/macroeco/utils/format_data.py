@@ -229,10 +229,10 @@ class Columnar_Data:
 
         Parameters
         ----------
-        change : list of tuples
-            Each tuple contains column names. All the column names in the first
-            tuple will be changed to the first element in the changed_to list
-            and so on.
+        change : list of tuples or strings
+            Each tuple or string contains column names. All the column names in
+            the first tuple will be changed to the first element in the
+            changed_to list and so on.
         changed_to : list
             A list of strings that contain the names that the columns in change
             will be changed to. 
@@ -247,6 +247,9 @@ class Columnar_Data:
             if len(change) != len(changed_to):
                 raise ValueError('Length of params change and changed_to must'
                                 + ' be equal')
+            # Convert to tuples if just received strings
+            change = [(x,) if type(x) == str else tuple(x) for x in change]
+
             for data in self.columnar_data:
                 column_names = np.array(data.dtype.names)
                 for i, name_tup in enumerate(change):
@@ -274,8 +277,10 @@ class Columnar_Data:
             the value being a tuple with length self.columnar_data specifying
             the values to be added to each field in each data set.
          descr : list of data types or single data type
-            The data type of the keys in fields_values.  A single value will be
-            broadcast to appropriate length
+        descr : a single data type or a dictionary
+            A single value will be broadcast to appropriate length.  The
+            dictionary must have the same keywords as fields_values and must be
+            the same length.  Each keyword should lookup a dtype.
         '''
         if fields_values != None:
             self.columnar_data = add_data_fields(self.columnar_data,

@@ -17,6 +17,7 @@ chdir = os.chdir #change directories
 jp = os.path.join #Join paths
 sys.path.append(pd(pd(loc)))
 from data import Metadata
+import itertools
 
 __author__ = "Mark Wilber"
 __copyright__ = "Copyright 2012, Regents of University of California"
@@ -381,9 +382,10 @@ def add_data_fields(data_list, fields_values, descr='S20'):
         value being a tuple with length data_list specifying the
         values to be added to each field in each data set.
 
-    descr : list of data types or single data type
-            The data type of the keys in fields_values.  A single value will be
-            broadcast to appropriate length
+    descr : a single data type or a dictionary
+        A single value will be broadcast to appropriate length.  The dictionary
+        must have the same keywords as fields_values and must be the same
+        length.  Each keyword should lookup a dtype.
 
     Returns 
     -------
@@ -395,13 +397,26 @@ def add_data_fields(data_list, fields_values, descr='S20'):
     All added fields have default dtypes of 'S20'
 
     '''
-    #TODO: Check that data in data list share dtypes
-    descr = broadcast(len(fields_values), descr)
+
+    # Check that dype descriptors are formatted appropriately
+    if type(fields_values) != dict:
+        raise TypeError('fields_values must be a dict not %s of type %s' %
+                                (str(fields_values), str(type(fields_values))))
+    keys = fields_values.viewkeys()
+    if type(descr) == dict:
+        if set(list(descr.viewkeys())) != set(list(keys)):
+            raise ValueError("descr and fields_values must contain same keys")
+    elif type(descr) == type or type(descr) == str:
+        descr = broadcast(len(fields_values), descr)
+        descr = dict(itertools.izip(keys, descr))
+    else:
+        raise ValueError("Invalid type for descr")
+
     alt_data = []
     for i, data in enumerate(data_list):
-        for j, name in enumerate(list(fields_values.viewkeys())):
-            data = add_field(data, [(name, descr[j])])
-            data[name] = str(fields_values[name][i])
+        for name in list(fields_values.viewkeys()):
+            data = add_field(data, [(name, descr[name])])
+            data[name] = fields_values[name][i]
         alt_data.append(data)
     return alt_data
 

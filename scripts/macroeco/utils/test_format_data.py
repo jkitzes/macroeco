@@ -6,7 +6,6 @@ import unittest
 import numpy as np
 import format_data as form
 import os
-from matplotlib.mlab import csv2rec
 import glob
 gcwd = os.getcwd #get current directory
 pd = os.path.dirname #get parent directory
@@ -81,7 +80,7 @@ t,Garry,2,0,1,2,0,5,u,456''')
 l,1,1,34,38,g
 y,2,1,100,10,g
 h,1,2,1,1,g
-y,2,1,300,2,f''')
+y,2,2,300,2,f''')
         self.col1.close()
 
         self.col2 = open('col2.csv', 'w')
@@ -407,28 +406,61 @@ y,2,1,300,2,f''')
         self.assertTrue(np.all(year2 == col.columnar_data[1]['year']))
         self.assertTrue(np.all(body1 == col.columnar_data[0]['body']))
         self.assertTrue(np.all(body2 == col.columnar_data[1]['body']))
+
+        # Test adding different dtypes
+        col.reset_columnar_data()
+        col.split_up_data_by_field([('dbh1',), ('dbh2',)])
+        col.change_column_names([('dbh1', 'dbh2')], ['dbh'])
+        col.add_fields_to_data_list({'year' : (1998, 2001), 'body' : ('large',
+                                            'small')}, descr={'year': np.int, 
+                                                              'body': 'S20'})
+
+        year1 = np.repeat(1998, 4)
+        year2 = np.repeat(2001, 4)
+        body1 = np.repeat('large', 4)
+        body2 = np.repeat('small', 4)
+        self.assertTrue(np.all(year1 == col.columnar_data[0]['year']))
+        self.assertTrue(np.all(year2 == col.columnar_data[1]['year']))
+        self.assertTrue(np.all(body1 == col.columnar_data[0]['body']))
+        self.assertTrue(np.all(body2 == col.columnar_data[1]['body']))
+
+        # Test remove columns
+        col = form.Columnar_Data(['col1.csv', 'col2.csv'],  missingd={'y' : '',
+                        'x' : '', 'john' : 'NA'}, delete_missing=True)
+        self.assertTrue(len(col.columnar_data[0]) == 4)
+        self.assertTrue(len(col.columnar_data[1]) == 2)
+        col.remove_columns('john')
+        test_nm = set(['x','y', 'spp', 'dbh1', 'dbh2'])
+        self.assertTrue(test_nm == set(col.columnar_data[0].dtype.names))
+        self.assertTrue(test_nm == set(col.columnar_data[1].dtype.names))
+
+        col.remove_columns(['x', 'y'])
+        test_nm = set(['spp', 'dbh1', 'dbh2'])
+        self.assertTrue(test_nm == set(col.columnar_data[0].dtype.names))
+        self.assertTrue(test_nm == set(col.columnar_data[1].dtype.names))
         
-        # import pdb; pdb.set_trace()
+        # Try removing row that is not there, no error is thrown
+        col.remove_columns(['x'])
+        self.assertTrue(test_nm == set(col.columnar_data[0].dtype.names))
+        self.assertTrue(test_nm == set(col.columnar_data[1].dtype.names))
 
+        # Fractionate is tested in test_form_func.py
+        col.reset_columnar_data()
+        col.fractionate_data((1,1), (.5,.5), ('x', 'y'))
+        self.assertTrue(np.all(np.array([0,.5,0,.5]) ==
+                                                    col.columnar_data[0]['x']))
 
+        # Test merge data
+        col.merge_data()
+        self.assertTrue(len(col.merged_data) == 6)
+        spp = np.array(['l','y','h','y','y','y'])
+        self.assertTrue(np.all(col.merged_data['spp'] == spp))
+        dbh2 = np.array([34,100,1,300,100,300])
+        self.assertTrue(np.all(col.merged_data['dbh1'] == dbh2))
 
-
-
-        
-
-        
-        
-
-
-
-
-if __name__ == '__main__':
-    unittest.main()
-
-        
-
-
-
+        # Try to break merge data
+        col.columnar_data = [col.merged_data]
+        col.merge_data()
 
 
 

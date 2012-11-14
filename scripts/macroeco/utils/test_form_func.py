@@ -75,11 +75,11 @@ class TestFormFunc(unittest.TestCase):
         data1 = csv2rec('arch1.csv')
         data2 = csv2rec('arch2.csv')
         dl = [data1, data2]
-        alt_data = add_data_fields(dl, ['year'], [(1998, 2002)])
+        alt_data = add_data_fields(dl, {'year': (1998, 2002)})
         self.assertTrue(np.all(alt_data[0]['year'] == '1998'))
         self.assertTrue(np.all(alt_data[1]['year'] == '2002'))
-        alt_data = add_data_fields(dl, ['year', 'why'], [(1998, 2002),
-                                   ('h','a')])
+        alt_data = add_data_fields(dl, {'year' : (1998, 2002), 'why': ('h',
+                                    'a')})
         self.assertTrue(np.all(alt_data[0]['why'] == 'h'))
 
     def test_fractionate(self):
