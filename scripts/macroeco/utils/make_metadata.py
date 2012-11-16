@@ -53,9 +53,9 @@ else:
                             except ValueError:
                                 print "Maximum, minimum, and precision must all" +\
                                                 " be real numbers"
-                        traits = (name, {'minimum' : str(minimum),\
-                                     'maximum' : str(maximum),\
-                                     'precision' : str(precision)})
+                        traits = (name, {'precision': str(precision),
+                                     'minimum' : str(minimum),\
+                                     'maximum' : str(maximum)})
                         traitlist.append(traits)
 
                 else:

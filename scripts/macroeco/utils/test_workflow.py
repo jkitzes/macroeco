@@ -76,13 +76,13 @@ class ParamfileTestCase(unittest.TestCase):
         os.remove(workflow.paramfile)
 
     def test_emptyask(self):
-        pa = workflow.Parameters('nonexistantrun', None, {})
+        pa = workflow.Parameters('nonexistantrun', None, {}, {})
         self.assertEqual(pa.params, {})
         self.assertEqual(pa.interactive, False)
 
     def test_NIrunExists(self):
         req_params = {'size': 'descripsize', 'species': 'descripspp'}
-        pa = workflow.Parameters('RunExists', None, req_params)
+        pa = workflow.Parameters('RunExists', None, req_params, {})
         self.assertTrue(len(pa.params) == 1)
         self.assertTrue(set(req_params.keys()).issubset(\
             set(pa.params['ParamfileTestCase'].keys())))
@@ -92,7 +92,7 @@ class ParamfileTestCase(unittest.TestCase):
         self.assertTrue(run['size']*run['layers'][1] == 3*4.4)
 
     def test_MultipleNIRunsExist(self):
-        pa = workflow.Parameters('ManyNIRuns', None, {})
+        pa = workflow.Parameters('ManyNIRuns', None, {}, {})
         self.assertEqual(len(pa.params), 2)
         self.assertEqual(pa.params['FirstCase']['size'], 4.4)
         self.assertEqual(pa.params['FirstCase']['species'], 'E. coli')
@@ -102,7 +102,7 @@ class ParamfileTestCase(unittest.TestCase):
         self.assertEqual(pa.params['SecondCase']['layers'], [5])
 
     def test_UnnamedRunErrors(self):
-        pa = workflow.Parameters('Unnamed', None, {})
+        pa = workflow.Parameters('Unnamed', None, {}, {})
         self.assertEqual(len(pa.params), 2)
         self.assertEqual(pa.params['run1']['size'], 4.4)
         self.assertEqual(pa.params['run1']['species'], 'E. coli')
@@ -112,6 +112,6 @@ class ParamfileTestCase(unittest.TestCase):
         self.assertEqual(pa.params['run2']['layers'], [5])
 
     def test_InteractiveRun(self):
-        pa = workflow.Parameters('Interactive', None, {})
+        pa = workflow.Parameters('Interactive', None, {}, {})
         self.assertTrue(pa.interactive == True)
 

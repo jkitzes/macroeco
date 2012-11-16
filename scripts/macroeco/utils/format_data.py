@@ -8,11 +8,9 @@ the user with all formatting functions that may be required.  This module is
 not a substitute for thorough examination of ones data to remove irrelevant
 data'''
 
-# NOTE: For some reason, ipython notebook did not like the import * command.
-# Need to investigate
 import numpy as np
 from matplotlib.mlab import csv2rec
-from form_func import *
+import form_func as ff
 from numpy.lib.recfunctions import drop_fields
 
 __author__ = "Mark Wilber"
@@ -283,7 +281,7 @@ class Columnar_Data:
             the same length.  Each keyword should lookup a dtype.
         '''
         if fields_values != None:
-            self.columnar_data = add_data_fields(self.columnar_data,
+            self.columnar_data = ff.add_data_fields(self.columnar_data,
                                                 fields_values, descr=descr)
 
     def remove_columns(self, col_names=None):
@@ -328,7 +326,7 @@ class Columnar_Data:
 
         '''
         if wid_len != None and step != None and col_names != None:
-            self.columnar_data = fractionate(self.columnar_data, wid_len, step,
+            self.columnar_data = ff.fractionate(self.columnar_data, wid_len, step,
                                                                      col_names)
 
 
@@ -338,7 +336,7 @@ class Columnar_Data:
         the data in data_list must be identical or this function will fail.
         '''
 
-        self.merged_data = merge_formatted(self.columnar_data)
+        self.merged_data = ff.merge_formatted(self.columnar_data)
 
     def output_merged_data(self, filename):
         '''
@@ -352,7 +350,7 @@ class Columnar_Data:
         '''
         #Merge data in case it has not been done
         self.merge_data()
-        output_form(self.merged_data, filename)
+        ff.output_form(self.merged_data, filename)
 
     def output_columnar_data(self, filenames):
         '''
@@ -367,7 +365,7 @@ class Columnar_Data:
         assert len(filenames) == len(self.columnar_data), "Number of filenames\
                                  must be the same as the number of datasets"
         for i, name in enumerate(filenames):
-            output_form(self.columnar_data[i], name)
+            ff.output_form(self.columnar_data[i], name)
 
 class Grid_Data:
     '''This class handles data should look like the EarthFlow data after a 
@@ -376,7 +374,6 @@ class Grid_Data:
     ARTDRA - 6
     GERTYR - 8
 
-    NOTE: Need to consider things that might break this class
     '''
 
     def __init__(self, filenames, num_cols, archival=True, spp_sep='\n'):
@@ -626,7 +623,7 @@ class Grid_Data:
         assert len(filenames) == len(self.grid_data), "Number of filenames\
                                  must be the same as the number of datasets"
         for i, data in enumerate(self.grid_data):
-            output_form(data, filenames[i]) 
+            ff.output_form(data, filenames[i]) 
 
     
 class Dense_Data:
@@ -716,7 +713,7 @@ class Dense_Data:
             int, it will be broadcasted to the length of self.dense_data
 
         '''
-        columnar_data = format_dense(self.dense_data, spp_col_num,\
+        columnar_data = ff.format_dense(self.dense_data, spp_col_num,\
                                                                       num_spp)
         self.Columnar_Object = Columnar_Data(columnar_data, archival=archival)
 
@@ -735,7 +732,7 @@ class Dense_Data:
         assert len(filenames) == len(self.dense_data), "Number of filenames\
                                  must be the same as the number of datasets"
         for i, data in enumerate(self.dense_data):
-            output_form(data, filenames[i])
+            ff.output_form(data, filenames[i])
 
 class Transect_Data:
     '''
@@ -837,8 +834,8 @@ class Transect_Data:
 
         '''
         # Broadcast stop_col_num
-        stop_col_num = broadcast(len(self.transect_data), stop_col_num)
-        tot_stops = broadcast(len(self.transect_data), tot_stops)
+        stop_col_num = ff.broadcast(len(self.transect_data), stop_col_num)
+        tot_stops = ff.broadcast(len(self.transect_data), tot_stops)
 
         columnar_data = []
         for j, data in enumerate(self.transect_data):
@@ -886,7 +883,7 @@ class Transect_Data:
         assert len(filenames) == len(self.transect_data), "Number of filenames\
                                  must be the same as the number of datasets"
         for i, data in self.transect_data:
-            output_form(data, filenames[i]) 
+            ff.output_form(data, filenames[i]) 
 
 
 def remove_char(grid_list, char='\n'):
