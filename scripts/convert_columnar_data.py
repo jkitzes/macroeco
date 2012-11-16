@@ -81,11 +81,20 @@ if __name__ == '__main__':
         
         # Merge data into one data file
         if params['merge_data'] == 'Yes' or params['merge_data'] == 'yes':
-            columnar_obj.output_merged_data('{0}_{1}_merged_data'.
+
+            try:
+
+                columnar_obj.output_merged_data('{0}_{1}_merged_data'.
                                                 format(script_name, run_name))
-            logging.info("Merged and saved all data in run '%s' to file" % run_name
-                   + ' {0}_{1}_merged_data.csv'.format(script_name, run_name)) 
-        else:
+                logging.info("Merged and saved all data in run '%s' to file" % run_name
+                   + ' {0}_{1}_merged_data.csv'.format(script_name, run_name))
+            except:
+                logging.warning("Failed to merge data. Column names and/or types"
+                             + " do not match. Outputting each dataset"
+                             + " separately.")
+                params['merge_data'] = 'No'
+
+        if params['merge_data'] == 'No' or params['merge_data'] == 'no':
             for out in [ot + '_formatted_columnar' for ot in output_IDs]:
                 logging.info('Saving columnar data as %s' % out)
 

@@ -441,11 +441,38 @@ def merge_formatted(data_form):
         return np.array(data_form[0])
     else:
         # Dtypes can be a bit of a pain here
-        merged = np.array(data_form[0])
+        merged = np.copy(np.array(data_form[0]))
         for i in xrange(1, len(data_form)):
             if merged.dtype != data_form[i].dtype:
-                raise TypeError("dtypes of data do not match")
-            merged = np.concatenate((merged, np.array(data_form[i])))
+                if merged.dtype.names != data_form[i].dtype.names:
+                    raise TypeError("Column names of data do not match")
+                else: # If data dtypes are just different strings they should
+                      # still be able to merge
+                    temp_arr = list(np.copy(merged)) + list(np.copy(data_form[i]))
+                    merge_types = [ty[1] for ty in merged.dtype.descr]
+                    dt_types = [ty[1] for ty in data_form[i].dtype.descr]
+                    con_types = []
+                    for m,d in zip(merge_types, dt_types):
+                        if m == d:
+                            con_types.append(m)
+                        elif type(m) == str and type(d) == str:
+                            if m[:2] == d[:2]:
+                                if m > d:
+                                    con_types.append(m)
+                                else:
+                                    con_types.append(d)
+                    # Have to adjust the types appropriately
+                    if len(con_types) == len(merged.dtype.names):
+                        dtype = zip(merged.dtype.names, con_types)
+                        merged = np.empty(len(temp_arr), dtype=dtype)
+                        flipped_temp = zip(*temp_arr)
+                        for i, nm in enumerate(merged.dtype.names):
+                            merged[nm] =\
+                            np.array(flipped_temp[i]).astype(dtype[i][1])
+                    else:
+                        raise TypeError('dtypes of data do not match')
+            else:
+                merged = np.concatenate((merged, np.array(data_form[i])))
         return merged
 
 def add_field(a, descr):
