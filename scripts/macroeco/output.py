@@ -515,7 +515,7 @@ class IEDOutput(object):
             else:
                 plt.title('RED: plot number ' + str(i))
             plt.loglog()
-            plt.ylabel('Log Energy)')
+            plt.ylabel('Log Energy')
             plt.xlabel('Log Rank')
 
             filename = os.path.join(folder_name, self.out_dir +

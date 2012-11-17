@@ -351,22 +351,22 @@ class Parameters:
                                 data_type = 'csv'
                             # Remove any data extension
                             if data_type == 'csv':
-                                file_name = elt.find('file').text.split('.')[0]
-                                
-                                directory = elt.find('directory').text
-                                data_file = os.path.extsep.join((file_name,
-                                                                'csv'))
-                                data_path = os.path.join(prepend,
-                                                         directory, data_file)
+                                data_path = convert_filename(elt, prepend,
+                                                                         'csv')
                                 self.data_path[run_name].append(data_path)
+
                             elif data_type == 'txt':
-                                file_name = elt.find('file').text.split('.')[0]
-                            
-                                directory = elt.find('directory').text
-                                data_file = os.path.extsep.join((file_name,
-                                                                'txt'))
-                                data_path = os.path.join(prepend,
-                                                         directory, data_file)
+                                data_path = convert_filename(elt, prepend,
+                                                                         'txt')
+                                self.data_path[run_name].append(data_path)
+
+                            elif data_type == 'sql':
+                                data_path = convert_filename(elt, prepend,
+                                                                         'sql')
+                                self.data_path[run_name].append(data_path)
+                            elif data_type == 'db':
+                                data_path = convert_filename(elt, prepend,
+                                                                         'db')
                                 self.data_path[run_name].append(data_path)
                             else:
                                 logging.error('Data type {!s} not yet handled; '
@@ -515,3 +515,24 @@ def make_map(data_paths, run_name, whole_globe=False):
     plt.savefig(map_name)
     plt.close()
     return True
+
+
+def convert_filename(elt, prepend, ext):
+    '''Parses xml tree to return filename
+
+    Parameters
+    ----------
+    elt : Etree
+        XML tree object
+    prepend : str
+        String to be appended
+    ext : str
+        File type, i.e. csv, txt, sql, db
+    '''
+    
+    file_name = elt.find('file').text.split('.')[0]
+                                
+    directory = elt.find('directory').text
+    data_file = os.path.extsep.join((file_name, ext))
+    data_path = os.path.join(prepend, directory, data_file)
+    return data_path

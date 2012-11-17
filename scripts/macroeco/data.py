@@ -221,7 +221,6 @@ class Metadata:
         for item in asklist:
             # Get list of all elements for this attribute
             all_elements = self.get_all_elements(item[0])
-            #import pdb; pdb.set_trace()
 
             # Get value of element for this attribute if it exists
             if all_elements is None:
