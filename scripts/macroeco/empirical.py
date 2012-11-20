@@ -112,6 +112,9 @@ class Patch:
         spp_list, spp_col, count_col, engy_col, mass, combinations = \
             self.parse_criteria(criteria)
 
+        if spp_col == None:
+            raise TypeError('No species column specified in "criteria" ' +
+                                                                   'parameter')
         result = []
         for comb in combinations:
             

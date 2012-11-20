@@ -77,6 +77,25 @@ immediately after '_<=_'.   Each file name is a concatenation of the following
 strings: analysis name, data name and 'rarity_<=_' some minimum.
 '''
 
+readme_info_sar=\
+'''
+FOLDER DESCRIPTION
+------------------
+
+The folder {0} contains {1} png files and {2} csv files.  The png file(s) are 
+log-log SAR plot(s) with area_fraction on the x-axis and species on the y-axis.
+The names of the png file(s) are a concatenation of the following strings:
+analysis name, run_name, data_name, and SAR_plot. A number is appended to the
+end of the plot to ensure the filename is unique. The csv
+files contain the data required to make the given plot(s). Each csv file
+contains two columns, species and area_fraction.  area_fraction assigns the
+base area a value of 1 and represents all other areas as a fraction of the base
+area. The csv file name(s) are a concatenation of the following strings:
+analysis_name, run_name, data_name, SAR_plot_, a unique number, and the SAR
+name.
+
+'''
+
 
 class DistributionOutput(object):
     '''
@@ -472,10 +491,16 @@ class SAROutput(object):
 
         '''
 
+        folder_name = 'sar_plots_' + self.out_dir
+        make_directory(folder_name)
+
         if len(names) != 0:
             assert len(names) == len(sars); "Length of names must equal" + \
-                                            "length of sars"
+                                           "length of sars"
+        count = 0
         for i, sar in enumerate(sars):
+            filename = os.path.join(folder_name, self.out_dir + '_SAR_plot_' +
+                                                                        str(i))
             legend = []
             for kw in sar.iterkeys():
                 legend.append(kw)
@@ -487,8 +512,7 @@ class SAROutput(object):
                 # Change dtype names and output
                 defnm = sar[kw].dtype.names
                 sar[kw].dtype.names = ('species', 'area_fraction')
-                output_form(sar[kw], self.out_dir + '_SAR_plot_' + str(i) + '_'
-                                                                          + kw)
+                output_form(sar[kw], filename + '_' + kw)
                 sar[kw].dtype.names = defnm
 
             plt.loglog()
@@ -499,10 +523,17 @@ class SAROutput(object):
                 plt.title(names[i])
             else:
                 plt.title('SAR plot %i' % (i))
-            logging.info('Saving figure ' + self.out_dir + '_SAR_plot_' 
-                            + str(i))
-            plt.savefig(self.out_dir + '_SAR_plot_' + str(i))
+            filename = os.path.join(folder_name, self.out_dir + '_SAR_plot_' +
+                                                                        str(i))
+            logging.info('Saving figure ' + filename)
+            plt.savefig(filename)
             plt.clf()
+            count += 1
+
+        fout = open(os.path.join(folder_name, 'README'), 'w')
+        fout.write(readme_info_sar.format(folder_name, count, count * len(sar))) 
+        fout.close()
+
 
 class IEDOutput(object):
     '''
