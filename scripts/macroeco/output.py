@@ -180,10 +180,11 @@ class DistributionOutput(object):
             for kw in smry.iterkeys():
                 if kw != 'observed':
                     dt= smry[kw]
-                    # set relevant aci values for table output
-                    aic_vals[kw]={'AIC_weights' : dt['aic_w'], 'Delta_AIC' :
-                                   dt['aic_d'], 'Parameter_number' :
-                                   dt['par_num'], 'Corrected_AIC' : dt['aic']}
+                    # set relevant aic values for table output
+                    aic_vals[kw]={'AIC_weights' : dt['aic_w'][i], 'Delta_AIC' :
+                                   dt['aic_d'][i], 'Parameter_number' :
+                                   dt['par_num'][i], 'Corrected_AIC' :
+                                   dt['aic'][i]}
                     # Getting rarity
                     dt_rare = {}
                     for mins in dt['tot_min'].iterkeys():
@@ -203,8 +204,8 @@ class DistributionOutput(object):
 
             # Make and print AIC table
             dtype = [('Model', 'S30'), ('Parameter_number', np.float),
-            ('Corrected_AIC', np.float), ('AIC_weights', np.float),
-            ('Delta_AIC', np.float)]
+                        ('Corrected_AIC', np.float), ('AIC_weights', np.float),
+                        ('Delta_AIC', np.float)]
             aic_array = np.empty(len(aic_vals), dtype=dtype)
             for j, model_name in enumerate(aic_vals.iterkeys()):
                 aic_array['Model'][j] = model_name

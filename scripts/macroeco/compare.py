@@ -43,6 +43,8 @@ import numpy as np
 import scipy.stats as stats
 from distributions import *
 import copy
+from random import choice
+import time
 
 __author__ = "Mark Wilber"
 __copyright__ = "Copyright 2012, Regents of University of California"
@@ -1066,6 +1068,138 @@ def likelihood_ratio_test(nll_null, nll_alt, df_list):
                                           "must have the same length"
     test_stat = 2 * nll_null - (2 * nll_alt)
     return [(ts, stats.chisqprob(ts, df)) for ts, df in zip(test_stat, df_list)]
+
+def variance(data_sets):
+    '''Calculates the variance of the given data_sets
+    
+    Parameters
+    ----------
+    data_sets : list
+        A list of np.arrays on which the kurtosis will be calculated=
+
+    '''
+
+    variance_list = []
+    for data in data_sets:
+        variance_list.append(np.var(data, ddof=1))
+
+    return variance_list
+
+def skewness(data_sets):
+    '''Calculates the skewness using an online algorithm for the given list of
+    datasets
+
+    Parameters
+    ----------
+    data_sets : list
+        A list of np.arrays on which the kurtosis will be calculated
+
+    Returns
+    -------
+    : list
+        A list of kurtosis values with the same length as data_sets
+
+    Notes
+    -----
+    This code was taken directly from Wikipedia: 
+    http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Higher-order_statistics
+    '''
+
+    skewness_list = []
+    for data in data_sets:
+        n = 0
+        mean = 0
+        M2 = 0
+        M3 = 0
+ 
+        for x in data:
+            n1 = n
+            n = n + 1
+            delta = x - mean
+            delta_n = delta / n
+            term1 = delta * delta_n * n1
+            mean = mean + delta_n
+            M3 = M3 + term1 * delta_n * (n - 2) - 3 * delta_n * M2
+            M2 = M2 + term1
+ 
+        skewness = ((n**0.5)*M3) / (M2**(3./2))
+        skewness_list.append(skewness)
+
+    return skewness_list 
+
+def kurtosis(data_sets):
+    '''Calculates the kurtosis using an online algorithm for the given list of
+    datasets
+
+    Parameters
+    ----------
+    data_sets : list
+        A list of np.arrays on which the kurtosis will be calculated
+
+    Returns
+    -------
+    : list
+        A list of kurtosis values with the same length as data_sets
+
+    Notes
+    -----
+    This code was taken directly from Wikipedia: 
+    http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Higher-order_statistics
+    '''
+    kurtosis_list = []
+    for data in data_sets:
+        n = 0
+        mean = 0
+        M2 = 0
+        M3 = 0
+        M4 = 0
+ 
+        for x in data:
+            n1 = n
+            n = n + 1
+            delta = x - mean
+            delta_n = delta / n
+            delta_n2 = delta_n * delta_n
+            term1 = delta * delta_n * n1
+            mean = mean + delta_n
+            M4 = M4 + term1 * delta_n2 * (n*n - 3*n + 3) + 6 * delta_n2 * M2 - 4 * delta_n * M3
+            M3 = M3 + term1 * delta_n * (n - 2) - 3 * delta_n * M2
+            M2 = M2 + term1
+ 
+        kurtosis = (n*M4) / (M2*M2) - 3
+        kurtosis_list.append(kurtosis)
+
+    return kurtosis_list
+
+def bootstrap(data_sets, num_samp=1000):
+    '''Bootstrap a data_set within data_sets num_samp times. With replacement
+
+    Parameters
+    ----------
+    data_sets : list
+        A list of np.arrays on which the kurtosis will be calculated
+    num_samp : int
+        Number of bootstrap samples to take
+
+    Returns
+    -------
+    : a list
+        A list of lists of arrays.  Each list contains num_samp bootstrapped
+        arrays
+    '''
+    
+    random.seed(time.time())
+
+    bootstraps = []
+    for data in data_sets:
+        bt_data = []
+        n = len(data)
+        for j in xrange(num_samp):
+            bt_data.append(np.array([choice(data) for j in xrange(n)]))
+        bootstraps.append(bt_data)
+    
+    return bootstraps
+
 
 def cnvrt_to_arrays(*args):
     '''
