@@ -351,6 +351,7 @@ class Parameters:
                                 data_type = 'csv'
                             # Remove any data extension
                             if data_type == 'csv':
+
                                 data_path = convert_filename(elt, prepend,
                                                                          'csv')
                                 self.data_path[run_name].append(data_path)

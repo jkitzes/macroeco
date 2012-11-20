@@ -140,10 +140,16 @@ class DistributionOutput(object):
                                                                   criteria]):
                 filename = os.path.join(folder_name, self.out_dir + \
                         '_summary_table_' + str(criteria[i]) + '.txt')
+                filename_aic = os.path.join(folder_name, self.out_dir + \
+                        '_AIC_table_' + str(criteria[i]))
+
                 
             else:
                 filename = os.path.join(folder_name, self.out_dir + 
                                     '_summary_table_' + str(i) + '.txt')
+                filename_aic = os.path.join(folder_name, self.out_dir + 
+                                    '_AIC_table_' + str(i))
+
 
             fout = open(filename, 'w')
             logging.info('Writing summary table %s' % filename)
@@ -164,10 +170,21 @@ class DistributionOutput(object):
                     str(ob['balls'][i]) + '\nObserved Nmax= ' + 
                     str(ob['max'][i]) + '\nObserved Rarity = ' +
                     str(ob_rare) + '\n\n')
+
+
+            # Also output AIC values in for each table. Could add other other
+            # measures to this table as well. 
+            # Might break this out later
+            aic_vals = {}
+
             for kw in smry.iterkeys():
                 if kw != 'observed':
                     dt= smry[kw]
-                    
+                    # set relevant aic values for table output
+                    aic_vals[kw]={'AIC_weights' : dt['aic_w'][i], 'Delta_AIC' :
+                                   dt['aic_d'][i], 'Parameter_number' :
+                                   dt['par_num'][i], 'Corrected_AIC' :
+                                   dt['aic'][i]}
                     # Getting rarity
                     dt_rare = {}
                     for mins in dt['tot_min'].iterkeys():
@@ -185,9 +202,28 @@ class DistributionOutput(object):
             fout.close()
             count += 1
 
+            # Make and print AIC table
+            dtype = [('Model', 'S30'), ('Parameter_number', np.float),
+                        ('Corrected_AIC', np.float), ('AIC_weights', np.float),
+                        ('Delta_AIC', np.float)]
+            aic_array = np.empty(len(aic_vals), dtype=dtype)
+            for j, model_name in enumerate(aic_vals.iterkeys()):
+                aic_array['Model'][j] = model_name
+                aic_array['Parameter_number'][j] =\
+                                       aic_vals[model_name]['Parameter_number']
+                aic_array['Corrected_AIC'][j] =\
+                                       aic_vals[model_name]['Corrected_AIC']
+                aic_array['AIC_weights'][j] =\
+                                       aic_vals[model_name]['AIC_weights']
+                aic_array['Delta_AIC'][j] =\
+                                       aic_vals[model_name]['Delta_AIC']
+            output_form(aic_array, filename_aic)
+
         fout = open(os.path.join(folder_name, 'README'), 'w')
         fout.write(readme_info_summary.format(folder_name, count))
         fout.close()
+
+    
 
     def plot_rads(self, rads, criteria=None, species=None):
         '''
@@ -229,7 +265,7 @@ class DistributionOutput(object):
             
             if criteria != None and np.all([type(crt) != dict for crt in
                                                                     criteria]):
-                plt.title('RAD criteria: ' + str(criteria[i]))
+                plt.title('Rank abundance distribution for ' + str(criteria[i]))
                 filename = os.path.join(folder_name, self.out_dir +
                                     '_rank_abundance_plot_' + str(criteria[i]))
 
@@ -240,7 +276,11 @@ class DistributionOutput(object):
 
             elif criteria != None and np.all([type(crt) == dict for crt in
                                                                     criteria]):
-                plt.title('RAD criteria: ' + str(criteria[i]))
+                plt.title('Rank abundance distribution')
+                plt.figtext(.97, .5, 'Criteria for plot: ' + str(criteria[i]), 
+                                rotation='vertical', size=8,
+                                horizontalalignment='center',
+                                verticalalignment='center')
 
                 filename = os.path.join(folder_name,  self.out_dir + 
                                               '_rank_abundance_plot_' + str(i))
@@ -250,7 +290,7 @@ class DistributionOutput(object):
                 count += 2
 
             else:
-                plt.title('RAD: plot number ' + str(i))
+                plt.title('Rank abundance distribution: plot number ' + str(i))
                 
                 filename = os.path.join(folder_name, self.out_dir + 
                                               '_rank_abundance_plot_' + str(i))
@@ -319,7 +359,7 @@ class DistributionOutput(object):
 
             if criteria != None and np.all([type(crt) != dict for crt in
                                                                     criteria]):
-                plt.title('CDF criteria: ' + str(criteria[i]))
+                plt.title('Cumulative density function: ' + str(criteria[i]))
 
                 filename = os.path.join(folder_name, self.out_dir +
                                                '_cdf_plot_' + str(criteria[i]))
@@ -330,7 +370,11 @@ class DistributionOutput(object):
 
             elif criteria != None and np.all([type(crt) == dict for crt in
                                                                     criteria]):
-                plt.title('CDF criteria: ' + str(criteria[i]))
+                plt.title('Cumulative Density Function')
+                plt.figtext(.97, .5, 'Criteria for plot: ' + str(criteria[i]), 
+                                rotation='vertical', size=8,
+                                horizontalalignment='center',
+                                verticalalignment='center')
 
                 filename = os.path.join(folder_name, self.out_dir + 
                                                    '_cdf_plot_' + str(i)) 
