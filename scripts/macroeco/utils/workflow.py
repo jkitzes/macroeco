@@ -470,7 +470,9 @@ def make_map(data_paths, run_name, whole_globe=False):
     names = []
 
     for path in data_paths:
-        x = path[:-3]+'xml'
+        temp = list(os.path.split(path))
+        temp[1] = temp[1].split('.')[0] + '.xml'
+        x = os.path.join(temp[0], temp[1])
         
         try:
             meta = Metadata(x, {})
