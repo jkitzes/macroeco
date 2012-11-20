@@ -49,14 +49,15 @@ class Patch:
     ----------
     data_path : str
         Path to csv file containing census data.
-    subset : dict
+    subset : dict or str
         Dictionary of permanent subset to data, {'column_name': 'condition'},
         which will limit all analysis to records in which column_name meets the
         condition, ie, {'year': ('==', 2005), 'x': [('>', 20), ('<', 40)]}
         restricts analysis to year 2005 and x values between 20 and 40. These
         conditions can also be passed to the individual methods, but subsetting
         the data table up front may save analysis time.  Subsetting on a string
-        would look something like {'name' : [('==', 'John'), ('==', 'Harry')]}
+        would look something like {'name' : [('==', 'John'), ('==', 'Harry')]}.
+        In addition, subset can be a query string for a SQL database.
 
     Attributes
     ----------
@@ -67,9 +68,13 @@ class Patch:
 
     def __init__(self, datapath, subset = {}):
         '''Initialize object of class Patch. See class documentation.'''
-
-        self.data_table = DataTable(datapath)
-        self.data_table.table = self.data_table.get_subtable(subset)
+        
+        # Handle csv 
+        self.data_table = DataTable(datapath, subset=subset)
+        
+        # If datapath is sql or db the subsetting is already done.
+        if type(subset) == type({}):
+            self.data_table.table = self.data_table.get_subtable(subset)
 
     
     def sad(self, criteria, clean=False):

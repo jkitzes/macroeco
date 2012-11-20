@@ -27,7 +27,7 @@ class TestDataTable(unittest.TestCase):
         os.remove('xyfile1.csv')
 
     def test_error_if_file_type_not_csv(self):
-        self.assertRaises(AssertionError, DataTable, 'file.txt')
+        self.assertRaises(TypeError, DataTable, 'file.txt')
         
     def test_meta_None_if_no_meta_file(self):
         xy1 = DataTable('xyfile1.csv')

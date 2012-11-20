@@ -15,6 +15,7 @@ import logging
 import numpy as np
 import xml.etree.ElementTree as etree
 from matplotlib.mlab import csv2rec
+import sqlite3 as lite
 
 
 class DataTable:
@@ -25,6 +26,8 @@ class DataTable:
     ----------
     data_path : str
         Path to data - location of metadata determined from this path.
+    subset : str
+        An SQL query string
 
     Attributes
     ----------
@@ -39,13 +42,13 @@ class DataTable:
         column are defined in asklist 
     '''
 
-    def __init__(self, data_path):
+    def __init__(self, data_path, subset={}):
         '''Initialize DataTable object. See class docstring.'''
 
-        self.table, self.meta = self.data_load(data_path)
+        self.table, self.meta = self.data_load(data_path, subset=subset)
 
 
-    def data_load(self, data_path):
+    def data_load(self, data_path, subset={}):
         '''
         Load data and metadata from files.
         
@@ -61,12 +64,19 @@ class DataTable:
         meta : dict
             Dictionary of metadata associated with table.
         '''
-        
-        # Check that file is csv
-        assert data_path[-4:] == '.csv', 'File must be .csv'
+        end = data_path.split('.')[-1]
+        # Check that file is csv. If so, read in as rec array
+        if end == 'csv':
+            # Load main table - dtype detected automatically
+            table = csv2rec(data_path)
+        elif end == 'db' or end == 'sql':
 
-        # Load main table - dtype detected automatically
-        table = csv2rec(data_path)
+            if type(subset) == type({}):
+                raise ValueError('No SQL query string provided')
+
+            table = db_table(data_path, subset)
+        else:
+            raise TypeError('Cannot handle file of type %s' % end)
 
         # Store asklist defining columns and fields needed for analysis.
         # asklist is
@@ -211,7 +221,6 @@ class Metadata:
         for item in asklist:
             # Get list of all elements for this attribute
             all_elements = self.get_all_elements(item[0])
-            #import pdb; pdb.set_trace()
 
             # Get value of element for this attribute if it exists
             if all_elements is None:
@@ -283,3 +292,69 @@ class Metadata:
     def get_title(self):
         '''Extracts the title of the dataset. Not currently used.'''
         return self.root.find('.//dataset/title').text
+
+def db_table(data_path, query_str):
+    '''Query a database and return query result as a recarray
+
+    Parameters
+    ----------
+    data_path : str
+        The data_path of the .db file
+    query_str : str
+        The SQL query string
+
+    Returns
+    -------
+    table : recarray
+        The database query as a recarray
+        
+    '''
+    
+    end = data_path.split('.')[-1]
+
+    if end == 'sql':
+
+        def readData():
+            f = open(data_path, 'r')
+
+            with f:
+                data = f.read()
+                return data
+
+        con = lite.connect(':memory:')
+        con.row_factory = lite.Row
+
+        cur = con.cursor()
+        sql = readData()
+        cur.executescript(sql)
+
+    elif end == 'db':
+        
+        con = lite.connect(data_path)
+
+        con.row_factory = lite.Row
+        cur = con.cursor()
+
+    cur.execute(query_str)
+    db_info = cur.fetchall()
+    try:
+        col_names = db_info[0].keys()
+    except IndexError:
+        raise lite.OperationalError("Query '%s' to database '%s' is empty" %
+                                                        (query_str, data_path))
+
+    # Convert objects to tuples
+    converted_info = [tuple(x) for x in db_info]
+        
+    # NOTE: Using default value for Unicode: Seems better than checking
+    # lengths.  Should we keep the type as unicode?
+    dtypes = [type(x) if type(x) != unicode else 'S150' for x in db_info[0]]
+
+    table = np.array(converted_info, dtype=zip(col_names, dtypes))
+    con.commit()
+    con.close()
+    
+    # Return a recarray for consistency
+    return table.view(np.recarray)
+
+
