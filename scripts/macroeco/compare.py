@@ -165,12 +165,17 @@ class CompareDistribution(object):
         Returns
         -------
         : tuple
-            The first element is a list of arrays with each array having length 
-            equal to the number of models proposed and the length of the list 
-            is the length of self.observed_datas. The second element is the delta
-            AIC values in the same format as the first tuple object. The third
-            object are the AIC values in the same format as the output of the 
-            compare_aic method. 
+            The first element is a list of arrays with each array having length
+            equal to the number of models proposed and the length of the list
+            is the length of self.observed_datas. The first element contains
+            the AIC weights. The second element is the delta AIC values in the
+            same format as the first tuple object. The third object are the AIC
+            values in the same format as the output of the compare_aic method. 
+
+        Notes
+        -----
+        The given AIC values in each array correspond to the distributions in
+        self.dist_list. 
 
         '''
         aic_vals = self.compare_aic(crt=crt)

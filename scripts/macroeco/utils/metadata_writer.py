@@ -279,16 +279,22 @@ class MetaWriter:
 
 
 
-    def write_meta_data(self):
+    def write_meta_data(self, name=None):
         '''
         Writes out the xml tree that is contained in self.root and saves and
-        .xml file in the currect working directory under the given filename 
+        .xml file in the currect working directory under the given filename. If
+        no name is given save the xml as the same name as the input file.
 
         
         '''
-
+        
         tree = ET.ElementTree(self.root)
-        tree.write(self.filename + '.xml')
+        if name == None:
+            tree.write(self.filename + '.xml')
+        else:
+            tree.write(name + '.xml')
+
+                
 
 
 
