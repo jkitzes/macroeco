@@ -586,9 +586,18 @@ class IEDOutput(object):
 
             # Make appropirate title for figure
             if criteria != None:
-                plt.title('RED criteria: ' + str(criteria[i]))
+                plt.title('Rank Energy Distribution')
+                plt.figtext(.97, .5, 'Criteria for plot: ' + str(criteria[i]), 
+                                rotation='vertical', size=8,
+                                horizontalalignment='center',
+                                verticalalignment='center')
             else:
-                plt.title('RED: plot number ' + str(i))
+                plt.title('Rank Energy Distribution')
+                plt.figtext(.97, .5, 'Plot number: ' + str(i), 
+                                rotation='vertical', size=8,
+                                horizontalalignment='center',
+                                verticalalignment='center')
+
             plt.loglog()
             plt.ylabel('Log Energy')
             plt.xlabel('Log Rank')

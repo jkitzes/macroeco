@@ -83,10 +83,10 @@ class Workflow:
             logging.getLogger('').addHandler(console)
        
             def excepthook(*args):  # Catch errors to log
-                logging.getLogger().error('Error', exc_info=args)
+                logging.getLogger().error('Analysis Stopped', exc_info=args)
         else:
             def excepthook(*args):  # Catch errors to log + stderr
-                logging.getLogger().error('Error', exc_info=args)
+                logging.getLogger().error('Analysis Stopped', exc_info=args)
                 sys.__excepthook__(*args)  # Show err in console if clog False
 
         sys.excepthook = excepthook  # Define error handler as above

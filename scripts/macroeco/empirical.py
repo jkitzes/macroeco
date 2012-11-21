@@ -253,7 +253,7 @@ class Patch:
                 except TypeError:
                     raise TypeError('Unable to proceed to with values ' +
                                     'obtained from metadata.  Please check ' + 
-                                    'the metadata file')
+                                    'the metadata file and/or parameters file')
                 
 
                 starts_str = [('>=', x) for x in starts]
