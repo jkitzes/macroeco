@@ -34,6 +34,11 @@ Functions
 -`aic_wieghts` -- Calculate AIC weights for models
 -`ks_two_sample_test` -- Kolmogrov-Smirnov two sample test
 -`likelihood_ratio_test` -- Calculated likelihood ratio for nested models
+-`variance` -- Calculates the variance for given datasets
+-`skew` -- Calculates the skew for given datasets
+-`kurtosis` -- Calculates the kurtosis for given data sets
+-`bootstrap` -- Get bootstrapped samples from a dataset
+-`'mean_squared_error` -- Calculates the MSE between an obs and pred data set
 
 
 '''
@@ -43,7 +48,7 @@ import numpy as np
 import scipy.stats as stats
 from distributions import *
 import copy
-from random import choice
+import random
 import time
 
 __author__ = "Mark Wilber"
@@ -103,6 +108,7 @@ class CompareDistribution(object):
         # Set this in __init__ so other methods can check if compare_rads() has
         # been called
         self.rads = None
+        self.cdfs = None
        
         # If attributes have not been instantiated, set to None
         try:
@@ -113,6 +119,57 @@ class CompareDistribution(object):
             self.criteria
         except:
             self.criteria = None
+
+    def compare_mse(self, mse_base='cdf'):
+        '''
+        This function compares the mean squared error (mse) for each distribution
+        against the observed data, self.observed_data.  Perfet predicted data
+        would yield a mse of 0.  The lower the mse the better the predicted
+        values fit the data. If mse_base='cdf' the mse is calculated from the
+        cdf. If mse_base='rad', the mse is calculated from the rank_abundance
+        distribution.
+
+        Parameters
+        -----------
+        mse_base : str
+           Either 'cdf' or 'rad'.  If 'cdf' the mse values are computed
+           from the cumulative density function.  It 'rad' the mse values are
+           computed from the rank abundance distribution. Default is 'cdf'
+
+        Returns
+        -------
+        : dict
+            A dictionary of length self.dist_list with keywords being the
+            distribution names.  Each keyword looks up a list of length
+            self.observed_data in which are the mse values comparing that
+            distribution's predicted values (cdf or rad) to the corresponding
+            observed values.
+
+        Notes
+        -----
+        Calculating the mse from the cdf is the least bias approximator
+
+        '''
+        if mse_base == 'cdf':
+            if self.cdfs == None:
+                vals = self.compare_cdfs()
+            else:
+                vals = self.cdfs
+        elif mse_base == 'rad':
+            if self.rads == None:
+                vals = self.compare_rads()
+            else:
+                vals = self.rads
+        else:
+            raise NameError('%s value for mse_base not recognized' % mse_base)
+
+
+        mse = {}
+        for kw in vals.iterkeys():
+            if kw != 'observed':
+                mse[kw] = [mean_squared_error(vals['observed'][i], vals[kw][i])
+                            for i in xrange(len(vals[kw]))]
+        return mse
 
 
     def compare_aic(self, crt=False):
@@ -335,6 +392,41 @@ class CompareDistribution(object):
                 rarity[kw][mins] = [sum(data <= mins) for data in rads[kw]]
         return rarity
 
+    def compare_moments(self):
+        '''
+        Compare the higher order moments (variance, skew, kurtosis) for the
+        given distributions and observed data
+
+        Returns
+        -------
+        : dict
+            A dictionary with keywords variance, skew, and kurtosis.  Each
+            keyword looks up a dictionary len(dist_list) + 1 keywords.  The
+            keywords are 'observed' and the distribution object names. Each of
+            these keywords looks up a list of floats with the same length as
+            data_list.
+
+        '''
+
+        if self.rads == None:
+            rads = self.compare_rads()
+        else:
+            rads = self.rads
+
+        var = {}
+        skw = {}
+        kurt = {}
+
+        for kw in rads.iterkeys():
+            var[kw] = variance(rads[kw])
+            skw[kw] = skew(rads[kw])
+            kurt[kw] = kurtosis(rads[kw])
+        moments = {}
+        moments['variance'] = var
+        moments['skew'] = skw
+        moments['kurtosis'] = kurt
+
+        return moments
 
     def summary(self, mins_list=[10], crt=False):
         '''
@@ -880,7 +972,12 @@ class CompareSAR(object):
             The list is the same length self.sar_list and each dictionary is
             the length of self.curve_list + 1.  Each keyword in a dictionary
             references either the observed SAR ('observed') or the SAR generate by
-            one of the curve objects. 
+            one of the curve objects.
+
+        Notes
+        -----
+        If possible, the SARs are computed using an iterative method.
+        Otherwise, they are calculated with a one-shot method.
         '''
         pred_sar = []
         for sar, a, sad in zip(self.sar_list, self.a_list, self.full_sad):
@@ -889,7 +986,11 @@ class CompareSAR(object):
                                         ('area', np.float)])
             for cur in self.curve_list:
                 cur.fit(sad, (a, sar))
-                psar[get_name(cur)] = cur.vals(a)
+                try: #Calculating everything with iteration if possible
+                    psar[cur.get_name()] = cur.iter_vals(a)
+                except AttributeError:
+                    psar[cur.get_name()] = cur.vals(a)
+                    
             for kw in psar.iterkeys():
                 psar[kw].sort(order='area')
             pred_sar.append(psar)
@@ -1075,7 +1176,7 @@ def variance(data_sets):
     Parameters
     ----------
     data_sets : list
-        A list of np.arrays on which the kurtosis will be calculated=
+        A list of np.arrays on which the kurtosis will be calculated
 
     '''
 
@@ -1085,9 +1186,8 @@ def variance(data_sets):
 
     return variance_list
 
-def skewness(data_sets):
-    '''Calculates the skewness using an online algorithm for the given list of
-    datasets
+def skew(data_sets):
+    '''Calculates the skew of some given data
 
     Parameters
     ----------
@@ -1099,31 +1199,11 @@ def skewness(data_sets):
     : list
         A list of kurtosis values with the same length as data_sets
 
-    Notes
-    -----
-    This code was taken directly from Wikipedia: 
-    http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Higher-order_statistics
     '''
 
     skewness_list = []
     for data in data_sets:
-        n = 0
-        mean = 0
-        M2 = 0
-        M3 = 0
- 
-        for x in data:
-            n1 = n
-            n = n + 1
-            delta = x - mean
-            delta_n = delta / n
-            term1 = delta * delta_n * n1
-            mean = mean + delta_n
-            M3 = M3 + term1 * delta_n * (n - 2) - 3 * delta_n * M2
-            M2 = M2 + term1
- 
-        skewness = ((n**0.5)*M3) / (M2**(3./2))
-        skewness_list.append(skewness)
+        skewness_list.append(stats.skew(data))
 
     return skewness_list 
 
@@ -1141,33 +1221,10 @@ def kurtosis(data_sets):
     : list
         A list of kurtosis values with the same length as data_sets
 
-    Notes
-    -----
-    This code was taken directly from Wikipedia: 
-    http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Higher-order_statistics
     '''
     kurtosis_list = []
     for data in data_sets:
-        n = 0
-        mean = 0
-        M2 = 0
-        M3 = 0
-        M4 = 0
- 
-        for x in data:
-            n1 = n
-            n = n + 1
-            delta = x - mean
-            delta_n = delta / n
-            delta_n2 = delta_n * delta_n
-            term1 = delta * delta_n * n1
-            mean = mean + delta_n
-            M4 = M4 + term1 * delta_n2 * (n*n - 3*n + 3) + 6 * delta_n2 * M2 - 4 * delta_n * M3
-            M3 = M3 + term1 * delta_n * (n - 2) - 3 * delta_n * M2
-            M2 = M2 + term1
- 
-        kurtosis = (n*M4) / (M2*M2) - 3
-        kurtosis_list.append(kurtosis)
+        kurtosis_list.append(stats.kurtosis(data))
 
     return kurtosis_list
 
@@ -1195,10 +1252,101 @@ def bootstrap(data_sets, num_samp=1000):
         bt_data = []
         n = len(data)
         for j in xrange(num_samp):
-            bt_data.append(np.array([choice(data) for j in xrange(n)]))
+            bt_data.append(np.array([random.choice(data) for j in xrange(n)]))
         bootstraps.append(bt_data)
     
     return bootstraps
+
+def test_moment(data1, data2, moment, CI=.95, num_samp=1000):
+    '''
+    A bootstrap two-sample test of kurtosis or kurtosis. Returns the test_statistic 
+    distribution and the confidence interval as specified by parameter CI.
+
+    Parameters
+    ----------
+    data1 : array-like object
+        An array like object containing data
+    data2 : array-like object
+        An array-like object containing data
+    moment : str
+        Either skew or kurtosis
+    CI : float
+        The desired confidence interval
+    num_samp : int
+        Number of bootstrap samples
+
+    Returns
+    -------
+    : tuple
+        A tuple with two elements.  The first element is an array containing
+        the distribution of the higher moment statistic. The second element is
+        a tuple containing the confidence interval (lower_bound, upper_bound).
+    
+    Notes
+    -----
+    This test is still in the works. Persumably if the confidence doesn't
+    contain zero you can say the two higher moments are signficantly different.
+    However, more unit testing and investigation needs to be done.
+
+    '''
+    # Set the higher order moment
+    if moment == 'skew':
+        moment_est = skew
+    elif moment == 'kurtosis':
+        moment_est = kurtosis
+
+    data1 = np.array(data1)
+    data2 = np.array(data2)
+
+    data1_boot = bootstrap([data1], num_samp=num_samp)[0]
+    data2_boot = bootstrap([data2], num_samp=num_samp)[0]
+
+    # data1_samp_kurt = kurtosis([data1])
+    # data1_samp_var = variance([data1])
+    data1_boot_mom = np.array(moment_est(data1_boot))
+    data1_boot_var = np.array(variance(data1_boot))
+
+    # data2_samp_kurt = kurtosis([data2])
+    # data2_samp_var = variance([data2])
+    data2_boot_mom = np.array(moment_est(data2_boot))
+    data2_boot_var = np.array(variance(data2_boot))
+    
+    # Test statistic for moment that accounts for variance
+    # NOTE: not correcting for bias
+    stat_dist = (data1_boot_mom - data2_boot_mom)\
+                / (np.sqrt(data1_boot_var + data2_boot_var))
+    
+    lci = (1 - CI) / 2.
+    uci = 1 - lci
+    ci = (stats.scoreatpercentile(stat_dist, 100 * lci),\
+          stats.scoreatpercentile(stat_dist, 100 * uci))
+    
+    return stat_dist, ci 
+
+def mean_squared_error(obs, pred):
+    '''
+    Calculates the mean sqaured error between observed and predicted data sets.
+    The data sets must be of the same length
+    
+    Parameters
+    ----------
+    obs : lis of array-like objects
+        The observed data
+    pred : array-like object
+        The predicted data
+
+    Returns
+    -------
+    : float
+        The mean squared error
+    '''
+
+    if len(obs) != len(pred):
+        raise ValueError('obs and pred parameters must have the same length')
+
+    obs, pred = cnvrt_to_arrays(obs, pred)
+
+    return sum((pred - obs)**2) / len(obs)
 
 
 def cnvrt_to_arrays(*args):
@@ -1233,7 +1381,29 @@ def make_dist_list(dist_list):
 
             # Clean strings
             dist_obj = dist_obj.strip()
-            ret_dist_list[i] = eval(dist_obj + '()')
+            try:
+                ret_dist_list[i] = eval(dist_obj + '()')
+            except:
+                # Do this if passing in a gen_sar sad and ssad
+                # Assumes the sad and ssad are seperated by '-'
+                try:
+                    sad, ssad = tuple(dist_obj.split('-'))
+                    if sad.find('(') != 1 and sad.find(')') != -1:
+                        sad_obj = eval(sad.strip())
+                    else:
+                        sad_obj = eval(sad.strip() + '()')
+                    if ssad.find('(') != 1 and ssad.find(')') != -1:
+                        ssad_obj = eval(ssad.strip())
+                    else:
+                        ssad_obj = eval(ssad.strip() + '()')
+                    ret_dist_list[i] = gen_sar(sad_obj, ssad_obj)
+                except:
+                    raise NameError("Could not evaluate '%s' as an object name"
+                    % dist_obj + '. It may not exist or may be improperly' + 
+                    ' formatted. Please check your distribution list in ' 
+                    + 'your parameters.xml file or in the dist_list' + 
+                    " argument '%s'" % str(dist_list))
+
         ret_dist_list = list(ret_dist_list)
     else:
         ret_dist_list = dist_list
