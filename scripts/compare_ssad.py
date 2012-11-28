@@ -33,8 +33,8 @@ included.'''.format(gb.SSAD_distributions)
 rarity_measure = gb.rarity_measure + ''' In this analysis, the rarity
 counts refer to the number of individuals of a single species per cell.'''
 
-explanation = '''
-ANALYSIS EXPLANATION\n This script allows you to compare an observed
+explanation = '''ANALYSIS EXPLANATION\n 
+The analysis compare_ssad allows you to compare an observed
 species-level spatial abundance distribution (SSAD) against any number of
 predicted SSADs. An SSAD can be thought of as the probability that a given
 species with n_o individuals will have n individuals in a cell of size A <=
@@ -51,16 +51,23 @@ provided references and the references therein.
 
 OUTPUT
 
-This script outputs cumulative density function (cdf) plots and rank abundance
-distribution (rad) plots in which the observed SSAD distribution for each
-species is compared to the distributions given in the required parameter
-predicted_SSAD_distributions (png files).  For each plot, a corresponding csv
-file with the same name as the plot except with a .csv extension is output
-containing the data used to make the plot.  In addition, a summary .txt file is
-output containing summary values for the plot and fitting statistics for the
-different predicted distributions you choose. If you perform an SSAD analysis
-on a plot with 30 species, you will get 30 cdf plots, 30 rad plots, 30 + 30 csv
-files, and 30 summary txt files, one for each species.   
+The analysis compare_ssad outputs three folders per dataset, a logfile.txt, and, if possible, a map
+of the location(s) of the datasets(s). The three folders have the names
+rank_abundance_plots_compare_ssad_*, cdf_plots_compare_ssad_*, and
+summary_statistics_compare_ssad_*.  They contain the cumulative density
+function (cdf) plots and rank abundance distribution (rad) plots in which the
+observed SSAD distribution for each species is compared to the distributions
+given in the required parameter predicted_SSAD_distributions (png files).  For
+each plot, a corresponding csv file with the same name as the plot except with
+a .csv extension is output containing the data used to make the plot.  In the
+summary statistics folder, summary .txt and .csv files are output containing
+summary values for the plot and fitting statistics for the different predicted
+distributions you choose. If you perform an SSAD analysis on a plot with 30
+species, you will get 30 cdf plots, 30 rad plots, 30 + 30 csv files, and 30
+summary txt files, one for each species.   
+
+The logfile.txt contains the analysis process information. Please see the
+logfile if the analysis fails.
 
 PARAMETER EXPLANATIONS
 
@@ -100,13 +107,19 @@ if __name__ == '__main__':
     from macroeco.utils.workflow import Workflow
     from macroeco.empirical import Patch
     import macroeco.compare as comp
-    from macroeco.output import SSADOutput
+    from macroeco.output import SSADOutput, make_directory
+    import os
 
     wf = Workflow(required_params=required_params,
                 optional_params=optional_params, clog=True, svers=__version__)
+
+    folder_name = 'SSAD_analysis'
+    make_directory(folder_name)
+    cwd = os.getcwd()
     
     for data_path, output_ID, params in wf.single_datasets():
 
+        os.chdir(os.path.join(cwd,folder_name))
         patch = Patch(data_path, subset=params['subset'])
         ssad = patch.ssad(params['criteria'])
 
@@ -118,7 +131,15 @@ if __name__ == '__main__':
         sout.plot_rads(cmpr.compare_rads(), criteria=cmpr.sad_spp_list)
         sout.plot_cdfs(cmpr.compare_cdfs(), cmpr.observed_data,
                         criteria=cmpr.sad_spp_list)
+        os.chdir(cwd)
         logging.info('Completed analysis %s\n' % output_ID)
+
+    os.chdir(os.path.join(cwd,folder_name))
+    fout = open('README_compare_ssad', 'w')
+    with fout:
+        fout.write(explanation)
+    os.chdir(cwd)
+
     logging.info("Completed 'compare_ssad.py' script")
 
 

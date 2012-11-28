@@ -36,7 +36,7 @@ counts refer to individuals per species.'''
 
 explanation = '''
 ANALYSIS EXPLANATION\n
-This script allows you to compare an observed species abundance distribution
+The analysis compare_sad allows you to compare an observed species abundance distribution
 (SAD) against any number of predicted SADs. An SAD is a distribution of the
 number of individuals within each species for an entire community.  This
 distribution can also be thought of as the probability that a given species in
@@ -49,17 +49,27 @@ distributions against which you can compare your observed SAD. For more
 information on SADs please see the provided references and the references
 therein.
 
-This script outputs cumulative density function (cdf) plots and rank abundance
-distribution (rad) plots in which the observed SAD distribution is compared to
-the distributions given in the required parameter predicted_SAD_distributions.
-For each plot, a corresponding csv file with the same name as the plot except
-with a .csv extension is output containing the data used to make the plot.  In
-addition, a summary .txt file is output containing summary values for the plot
-and fitting statistics for the different predicted distributions you
-choose. If you choose to split up your data, individual SADs are generated for
+OUTPUT
+
+The analysis compare_sad outputs three folders per dataset, a logfile.txt, and,
+if possible, a map of the location(s) of the dataset(s). The three folders have
+the names rank_abundance_plots_compare_sad_*, cdf_plots_compare_sad_*, and
+summary_statistics_compare_sad_*. These folders contain cumulative density
+function (cdf) plots and rank abundance distribution (rad) plots in which the
+observed SAD distribution is compared to the distributions given in the
+required parameter predicted_SAD_distributions.  For each plot, a corresponding
+csv file with the same name as the plot except with a .csv extension is output
+containing the data used to make the plot.  In the summary statistics folder,
+summary .txt and .csv files are output containing summary values for the plot
+and fitting statistics for the different predicted distributions you choose. 
+
+If you choose to split up your data, individual SADs are generated for
 each subsection.  For example, if you had data from three different years and
 you choose to split your data by year, you would get three SAD comparisons, one
 for each year.
+
+The logfile.txt contains the analysis process information. Please see the
+logfile if the analysis fails.
 
 
 PARAMETER EXPLANATIONS
@@ -103,13 +113,20 @@ if __name__ == '__main__':
     from macroeco.utils.workflow import Workflow
     from macroeco.empirical import Patch
     import macroeco.compare as comp
-    from macroeco.output import SADOutput
+    from macroeco.output import SADOutput, make_directory
+    import os
 
     wf = Workflow(required_params=required_params,
                  optional_params=optional_params, clog=True, svers=__version__)
 
-    for data_path, output_ID, params in wf.single_datasets():
+    folder_name = 'SAD_analysis'
+    make_directory(folder_name)
+    cwd = os.getcwd()
 
+    for data_path, output_ID, params in wf.single_datasets():
+        
+        os.chdir(os.path.join(cwd,folder_name))
+        
         patch = Patch(data_path, params['subset'])
         sad = patch.sad(params['criteria'], clean=True)
 
@@ -123,7 +140,16 @@ if __name__ == '__main__':
                                         species=cmpr.sad_spp_list)
         sout.plot_cdfs(cmpr.compare_cdfs(), cmpr.observed_data,
                         criteria=cmpr.criteria, species=cmpr.sad_spp_list)
+
+        os.chdir(cwd)
         logging.info('Completed analysis %s\n' % output_ID)
+    
+    os.chdir(os.path.join(cwd,folder_name))    
+    fout = open('README_compare_sad', 'w')
+    with fout:
+        fout.write(explanation)
+    os.chdir(cwd)
+
     logging.info("Completed 'compare_sad.py' script")
 
 

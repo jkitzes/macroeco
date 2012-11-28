@@ -40,7 +40,7 @@ exactly: ['SED'], ['IED'], or ['SED', 'IED'].'''
 
 explanation = ''' 
 ANALYSIS EXPLANATION\n
-This script allows you to compare observed energy metrics
+The compare_energy analysis allows you to compare observed energy metrics
 against predicted energy metrics. There are two energy metrics that this script
 can compare: individual energy distributions (IED) and species-level energy
 distributions (SED).  The IED is a distribution of the energy of each
@@ -60,14 +60,21 @@ distributions please see the reference and references therein.
 
 OUTPUT
 
-This script outputs rank energy distribution (red) plots in which the observed
-energy distribution is compared to the distributions given in the required
-parameter predicted_SED_distributions and/or predicted_IED_distributions. These
-files are output as .png files. For each plot, a corresponding csv file with
-the same name as the plot except with a .csv extension is output containing the
-data used to make the plot. For all SED plots, the species name is printed on
-the top of the plot.  For all of the IED plots, the criteria used to make plot
-is printed on the top of the plot. 
+This analysis outputs up to two folders per dataset, a logfile.txt, and, if
+possible, a .png file with a map of the location of the datasets(s). The two
+possible folders begin with the names ied_rank_energy_plots_compare_energy_*
+and sed_rank_energy_plots_compare_energy_*.  Within each folder, there are rank
+energy distribution (red) plots in which the observed energy distribution is
+compared to the distributions given in the required parameter
+predicted_SED_distributions and/or predicted_IED_distributions. These files are
+output as .png files. For each plot, a corresponding csv file with the same
+name as the plot except with a .csv extension is output containing the data
+used to make the plot. For all SED plots, the species name specified in the
+plot title.  For all of the IED plots, the criteria used to make plot is
+printed on the right hand side of the plot. 
+
+The logfile.txt contains the analysis process information. Please see the
+logfile if the analysis fails.
 
 PARAMETER EXPLANATIONS
 
@@ -104,10 +111,10 @@ Distribution, and Energetics. Oxford University Press.
 predicted_IED_distributions, energy_metrics)
 
 
-required_params = {'criteria' : gb.short_criteria + gb.req,
-        'predicted_SED_distributions' : predicted_SED_distributions + gb.req,
-        'predicted_IED_distributions' : predicted_IED_distributions + gb.req,
-        'energy_metrics' : energy_metrics + gb.req}
+required_params = {'criteria' : gb.req + gb.short_criteria,
+        'predicted_SED_distributions' :gb.req + predicted_SED_distributions,
+        'predicted_IED_distributions' : gb.req + predicted_IED_distributions,
+        'energy_metrics' : gb.req + energy_metrics}
 
 optional_params = {'subset' : (gb.short_subset + gb.optional, {})}
 
@@ -117,12 +124,19 @@ if __name__ == '__main__':
     from macroeco.utils.workflow import Workflow
     from macroeco.empirical import Patch
     import macroeco.compare as comp
-    from macroeco.output import SEDOutput, IEDOutput
+    from macroeco.output import SEDOutput, IEDOutput, make_directory
+    import os
 
     wf = Workflow(required_params=required_params,
                 optional_params=optional_params, clog=True, svers=__version__)
+
+    folder_name = 'Energy_analysis'
+    make_directory(folder_name)
+    cwd = os.getcwd()
     
     for data_path, output_ID, params in wf.single_datasets():
+
+        os.chdir(os.path.join(cwd,folder_name))
 
         # Put data in patch object
         patch = Patch(data_path, subset=params['subset'])
@@ -164,18 +178,15 @@ if __name__ == '__main__':
             sout = SEDOutput(output_ID)
             sout.plot_reds(cmprt.compare_rads(), criteria=cmprt.criteria)
 
+        os.chdir(cwd)
+
         logging.info('Completed analysis %s\n' % output_ID)
+
+    os.chdir(os.path.join(cwd,folder_name))
+    fout = open('README_compare_energy', 'w')
+    with fout:
+        fout.write(explanation)
+    os.chdir(cwd)
+
     logging.info("Completed 'compare_energy.py' script")
-
-
-
-
-        
-
-
-
-
-
-
-
 
