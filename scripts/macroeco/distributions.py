@@ -161,6 +161,12 @@ class Curve(object):
         # methods can inherit this docstring.
         pass
 
+    def get_name(self):
+        '''
+        Returns the class name
+        '''
+        return self.__class__.__name__
+
     def vals(self, n):
         '''
         Value of curve method.
@@ -2529,6 +2535,20 @@ class gen_sar(Curve):
         self.ssad = ssad
         self.params = kwargs
 
+    def get_name(self):
+        '''
+        Returns the name of the general SAR which is a concatenation of the sad
+        and ssad object
+
+        Returns
+        -------
+        : str
+            The name of the general SAR
+
+        '''
+        
+        return self.sad.__class__.__name__ + '-' + self.ssad.__class__.__name__
+
     def iter_vals(self, a_list=None, upscale=0, downscale=0, non_iter=False, 
                                                                        base=2):
         '''
@@ -2740,217 +2760,6 @@ class gen_sar(Curve):
                                         self.params['tot_obs'] + 1))[0][0]
         return self
 
-###########################
-#---Generic SAR classes---#
-###########################
-
-class mete_sar(gen_sar):
-    '''
-    Generic sar: 
-    SAD : Truncated logseries (logser_ut)
-    SSAD: Truncated geometric (tgeo)
-
-    Notes
-    -----
-    This is the one shot mete sar described by Harte (2011)
-
-    See class gen_sar for more information
-    '''
-    def __init__(self, **kwargs):
-        self.params = kwargs
-        self.sad = logser_ut()
-        self.ssad = tgeo()
-
-class logser_ut_fgeo(gen_sar):
-    '''
-    Generic sar: 
-    SAD : Truncated logseries (logser)
-    SSAD: Finite geometric (fgeo)
-
-    See class gen_sar for more information
-    '''
-    def __init__(self, **kwargs):
-        self.params = kwargs
-        self.sad = logser_ut()
-        self.ssad = fgeo()
-
-class logser_ut_binm(gen_sar):
-    '''
-    Generic sar: 
-    SAD : Truncated logseries (logser)
-    SSAD: Binomial (binm)
-
-    See class gen_sar for more information
-    '''
-    def __init__(self, **kwargs):
-        self.params = kwargs
-        self.sad = logser_ut()
-        self.ssad = binm()
-
-class logser_binm(gen_sar):
-    '''
-    Generic sar: 
-    SAD : logseries (logser)
-    SSAD: Binomial (binm)
-
-    See class gen_sar for more information
-    '''
-    def __init__(self, **kwargs):
-        self.params = kwargs
-        self.sad = logser()
-        self.ssad = binm()
-
-class logser_ut_pois(gen_sar):
-    '''
-    Generic sar: 
-    SAD : Truncated logseries (logser)
-    SSAD: Poisson (pois)
-
-    See class gen_sar for more information
-    '''
-    def __init__(self, **kwargs):
-        self.params = kwargs
-        self.sad = logser_ut()
-        self.ssad = pois()
-
-class logser_ut_geo(gen_sar):
-    '''
-    Generic sar: 
-    SAD : Truncated logseries (logser)
-    SSAD: Geometric
-
-    See class gen_sar for more information
-    '''
-    def __init__(self, **kwargs):
-        self.params = kwargs
-        self.sad = logser_ut()
-        self.ssad = geo()
-
-
-class plognorm_lt_binm(gen_sar):
-    '''
-    Generic sar: 
-    SAD : Truncated Poisson lognormal (plognorm_lt)
-    SSAD: Binomial (binm)
-
-    See class gen_sar for more information
-    '''
-    def __init__(self, **kwargs):
-        self.params = kwargs
-        self.sad = plognorm_lt()
-        self.ssad = binm()
-
-class plognorm_lt_tgeo(gen_sar):
-    '''
-    Generic sar: 
-    SAD : Truncated Poisson lognormal (plognorm_lt)
-    SSAD: Truncated geometric (tgeo)
-
-    See class gen_sar for more information
-    '''
-    def __init__(self, **kwargs):
-        self.params = kwargs
-        self.sad = plognorm_lt()
-        self.ssad = tgeo()
-
-class plognorm_lt_fgeo(gen_sar):
-    '''
-    Generic sar: 
-    SAD : Truncated Poisson lognormal (plognorm_lt)
-    SSAD: Finite geometric (fgeo)
-
-    See class gen_sar for more information
-    '''
-    def __init__(self, **kwargs):
-        self.params = kwargs
-        self.sad = plognorm_lt()
-        self.ssad = fgeo()
-
-class nbd_lt_tgeo(gen_sar):
-    '''
-    Generic sar: 
-    SAD : Negative Binomial (plognorm_lt)
-    SSAD: Truncated geometric (tgeo)
-
-    See class gen_sar for more information
-    '''
-
-    def __init__(self, **kwargs):
-        self.params = kwargs
-        self.sad = nbd_lt(k=1)
-        self.ssad = tgeo()
-
-
-class broken_stick_tgeo(gen_sar):
-    '''
-    Generic sar: 
-    SAD : Broken Stick (broken_stick)
-    SSAD: Truncated geometric (tgeo)
-
-    See class gen_sar for more information
-    '''
-
-    def __init__(self, **kwargs):
-        self.params = kwargs
-        self.sad = broken_stick() 
-        self.ssad = tgeo()
-
-class broken_stick_binm(gen_sar):
-    '''
-    Generic sar: 
-    SAD : Broken Stick (broken_stick)
-    SSAD: Binomial (binm)
-
-    See class gen_sar for more information
-    '''
-
-    def __init__(self, **kwargs):
-        self.params = kwargs
-        self.sad = broken_stick() 
-        self.ssad = binm()
-
-class lognorm_pois(gen_sar):
-    '''
-    Generic sar:
-    SAD : Log normal (lognorm)
-    SSAD : Poisson (pois)
-
-    See class gen_sar for more information
-    '''
-    def __init__(self, **kwargs):
-        self.params = kwargs
-        self.sad = lognorm(sigma=2)
-        self.ssad = pois() 
-
-
-
-class lognorm_binm(gen_sar):
-    '''
-    Generic sar:
-    SAD : Log normal (lognorm)
-    SSAD : Binomial (binm) 
-
-    See class gen_sar for more information
-    '''
-    def __init__(self, **kwargs):
-        self.params = kwargs
-        self.sad = lognorm(sigma=2)
-        self.ssad = binm()
-
-class lognorm_tgeo(gen_sar):
-    '''
-    Generic sar:
-    SAD : Log normal (lognorm)
-    SSAD : Truncated geometric (tgeo) 
-
-    See class gen_sar for more information
-    '''
-    def __init__(self, **kwargs):
-        self.params = kwargs
-        self.sad = lognorm(sigma=2)
-        self.ssad = tgeo()
-
-    
 
 #########################
 ## Energy Distributions##
