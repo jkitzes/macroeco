@@ -81,9 +81,9 @@ dataset(s).  You must designate your species column with the special word
 additional columns for this analysis. Please see analysis explanation for more
 detail and examples.'''
 
-optional = ''' Optional. Default: '''
+optional = ''' Optional parameter. Default value:  '''
 
-req = ''' Required.'''
+req = '''Required parameter. '''
 
 def append_value(params, value, index=None):
     '''

@@ -704,7 +704,8 @@ class TestDistributions(unittest.TestCase):
         # They will be slightly different because approximations are used in
         # mete_sar_iter.
         msi = mete_sar_iter(tot_obs=600, n_samp=40).vals([1,2,.8,.2,.1])
-        ms = mete_sar(tot_obs=600, n_samp=40).iter_vals([1,2,.8,.2,.1])
+        mete_sar = gen_sar(logser_ut(), tgeo(), tot_obs=600, n_samp=40)
+        ms = mete_sar.iter_vals([1,2,.8,.2,.1])
         self.assertTrue(len(msi) == len(ms))
         error = 0.001 * msi['items']
         diff = np.abs(msi['items'] - ms['items'])

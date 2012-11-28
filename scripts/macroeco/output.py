@@ -39,9 +39,9 @@ u"""
 FOLDER DESCRIPTION
 ------------------
 
-The folder {0} contains {1} txt files.  Each file contains a summary for
-the plot generate by the criteria at the header of the file.  The
-criteria are either a species name or string that looks like
+The folder {0} contains {1} txt file(s) and {1} csv file(s).  Each .txt file
+contains a summary for the plot generate by the criteria at the header of the
+file.  The criteria are either a species name or string that looks like
 
 'y': [('>=', 0.0), ('<', 150.0)], 'x': [('>=', 0.0), ('<', 50.0)]
 
@@ -54,12 +54,15 @@ equal to 0 and less than 50.  Similarly a criteria string of the form
 can be interpreted as the plot under consideration has 'year' values equal to
 1998. 
 
+Each txt file has a corresponding csv plot with the AIC values in tabular form
+for easy analysis.
+
 Each summary file contains summary statistics for the observed data and each
 distribution to which the observed data was compared. Each file name is a
 concatenation of the following strings: analysis name, data name and
-summary_table.  An additional identifier is appended to the file name after
-summary_table in order to make each file unique.  It is either a species
-identifier or a number."""
+summary_table or AIC_table.  An additional identifier is appended to the file
+name after summary_table in order to make each file unique.  It is either a
+species identifier, a number, or both."""
 
 readme_info_rarity =\
 '''
@@ -359,6 +362,12 @@ class DistributionOutput(object):
             names = data.dtype.names
             for nm in names:
                 plt.plot(np.sort(obs_sads[i]), np.sort(data[nm]), '-o')
+            ylim = list(plt.ylim())
+            if ylim[0] == 0:
+                ylim[0] = -.1
+            plt.ylim((ylim[0], 1.1))            
+            xlim = plt.xlim()
+            plt.xlim((.9, xlim[1] + 10))
             plt.legend(names, loc='best')
             plt.semilogx()
             plt.ylabel(self.cdf_y_axis)
@@ -378,7 +387,7 @@ class DistributionOutput(object):
 
             if criteria != None and np.all([type(crt) != dict for crt in
                                                                     criteria]):
-                plt.title('Cumulative density function: ' + str(criteria[i]))
+                plt.title('Cumulative density function for species ' + str(criteria[i]))
 
                 filename = os.path.join(folder_name, self.out_dir +
                                                '_cdf_plot_' + str(criteria[i]))
@@ -614,7 +623,7 @@ class IEDOutput(object):
         fout = open(os.path.join(folder_name, 'README'), 'w')
         fout.write(readme_info_plots.format(count, count/2, count/2,
                    folder_name, 
-                   'individual energy distribution rank energy (RED) plots',
+                   'individual energy distribution (IED) rank energy plots',
                    'ied_rank_energy'))
         fout.close()
 
@@ -670,10 +679,15 @@ class SEDOutput(object):
 
             if spp != None:
                 if criteria != None:
-                    plt.title('Species Code: ' + str(spp[i]) + ' Criteria: ' +
-                        str(criteria[i])) 
+                    plt.title('Rank Enery Distribution for species ' +
+                                                                   str(spp[i]))
+                    plt.figtext(.97, .5, 'Criteria for plot: ' + 
+                                str(criteria[i]), rotation='vertical', size=8,
+                                horizontalalignment='center',
+                                verticalalignment='center')
                 else:
-                    plt.title('Species Code: ' + str(spp[i]))
+                    plt.title('Rank Energy Distribution for species ' + 
+                                                                   str(spp[i]))
 
                 filename = os.path.join(folder_name, self.out_dir + 
                               '_sed_rank_energy_' + str(spp[i]) + '_' + str(i))
@@ -699,7 +713,7 @@ class SEDOutput(object):
         fout = open(os.path.join(folder_name, 'README'), 'w')
         fout.write(readme_info_plots.format(count, count/2, count/2,
                    folder_name, 
-                   'species-level energy distribution rank energy (RED) plots',
+                   'species-level energy distribution (SED) rank energy plots',
                    'sed_rank_energy'))
         fout.close()
 
