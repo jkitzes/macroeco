@@ -433,7 +433,7 @@ class TestDistributions(unittest.TestCase):
 
         test_vals = np.array([test_pmf(x, p, k) for x in vals])
         test_vals = np.round(test_vals, decimals=7)
-        pred_vals = np.round(test_vals, decimals=7)
+        pred_vals = np.round(pred_vals, decimals=7)
         self.assertTrue(np.array_equal(test_vals, pred_vals))
         
         # Test cdf against Published TNBD:
