@@ -351,7 +351,7 @@ class DistributionOutput(object):
         make_directory(folder_name)
 
         tot_sad = len(cdfs['observed'])
-        recs = make_rec_from_dict(cdfs, tot_sad)
+        recs = make_rec_from_dict(cdfs, tot_sad, add_rank=False)
         if criteria != None:
             assert len(criteria) == tot_sad, "len(criteria) must  equal" + \
                                    " number of data arrays under consideration"
@@ -361,7 +361,11 @@ class DistributionOutput(object):
             
             names = data.dtype.names
             for nm in names:
-                plt.plot(np.sort(obs_sads[i]), np.sort(data[nm]), '-o')
+                fig = plt.plot(np.sort(obs_sads[i]), np.sort(data[nm]), '-o')
+            
+            # Formatting
+            fig[0].axes.xaxis.tick_bottom()
+            fig[0].axes.yaxis.tick_left()
             ylim = list(plt.ylim())
             if ylim[0] == 0:
                 ylim[0] = -.1
@@ -514,15 +518,19 @@ class SAROutput(object):
             for kw in sar.iterkeys():
                 legend.append(kw)
                 if kw == 'observed':
-                    plt.plot(sar[kw]['area'], sar[kw]['items'], '-o')
+                    fig = plt.plot(sar[kw]['area'], sar[kw]['items'], '-o')
                 else:
-                    plt.plot(sar[kw]['area'], sar[kw]['items'])
+                    fig = plt.plot(sar[kw]['area'], sar[kw]['items'])
 
                 # Change dtype names and output
                 defnm = sar[kw].dtype.names
                 sar[kw].dtype.names = ('species', 'area_fraction')
                 output_form(sar[kw], filename + '_' + kw)
                 sar[kw].dtype.names = defnm
+
+            # Plot formatting 
+            fig[0].axes.xaxis.tick_bottom()
+            fig[0].axes.yaxis.tick_left()
 
             plt.loglog()
             plt.legend(tuple(legend), loc='best')
@@ -772,7 +780,7 @@ class OutputRarity(object):
         fout.write(readme_info_rarity.format(folder_name, count))
         fout.close()
 
-def make_rec_from_dict(dist_dict, num, species=None, dt=np.float):
+def make_rec_from_dict(dist_dict, num, species=None, dt=np.float, add_rank=True):
     '''
     Makes a structured/rec array from a dictionary
 
@@ -806,10 +814,14 @@ def make_rec_from_dict(dist_dict, num, species=None, dt=np.float):
     dtype = zip(names, np.repeat(dt, len(names)))
     if species != None:
         dtype.insert(0, ('species', 'S40'))
+    if add_rank:
+        dtype.insert(0, ('rank', dt))
     for i in xrange(num):
         temp = np.empty(len(dist_dict[names[0]][i]), dtype=dtype)
         if species != None:
             temp['species'] = species[i]
+        if add_rank:
+            temp['rank'] = np.arange(1,len(temp) + 1)[::-1]
         for kw in dist_dict.iterkeys():
             temp[kw] = np.sort(dist_dict[kw][i])
         recs.append(temp)
@@ -863,14 +875,14 @@ def plot_rec_columns(rec_array):
     # If there are more arrays than symbols just change colors of lines
     if len(names) > len(plot_symbols):
         for nm in names:
-            if nm != 'species':
+            if nm != 'species' and nm != 'rank':
                 if nm == 'observed':
-                    plt.plot(np.arange(1, len(rec_array) + 1),
+                    fig = plt.plot(np.arange(1, len(rec_array) + 1),
                                         np.sort(rec_array[nm])[::-1], '-o',
                                         color='black')
                     legend.append(nm)
                 else:
-                    plt.plot(np.arange(1, len(rec_array) + 1),
+                    fig = plt.plot(np.arange(1, len(rec_array) + 1),
                                         np.sort(rec_array[nm])[::-1], '-o')
                     legend.append(nm)
 
@@ -880,20 +892,23 @@ def plot_rec_columns(rec_array):
         # Counter is 0
         cnt = 0
         for nm in names:
-            if nm != 'species':
+            if nm != 'species' and nm != 'rank':
                 if nm == 'observed':
                     
-                    plt.plot(np.arange(1, len(rec_array) + 1),
+                    fig = plt.plot(np.arange(1, len(rec_array) + 1),
                                         np.sort(rec_array[nm])[::-1], '-o',
                                         color='black')
                     legend.append(nm)
                 else:
-                    plt.plot(np.arange(1, len(rec_array) + 1),
+                    fig = plt.plot(np.arange(1, len(rec_array) + 1),
                                         np.sort(rec_array[nm])[::-1], '-' +
                                         str(plot_symbols[cnt]))
                     legend.append(nm)
                 cnt += 1
-
+    # Include ticks only on bottom and left 
+    fig[0].axes.xaxis.tick_bottom()
+    fig[0].axes.yaxis.tick_left()
+    
     plt.legend(tuple(legend), loc='best')
 
 def make_directory(folder_name):
