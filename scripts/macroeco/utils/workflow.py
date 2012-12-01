@@ -43,6 +43,8 @@ class Workflow:
         a script to run.
     clog : bool
         Whether to log to console in addition to file, False by default
+    short_output_name : bool
+        Whether to use the run-name alone to name output. False by default.
         
     Attributes
     ----------
@@ -56,13 +58,14 @@ class Workflow:
         If parameters are needed, sets of parameter values are named runs
     '''
 
-    def __init__(self, required_params={}, optional_params={}, clog=False, 
-                                                                   svers=None):
+    def __init__(self, required_params={}, optional_params={},
+                 clog=False, svers=None, short_output_name=False):
 
         # Store script name from command line call
         script_path, script_extension = os.path.splitext(sys.argv[0])
         self.script_name = os.path.split(script_path)[-1]
         self.script_vers = svers
+        self.short_output_name = short_output_name
 
         # Store output directory path - contains params file, log, results
         # TODO: Make more robust to non-absolute path entries
@@ -141,7 +144,12 @@ class Workflow:
             for data_path in self.parameters.data_path[run_name]:
                 abs_data_path = os.path.abspath(os.path.join(self.output_path, 
                                                              data_path))
-                output_ID = '_'.join([self.script_name, 
+                if self.short_output_name:
+                    print('Using short output name in single_datasets:')
+                    output_ID = run_name
+                    print(output_ID)
+                else:
+                    output_ID = '_'.join([self.script_name, 
                                       run_name, clean_name(data_path)])
                 logging.info('Beginning %s' % output_ID)
                 yield (abs_data_path, output_ID, 
@@ -181,7 +189,13 @@ class Workflow:
             abs_data_paths = [os.path.abspath(os.path.join(self.output_path,
                              data_path)) for data_path in self.parameters.
                              data_path[run_name]]
-            output_IDs = ['_'.join([self.script_name, run_name,
+            if self.short_output_name:
+                print('Using short output name in all_datasets:')
+                output_IDs = ['_'.join([run_name, clean_name(data_path)]) for
+                              data_path in self.parameters.data_path[run_name]]
+                print(output_IDs)
+            else:
+                output_IDs = ['_'.join([self.script_name, run_name,
                          clean_name(data_path)]) for data_path in
                          self.parameters.data_path[run_name]]
             logging.info('Beginning %s script' % self.script_name)
