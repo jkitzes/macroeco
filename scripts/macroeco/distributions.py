@@ -196,7 +196,7 @@ class Curve(object):
         pass
 
     def univ_curve(self, num_iter=5, direction='down', param='tot_obs',
-                                                      iterative=False, base=2):
+                                      iterative=False, base=2, use_rad=False):
         '''
         Generating a univsersal curve for different curves.  A universal curve
         is defined as the slope value (z) at a function y = f(x) at a given x
@@ -220,12 +220,21 @@ class Curve(object):
         base : int
             Specifies whether you would like each iteration to double/half
             (base=2), triple/third (base=3), etc
+        use_rad : bool
+            If False, uses the sad pmf to calculate the SAR.  If True, uses the
+            sad rank abundance distribution to calculate the SAR.
 
         Returns
         -------
-        : structured array
-            An array with dtype = [('z', np.float), ('x_over_y', np.float)]
-            that contains the slope and the quantity x * multiplier / y
+        : tuple
+            the tuple contains two structured arrays.  The first structured
+            array an array with dtype = [('z', np.float), ('x_over_y',
+            np.float)] that contains the slope and the quantity x * multiplier
+            / y. This array is teh universal curve.  The second array has dtype
+            = [('items', np.float), ('area', np.float)] where 'items' is often
+            equivalent ot species and 'area' is the area fraction.  This second
+            array is the species/item area relationship that gives the
+            universal curve specified in the first array in the tuple.
 
         '''
         
@@ -239,18 +248,26 @@ class Curve(object):
         
         if iterative:
             def z(a):
-                a1 = self.iter_vals(a, non_iter=True, base=base)['items']
-                a2 = self.iter_vals(base * a, non_iter=True, base=base)['items']
-                a3 = self.iter_vals((1. / base) * a, non_iter=True, base=base)['items']
+                na = [((1. / base) * a[0])] + list(a) + [(base * a[-1])]
+                complete_a = self.iter_vals(na, non_iter=True, base=base,
+                                                      use_rad=use_rad)['items']
+                sz = len(complete_a)
+                a1 = complete_a[np.arange(1,sz - 1)]
+                a2 = complete_a[np.arange(sz - 2)]
+                a3 = complete_a[np.arange(2, sz)]
                 return \
-                 (0.5 * (np.log(a1 / a3) + np.log(a2 / a1))) / np.log(base), a1
+                 (0.5 * (np.log(a3/ a2))) / np.log(base), a1, zip(complete_a,
+                 na) #Added last return for UNI sar analysis
 
         else:
             def z(a):
-                a1 = self.vals(a)['items']
-                return (0.5 * (np.log(a1 / self.vals((1./base) *
-                            a)['items']) + np.log(self.vals(base * a)['items'] / 
-                            a1))) / np.log(base), a1
+                a1 = self.vals(a, use_rad=use_rad)['items']
+
+                a2 = np.array(list(self.vals(((1./base) * a)[0],
+                        use_rad=use_rad)['items']) + list(a1[:-1]))
+                a3 = np.array(list(a1[1:]) +  list(self.vals((base *
+                                            a)[-1], use_rad=use_rad)['items']))
+                return (0.5 * (np.log(a3 / a2))) / np.log(base), a1, zip(a1, a)
         
         # Get the area list
         if direction == 'down':
@@ -258,21 +275,21 @@ class Curve(object):
 
         elif direction == 'up':
             a_list = [base**(i) for i in np.arange(num_iter + 1)]
-
         else:
             raise ValueError('%s not a recognized direction' % direction)
 
         # Compute universal curve parameters
         a_list.sort()
         a_list = np.array(a_list)
-        zs, base_a = z(a_list)
+        zs, base_a, spp_area = z(a_list)
         x_over_y = (a_list * multiplier) / base_a 
 
         uni =  np.array(zip(zs, x_over_y), dtype=
                                       [('z', np.float),('x_over_y', np.float)])
         uni.sort(order=['x_over_y'])
 
-        return uni
+        return uni, np.array(spp_area, dtype=[('items', np.float),
+                                                  ('area', np.float)])
 
     def get_params(self, parameter_list):
         '''
@@ -577,13 +594,136 @@ class DownscaleError(Exception):
 # Distributions
 # ----------------------------------------------------------------------------
 
+class most_even(Distribution):
+    '''
+    Description
+    -----------
+    The most even species abundance distribution where every species get N/S
+    individuals
+
+    Parameters
+    ----------
+    n_samp : int or iterable
+        Total number of species / samples
+    tot_obs: int or iterable
+        Total number of individuals / observations
+
+    '''
+
+    @doc_inherit
+    def __init__(self, **kwargs):
+        
+        self.params = kwargs
+        self.min_supp = 1
+        self.par_num = 2
+
+    @doc_inherit
+    def pmf(self, n):
+        
+        # Get parameters
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
+        
+        pmf = []
+
+        for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
+            
+            # The mean needs to be a descrete value
+            tmean = np.round(ttot_obs / tn_samp, decimals=0)
+            tpmf = np.array([0 if k != tmean else 1 for k in tn])
+            pmf.append(tpmf)
+
+        return pmf, None
+            
+    @doc_inherit
+    def rad(self):
+        # Get parameters
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs' ])
+
+        # Calculate rad
+        rad = []
+        for tn_samp, ttot_obs in zip(n_samp, tot_obs):
+            trad = np.repeat(ttot_obs / tn_samp, tn_samp)
+            rad.append(trad)
+
+        return rad
+
+class most_uneven(Distribution):
+    '''
+    Description
+    -----------
+    The most uneven distribution possible. All species have one individual
+    except one which has N - S + 1 individuals
+
+    Parameters
+    ----------
+    n_samp : int or iterable
+        Total number of species / samples
+    tot_obs: int or iterable
+        Total number of individuals / observations
+
+    '''
+
+    @doc_inherit
+    def __init__(self, **kwargs):
+        
+        self.params = kwargs
+        self.min_supp = 1
+        self.par_num = 2
+
+    @doc_inherit
+    def pmf(self, n):
+        
+        # Get parameters
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
+        n = expand_n(n, len(n_samp))
+        
+        # TODO: Additional checks?
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
+        
+        pmf = []
+
+        for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
+
+            tpmf = []
+            tmax = ttot_obs - tn_samp + 1
+            for k in tn:
+                if k == tmax:
+                    tpmf.append(1. / tn_samp)
+                elif k == 1:
+                    tpmf.append((tn_samp - 1) / tn_samp)
+                else:
+                    tpmf.append(0)
+
+            pmf.append(np.array(tpmf))
+
+        return pmf, None
+            
+    @doc_inherit
+    def rad(self):
+        # Get parameters
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs' ])
+
+        # Calculate rad
+        rad = []
+        for tn_samp, ttot_obs in zip(n_samp, tot_obs):
+            trad = [ttot_obs - tn_samp + 1]
+            trad = np.array(list(np.repeat(1, tn_samp - 1)) + trad)
+            rad.append(trad)
+
+        return rad
+
+    
 
 class logser(Distribution):
     __doc__ = Distribution.__doc__ + \
     '''
     Description
     -----------
-    Fisher's log series distribution (Fisher et al. 1943). Also known as 
+    Fisher's log series distribution (Fisher et al. 1943). Also known as the 
     logarithmic distribution.
 
     Parameters
@@ -1164,15 +1304,7 @@ class lognorm(Distribution):
     Vars
     ----
     None
-    
-    Notes
-    -----
-    Log-normal distributions are continuous and therefore the cdf should be an
-    integral. However, the cdf of an integral from a to a is 0 and the
-    probability of there being a single individual within a species given an
-    SAD is certainly not 0.  Therefore, we consider the lognormal "discrete"
-    and calcuate the cdf by summing.  Note that this is one of the many 
-    problems that Blackburn and Gaston have with using the lognormal for SADs.
+        
     '''
     
     @doc_inherit
@@ -1289,7 +1421,10 @@ class geo_ser(Distribution):
         self.min_supp = 1
         self.par_num = 3 # May says 2 parameters, test this
 
-
+    # The pmf, as adapted from May, describes a continuous SAD. The rad
+    # generate by the below pmf (super.rad) does not give the rad predicted by
+    # geo_ser.rad.
+    '''
     @doc_inherit
     def pmf(self, n):
 
@@ -1304,15 +1439,17 @@ class geo_ser(Distribution):
         pmf = []
 
         # Equation from May 1975.  
-        eq = lambda x, n_samp, k: (1 / x) * (1 / n_samp) * (1 / np.log(1 / 
-                                                                 (1 - k)))
-
+        #eq = lambda x, n_samp, k: (1 / x) * (1 / n_samp) * (1 / np.log(1 / 
+        #                                                         (1 - k)))
+        eq = lambda x, n_samp, k: (-1 / n_samp) * (1 / x) * (1 / np.log(1 - k))
         for tn_samp, ttot_obs, tk, tn in zip(n_samp, tot_obs, k, n):
+            ttot_obs = np.round(ttot_obs, decimals=0)
             sumg = sum(eq(np.arange(1, ttot_obs + 1), tn_samp, tk))
             tpmf = eq(tn, tn_samp, tk) / sumg #Normalizing
             pmf.append(tpmf)
 
         return pmf, None
+        '''
 
 
     @doc_inherit
@@ -1328,7 +1465,7 @@ class geo_ser(Distribution):
             tC = (1 - (1 - tk ) ** tn_samp) ** - 1
             trad = ttot_obs * tC * tk * (1 - tk) ** (np.arange(1, tn_samp + 1) 
                                                                            - 1)
-            rad.append(trad)
+            rad.append(np.sort(trad))
 
         return rad
 
@@ -1393,7 +1530,7 @@ class broken_stick(Distribution):
     @doc_inherit
     def pmf(self, n):
         # TODO:  PMF is not quite summing to one. But it is checking against
-        # known results.  
+        # known results. See test_distributions 
         
         # Get parameters
         n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
@@ -1405,9 +1542,10 @@ class broken_stick(Distribution):
         eq = lambda x, n_samp, tot_obs: ((n_samp - 1) / tot_obs) * \
                                           ((1 - (x / tot_obs)) ** (n_samp - 2))
         pmf = []
-
         for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
-            tpmf = eq(tn, tn_samp, ttot_obs)
+            ttot_obs = np.round(ttot_obs, decimals=0)
+            #sumg = sum(eq(np.arange(1, ttot_obs + 1), tn_samp, ttot_obs))
+            tpmf = eq(tn, tn_samp, ttot_obs) #/ sumg # Normalizing
             pmf.append(tpmf)
 
         return pmf, None
@@ -1425,11 +1563,12 @@ class broken_stick(Distribution):
         # Calculate rad
         rad = []
         for tn_samp, ttot_obs in zip(n_samp, tot_obs):
+            tn_samp = np.round(tn_samp, decimals=0)
             trad = np.empty(tn_samp)
-            for i in xrange(tn_samp):
+            for i in np.arange(tn_samp):
                 n = np.arange(i + 1, tn_samp + 1) 
                 trad[i] = (ttot_obs / tn_samp) * sum(1 / n)
-            rad.append(trad)
+            rad.append(np.sort(trad))
 
         return rad
             
@@ -1493,7 +1632,7 @@ class sugihara(Distribution):
                 U = np.random.triangular(0.5, 0.75, 1, size=tn_samp - 1)
                 p = []
                 # TODO: Could this be refactored to perform better?
-                for i in xrange(tn_samp):
+                for i in xrange(np.int(tn_samp)):
                     if i == 0:
                         p.append(1)
                     else:
@@ -1507,8 +1646,8 @@ class sugihara(Distribution):
       
             total_array = np.array(total)
             means = np.array([np.mean(total_array[:,i]) for i in 
-                                                              xrange(tn_samp)])
-            rad.append(ttot_obs * means)
+                                                         xrange(int(tn_samp))])
+            rad.append(np.sort(ttot_obs * means))
 
         return rad
 
@@ -2259,7 +2398,8 @@ class mete_sar_iter(Curve):
     def __init__(self, **kwargs):
         self.params = kwargs
 
-    def vals(self, a_list=None, upscale=0, downscale=0, non_iter=False):
+    def vals(self, a_list=None, upscale=0, downscale=0, non_iter=False,
+                                                                     **kwargs):
         '''
         Predict the universal SAR curve for the given S and N found at 
         the given anchor scale
@@ -2298,6 +2438,9 @@ class mete_sar_iter(Curve):
         assert S < N, "S must be less than N"
         assert S > 1, "S must be greater than 1"
         assert N > 0, "S must be greater than 0"
+        
+        if a_list is not None:
+            a_list = make_array(a_list)
         if not np.iterable(a_list) and a_list is not None:
             raise TypeError('a_list is not an array-like object')
 
@@ -2427,7 +2570,7 @@ class powerlaw(Curve):
         self.params = kwargs
     
     @doc_inherit
-    def vals(self, a_list):
+    def vals(self, a_list, **kwargs):
         '''
         Generate a power law SAR with a given z and c.
 
@@ -2550,7 +2693,7 @@ class gen_sar(Curve):
         return self.sad.__class__.__name__ + '-' + self.ssad.__class__.__name__
 
     def iter_vals(self, a_list=None, upscale=0, downscale=0, non_iter=False, 
-                                                                       base=2):
+                                                    base=2, use_rad=False):
         '''
         Calculates values in a_list by iteration.
 
@@ -2573,8 +2716,12 @@ class gen_sar(Curve):
             Specifies the base of the logarithm.  In other words, whether you
             would like to iterate via double and half (base = 2), triple and
             third (base = 3), etc.
-
-
+        use_rad : bool
+            If False, uses the pmf of a distribution to calculate the species
+            area relationship.  It True, uses a rank abundance distribution to
+            calculate the species area relationship. If you chose to use the
+            rank abundance distribution, please note that you cannot upscale
+            with the rad past one iteration.
 
         Returns
         -------
@@ -2587,6 +2734,10 @@ class gen_sar(Curve):
         assert S < N, "S must be less than N"
         assert S > 1, "S must be greater than 1"
         assert N > 0, "S must be greater than 0"
+        
+        if a_list is not None:
+            a_list = make_array(a_list)
+
         if not np.iterable(a_list) and a_list is not None:
             raise TypeError('a_list is not an array-like object')
 
@@ -2601,7 +2752,6 @@ class gen_sar(Curve):
         sar = np.empty(len(areas), dtype=[('items', np.float),
                                       ('area', np.float)])
         sar['area'] = areas
-
         def up_down_scale(areas, up_down):
             N_list = []; S_list = [] 
             
@@ -2611,17 +2761,32 @@ class gen_sar(Curve):
                 a = 1. / base # iterate down given base
 
             for i, da in enumerate(areas):
-                if i == 0: #Base area calculation. Not always exactly S
+                if i == 0: # Base area calculation. Not always exactly S.
+                           # For example, the broken_stick pmf does sum to
+                           # exactly one so S does not quite come out right
 
                     self.params['tot_obs'] = N 
                     self.params['n_samp'] = S
-                    S_list.append(self.vals([da])['items'][0])
+                    S_list.append(self.vals([da], use_rad=use_rad)['items'][0])
                     N_list.append(N)
 
                 else:
-                    self.params['tot_obs'] = N_list[i - 1] 
+                    if np.isnan(S_list[i - 1]):
+                        self.params['tot_obs'] = N
+                        self.params['n_samp'] = S
+                        if use_rad:
+                            raise ValueError('Cannot calculate species number'
+                             + ' at area = %s. Species value at previous' %
+                             str(da) + ' iteration is NaN. Set parameter' + 
+                             " 'use_rad' to False and try again.")
+                        else:
+                            raise ValueError('Cannot calculate species number'
+                             + ' at area = %s. Species value at previous' %
+                             str(da) + ' iteration is NaN. Use less iterations.')
+
+                    self.params['tot_obs'] = N_list[i - 1]
                     self.params['n_samp'] = S_list[i - 1]
-                    S_list.append(self.vals([a])['items'][0])
+                    S_list.append(self.vals([a], use_rad=use_rad)['items'][0])
 
                     # Can't have less then one individual
                     if N * da < 1:
@@ -2654,13 +2819,18 @@ class gen_sar(Curve):
                                                        np.round(a, decimals=8))
             return sar[ind]
 
-    def vals(self, a_list):
+    def vals(self, a_list, use_rad=False):
         '''
+
+        Calculates sar value at each value in a_list
 
         Parameters
         ----------
         a_list : array-like object
             List of area fractions at which to calculate the SAR
+        use_rad : bool
+            If False, uses the sad pmf to calculate the SAR.  If True, uses the
+            sad rank abundance distribution to calculate the SAR.
 
         Returns
         -------
@@ -2668,6 +2838,13 @@ class gen_sar(Curve):
             A structured np.array with dtype=[('items', np.float),
             ('area', np.float)]. Items can be species.
 
+        Notes
+        -----
+        Setting use_rad=True makes the calculations much quicker.  However, the
+        rad relies on whole species numbers and therefore caution should be
+        used when upscaling. Using the rad while upscaling will not give
+        exactly the same value at upscaling with the pmf.  However, the SAR
+        curves should have the same general pattern.
         '''
         
         # If sad is plognorm or plognorm_lt Throw and error for now
@@ -2679,55 +2856,81 @@ class gen_sar(Curve):
         # However, this is a bit slower
         S, N = self.get_params(['n_samp', 'tot_obs'])
         self.sad.params['n_samp'] = S; self.sad.params['tot_obs'] = N
-        sad = self.sad.pmf(np.arange(1, N + 1))[0][0]
+
+        # Calculate either rad or full pmf
+        if use_rad:
+            rad = self.sad.rad()[0]
+        else:
+            sad = self.sad.pmf(np.arange(1, N + 1))[0][0]
         ssad = self.ssad
         sar = []
 
         a_list = make_array(a_list)
         for i, a in enumerate(a_list):
             
-            #Setting ssad parameters
-            N_range = np.arange(1, len(sad) + 1)
-            ssad.params['tot_obs'] = N_range
+            #Setting ssad parameters differently if using rad 
+            if use_rad:
+                ssad.params['tot_obs'] = rad
+            else:
+                N_range = np.arange(1, len(sad) + 1)
+                ssad.params['tot_obs'] = N_range
 
             # Upscale
             if a > 1:
 
                 sad_params = deepcopy(self.sad.params)
                 def eq(Sbig, abig, S):
-
                     # Setting distribution parameters for guess at upscale
                     # NOTE: You can't refit plognorm when you upscale. 
-                    Nbig = abig * self.params['tot_obs']
+                    Nbig = np.round(abig * self.params['tot_obs'], decimals=0)
                     self.sad.params['tot_obs'] = Nbig
-                    self.sad.params['n_samp'] = Sbig
-                    ssad.params['tot_obs'] = np.arange(1, Nbig + 1)
+
+                    if use_rad:
+                        self.sad.params['n_samp'] = np.round(Sbig, decimals=0)
+                        ssad.params['tot_obs'] = self.sad.rad()[0]
+                    else:
+                        self.sad.params['n_samp'] = Sbig
+                        ssad.params['tot_obs'] = np.arange(1, Nbig + 1)
                     ssad.params['n_samp'] = np.repeat(abig,
                                                    len(ssad.params['tot_obs']))
-
+                    
+                    # Probability of presence list
                     p_pres_list = [1 - absnt[0] for absnt in ssad.pmf(0)[0]]
-                    sadbig = self.sad.pmf(np.arange(1, Nbig + 1))[0][0]
-                    val = sum(Sbig * sadbig * np.array(p_pres_list)) - S
-                    return val
+                    if use_rad:
+                        return sum(np.array(p_pres_list)) - S
+                    else:
+                        sadbig = self.sad.pmf(np.arange(1, Nbig + 1))[0][0]
+                        val = sum(Sbig * sadbig * np.array(p_pres_list)) - S
+                        return val
                 
                 #Optimizing to find Sbig. If error set to nan
                 try:
                     Sbig = scipy.optimize.brentq(eq, S, a * S, args=(a, S), disp=0)
                     sar.append(Sbig)
                 except(ValueError):
+                    print 'Could not calculate species number with values' +\
+                           ' a = %s and S = %s' % (str(a), str(S))
                     sar.append(np.nan)
 
                 self.sad.params = sad_params # Reset sad params
 
             elif a == 1:
-                p_pres_list = np.repeat(1, len(N_range))
-                sar.append(sum(S * sad * np.array(p_pres_list)))
+                if use_rad:
+                    sar.append(S)
+                else:
+                    p_pres_list = np.repeat(1, len(N_range))
+                    sar.append(sum(S * sad * np.array(p_pres_list)))
 
             # Downscale
             else:
-                ssad.params['n_samp'] = np.repeat(1 / a, len(N_range))
+                ssad.params['n_samp'] = np.repeat(1 / a,
+                                                   len(ssad.params['tot_obs']))
                 p_pres_list = [1 - absnt[0] for absnt in ssad.pmf(0)[0]]
-                sar.append(sum(S * sad * np.array(p_pres_list)))
+
+                if use_rad:
+                    sar.append(sum(np.array(p_pres_list)))
+                else:
+                    sar.append(sum(S * sad * np.array(p_pres_list)))
 
         return np.array(zip(sar, a_list), dtype=[('items', np.float), 
                                                   ('area', np.float)])
@@ -3390,7 +3593,6 @@ def make_rank_abund(pmf, n_samp, min_supp=1):
     Function actually implements (philosophically) a step quantile function.
 
     '''
-
     points = np.arange(1/(2*n_samp), 1, 1/n_samp)
     counts = np.zeros(n_samp)
     

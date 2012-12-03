@@ -961,10 +961,16 @@ class CompareSAR(object):
         self.curve_list = make_dist_list(curve_list)
 
 
-    def compare_curves(self):
+    def compare_curves(self, use_rad=False):
         '''
         Method generates predicted SAR curves from the given observed data and
         curve objects for comparison
+
+        Parameters
+        ----------
+        use_rad : bool
+            If False, uses the sad pmf to calculate the SAR.  If True, uses the
+            sad rank abundance distribution to calculate the SAR.
 
         Returns
         -------
@@ -986,10 +992,10 @@ class CompareSAR(object):
                                         ('area', np.float)])
             for cur in self.curve_list:
                 cur.fit(sad, (a, sar))
-                try: #Calculating everything with iteration if possible
-                    psar[cur.get_name()] = cur.iter_vals(a)
+                try:
+                    psar[cur.get_name()] = cur.vals(a, use_rad=use_rad)
                 except AttributeError:
-                    psar[cur.get_name()] = cur.vals(a)
+                    psar[cur.get_name()] = cur.iter_vals(a, use_rad=use_rad)
                     
             for kw in psar.iterkeys():
                 psar[kw].sort(order='area')
