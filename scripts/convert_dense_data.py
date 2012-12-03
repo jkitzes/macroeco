@@ -53,7 +53,8 @@ if __name__ == '__main__':
     import macroeco.utils.format_data as form
 
     wf = Workflow(required_params=required_params,
-                 optional_params=optional_params, clog=True, svers=__version__)
+                 optional_params=optional_params,
+                 clog=True, svers=__version__, short_output_name=True)
     
     # What about formatting for multiple data sets simultaneously?  In this
     # case it would be nice to have Workflow yield all the datasets in a given
