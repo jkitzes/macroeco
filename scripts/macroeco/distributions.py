@@ -1424,7 +1424,7 @@ class geo_ser(Distribution):
     # The pmf, as adapted from May, describes a continuous SAD. The rad
     # generate by the below pmf (super.rad) does not give the rad predicted by
     # geo_ser.rad.
-    '''
+    
     @doc_inherit
     def pmf(self, n):
 
@@ -1441,16 +1441,14 @@ class geo_ser(Distribution):
         # Equation from May 1975.  
         #eq = lambda x, n_samp, k: (1 / x) * (1 / n_samp) * (1 / np.log(1 / 
         #                                                         (1 - k)))
-        eq = lambda x, n_samp, k: (-1 / n_samp) * (1 / x) * (1 / np.log(1 - k))
+        #eq = lambda x, n_samp, k: (-1 / n_samp) * (1 / x) * (1 / np.log(1 - k))
         for tn_samp, ttot_obs, tk, tn in zip(n_samp, tot_obs, k, n):
-            ttot_obs = np.round(ttot_obs, decimals=0)
-            sumg = sum(eq(np.arange(1, ttot_obs + 1), tn_samp, tk))
-            tpmf = eq(tn, tn_samp, tk) / sumg #Normalizing
+            c = 1 / np.log(ttot_obs)
+            sumg = sum( c / np.arange(1,ttot_obs + 1))
+            tpmf = (c / tn) / sumg # normalize
             pmf.append(tpmf)
 
         return pmf, None
-        '''
-
 
     @doc_inherit
     def rad(self):
@@ -3607,7 +3605,7 @@ def make_rank_abund(pmf, n_samp, min_supp=1):
         if not greater_thans.any():  # If no greater thans, done with samples
             break
     
-    return counts
+    return counts #/ (sum(counts) / len(pmf))
 
 
 def canonical_lognorm_pmf(r, S, param_ret=False):
