@@ -12,6 +12,7 @@ import numpy as np
 from matplotlib.mlab import csv2rec
 import form_func as ff
 from numpy.lib.recfunctions import drop_fields
+import csv
 
 __author__ = "Mark Wilber"
 __copyright__ = "Copyright 2012, Regents of University of California"
@@ -376,7 +377,7 @@ class Grid_Data:
 
     '''
 
-    def __init__(self, filenames, num_cols, archival=True, spp_sep='\n'):
+    def __init__(self, filenames, archival=True, spp_sep='\n'):
         '''
         Pass in the file name(s) of the grid data that you want converted and
         the number of columns in each grid.
@@ -386,12 +387,6 @@ class Grid_Data:
 
         filenames : str or list of strings
             A filename or list of filenames
-
-        num_cols : int or list of ints
-            If an int or list of length one, this number specifies the number
-            of columns for all grids with in filenames.  If a list of
-            len(filename) this list specifies the number of columns for each
-            individual grid.
 
         archival : bool
             If True, a copy of self.grid_data is made and stored in
@@ -403,23 +398,22 @@ class Grid_Data:
         if type(filenames) == str:
             filenames = [filenames]
 
-        if type(num_cols) == int:
-            num_cols = [num_cols]
-
         assert np.all(np.array([name.split('.')[-1] for name in filenames]) ==\
                       'csv'), "Files must be csv"
-        assert len(num_cols) == len(filenames) or len(num_cols) == 1, 'Length\
-                       of num_cols must be 1 or equal len(filenames)'
 
         self.grid_data = []
         self.cols = []
         self.rows =[]
 
         for i, name in enumerate(filenames):
-            if len(num_cols) == 1:
-                self.cols.append(num_cols[0])
-            else:
-                self.cols.append(num_cols[i])
+            # Sometimes csv.reader reads an extra column so you have to read to
+            # whole file. Seems stupid to read in the file twice but oh well...
+            with open(name, 'rb') as csvreader:
+                reader = csv.reader(csvreader)
+                rows = [row for row in reader]
+            min_len = np.min([len(row) for row in rows])
+            self.cols.append(min_len)
+                
             self.grid_data.append(csv2rec(name, names=list(np.arange(0,\
                                             self.cols[i]).astype('S10'))))
             self.rows.append(len(self.grid_data[i]))
@@ -560,7 +554,7 @@ class Grid_Data:
         for i, data in enumerate(self.grid_data):
             dtype_list = [('cell', np.int), ('row', np.int), ('column', np.int)]
             for name in self.unq_spp_lists[i]:
-                tuple_type = (name, np.int)
+                tuple_type = (name, np.float)
                 dtype_list.append(tuple_type)
             matrix = np.empty(self.rows[i] * self.cols[i], dtype=dtype_list)
             #Iterate through the plot
@@ -575,9 +569,8 @@ class Grid_Data:
                         # Check if cell has species. May be nested occurence!
                         matrix[spp_name][count] = 0 # Set base to 0
                         start = data[col][row].find(spp_name)
-
                         if start == -1: # Nothing is there
-                            pass # Count already set to zero on line 564ish
+                            pass # Count already set to zero
 
                         else: # Something is there, but is it nested?
                             found = start
@@ -595,11 +588,9 @@ class Grid_Data:
                                     raw = data[col][row][start:].split(spacer)[1]
                                     if raw.find(spp_sep) != -1:
                                         tot_spp = raw.split(spp_sep)[0].strip()
-                                        matrix[spp_name][count] += int(tot_spp)
-                                        
                                     else:
                                         tot_spp = raw.split()[0].strip()
-                                        matrix[spp_name][count] += int(tot_spp)
+                                    matrix[spp_name][count] += float(tot_spp)
                                 found = data[col][row][start + 1
                                                               :].find(spp_name)
                                 start += found + 1
@@ -698,7 +689,8 @@ class Dense_Data:
             self.dense_data = [np.copy(data) for data in self.dense_archival]
 
 
-    def dense_to_columnar(self, spp_col_num, num_spp, archival=True):
+    def dense_to_columnar(self, spp_col_num, num_spp, count_col='count',\
+                                                                archival=True):
         '''
         This function uses a function in form_func to convert dense data into
         columnar data. Stores the columnar data as a Columnar Object.
@@ -712,9 +704,13 @@ class Dense_Data:
             Number of species in each dataset in self.dense_data. If it is an
             int, it will be broadcasted to the length of self.dense_data
 
+        count_col : str
+            This string specifies the name of the count column.  The default is
+            'count'.
+
         '''
         columnar_data = ff.format_dense(self.dense_data, spp_col_num,\
-                                                                      num_spp)
+                                            num_spp, count_col=count_col)
         self.Columnar_Object = Columnar_Data(columnar_data, archival=archival)
 
     def output_dense_data(self, filenames):

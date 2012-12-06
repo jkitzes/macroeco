@@ -200,7 +200,7 @@ def open_dense_data(filenames, direct, delim=','):
         datayears.append(data)
     return datayears
 
-def format_dense(datayears, spp_col, num_spp):
+def format_dense(datayears, spp_col, num_spp, count_col='count'):
     '''
     This function takes a list of data.  This functions interates 
     through the list and formats each year of data and stores the 
@@ -221,6 +221,10 @@ def format_dense(datayears, spp_col, num_spp):
         number of species in the corresponding rec array in data year.
         Therefore, len(num_spp) should equal len(datayears).  If num_spp is an
         int, it is converted to a tuple and extended to len(datayears)
+
+    count_col : str
+        This string specifies the name of the count column.  The default is
+        'count'.
 
     Returns
     -------
@@ -247,11 +251,11 @@ def format_dense(datayears, spp_col, num_spp):
         ls = len(data.dtype.names[spp_col:spp_col + num_spp[k]])
         if len(data.dtype.names[:spp_col + num_spp[k]]) == \
                                                         len(data.dtype.names):
-            dtype = data.dtype.descr[:spp_col] + [('spp', 'S22'), ('count',\
+            dtype = data.dtype.descr[:spp_col] + [('spp', 'S22'), (count_col,\
                                                                 np.float)]
         else:
             dtype = data.dtype.descr[:spp_col] + data.dtype.descr[spp_col + \
-                    num_spp[k]:] + [('spp', 'S22'), ('count', np.float)]
+                    num_spp[k]:] + [('spp', 'S22'), (count_col, np.float)]
 
         data_out = np.empty(ls * len(data), dtype=dtype)
 
@@ -263,7 +267,7 @@ def format_dense(datayears, spp_col, num_spp):
                     data_out['spp'][cnt:(ls*(i+1))] = np.array\
                                                 (data.dtype.names[spp_col:\
                                                 spp_col + num_spp[k]])
-                    data_out['count'][cnt:(ls*(i+1))] =\
+                    data_out[count_col][cnt:(ls*(i+1))] =\
                                     np.array(list(data[i]))[spp_col:spp_col +\
                                     num_spp[k]]
                     cnt = cnt + ls
@@ -271,7 +275,7 @@ def format_dense(datayears, spp_col, num_spp):
                     data_out[name][cnt:(ls*(i+1))] = data[name][i]
                     cnt = cnt + ls
         #Remove all zeros, they are not needed
-        data_out = data_out[data_out['count'] != 0]
+        data_out = data_out[data_out[count_col] != 0]
         data_formatted.append(data_out)
     return data_formatted
 

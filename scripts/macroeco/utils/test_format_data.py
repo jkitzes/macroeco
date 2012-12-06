@@ -18,8 +18,7 @@ class TestFormatData(unittest.TestCase):
     def setUp(self):
 
         self.grid1 = open('grid1.csv', 'w')
-        self.grid1.write('''Harry-1+Joshua - 6+, hg-4+ty -  67,
-                            Harry-3+Joshua-1+y-34+ty - 87, hg-23''')
+        self.grid1.write('''Harry-1+Joshua - 6+, hg-4+ty -  67,\nHarry-3+Joshua-1+y-34+ty - 87, hg-23''')
         self.grid1.close()
         
         # Heavily nested names and blank cell
@@ -106,7 +105,7 @@ y,2,1,300,2,f''')
         os.remove('col2.csv')
 
     def test_Grid_Data(self):
-        grid = form.Grid_Data('grid1.csv', 2, spp_sep='+')
+        grid = form.Grid_Data('grid1.csv', spp_sep='+')
         grid.find_unique_spp_in_grid(spacer='-', spp_sep='+')
 
         # Does it find the right species?
@@ -115,7 +114,7 @@ y,2,1,300,2,f''')
         self.assertTrue(np.all(spp_list == unq_spp))
 
         # If I don't truncate '+', it still finds the right species
-        grid = form.Grid_Data('grid1.csv', 2)
+        grid = form.Grid_Data('grid1.csv')
         grid.find_unique_spp_in_grid(spacer='-', spp_sep='+')
 
         spp_list = np.array(['Harry', 'Joshua', 'hg', 'ty', 'y'])
@@ -123,7 +122,7 @@ y,2,1,300,2,f''')
         self.assertTrue(np.all(spp_list == unq_spp))
 
         # Test that the Dense plot is made correctly
-        grid = form.Grid_Data('grid1.csv', 2, spp_sep='+')
+        grid = form.Grid_Data('grid1.csv', spp_sep='+')
         grid.grid_to_dense(spacer='-', spp_sep='+')
         columns = ('cell', 'row',  'column', 'Harry', 'Joshua', 'hg', 'ty',
         'y')
@@ -171,7 +170,7 @@ y,2,1,300,2,f''')
         self.assertTrue(np.all(pred == test))
 
         # Testing remove, replace, and truncation functions
-        grid = form.Grid_Data('grid3.csv', [2], spp_sep='&')
+        grid = form.Grid_Data('grid3.csv', spp_sep='&')
         grid.truncate_grid_cells(['$pl', 'will', '%may'])
         grid.remove_and_replace('*', '')
 
@@ -203,10 +202,8 @@ y,2,1,300,2,f''')
 
 
         # Test that multiple data sets work
-        self.assertRaises(AssertionError, form.Grid_Data, \
-                                    glob.glob('grid*.csv'), [2,2])
 
-        grid = form.Grid_Data(glob.glob('grid*.csv'), 2, archival=False)
+        grid = form.Grid_Data(glob.glob('grid*.csv'), archival=False)
         
         # reset_archival should fail in this case
         self.assertRaises(ValueError, grid.reset_grid_data)
@@ -464,4 +461,5 @@ y,2,1,300,2,f''')
 
 
 
-        
+if __name__ == '__main__':
+    unittest.main() 
