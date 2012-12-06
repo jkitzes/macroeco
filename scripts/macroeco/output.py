@@ -552,6 +552,106 @@ class SAROutput(object):
         fout.close()
 
 
+class ASEDOutput(object):
+    '''
+    Class outputs the average species energy distributions by interacting with
+    CompareASED
+    '''
+
+    def __init__(self, out_dir):
+        '''
+        Parameters
+        ----------
+        out_dir : string
+            Output directory of object
+        '''
+        self.out_dir = out_dir         
+
+    def plot_reds(self, reds, criteria=None, species=None):
+        '''
+        Plotting the observed and predicted rank abundance distributions
+
+        Parameters
+        ----------
+        reds : dict
+            A dictionary that is returned from the function compare_reds in the
+            CompareASED class.
+
+        criteria : list of objects
+            If not none, the objects in criteria will be printed a strings in
+            the plots and file names.
+
+        Notes
+        -----
+        Saves RAD plots to given out_dir.  Saves as many plots as there are
+        observed distributions.
+
+        '''
+        folder_name = 'ased_rank_energy_plots_' + self.out_dir
+        make_directory(folder_name)
+
+        tot_sad = len(reds['observed'])
+        recs = make_rec_from_dict(reds, tot_sad, species=species)
+
+        if criteria != None:
+            assert len(criteria) == tot_sad, "len(criteria) must  equal" + \
+                                   " number of data arrays under consideration"
+        count = 0
+        for i, data in enumerate(recs):
+            
+            # Plot all columns of the rec array
+            plot_rec_columns(data)
+            plt.semilogy()
+            plt.ylabel('Log Energy')
+            plt.xlabel('Rank')
+            
+            if criteria != None and np.all([type(crt) != dict for crt in
+                                                                    criteria]):
+                plt.title('ASED rank energy distribution for ' + str(criteria[i]))
+                filename = os.path.join(folder_name, self.out_dir +
+                                    '_rank_abundance_plot_' + str(criteria[i]))
+
+                logging.info('Saving figure and csv ' + filename)
+                plt.savefig(filename)
+                output_form(recs[i], filename)
+                count += 2
+
+            elif criteria != None and np.all([type(crt) == dict for crt in
+                                                                    criteria]):
+                plt.title('ASED rank energy distribution')
+                plt.figtext(.97, .5, 'Criteria for plot: ' + str(criteria[i]), 
+                                rotation='vertical', size=8,
+                                horizontalalignment='center',
+                                verticalalignment='center')
+
+                filename = os.path.join(folder_name,  self.out_dir + 
+                                              '_ased_rank_energy_plot_' + str(i))
+                logging.info('Saving figure ' + filename)
+                plt.savefig(filename)
+                output_form(recs[i], filename)
+                count += 2
+
+            else:
+                plt.title('ASED rank energy distribution: plot number ' + str(i))
+                
+                filename = os.path.join(folder_name, self.out_dir + 
+                                              '_ased_rank_energy_plot_' + str(i))
+                logging.info('Saving figure ' + filename)
+                plt.savefig(filename)
+                output_form(recs[i], filename)
+                count += 2
+            
+            plt.clf()
+
+        fout = open(os.path.join(folder_name, 'README'), 'w')
+        fout.write(readme_info_plots.format(count, count /2, count/2,
+            folder_name, 
+            'average species energy distribution (ASED) rank' + 
+            ' energy plots', 'ased_rank_energy_plot'))
+        fout.close()
+        
+
+
 class IEDOutput(object):
     '''
     Class outputs individual energy distributions by interacting with
@@ -687,7 +787,7 @@ class SEDOutput(object):
 
             if spp != None:
                 if criteria != None:
-                    plt.title('Rank Enery Distribution for species ' +
+                    plt.title('Rank Energy Distribution for species ' +
                                                                    str(spp[i]))
                     plt.figtext(.97, .5, 'Criteria for plot: ' + 
                                 str(criteria[i]), rotation='vertical', size=8,
@@ -746,6 +846,21 @@ class OutputRarity(object):
 
     def output_rarity(self, rarity, data_path, data, criteria=None):
         '''
+        Outputs csv files containing rarity measures
+
+        Parameters
+        ----------
+        rarity : a CompareRarity object
+        
+        data_path : str
+            data_path string for identifying data in csv file
+
+        data : list 
+            A list of observed species abundance distributions
+
+        criteria : dict or None
+            The criteria for how the plot was split
+
         '''
         folder_name = 'rarity_values_' + self.out_dir
         make_directory(folder_name)

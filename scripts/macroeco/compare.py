@@ -33,7 +33,7 @@ Functions
 -`aicc` -- Calculate corectted AIC value
 -`aic_wieghts` -- Calculate AIC weights for models
 -`ks_two_sample_test` -- Kolmogrov-Smirnov two sample test
--`likelihood_ratio_test` -- Calculated likelihood ratio for nested models
+-`likelihood_ratio` -- Calculated likelihood ratio for nested models
 -`variance` -- Calculates the variance for given datasets
 -`skew` -- Calculates the skew for given datasets
 -`kurtosis` -- Calculates the kurtosis for given data sets
@@ -322,7 +322,7 @@ class CompareDistribution(object):
             A dictionary with keywords 'null_model, alternative model.' Each
             keyword references a list of length len(self.observed_data) which
             contains tuples that contain the output of the function
-            likelihood_ratio_test.  The LRT is performed on each data set in
+            likelihood_ratio.  The LRT is performed on each data set in
             self.observed_data for each given model pair.
 
         '''
@@ -342,7 +342,7 @@ class CompareDistribution(object):
 
             k = dist.par_num - null_mdl.par_num
             df = np.repeat(k, len(alt_nlls))
-            lrt = likelihood_ratio_test(null_nlls, alt_nlls, df)
+            lrt = likelihood_ratio(null_nlls, alt_nlls, df)
             comp_kw = get_name(null_mdl) + ", " + get_name(dist)
             LRT_list[comp_kw] = lrt
         return LRT_list
@@ -995,7 +995,7 @@ class CompareSAR(object):
                 try:
                     psar[cur.get_name()] = cur.vals(a, use_rad=use_rad)
                 except AttributeError:
-                    psar[cur.get_name()] = cur.iter_vals(a, use_rad=use_rad)
+                    psar[cur.get_name()] = cur.vals(a, use_rad=True)
                     
             for kw in psar.iterkeys():
                 psar[kw].sort(order='area')
@@ -1045,16 +1045,20 @@ def empirical_cdf(emp_data):
         cdf[loc] = count / leng
     return cdf
 
-def aic(neg_L, k):
+def aic(neg_L, k, loglik=True):
     '''
     Calculates the AIC of a given model
 
     Parameters
     ----------
     neg_L : array-like object
-        The negative log likelihood of a model
+        The negative log likelihood of the models or a list of pdfs/pmfs,
+        depedning on nll
     k : array-like object
-        The number of parameters of a model
+        The number of parameters of the model
+    loglik : bool
+        If True, assumes neg_L is a array-like object of negative log
+        likelihood.  If False, assumes neg_L is a list of pdfs/pmfs.
     
     
    Returns
@@ -1062,23 +1066,32 @@ def aic(neg_L, k):
    : float
         AIC for a given model
     '''
-    neg_L, k = cnvrt_to_arrays(neg_L, k)
+    if loglik:
+        neg_L, k = cnvrt_to_arrays(neg_L, k)
+    else:
+        neg_L = nll(neg_L)
+        neg_L, k = cnvrt_to_arrays(neg_L, k)
+        
     assert len(k) == len(neg_L), "neg_L and k must have the same length"
     aic = (2 * neg_L) + (2 * k)
     return aic
 
-def aicc(neg_L, k, n):
+def aicc(neg_L, k, n=None, loglik=True):
     '''
     Calculates the corrected AIC of a given model
 
     Parameters
     ----------
     neg_L : array-like object
-        The negative log likelihood of models
+        The negative log likelihood of models or list of pdfs/pmfs
     k : array-like object
         The number of parameters of models
     n : array-like object
-        Number of observations for each model
+        Number of observations for each model. Can be left as None if neg_L is
+        list of pdfs/pmfs and loglik = True
+    loglik : bool
+        If True, assumes neg_L is a array-like object of negative log
+        likelihood.  If False, assumes neg_L is a list of pdfs/pmfs.
 
     Returns
     -------
@@ -1086,7 +1099,14 @@ def aicc(neg_L, k, n):
         AICc for a given models
 
     '''
-    neg_L, k, n = cnvrt_to_arrays(neg_L, k, n)
+    if loglik:
+        assert n != None, 'n argument must be given if loglik is True'
+        neg_L, k, n = cnvrt_to_arrays(neg_L, k, n)
+    else:
+        n = np.array([len(tneg_L) for tneg_L in neg_L])
+        neg_L = nll(neg_L)
+        neg_L, k = cnvrt_to_arrays(neg_L, k)
+
     assert len(neg_L) == len(k) and len(neg_L) == len(n) and len(k) == len(n),\
             "neg_L, k, and n must all have the same length"
     aic_value = aic(neg_L, k)
@@ -1144,7 +1164,7 @@ def ks_two_sample(data1, data2):
     data2 = np.array(data2)
     return stats.ks_2samp(data1, data2)
 
-def likelihood_ratio_test(nll_null, nll_alt, df_list):
+def likelihood_ratio(nll_null, nll_alt, df_list):
     '''
     This functions compares of two nested models using the likelihood ratio
     test.
@@ -1173,7 +1193,7 @@ def likelihood_ratio_test(nll_null, nll_alt, df_list):
     assert len(nll_null) == len(nll_alt) and len(nll_null) == len(df_list) and\
            len(nll_alt) == len(df_list), "nll_null, nll_alt, and df_list " + \
                                           "must have the same length"
-    test_stat = 2 * nll_null - (2 * nll_alt)
+    test_stat = 2 * (nll_null - nll_alt)
     return [(ts, stats.chisqprob(ts, df)) for ts, df in zip(test_stat, df_list)]
 
 def variance(data_sets):
@@ -1263,7 +1283,7 @@ def bootstrap(data_sets, num_samp=1000):
     
     return bootstraps
 
-def test_moment(data1, data2, moment, CI=.95, num_samp=1000):
+def bootstrap_moment(data1, data2, moment, CI=.95, num_samp=1000):
     '''
     A bootstrap two-sample test of kurtosis or kurtosis. Returns the test_statistic 
     distribution and the confidence interval as specified by parameter CI.

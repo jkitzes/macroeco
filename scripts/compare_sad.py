@@ -92,7 +92,7 @@ PARAMETER EXPLANATIONS
 
 REFERENCES
 
-Magurran, A. E. 1988. Ecological Diversity and Its Measuremnt. Princeton
+Magurran, A. E. 1988. Ecological Diversity and Its Measurement. Princeton
 University Press.
 
 May, R. M. 1975. Patterns of species abundance and diversity. In Ecology and

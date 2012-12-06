@@ -19,7 +19,6 @@ truncation_symbols = '''temp'''
 remove_replace_values = '''temp'''
 char_btwn_species_and_count = '''temp'''
 char_btwn_species = '''temp'''
-number_of_columns = '''temp'''
 
 # Columnar parameter descriptions
 columns_to_split = '''temp'''
@@ -30,7 +29,7 @@ how_and_where_to_fractionate = '''temp'''
 merge_data = '''temp'''
 subset = '''temp'''
 
-required_params = {'number_of_columns' : number_of_columns}
+required_params = {}
 
 optional_params = {'truncation_symbols' : (truncation_symbols + ds, None), 
                     'remove_replace_values': (remove_replace_values + ds,
@@ -65,8 +64,7 @@ if __name__ == '__main__':
         # Each script handles one specific type of data.  This script deals
         # with gridded data.
 
-        grid_data = form.Grid_Data(data_paths, params['number_of_columns'],
-                                   archival=False)
+        grid_data = form.Grid_Data(data_paths, archival=False)
         
         # Allowing user to truncated grid cells.  They can do it multple times.
         grid_data.truncate_grid_cells(params['truncation_symbols'])
@@ -80,9 +78,9 @@ if __name__ == '__main__':
         grid_data.grid_to_dense(spacer=params['char_btwn_species_and_count'][0],
                                 spp_sep=params['char_btwn_species'][0],
                                 archival=False)
-        num_spp = len(grid_data.unq_spp_lists[0])
+        num_spp = [len(spp_list) for spp_list in grid_data.unq_spp_lists]
         dense_obj = grid_data.Dense_Object
-        dense_obj.dense_to_columnar(3, (num_spp,), archival=False)
+        dense_obj.dense_to_columnar(3, tuple(num_spp), archival=False)
 
         # Format Columnar Data
         columnar_obj = dense_obj.Columnar_Object
