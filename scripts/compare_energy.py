@@ -33,45 +33,63 @@ You may use any number of the following IED distributions: 'psi'
 
 Example input: ['psi']. The brackets MUST be included.  '''
 
+predicted_ASED_distributions = '''This parameter is the list of ASED
+distributions to which you can compare your observed data. 
+
+You may use any number of the following ASED distributions: 'nu'
+
+Example input: ['nu']. The brackets MUST be included.  '''
+
 energy_metrics = ''' This parameter allows you to specify which energy
-metric(s) you would like to examine. Chose one of the following and copy
-exactly: ['SED'], ['IED'], or ['SED', 'IED'].'''
+metric(s) you would like to examine. Example: ['SED'], ['IED'], ['SED', 'IED']
+['ASED'], ['ied', 'ASED', 'sed'].'''
 
 
 explanation = ''' 
 ANALYSIS EXPLANATION\n
 The compare_energy analysis allows you to compare observed energy metrics
-against predicted energy metrics. There are two energy metrics that this script
-can compare: individual energy distributions (IED) and species-level energy
-distributions (SED).  The IED is a distribution of the energy of each
-individual within a community.  The energy of each individual can be calculated
-from the biomass using the 3/4 allometric scaling law.  Other proxies for
-energy, such as leaf surface area, can be used as well.  The IED is species
-blind; it does not consider what species an individual belongs to. For
-normalization purposes, each value of the empirical IED is divided by the
-smallest empirical energy value. 
+against predicted energy metrics. There are three energy metrics that this
+script can compare: individual energy distributions (IED), species-level energy
+distributions (SED), and average species energy distribution (ASED).  The IED
+is a distribution of the energy of each individual within a community.  The
+energy of each individual can be calculated from the biomass using the 3/4
+allometric scaling law.  Other proxies for energy, such as leaf surface area,
+can be used as well.  The IED is species blind; it does not consider what
+species an individual belongs to. For normalization purposes, each value of the
+empirical IED is divided by the smallest empirical energy value. An example of
+and IED distribution is the 'psi' distribution given in Harte (2011).
 
 The SED is a distribution of the energy of each individual within a species.
 For example, a community with 30 speices would have 30 SED's, one for each
 species.  The entire community's energy distribution is normalized in the exact
 same way as the IED and then individuals are placed into their respective
 species and the SED's are generated. For more information on energy
-distributions please see the reference and references therein.
+distributions please see the reference and references therein.  An example of
+an SED is the 'theta' distribution given in Harte (2011).
+
+The ASED is a distribution of the average energy of each species within a
+community. For example, a community with 30 species would have one ASED with
+thirty data points; one for each species.  The average energy of a species is
+the average energy of all individuals within that species. Similar to the SED
+mentioned above, the IED is normalized before the ASED is calculated.  An
+example of an ASED is the 'nu' distribution given in Harte (2011).
 
 OUTPUT
 
-This analysis outputs up to two folders per dataset, a logfile.txt, and, if
-possible, a .png file with a map of the location of the datasets(s). The two
-possible folders begin with the names ied_rank_energy_plots_compare_energy_*
-and sed_rank_energy_plots_compare_energy_*.  Within each folder, there are rank
+This analysis outputs up to three folders per dataset, a logfile.txt, and, if
+possible, a .png file with a map of the location of the datasets(s). The three
+possible folders begin with the names ied_rank_energy_plots_compare_energy_*,
+sed_rank_energy_plots_compare_energy_*, and
+ased_rank_energy_plots_compare_energy_* .  Within each folder, there are rank
 energy distribution (red) plots in which the observed energy distribution is
 compared to the distributions given in the required parameter
-predicted_SED_distributions and/or predicted_IED_distributions. These files are
-output as .png files. For each plot, a corresponding csv file with the same
-name as the plot except with a .csv extension is output containing the data
-used to make the plot. For all SED plots, the species name specified in the
-plot title.  For all of the IED plots, the criteria used to make plot is
-printed on the right hand side of the plot. 
+predicted_SED_distributions, predicted_IED_distributions, and/or
+predicted_ASED_distributions. These files are output as .png files. For each
+plot, a corresponding csv file with the same name as the plot except with a
+.csv extension is output containing the data used to make the plot. For all SED
+plots, the species name specified in the plot title.  For all of the IED and
+ASED plots, the criteria used to make plot is printed on the right hand side of
+the plot. 
 
 The logfile.txt contains the analysis process information. Please see the
 logfile if the analysis fails.
@@ -98,6 +116,10 @@ the analysis explanation.
 
 {3}
 
+*** predicted_ASED_distributions ***:
+
+{5}
+
 *** energy_metrics ***:
 
 {4}
@@ -108,7 +130,7 @@ Harte, J. 2011. Maximum Entropy and Ecology: A Theory of Abundance,
 Distribution, and Energetics. Oxford University Press.
 
 '''.format(gb.subset, gb.criteria, predicted_SED_distributions,
-predicted_IED_distributions, energy_metrics)
+predicted_IED_distributions, energy_metrics, predicted_ASED_distributions)
 
 
 required_params = {'criteria' : gb.req + gb.short_criteria,
@@ -124,7 +146,7 @@ if __name__ == '__main__':
     from macroeco.utils.workflow import Workflow
     from macroeco.empirical import Patch
     import macroeco.compare as comp
-    from macroeco.output import SEDOutput, IEDOutput, make_directory
+    from macroeco.output import SEDOutput, IEDOutput, ASEDOutput, make_directory
     import os
 
     wf = Workflow(required_params=required_params,
@@ -143,40 +165,38 @@ if __name__ == '__main__':
 
         # Calculate empirical metrics
         sad = patch.sad(params['criteria'], clean=True)
-        if set(params['energy_metrics']) == set(['SED', 'IED']) or\
-           set(params['energy_metrics']) == set(['sed', 'ied']) :
-            cmengy = patch.ied(params['criteria'])
-            spengy = patch.sed(params['criteria'])
+        ied = patch.ied(params['criteria'])
 
-            # Make comparison objects 
-            cmprt = comp.CompareSED((spengy, cmengy, sad),
+        # Check which distributions where specified
+        dist_str = str(params['energy_metrics'])
+        sed_there, ied_there, ased_there = (False, False, False)
+        if dist_str.find('sed') != -1 or dist_str.find('SED') != -1:
+            sed_there = True
+        if dist_str.find('ied') != -1 or dist_str.find('IED') != -1:
+            ied_there = True
+        if dist_str.find('ased') != -1 or dist_str.find('ASED') != -1:
+            ased_there = True
+
+        if sed_there:
+            sed = patch.sed(params['criteria'])
+            cmprt = comp.CompareSED((sed, ied, sad),
                              params['predicted_SED_distributions'], patch=True)
-            cmprp = comp.CompareIED((cmengy, sad), 
+            sout = SEDOutput(output_ID)
+            sout.plot_reds(cmprt.compare_rads(), criteria=cmprt.criteria)
+
+        if ied_there:
+             cmprp = comp.CompareIED((ied, sad), 
                              params['predicted_IED_distributions'], patch=True)
-            
-            # Make output objects and output plots
-            sout = SEDOutput(output_ID)
-            soup = IEDOutput(output_ID)
-            sout.plot_reds(cmprt.compare_rads(), criteria=cmprt.criteria)
-            soup.plot_reds(cmprp.compare_rads(), criteria=cmprp.criteria)
+             soup = IEDOutput(output_ID)
+             soup.plot_reds(cmprp.compare_rads(), criteria=cmprp.criteria)
 
-        elif set(params['energy_metrics']) == set(['IED']) or\
-             set(params['energy_metrics']) == set(['ied']):
-            cmengy = patch.ied(params['criteria'])
-            cmprp = comp.CompareIED((cmengy, sad), 
-                              params['predicted_IED_distributions'],patch=True)
-            soup = IEDOutput(output_ID)
-            soup.plot_reds(cmprp.compare_rads(), criteria=cmprp.criteria)
+        if ased_there:
+            ased = patch.ased(params['criteria'])
+            cmpra = comp.CompareASED((ased, ied, sad), ['nu'], patch=True)
+            soua = ASEDOutput(output_ID)
+            soua.plot_reds(cmpra.compare_rads(), criteria=cmpra.criteria,
+                                                   species=cmpra.sad_spp_lists)
 
-        elif set(params['energy_metrics']) == set(['SED']) or\
-             set(params['energy_metrics']) == set(['sed']):
-            cmengy = patch.ied(params['criteria'])
-            spengy = patch.sed(params['criteria'])
-
-            cmprt = comp.CompareSED((spengy, cmengy, sad),
-                             params['predicted_SED_distributions'], patch=True)
-            sout = SEDOutput(output_ID)
-            sout.plot_reds(cmprt.compare_rads(), criteria=cmprt.criteria)
 
         os.chdir(cwd)
 
