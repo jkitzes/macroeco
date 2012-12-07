@@ -16,7 +16,8 @@ Patch Methods
 - `comm` -- calculate commonality between sub-patches (grid)
 - `ssad` -- calculate species-level spatial abundance distrib (grid or sample)
 - `sed` -- calculate species energy distribution (grid or sample)
-- `ied` -- calculate the community energy distribution
+- `ied` -- calculate the community (individual) energy distribution
+- `ased` -- calculate the average species energy distribution
 
 - `get_sp_centers` --
 - 'get_div_areas' -- return list of areas made by div_list

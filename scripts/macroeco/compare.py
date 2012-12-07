@@ -50,6 +50,7 @@ from distributions import *
 import copy
 import random
 import time
+import logging
 
 __author__ = "Mark Wilber"
 __copyright__ = "Copyright 2012, Regents of University of California"
@@ -104,6 +105,10 @@ class CompareDistribution(object):
         elif np.all([type(dt) == type((1,)) for dt in data_list]):
             self.observed_data = [np.array(dt[observed_index]) for dt in
                                                                      data_list]
+        else:
+            self.observed_data = [np.array(dt) for dt in data_list]
+
+
 
         # Set this in __init__ so other methods can check if compare_rads() has
         # been called
@@ -167,8 +172,12 @@ class CompareDistribution(object):
         mse = {}
         for kw in vals.iterkeys():
             if kw != 'observed':
-                mse[kw] = [mean_squared_error(vals['observed'][i], vals[kw][i])
-                            for i in xrange(len(vals[kw]))]
+                if not np.all([len(j) == 0 for j in vals[kw]]):
+                    mse[kw] = [mean_squared_error(vals['observed'][i], 
+                                   vals[kw][i]) for i in xrange(len(vals[kw]))]
+                else:
+                    logging.warning('MSE values for %s set to NaN' % kw)
+                    mse[kw] = [np.NaN for i in xrange(len(self.observed_data))]
         return mse
 
 
@@ -188,7 +197,9 @@ class CompareDistribution(object):
         : list
             A list of arrays.  The list has length = to number of data sets in
             self.observed_data.  Each array within list has the length of
-            self.dist_list.
+            self.dist_list. The first element of the array corresponds to the
+            first distribution in dist_list, the second corresponds to the
+            second distribution, etc.
 
         '''
         aic_vals = []
@@ -196,8 +207,14 @@ class CompareDistribution(object):
             
             try:
                 nlls = nll(dist.pmf(self.observed_data)[0])
-            except:
-                nlls = nll(dist.pdf(self.observed_data)[0])
+            except NotImplementedError:
+                try:
+                    nlls = nll(dist.pdf(self.observed_data)[0])
+                except NotImplementedError:
+                    logging.warning('%s has neither a PMF nor a PDF. AIC set'
+                                            % get_name(dist) + ' to infinity')
+                    nlls = np.repeat(np.inf, len(self.observed_data)) 
+                    
             #NOTE: dist.par_num is the number of parameters of distribution
             k = np.repeat(dist.par_num, len(nlls))
             if crt:
@@ -275,9 +292,7 @@ class CompareDistribution(object):
                 rads_dict[get_name(dist)] = dist.rad()
 
             self.rads = rads_dict
-            return self.rads
-        else:
-            return self.rads
+        return self.rads
 
     def compare_cdfs(self):
         '''
@@ -295,12 +310,21 @@ class CompareDistribution(object):
 
 
         '''
+        if self.cdfs == None:
 
-        cdfs_dict = {}
-        cdfs_dict['observed'] = [empirical_cdf(data) for data in
+            cdfs_dict = {}
+            cdfs_dict['observed'] = [empirical_cdf(data) for data in
                                                             self.observed_data]
-        for i, dist in enumerate(self.dist_list):
-            cdfs_dict[get_name(dist)] = dist.cdf(self.observed_data)[0] 
+            for i, dist in enumerate(self.dist_list):
+                try:
+                    cdfs_dict[get_name(dist)] = dist.cdf(self.observed_data)[0]
+                except NotImplementedError:
+                    logging.warning('CDF method not implemented for %s' %
+                                                                get_name(dist))
+                    cdfs_dict[get_name(dist)] = [np.array([]) for i in
+                                               xrange(len(self.observed_data))]
+                    
+            self.cdfs = cdfs_dict
         return cdfs_dict
     
 
@@ -322,8 +346,8 @@ class CompareDistribution(object):
             A dictionary with keywords 'null_model, alternative model.' Each
             keyword references a list of length len(self.observed_data) which
             contains tuples that contain the output of the function
-            likelihood_ratio.  The LRT is performed on each data set in
-            self.observed_data for each given model pair.
+            likelihood_rati (chisquared, p-value).  The LRT is performed on
+            each data set in self.observed_data for each given model pair.
 
         '''
         LRT_list = {}
@@ -570,7 +594,7 @@ class CompareSSAD(CompareDistribution):
             a distribution object. If they are strings, they will be evaled 
         patch : bool
             If True, expects the output from the Patch.sad method and if False, 
-            expects a list of iterables. Persumably, each iterable is an SAD.
+            expects a list of iterables. Persumably, each iterable is an SSAD.
         '''
         if patch == True:
 
@@ -1057,9 +1081,8 @@ def aic(neg_L, k, loglik=True):
     k : array-like object
         The number of parameters of the model
     loglik : bool
-        If True, assumes neg_L is a array-like object of negative log
+        If True, assumes neg_L is an array-like object of negative log
         likelihood.  If False, assumes neg_L is a list of pdfs/pmfs.
-    
     
    Returns
    -------
@@ -1171,7 +1194,7 @@ def likelihood_ratio(nll_null, nll_alt, df_list):
 
     Parameters
     ----------
-    nll_null : array-like object
+    nll_null :  array-like object
         The negative log-likelihood of the null model
     nll_alt : array-like object
         The negative log-likelihood of the alternative model
@@ -1186,14 +1209,17 @@ def likelihood_ratio(nll_null, nll_alt, df_list):
 
     Notes
     -----
-    The LRT only applies to nested models.  
+    The LRT only applies to nested models. The variable test_stat is known as
+    the G^2 statistic.
     '''
     
     nll_null, nll_alt, df_list = cnvrt_to_arrays(nll_null, nll_alt, df_list)
     assert len(nll_null) == len(nll_alt) and len(nll_null) == len(df_list) and\
            len(nll_alt) == len(df_list), "nll_null, nll_alt, and df_list " + \
                                           "must have the same length"
-    test_stat = 2 * (nll_null - nll_alt)
+    # Calculate G^2 statistic
+    ll_null = nll_null * -1; ll_alt = nll_alt * -1
+    test_stat = 2 * (ll_null - ll_alt) 
     return [(ts, stats.chisqprob(ts, df)) for ts, df in zip(test_stat, df_list)]
 
 def variance(data_sets):

@@ -6,13 +6,259 @@ import unittest
 from macroeco.compare import *
 import numpy as np
 import scipy.stats as stats
+import copy
+import macroeco.distributions as dist
 
 class TestCompare(unittest.TestCase):
     '''Test classes and methods in compare.py'''
 
-    def setup(self):
-        pass
+    def setUp(self):
+        self.sad_data = [[1,1,1,1,1,2,3,4,5,6], [2,2,2,2,2,2,2,2,2,2]]
+        self.ssad_data= [[0,0,0,1,1,2,3,5,12], (0,1,1,1,2,6,12)]
+
+
+    def test_CompareSAD_init(self):
+
+        # Test that not passing in patch object object works
+        sad_c = CompareSAD(self.sad_data, ['logser'])
         
+        # Check that sad_data became self.observed_data
+        sums = np.array([sum(x) for x in sad_c.observed_data])
+        test_sums = np.array([sum(x) for x in self.sad_data])
+        self.assertTrue(np.all(sums == test_sums))
+
+        # Test that that other attributes were set correctly
+        self.assertTrue(sad_c.criteria == None)
+        self.assertTrue(sad_c.sad_spp_list == None)
+        
+        # Test that distribution object was fit
+        self.assertTrue(np.all(sad_c.dist_list[0].params['tot_obs'] ==
+                                                                    test_sums))
+        self.assertTrue(np.all(sad_c.dist_list[0].params['n_samp'] ==
+                                                            np.array([10,10])))
+
+        # Test if patch is true!
+
+        # Replica of patch output
+        patch_true = [({'test' : 'criteria'}, np.array([1,1,1,2,3,5]),
+                     np.array(['a', 'b', 'c', 'd', 'e', 'g'])), ({'test' : 
+                     'criteria'}, np.array([1,1,1,2,5]), np.array(['a', 'b',
+                     'c', 'd', 'g']))]
+        sad_c = CompareSAD(patch_true, dist_list=['logser'], patch=True)
+
+        # Test that the parsing happened correctly
+        self.assertTrue(len(sad_c.criteria) == 2)
+        self.assertTrue(len(sad_c.sad_spp_list) == 2)
+        self.assertTrue(len(sad_c.observed_data) == 2)
+
+        # Check that parameter values were fit correctly
+        self.assertTrue(np.all(sad_c.dist_list[0].params['n_samp'] ==
+                                                              np.array([6,5])))
+        self.assertTrue(np.all(sad_c.dist_list[0].params['tot_obs'] ==
+                                                           np.array([13, 10])))
+
+        # Check that the species lists were set correctly
+        self.assertTrue(np.all(sad_c.sad_spp_list[0] == 
+                                    np.array(['a', 'b', 'c', 'd', 'e', 'g'])))
+        self.assertTrue(np.all(sad_c.sad_spp_list[1] == 
+                                    np.array(['a', 'b', 'c', 'd', 'g'])))
+
+    def test_CompareSSAD_init(self):
+        
+        # Test that SSAD parses correctly when patch is False
+        # Test that not passing in patch object object works
+        ssad_c = CompareSSAD(self.ssad_data, ['binm'])
+        
+        # Check that sad_data became self.observed_data
+        sums = np.array([sum(x) for x in ssad_c.observed_data])
+        test_sums = np.array([sum(x) for x in self.ssad_data])
+        self.assertTrue(np.all(sums == test_sums))
+
+        # Test that that other attributes were set correctly
+        self.assertTrue(ssad_c.criteria == None)
+        self.assertTrue(ssad_c.sad_spp_list == None)
+        
+        # Test that distribution object was fit
+        self.assertTrue(np.all(ssad_c.dist_list[0].params['tot_obs'] ==
+                                                                    test_sums))
+        self.assertTrue(np.all(ssad_c.dist_list[0].params['n_samp'] ==
+                                                            np.array([9,7])))
+
+        # Test that ssad parses correctly if patch=True
+        ssad_patch = (np.array([{}, {}, {}, {}, {}]), {'spp1' :
+                        np.array([0,0,1,2,4]), 'spp2' : np.array([1,1,1,1,1])})
+
+        ssad_c = CompareSSAD(ssad_patch, dist_list = ['tgeo', 'binm'],
+                    patch=True)
+        
+        spp_list = np.array(['spp1', 'spp2'])
+        self.assertTrue(np.all(spp_list == np.sort(ssad_c.sad_spp_list)))
+
+        # Test that distribution object was fit
+        self.assertTrue(np.all(ssad_c.dist_list[0].params['tot_obs'] ==
+                                                    np.array([7, 5])))
+        self.assertTrue(np.all(ssad_c.dist_list[0].params['n_samp'] ==
+                                                            np.array([5,5])))
+        # Test that distribution object was fit
+        self.assertTrue(np.all(ssad_c.dist_list[1].params['tot_obs'] ==
+                                                            np.array([7,5])))
+        self.assertTrue(np.all(ssad_c.dist_list[1].params['n_samp'] ==
+                                                            np.array([5,5])))
+
+        self.assertTrue(len(ssad_c.criteria) == 5)
+
+
+    def test_CompareSAD_compare_mse(self):
+        
+        sad_c = CompareSAD(self.sad_data, ['logser', 'lognorm'])
+
+        # Test that mse output has the appropriate formatted data
+        mse = sad_c.compare_mse(mse_base='cdf')
+        self.assertTrue(len(mse) == 2)
+        self.assertTrue(len(mse['lognorm']) == 2 and len(mse['logser']) == 2)
+        
+        # Test the same thing for a rad base
+        mse = sad_c.compare_mse(mse_base='rad')
+        self.assertTrue(len(mse) == 2)
+        self.assertTrue(len(mse['lognorm']) == 2 and len(mse['logser']) == 2)
+
+        # Test is the the distribution has no cdf MSE is set to NaN
+        sad_c = CompareSAD(self.sad_data, ['logser', 'sugihara'])
+        mse = sad_c.compare_mse(mse_base='cdf')
+        self.assertTrue(np.all(np.isnan(mse['sugihara'])))
+
+        # Test that is works for if base = 'rad'
+        sad_c = CompareSAD(self.sad_data, ['logser', 'sugihara'])
+        mse = sad_c.compare_mse(mse_base='rad')
+        self.assertTrue(type(mse['sugihara'][0] == np.float))
+
+        
+    def test_CompareSAD_compare_rad_cdf(self):
+
+        sad_c = CompareSAD(self.sad_data, ['logser'])
+        
+        tdist_list = copy.copy(sad_c.dist_list)
+        sad_c.dist_list = []
+
+        # Check that rad, cdf work with empty dist list
+        rads = sad_c.compare_rads()
+        cdfs = sad_c.compare_cdfs()
+        self.assertTrue(len(rads) == 1 and len(cdfs) == 1)
+        self.assertTrue('observed' in rads and 'observed' in cdfs)
+        self.assertTrue(rads == sad_c.rads)
+        self.assertTrue(cdfs == sad_c.cdfs)
+
+        # Check that rad, cdf work with something in dist_list
+        sad_c.dist_list = tdist_list
+        sad_c.rads = None
+        sad_c.cdfs = None
+        rads = sad_c.compare_rads()
+        cdfs = sad_c.compare_cdfs()
+        self.assertTrue(len(rads) == 2 and len(cdfs) == 2)
+        self.assertTrue('observed' in rads and 'logser' in rads)
+        self.assertTrue('observed' in cdfs and 'logser' in cdfs)
+        self.assertTrue(rads == sad_c.rads)
+        self.assertTrue(cdfs == sad_c.cdfs)
+
+        # Check that if dist doesn't have cdf empty arrays are returned
+        sad_c = CompareSAD(self.sad_data, ['logser', 'sugihara'])
+        cdfs = sad_c.compare_cdfs()
+        self.assertTrue(len(cdfs['sugihara']) == 2)
+        self.assertTrue(len(cdfs['sugihara'][0]) == 0 and
+                                                 len(cdfs['sugihara'][1]) == 0)
+
+        # check that observed rads are in the right order
+        true_vals = np.array([np.all(x == np.array(y)) for x,y in 
+                                            zip(rads['observed'], self.sad_data)])
+        self.assertTrue(np.all(true_vals))
+
+    def test_CompareSAD_compare_aic(self):
+
+
+        # Add another distribution and check the order of the AIC output
+        sad_c = CompareSAD(self.sad_data, ['logser', 'most_even', 'nbd_lt'])
+        
+        aic_out = sad_c.compare_aic(crt=True)
+        # Most even should have the lowest AIC value for the second dataset
+        self.assertTrue(aic_out[1][1] == np.min(aic_out[1]))
+
+        aic_m = sad_c.compare_aic_measures(crt=True)
+
+        # Most even should have the a zero delta AIC for the second dataset
+        self.assertTrue(aic_m[1][1][1] == np.min(aic_m[1][1]))
+
+        # Most even should have the highest wieght for the second dataset
+        self.assertTrue(aic_m[0][1][1] == np.max(aic_m[0][1]))
+
+        # if I don't have any distributions I should get three empty lists for
+        # compare_aic_measures
+        sad_c = CompareSAD(self.sad_data, [])
+        aic_m = sad_c.compare_aic_measures(crt=True)
+        self.assertTrue(aic_m == ([],[],[]))
+
+        # If distribution that is passed doesn't have a pmf of pdf, check inf
+        # aic values are returned
+        sad_c = CompareSAD(self.sad_data, ['logser', 'sugihara'])
+        aic_m = sad_c.compare_aic_measures()
+        self.assertTrue(aic_m[2][0][1] == np.inf and aic_m[2][1][1] == np.inf)
+
+    def test_CompareSAD_compare_LRT(self):
+
+        # Testing compare LRT with logser null model
+        sad_c = CompareSAD(self.sad_data, ['nbd_lt'])
+
+        # Is output properly formatted? 
+        lrt_out = sad_c.compare_LRT(dist.logser())
+        self.assertTrue(len(lrt_out) == 1 and 'logser, nbd_lt' in lrt_out)
+
+    def test_CompareSAD_compare_rarity(self):
+
+        #Test compare_rarity
+
+        sad_c = CompareSAD(self.sad_data, ['logser', 'most_even', 'nbd_lt'])
+        rare = sad_c.compare_rarity(1)
+
+        # Observed should have 5
+        self.assertTrue(rare['observed'][1][0] == 5)
+        
+        # Most even should have 10 species <= 2
+        rare = sad_c.compare_rarity((1,2))
+        self.assertTrue(rare['observed'][1][0] == 5)
+        self.assertTrue(rare['most_even'][2][1] == 10)
+
+    def test_CompareSAD_compare_moments(self):
+
+        # Test the compare_moments output is formatted correctly
+        sad_c = CompareSAD(self.sad_data, ['logser', 'nbd_lt'])
+        mom = sad_c.compare_moments()
+        self.assertTrue(len(mom) == 3)
+
+        # Test that observed and all distributions are considered
+        lengths = np.array([len(mom[x]) for x in mom.iterkeys()])
+
+        self.assertTrue(np.array_equal(lengths, np.repeat(3, 3)))
+
+    def test_CompareSAD_summary(self):
+
+        # Test that summary output is correct
+        # Test is there are no dists in dist_list
+        sad_c = CompareSAD(self.sad_data, [])
+        sumry = sad_c.summary()
+        # Test that there is only observed in summary dict
+        self.assertTrue(len(sumry) == 1 and 'observed' in sumry)
+        
+        # Test if we have two distributions but one doesn't have a cdf
+        sad_c = CompareSAD(self.sad_data, ['logser', 'sugihara'])
+        smry = sad_c.summary()
+        self.assertTrue(len(smry) == 3)
+
+        # Logseries dict and sugihara dict should have 8 kw
+        self.assertTrue(len(smry['logser']) == 8 and len(smry['sugihara']) ==
+                                                                             8)
+
+        # AIC values for sugihara should in inf
+        self.assertTrue(np.all(smry['sugihara']['aic'] == np.array([np.inf,
+                                                                     np.inf])))
 
     def test_nll(self):
         
@@ -86,7 +332,19 @@ class TestCompare(unittest.TestCase):
         d, p = ks_two_sample([1,1,2,3,4,5,6,12], [1,2,3,4,5,5,5,5,5,7,8,9])
 
     def test_likelihood_ratio(self):
-        pass
+        
+        # Test against what the lrtest() R function returns
+        model1 = 158.0494
+        model0 = 139.806
+        R_chisquare = 36.4868
+        R_p = 1.537e-09
+
+        pred_chi, pred_p = likelihood_ratio(model0, model1, 1)[0]
+
+        self.assertTrue(np.round(pred_chi, decimals=4) == R_chisquare)
+        pred_p = np.round(pred_p, decimals=12) 
+        self.assertTrue(pred_p == R_p)
+
 
     def test_variance(self):
         
