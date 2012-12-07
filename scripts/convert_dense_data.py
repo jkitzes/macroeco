@@ -28,6 +28,11 @@ subset = '''temp'''
 number_of_first_species_column = '''temp'''
 number_of_species_in_census = '''temp'''
 
+gui_name = "Gridded to columnar data conversion"
+
+summary = "summary TODO"
+explanation = "explanation TODO"
+
 required_params = {'number_of_first_species_column' :
                     number_of_first_species_column, 
                     'number_of_species_in_census' :
