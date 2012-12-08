@@ -285,7 +285,8 @@ class TestDistributions(unittest.TestCase):
         # Test rad
         geo_sad = np.round(geo_ser(n_samp=len(obs_sad), tot_obs=sum(obs_sad),
                                                 k=.449).rad(), decimals=1)[0]
-        diff = np.floor(np.array(mag_pred_sad)) - np.floor(geo_sad)
+        print geo_sad
+        diff = np.floor(np.sort(np.array(mag_pred_sad))) - np.floor(geo_sad)
         self.assertTrue(np.all(diff == 0))
 
         # Test length of var is correct
@@ -334,7 +335,7 @@ class TestDistributions(unittest.TestCase):
         # Passes with 2% error regularly. Being conservative with 5% error
         ps = sugihara(n_samp=10, tot_obs=400).rad(sample_size=20000)[0] / 400
         error = .05 * ps
-        diff = np.array(sugi) - ps
+        diff = np.sort(np.array(sugi)) - ps
         ind = np.abs(diff) <= error
         self.assertTrue(np.all(ind))
 
@@ -618,7 +619,7 @@ class TestDistributions(unittest.TestCase):
 
         # Check that Exception is raises if you downscale too far
         self.assertRaises(Exception, mete_sar_iter(n_samp=12, tot_obs=100).vals
-                                                , None, downcale=8)
+                                                , downscale=8)
 
         # Check that the return has the correct length when a_list is None
         sar = mete_sar_iter(n_samp=34, tot_obs=1000).vals(None, upscale=4
@@ -633,7 +634,6 @@ class TestDistributions(unittest.TestCase):
 
         # Check errors are thrown
         sar = mete_sar_iter(n_samp=34, tot_obs=1000)
-        self.assertRaises(TypeError, sar.vals, .1)
 
         # Check that fit method fits correctly with two arguments passed 
         sar = mete_sar_iter().fit(self.sad, self.sar)
@@ -681,15 +681,15 @@ class TestDistributions(unittest.TestCase):
         self.assertTrue(sar.params['tot_obs'] == sum(np.arange(1, 156)))
 
         # Check universal curve has constant values
-        uni = sar.univ_curve()
+        uni, sar_stuff = sar.univ_curve()
         self.assertTrue(len(np.unique(np.round(uni['z'], decimals=5))) == 1)
 
         # Check that passing in param changes multiplier and correct error are
         # thrown
         self.assertRaises(ValueError, sar.univ_curve, direction='asf')
         self.assertRaises(AssertionError, sar.univ_curve, param='apple')
-        res1 = sar.univ_curve(num_iter=5, param='tot_obs')
-        res2 = sar.univ_curve(num_iter=5, param=None)
+        res1, sar_st = sar.univ_curve(num_iter=5, param='tot_obs')
+        res2, st_stf = sar.univ_curve(num_iter=5, param=None)
         self.assertTrue(not(np.array_equal(res1['x_over_y'],
                                                             res2['x_over_y'])))
         self.assertTrue((np.array_equal(res1['z'], res2['z'])))
@@ -745,7 +745,6 @@ class TestDistributions(unittest.TestCase):
         sar2 = gen_sar(logser(), geo())
         sar2.params['n_samp'] = sar.params['n_samp']
         sar2.params['tot_obs'] = sar.params['tot_obs']
-        sar2.params['sad_pmf'] = sar.params['sad_pmf']
         s1 = sar.vals([.5]); s2 = sar2.vals([0.5])
         self.assertTrue(s1['items'][0] == s2['items'][0])
 
@@ -838,7 +837,8 @@ class TestDistributions(unittest.TestCase):
 
 
         
-
+if __name__ == '__main__':
+    unittest.main()
 
 
         

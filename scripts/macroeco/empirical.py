@@ -302,11 +302,10 @@ class Patch:
 
         Returns
         -------
-        areas : ndarray
-            1D array of areas associated with each element of div_list.
-        mean_result : ndarray
-            1D array of same length as areas giving mean number of species or 
-            endemics at this area.
+        rec_sar: structured array
+            Returns a structured array with fields 'items' and 'area' that
+            contains the average items/species for each given area specified by
+            critieria.
         full_result : list of ndarrays
             List of same length as areas containing arrays with element for 
             count of species or endemics in each subpatch at corresponding 
@@ -469,7 +468,7 @@ class Patch:
 
         Note
         ----
-        This is equivalent to the theta distribution from Harte (2011).
+        The theta distribution from Harte (2011) is a an sed.
 
         '''
         spp_list, spp_col, count_col, engy_col, mass_col, combinations = \

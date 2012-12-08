@@ -2604,7 +2604,7 @@ class powerlaw(Curve):
             The full_sad at the anchor area
 
         data :  tuple of array-like objects
-            data conatains two array-like object.  The first is a list of area
+            data contains two array-like objects.  The first is a list of area
             fractions (area / anchor area) and the second is a list of
             species/items numbers corresponding to those area fractions.
 
@@ -2936,8 +2936,8 @@ class gen_sar(Curve):
     def fit(self, *args):
         '''
         This fit method fills the required parameters for an SARCurve object.
-        For the gen_sar object, the fit method will fill self.params['sad_pmf']
-        which is required by the vals function. 
+        For the gen_sar object, the pmf is remade each time the vals method is
+        called. A bit slower but more flexible.
 
         Parameters
         ----------
@@ -2957,8 +2957,6 @@ class gen_sar(Curve):
         self.params['tot_obs'] = sum(full_sad)
         
         self.sad.fit([full_sad])
-        self.params['sad_pmf'] = self.sad.pmf(np.arange(1, 
-                                        self.params['tot_obs'] + 1))[0][0]
         return self
 
 

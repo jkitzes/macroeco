@@ -8,6 +8,7 @@ import numpy as np
 import scipy.stats as stats
 import copy
 import macroeco.distributions as dist
+import numpy.testing as nt
 
 class TestCompare(unittest.TestCase):
     '''Test classes and methods in compare.py'''
@@ -107,8 +108,252 @@ class TestCompare(unittest.TestCase):
 
         self.assertTrue(len(ssad_c.criteria) == 5)
 
+    def test_CompareIED_init(self):
+        
+        # Test the CompareIED init parses correctly
+        ied_data = [(np.arange(10,100), np.arange(1,40)), (np.arange(1,20),
+                                                             np.arange(40,60))]
+        ied_c = CompareIED(ied_data, dist_list=['psi'])
 
-    def test_CompareSAD_compare_mse(self):
+        # Check the first item in tuple became observed data
+        sums = np.array([sum(x) for x in ied_c.observed_data])
+        test_sums = np.array([sum(np.arange(10,100)), sum(np.arange(1,20))])
+        self.assertTrue(np.all(sums == test_sums))
+
+        self.assertTrue(ied_c.criteria == None)
+        self.assertTrue(ied_c.sad_spp_list == None)
+
+        # Test that distribution object was fit including E parameter
+        self.assertTrue(np.all(ied_c.dist_list[0].params['tot_obs'] ==
+                     np.array([sum(np.arange(1,40)), sum(np.arange(40,60))])))
+        self.assertTrue(np.all(ied_c.dist_list[0].params['n_samp'] ==
+                                                            np.array([39,20])))
+        self.assertTrue(np.all(ied_c.dist_list[0].params['E'] ==
+                    np.array([sum(np.arange(10,100)),sum(np.arange(1,20))])))
+
+        # If patch is True, make sure the fit works
+        patch_sad = [({'test' : 'criteria'}, np.array([1,1,1,2,3,5]),
+                     np.array(['a', 'b', 'c', 'd', 'e', 'g'])), ({'test' : 
+                     'criteria'}, np.array([1,1,1,2,5]), np.array(['a', 'b',
+                     'c', 'd', 'g']))]
+
+        patch_ied = [({}, np.arange(1,40), np.repeat('a', 39)), ({},
+                                          np.arange(1,30), np.repeat('b', 29))]
+
+        ied_c = CompareIED((patch_ied, patch_sad), dist_list=['nu'], patch=True)
+
+        # Check ied_list and spp_list
+        sad_spp = [np.array(['a', 'b', 'c', 'd', 'e', 'g']), 
+                                          np.array(['a', 'b', 'c', 'd', 'g'])]
+        bools = [np.all(a == b) for a,b in zip(np.array(ied_c.sad_spp_list),
+                                                            np.array(sad_spp))]
+        self.assertTrue(np.all(bools))
+
+        ied_spp = [np.repeat('a',39), np.repeat('b',29)]
+        bools = [np.all(a == b) for a,b in zip(ied_spp, ied_c.ied_spp_lists)]
+        self.assertTrue(np.all(bools))
+
+        # check criteria is right length
+        self.assertTrue(len(ied_c.criteria) == 2)
+
+        # Check that observed data is correct
+        bools = [np.all(a == b) for a,b in zip(ied_c.observed_data,
+                                          [np.arange(1,40),  np.arange(1,30)])]
+        self.assertTrue(np.all(bools))
+
+        # Check the fit of distribution
+        self.assertTrue(np.all(ied_c.dist_list[0].params['tot_obs'] ==
+                     np.array([13, 10])))
+        self.assertTrue(np.all(ied_c.dist_list[0].params['n_samp'] ==
+                                                            np.array([6,5])))
+        self.assertTrue(np.all(ied_c.dist_list[0].params['E'] ==
+                    np.array([sum(np.arange(1,40)),sum(np.arange(1,30))])))
+
+    def test_CompareSED_init(self):
+
+        # Test that all attributes are set correctly (sed, ied, sad)
+        sed_data = [(np.arange(1,20), np.arange(1,40), np.arange(5,25)),
+                           (np.arange(1,30), np.arange(5,30), np.arange(4,64))]
+        
+        sed_c = CompareSED(sed_data, dist_list=['theta'])
+
+        # Did other attributes set correctly?
+        self.assertTrue(sed_c.criteria == None)
+        self.assertTrue(sed_c.sad_spp_list == None)
+
+        # Check if observed sed data set correctly
+        test_obs = [np.arange(1,20), np.arange(1,30)]
+        bools = [np.all(a == b) for a,b in zip(sed_c.observed_data, test_obs)] 
+        self.assertTrue(np.all(bools))
+
+        # Check that distribution fit correctly
+        self.assertTrue(np.all(sed_c.dist_list[0].params['tot_obs'] == 
+                np.array([sum(np.arange(5,25)), sum(np.arange(4,64))]))) 
+        self.assertTrue(np.all(sed_c.dist_list[0].params['n_samp'] == 
+                np.array([len(np.arange(5,25)), len(np.arange(4,64))]))) 
+        self.assertTrue(np.all(sed_c.dist_list[0].params['n'] == 
+                np.array([len(np.arange(1,20)), len(np.arange(1,30))])))
+        self.assertTrue(np.all(sed_c.dist_list[0].params['E'] == 
+                np.array([sum(np.arange(1,40)), sum(np.arange(5,30))])))
+
+        # Test if patch == True
+        patch_sed = [({}, {'a' : np.arange(1,10), 'b' : np.arange(1,20), 'c':
+            np.arange(1,30), 'd' : np.arange(1,40)}), ({}, 
+            {'a' : np.arange(1,10), 'b' : np.arange(1,20), 'c': 
+            np.arange(1,30), 'd' : np.arange(1,40)})]
+
+        patch_sad = [({}, np.arange(1,50), np.repeat('d',20))]
+        patch_ied = [({}, np.arange(4,67), np.repeat('y', 60))]
+
+        # An error should be raised if sed,ied, and sad don't have the same
+        # length
+        self.assertRaises(IndexError, CompareSED, (patch_sed, patch_ied,
+                                   patch_sad), dist_list=['theta'], patch=True)
+        
+        
+        patch_sad = [({}, np.arange(1,50), np.repeat('d',20)), 
+                    ({}, np.arange(1,50), np.repeat('d',20))]
+        patch_ied = [({}, np.arange(4,67), np.repeat('y', 60)),
+                     ({}, np.arange(4,67), np.repeat('y', 60))]
+
+        sed_c = CompareSED((patch_sed, patch_ied, patch_sad),
+                                               dist_list=['theta'], patch=True)
+
+        # Check that observed data is set correctly
+        self.assertTrue(len(sed_c.observed_data) == 8)
+        test_obs = [np.arange(1,10), np.arange(1,20), np.arange(1,30),
+                    np.arange(1,40)]
+        test_obs += test_obs
+        bools = [np.all(a == b) for a,b in zip(test_obs, sed_c.observed_data)]
+        self.assertTrue(np.all(bool))
+
+        # Check distributions fit correctly
+        nt.assert_array_equal(sed_c.dist_list[0].params['n'], np.array([9,
+                                                   19, 29, 39, 9, 19, 29, 39]))
+        nt.assert_array_equal(sed_c.dist_list[0].params['E'],
+            np.repeat(sum(np.arange(4,67)), 8))
+        nt.assert_array_equal(sed_c.dist_list[0].params['tot_obs'],
+            np.repeat(sum(np.arange(1,50)), 8))
+        nt.assert_array_equal(sed_c.dist_list[0].params['n_samp'],
+            np.repeat(len(np.arange(1,50)), 8))
+        
+        # Check that the species list is correct
+        nt.assert_array_equal(np.array(['a', 'b', 'c', 'd', 'a', 'b', 'c',
+                                        'd']), np.array(sed_c.sad_spp_list))
+
+        # Check that criteria is correct length
+        self.assertTrue(len(sed_c.criteria) == 8)
+
+    def test_CompareASED_init(self):
+        
+        # Test that ased fits correctly
+        
+        ased_data = [(np.arange(1,10), np.arange(4,56), np.arange(1,20)),
+                           (np.arange(1,34), np.arange(3,20), np.arange(1,56))]
+
+        ased_c = CompareASED(ased_data, dist_list=['nu'])
+
+        # Did other attributes set correctly?
+        self.assertTrue(ased_c.criteria == None)
+        self.assertTrue(ased_c.sad_spp_list == None)
+
+        # Check if observed ased data set correctly
+        test_obs = [np.arange(1,10), np.arange(1,34)]
+        bools = [np.all(a == b) for a,b in zip(ased_c.observed_data, test_obs)] 
+        self.assertTrue(np.all(bools))
+
+        # Check that distribution fit correctly
+        self.assertTrue(np.all(ased_c.dist_list[0].params['tot_obs'] == 
+                np.array([sum(np.arange(1,20)), sum(np.arange(1,56))]))) 
+        self.assertTrue(np.all(ased_c.dist_list[0].params['n_samp'] == 
+                np.array([len(np.arange(1,20)), len(np.arange(1,56))]))) 
+        self.assertTrue(np.all(ased_c.dist_list[0].params['E'] == 
+                np.array([sum(np.arange(4,56)), sum(np.arange(3,20))])))
+
+        # Test if patch == True
+        patch_ased = [({}, np.arange(1,50), np.repeat('d',20)), 
+                    ({}, np.arange(1,50), np.repeat('e',20))]
+        patch_sad = [({}, np.arange(1,50), np.repeat('d',20)), 
+                    ({}, np.arange(1,50), np.repeat('e',20))]
+        patch_ied = [({}, np.arange(4,67), np.repeat('y', 60)),
+                     ({}, np.arange(4,67), np.repeat('y', 60))]
+
+        ased_c = CompareASED((patch_ased, patch_ied, patch_sad),
+                                                  dist_list=['nu'], patch=True)
+
+        # Test that species list is correct
+        test_spp = [np.repeat('d', 20), np.repeat('e', 20)]
+        nt.assert_array_equal(test_spp, ased_c.sad_spp_list)
+
+        # Test that observed data is correct
+        nt.assert_array_equal(ased_c.observed_data, [np.arange(1,50),
+                                                            np.arange(1,50)])
+
+        # Test that fit distribution is correct
+        nt.assert_array_equal(ased_c.dist_list[0].params['tot_obs'], 
+                              np.array([1225, 1225]))
+        nt.assert_array_equal(ased_c.dist_list[0].params['n_samp'], 
+                              np.array([49, 49]))
+        nt.assert_array_equal(ased_c.dist_list[0].params['E'], 
+                              np.array([sum(np.arange(4,67)),
+                              sum(np.arange(4,67))]))
+
+    def test_CompareSAR(self):
+        
+        # Test if patch == False
+        area_list = [(np.arange(1,10), np.arange(9,18)), (np.arange(1,10),
+                     np.arange(9,18))]
+
+        full_sad = [np.arange(1,40), np.arange(1,60)]
+
+        sar_c = CompareSAR(area_list, ['mete_sar_iter', 'logser-binm'],
+                            full_sad)
+
+        # Max area should be 1
+        nt.assert_array_equal(np.array([1,1]), np.array([np.max(a) for a in
+                            sar_c.a_list]))
+
+        sar_c = CompareSAR(area_list, ['mete_sar_iter', 'logser-binm'],
+                            full_sad, max_a=False)
+
+        # Max area should be 9
+        nt.assert_array_equal(np.array([9,9]), np.array([np.max(a) for a in
+                            sar_c.a_list]))
+
+        # Check species numbers
+        bools = [np.all(a == b) for a,b in zip(sar_c.sar_list,
+                                          [np.arange(9,18), np.arange(9,18)])]
+        self.assertTrue(np.all(bools))
+
+        # Test if patch == True
+
+        rec_sar = np.array(zip(np.arange(1,8), np.arange(4,11)),
+                  dtype=[('items', np.float), ('area', np.float)])
+
+        sar_c = CompareSAR([(rec_sar, [])], ['mete_sar_iter'],
+                           [np.arange(1,50)], max_a=False, patch=True)
+
+        # check species numbers
+        nt.assert_array_equal(np.arange(1,8), sar_c.sar_list[0])
+
+        # Check area numbers
+        nt.assert_array_equal(np.arange(4,11), sar_c.a_list[0])
+
+        # check that error is thrown if curve is bad
+        self.assertRaises(NameError, CompareSAR, [(rec_sar, [])], ['logser_binm'],
+                           [np.arange(1,50)], max_a=False, patch=True)
+
+        # Test compare_curves method
+        sar_c = CompareSAR([(rec_sar, [])], ['logser-binm'],
+                           [np.arange(1,50)], patch=True)
+
+        # Test with iter_val=False and use_rad=False and all combos
+        sar_c.compare_curves()
+        sar_c.compare_curves(use_rad=True)
+        sar_c.compare_curves(iter_vals=True, use_rad=False)
+        sar_c.compare_curves(iter_vals=True, use_rad=True)
+
+    def test_compare_mse(self):
         
         sad_c = CompareSAD(self.sad_data, ['logser', 'lognorm'])
 
@@ -131,9 +376,20 @@ class TestCompare(unittest.TestCase):
         sad_c = CompareSAD(self.sad_data, ['logser', 'sugihara'])
         mse = sad_c.compare_mse(mse_base='rad')
         self.assertTrue(type(mse['sugihara'][0] == np.float))
-
         
-    def test_CompareSAD_compare_rad_cdf(self):
+        # Test that compare mse works with ssads
+        ssad_c = CompareSSAD(self.ssad_data, ['binm', 'tgeo'])
+        # Test that mse output has the appropriate formatted data
+        mse = ssad_c.compare_mse(mse_base='cdf')
+        self.assertTrue(len(mse) == 2)
+        self.assertTrue(len(mse['binm']) == 2 and len(mse['tgeo']) == 2)
+        
+        # Test the same thing for a rad base
+        mse = ssad_c.compare_mse(mse_base='rad')
+        self.assertTrue(len(mse) == 2)
+        self.assertTrue(len(mse['binm']) == 2 and len(mse['tgeo']) == 2)
+
+    def test_compare_rad_cdf(self):
 
         sad_c = CompareSAD(self.sad_data, ['logser'])
         
@@ -170,9 +426,35 @@ class TestCompare(unittest.TestCase):
         # check that observed rads are in the right order
         true_vals = np.array([np.all(x == np.array(y)) for x,y in 
                                             zip(rads['observed'], self.sad_data)])
+
         self.assertTrue(np.all(true_vals))
 
-    def test_CompareSAD_compare_aic(self):
+        # Testing that SED object returns a species list in compare_rads
+        patch_sed = [({}, {'a' : np.arange(1,10), 'b' : np.arange(1,20), 'c':
+            np.arange(1,30), 'd' : np.arange(1,40)}), ({}, 
+            {'a' : np.arange(1,10), 'b' : np.arange(1,20), 'c': 
+            np.arange(1,30), 'd' : np.arange(1,40)})]
+
+        patch_sad = [({}, np.arange(1,50), np.repeat('d',20)), 
+                    ({}, np.arange(1,50), np.repeat('d',20))]
+        patch_ied = [({}, np.arange(4,67), np.repeat('y', 60)),
+                     ({}, np.arange(4,67), np.repeat('y', 60))]
+
+        sed_c = CompareSED((patch_sed, patch_ied, patch_sad),
+                                               dist_list=['theta'], patch=True)
+        
+        # Both returns should have a species list
+        cdfs = sed_c.compare_rads()
+        rads = sed_c.compare_cdfs()
+        nt.assert_array_equal(np.array(['a', 'b', 'c', 'd', 'a', 'b', 'c',
+                                        'd']), np.array(cdfs[1]))
+        nt.assert_array_equal(np.array(['a', 'b', 'c', 'd', 'a', 'b', 'c',
+                                        'd']), np.array(cdfs[1]))
+        nt.assert_array_equal(np.array(['a', 'b', 'c', 'd', 'a', 'b', 'c',
+                                        'd']), np.array(rads[1]))
+
+
+    def test_compare_aic(self):
 
 
         # Add another distribution and check the order of the AIC output
@@ -202,7 +484,7 @@ class TestCompare(unittest.TestCase):
         aic_m = sad_c.compare_aic_measures()
         self.assertTrue(aic_m[2][0][1] == np.inf and aic_m[2][1][1] == np.inf)
 
-    def test_CompareSAD_compare_LRT(self):
+    def test_compare_LRT(self):
 
         # Testing compare LRT with logser null model
         sad_c = CompareSAD(self.sad_data, ['nbd_lt'])
@@ -211,7 +493,7 @@ class TestCompare(unittest.TestCase):
         lrt_out = sad_c.compare_LRT(dist.logser())
         self.assertTrue(len(lrt_out) == 1 and 'logser, nbd_lt' in lrt_out)
 
-    def test_CompareSAD_compare_rarity(self):
+    def test_compare_rarity(self):
 
         #Test compare_rarity
 
@@ -226,7 +508,7 @@ class TestCompare(unittest.TestCase):
         self.assertTrue(rare['observed'][1][0] == 5)
         self.assertTrue(rare['most_even'][2][1] == 10)
 
-    def test_CompareSAD_compare_moments(self):
+    def test_compare_moments(self):
 
         # Test the compare_moments output is formatted correctly
         sad_c = CompareSAD(self.sad_data, ['logser', 'nbd_lt'])
@@ -238,7 +520,7 @@ class TestCompare(unittest.TestCase):
 
         self.assertTrue(np.array_equal(lengths, np.repeat(3, 3)))
 
-    def test_CompareSAD_summary(self):
+    def test_summary(self):
 
         # Test that summary output is correct
         # Test is there are no dists in dist_list
@@ -259,6 +541,12 @@ class TestCompare(unittest.TestCase):
         # AIC values for sugihara should in inf
         self.assertTrue(np.all(smry['sugihara']['aic'] == np.array([np.inf,
                                                                      np.inf])))
+        # IED should be able to call summary
+        ied_data = [(np.arange(10,100), np.arange(1,40)), (np.arange(1,20),
+                                                             np.arange(40,60))]
+        ied_c = CompareIED(ied_data, dist_list=['psi'])
+        smry = ied_c.summary()
+        self.assertTrue(smry['observed']['balls'] == [4905, 190])
 
     def test_nll(self):
         
