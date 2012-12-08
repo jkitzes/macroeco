@@ -35,7 +35,7 @@ __maintainer__ = "Justin Kitzes"
 __email__ = "jkitzes@berkeley.edu"
 __status__ = "Development"
 
-gui_name = '''Sample Script'''
+gui_name = '''Sample Script Name is Way too Long'''
 
 summary = '''This is a one sentence description of script actions.'''
 
