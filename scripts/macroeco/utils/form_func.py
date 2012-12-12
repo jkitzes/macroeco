@@ -18,6 +18,7 @@ jp = os.path.join #Join paths
 sys.path.append(pd(pd(loc)))
 from data import Metadata
 import itertools
+import logging
 
 __author__ = "Mark Wilber"
 __copyright__ = "Copyright 2012, Regents of University of California"
@@ -123,24 +124,32 @@ def open_data(filename, delim, names=None):
     return data
 
 def create_intcodes(speclist, unq_specs, unq_ints):
-    '''This function converts each species code into 
-    its corresponding integer value.
+    '''This function converts each value in unq_specs to the corresponding
+    value in unq_ints.  Acts on speclist.
+
+    Parameters
+    ----------
     
-    speclist -- a 1D np.array which contains the occurrences 
-    of the species within the plot
+    speclist : np.array
+        a 1D np.array which contains the occurrences of the species within the 
+        plot
         
-    unq_specs -- a 1D np.array of the unique species codes 
-    within the plot
+    unq_specs : np.array
+        a 1D np.array of the unique species codes within the plot
         
-    unq_int -- a 1D np.array of unique integers referring to
-    the unique species codes found within the plot
+    unq_int : np.array
+        1D np.array of unique integers referring to the unique species codes 
+        found within the plot
         
-    returns: 
-        A 1D np.array of integers that is equivalent to
-        speclist
+    Returns
+    -------
+    : np.array 
+        A 1D np.array of integers that is equivalent to speclist
         
     '''
     assert len(speclist) > 0, "Species array cannot be empty"
+    assert len(unq_specs) == len(unq_ints), "unq_specs and unq_ints must be " \
+                                + "the same length"
     speclist = speclist.astype(unq_specs.dtype)
     tot_int = np.empty(len(speclist))
     for s in xrange(len(unq_specs)):
@@ -321,7 +330,8 @@ def open_nan_data(filenames, missing_value, site, delim, col_labels):
 
     return datayears
 
-def fractionate(datayears, wid_len, step, col_names):
+def fractionate(datayears, wid_len_new, step_new, col_names,
+                            wid_len_old=None, min_old=None, step_old=None):
     '''
     This function takes in a list of formatted data years and converts the grid
     numbers into meter measurements. For example, LBRI is a 16x16 grid and each
@@ -335,17 +345,30 @@ def fractionate(datayears, wid_len, step, col_names):
     datayears : list 
         A list of formatted structured arrays
 
-    wid_len : tuple
-        A tuple containing the width (x) in meters and length (y)
+    wid_len_new : tuple
+        A tuple containing the new width (x) in meters and length (y)
         in meters of the entire plot.
 
-    step : tuple
-        The step (or stride length) of the cell width and length 
+    step_new : tuple
+        The  new step (or stride length) of the cell width and length 
         (tuple: (x_step, y_step)). It should be given in terms of meters. Also,
         called precision.
 
     col_names : list 
         The col_names of the structured array that are to be fractionated.
+
+    wid_len_old : tuple or None
+        If None, it assumes that a np.unique on datayears[col_name[i]] gives a
+        array that is the same length as np.arange(0, wid_len_new[i], 
+        step=step_new[i]).  If it doesn't, an error will be thrown.  If not
+        None, expects the old maximum length for the given columns. 
+
+    min_old : tuple or None
+        Same as wid_len_old but the old minimum value for each given column
+
+    step_old : tuple or None
+        Same as wid_len_old but the old step (or stride length/spacing) for
+        each given column. 
 
     Returns
     -------
@@ -354,15 +377,19 @@ def fractionate(datayears, wid_len, step, col_names):
 
     Notes
     -----
-    This function should be used on formatted data
+    This function should be used on columnar data
 
     '''
     
     frct_array = []
     for data in datayears:
         for i, name in enumerate(col_names):
-            nums = np.unique(data[name])
-            frac = np.arange(0, wid_len[i], step=step[i])
+            if wid_len_old != None and step_old != None and min_old != None:
+                nums = np.arange(min_old[i], wid_len_old[i] + step_old[i], 
+                                                              step=step_old[i])
+            else:
+                nums = np.unique(data[name])
+            frac = np.arange(0, wid_len_new[i], step=step_new[i])
             #Have to make sure I have the data right type
             ind = list(data.dtype.names).index(name)
             dt = data.dtype.descr
@@ -417,9 +444,14 @@ def add_data_fields(data_list, fields_values, descr='S20'):
         raise ValueError("Invalid type for descr")
 
     alt_data = []
+    dlen = len(data_list)
     for i, data in enumerate(data_list):
         for name in list(fields_values.viewkeys()):
             data = add_field(data, [(name, descr[name])])
+            if len(fields_values[name]) != dlen:
+                raise IndexError('The length of %s in fields_values must be' %
+                            str(fields_values[name]) + ' must equal %i' % dlen)
+
             data[name] = fields_values[name][i]
         alt_data.append(data)
     return alt_data
@@ -474,7 +506,8 @@ def merge_formatted(data_form):
                             merged[nm] =\
                             np.array(flipped_temp[i]).astype(dtype[i][1])
                     else:
-                        raise TypeError('dtypes of data do not match')
+                        raise TypeError('dtypes of data do not match. Merge' \
+                                        + ' failed')
             else:
                 merged = np.concatenate((merged, np.array(data_form[i])))
         return merged

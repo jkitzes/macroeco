@@ -12,40 +12,135 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
-ds = ''' Optional. Default: '''
+import macroeco.utils.global_strings as gb
+
+gui_name = '''Convert Grid Data'''
+
+summary = '''Converts and formats grid data'''
 
 # Grid parameter descriptions
-truncation_symbols = '''temp'''
-remove_replace_values = '''temp'''
-char_btwn_species_and_count = '''temp'''
-char_btwn_species = '''temp'''
+truncation_symbols = '''\n
 
-# Columnar parameter descriptions
-columns_to_split = '''temp'''
-change_column_names = '''temp'''
-add_column_names_and_values = '''temp'''
-names_of_columns_to_be_removed = '''temp'''
-how_and_where_to_fractionate = '''temp'''
-merge_data = '''temp'''
-subset = '''temp'''
+Truncate the grid at and after the first occurence of a given symbol.
+
+Example input:
+
+1. '%'
+
+The contents of all cells in the data set are truncated at and after '%'. 
+
+'''
+
+remove_replace_values = '''\n
+
+A Grid Data specific parameter. Remove a given value from every cell and
+replace it with another value.
+
+Example Input:
+
+1. [('species1', 'GYSPHY')]
+
+Remove the string 'species1' and replace it with the string 'GYSPHY'
+
+2. [('missing', ''), ('f', 't')]
+
+Remove the string 'missing' and replace with nothing. Remove all 'f' and
+replace with 't'.
+
+The parantheses, brackets, and quotation marks are required.'''
+
+char_btwn_species_and_count = '''\n
+
+A Grid Data specific parameter. The character separating a species name from 
+its count. 
+
+Example Input:
+
+1. ['-'] 
+
+The character '-' separates a species from its count. For example,
+PACNEO - 1; the count of species PACNEO is 1.
+
+2. [',']
+
+The character ',' separates a species from its count. For example,
+PACNEO , 1; the count of species PACNEO is 1'''
+
+char_btwn_species = '''\n
+
+A Grid Data specific parameter. The character that separates two species.
+
+Example Input:
+
+1. ['/\/n']
+
+The character /\/n (newline character) separates two species. For example,
+PACNEO - 1/\/nATRTRI - 5
+
+2. ['+']
+
+The character '+' separates two species. For example,
+PACNEO - 1+ARTTRI - 5
+'''
+
+explanation = '''FORMATTING DESCRIPTION
+
+{5} 
+
+We define grid data as data that has the same physical layout as a census grid,
+but in digital format. So, for example, a 16 x 16 census grid would be
+represented by a 16 x 16 csv file where each cell contains properly formatted
+counts. See Documentation for a complete description of grid data.
+
+PROCESS
+
+{7}
+
+OUTPUT
+
+{6}
+
+PARAMETERS
+
+*** truncation_symbols ***
+
+{0}
+
+*** remove_replace_values ***
+
+{1}
+
+*** char_btwn_species_and_count **
+
+{2}
+
+*** char_btwn_species ***
+
+{3}
+
+{4}
+'''.format(truncation_symbols, remove_replace_values,
+char_btwn_species_and_count, char_btwn_species, gb.columnar_params_small,
+gb.explanation_string.format('grid'), gb.output_string,
+gb.process_string.format('grid'))
 
 required_params = {}
 
-optional_params = {'truncation_symbols' : (truncation_symbols + ds, None), 
-                    'remove_replace_values': (remove_replace_values + ds,
-                    [(None, None)]), 'char_btwn_species_and_count' :
-                    (char_btwn_species_and_count + ds, ['-']),
-                    'char_btwn_species': (char_btwn_species + ds, ['\n']),
-                    'columns_to_split' : (columns_to_split + ds, None),
-                    'change_column_names' : (change_column_names + ds, (None,
-                    None)), 'add_column_names_and_values' :
-                    (add_column_names_and_values + ds, None),
-                    'names_of_columns_to_be_removed' :
-                    (names_of_columns_to_be_removed + ds, None),
-                    'how_and_where_to_fractionate' :
-                    (how_and_where_to_fractionate + ds, (None, None, None)),
-                    'merge_data' : (merge_data + ds, 'No'), 'subset' : (subset
-                    + ds, {})}
+optional_params = {'truncation_symbols' : (gb.optional + truncation_symbols, None), 
+                    'remove_replace_values': (gb.optional +
+                    remove_replace_values, [(None, None)]),
+                    'char_btwn_species_and_count' : (gb.optional +
+                    char_btwn_species_and_count, ['-']), 'char_btwn_species':
+                    (gb.optional + char_btwn_species, ['\n']),
+                    'columns_to_split' : (gb.optional + gb.columns_to_split,
+                    None), 'change_column_names' : (gb.optional +
+                    gb.change_column_names, (None, None)),
+                    'add_column_names_and_values' : (gb.optional +
+                    gb.add_column_names_and_values, None),
+                    'names_of_columns_to_be_removed' : (gb.optional +
+                    gb.names_of_columns_to_be_removed, None), 'merge_data' :
+                    (gb.optional + gb.merge_data, 'No'), 'subset' :
+                    (gb.optional + gb.subset, {})}
 
 if __name__ == '__main__':
 
@@ -61,6 +156,10 @@ if __name__ == '__main__':
     # run.
     for data_paths, output_IDs, params, run_name, script_name in\
                                                              wf.all_datasets():
+
+        # Check the parameter formats. Raises error if improper formatting
+        gb.check_columnar_params(params, 'grid') 
+
         # Each script handles one specific type of data.  This script deals
         # with gridded data.
 
@@ -96,10 +195,6 @@ if __name__ == '__main__':
         columnar_obj.add_fields_to_data_list(params['add_column_names_and_values'])
 
         columnar_obj.remove_columns(params['names_of_columns_to_be_removed'])
-
-        columnar_obj.fractionate_data(params['how_and_where_to_fractionate'][0]
-                                    , params['how_and_where_to_fractionate'][1]
-                                   , params['how_and_where_to_fractionate'][2])
 
         for data_path in data_paths:
             logging.info('Converted and formatted the grid data %s to' % 

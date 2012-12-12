@@ -12,6 +12,14 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
+import macroeco.utils.global_strings as gb
+
+gui_name = '''Convert Transect Data'''
+
+summary = '''Converts and formats transect data'''
+
+explanation == '''temp'''
+
 ds = ''' Optional. Default: '''
 
 information_about_stops = '''temp'''

@@ -12,34 +12,106 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
-ds = ''' Optional. Default: '''
+import macroeco.utils.global_strings as gb
 
-information_about_stops = '''temp'''
-delimiter = '''temp'''
-replace = '''temp'''
+gui_name = '''Convert Transect Data'''
 
-# Columnar parameter descriptions
-columns_to_split = '''temp'''
-change_column_names = '''temp'''
-add_column_names_and_values = '''temp'''
-names_of_columns_to_be_removed = '''temp'''
-how_and_where_to_fractionate = '''temp'''
-merge_data = '''temp'''
-subset = '''temp'''
+summary = '''Converts and formats transect data'''
 
-required_params = {'information_about_stops' : information_about_stops}
-optional_params = {'delimiter' : (delimiter + ds,
-                    [',']), 'replace' : (replace + ds, None),
-                    'columns_to_split' : (columns_to_split + ds, None),
-                    'change_column_names' : (change_column_names + ds, (None,
-                    None)), 'add_column_names_and_values' :
-                    (add_column_names_and_values + ds, None),
-                    'names_of_columns_to_be_removed' :
-                    (names_of_columns_to_be_removed + ds, None),
-                    'how_and_where_to_fractionate' :
-                    (how_and_where_to_fractionate + ds, (None, None, None)),
-                    'merge_data' : (merge_data + ds, 'No'), 'subset' : (subset
-                    + ds, {})}
+information_about_stops = '''\n
+
+A Transect Data specific parameter. Specifies the where the stop columns begin
+in the data, how many stop columns the data set contains, and the desired name
+of the stop column in the formatted data. See explanation for description of
+stops.
+
+Example Input:
+
+1.  (3, 3, 'stop')
+
+Specifies that the stop columns begins in the thirds column and that there are
+three stops total.  In additional, specifyies that the stop column should be
+called 'stop' in the formatted data
+
+2. ([4, 5], [12, 34], 'pit')
+
+Specifies that there are two data sets and in the first dataset the stop
+columns begin at column 4 and in the second dataset the stop columns begin at
+column 5.  The first data set has 12 stop columns and the second data set has
+34 stop columns.  Finally the stop columns will be labeled 'pit' in the
+formatted data.
+
+Brackets must be included if you have more than one dataset'''
+
+delimiter = gb.delimiter
+
+replace = '''\n
+
+A Transect Data specific parameter. Specifies a value that you would like to
+replace and the value that you would like to replace it with
+
+Example Input:
+
+1.  ('', 0)
+
+Replaces all '' (blank data) with 0
+
+2. ('0', 'NA')
+
+Replaces all 0 with NA. Quotes are required around the item in the
+parentheses. '''
+
+explanation = '''
+FORMATTING DESCRIPTION
+
+{4} 
+
+We define transect data with given stops along a transect.  This is analogous
+to a nested design in which each each stop is a random effect and each transect
+is either a random or fixed effect. In this data format, each stop within a
+transect has its own column and the species/item count at that given stop
+within that given transect is given under each stop column.  A complete
+description of transect data can be found in the Documentation.
+
+PROCESS
+
+{5}
+
+OUTPUT
+
+{6}
+
+PARAMETERS
+
+*** information_about_stops ***
+
+{0}
+
+*** delimiter ***
+
+{1}
+
+*** replace **
+
+{2}
+
+{3}
+'''.format(information_about_stops, delimiter, replace, gb.columnar_params_med,
+gb.explanation_string.format('transect'), gb.process_string.format('transect'),
+gb.output_string)
+
+required_params = {'information_about_stops' : gb.req + information_about_stops}
+optional_params = {'delimiter' : (gb.optional + delimiter,
+                    [',']), 'replace' : (gb.optional + replace, None),
+                    'columns_to_split' : (gb.optional + gb.columns_to_split,
+                    None), 'change_column_names' : (gb.optional +
+                    gb.change_column_names, (None, None)),
+                    'add_column_names_and_values' : (gb.optional +
+                    gb.add_column_names_and_values, None),
+                    'names_of_columns_to_be_removed' : (gb.optional +
+                    gb.names_of_columns_to_be_removed, None), 'merge_data' :
+                    (gb.optional + gb.merge_data, 'No'), 'subset' :
+                    (gb.optional + gb.subset, {})}
 
 
 if __name__ == '__main__':
@@ -53,6 +125,8 @@ if __name__ == '__main__':
     
     for data_paths, output_IDs, params, run_name, script_name in\
                                                              wf.all_datasets():
+
+        gb.check_columnar_params(params, 'transect')
     
         transect_data = form.Transect_Data(data_paths, \
                         delim=params['delimiter'][0],
@@ -77,10 +151,6 @@ if __name__ == '__main__':
         columnar_obj.subset_data(params['subset'])
 
         columnar_obj.remove_columns(params['names_of_columns_to_be_removed'])
-
-        columnar_obj.fractionate_data(params['how_and_where_to_fractionate'][0]
-                                    , params['how_and_where_to_fractionate'][1]
-                                   , params['how_and_where_to_fractionate'][2])
 
         for data_path in data_paths:
             logging.info('Converted and formatted the transect data %s to' % 

@@ -20,7 +20,7 @@ gui_name = '''Rarity Analysis'''
 summary = '''Compares a dataset's observed rarity against predicted rarity'''
 
 
-predicted_SAD_distributions = '''This parameter is a list of SAD
+predicted_SAD_distributions = '''\nThis parameter is a list of SAD
 distributions that you can test against your observed rarity.
 
 You may use any number of the following SAD distributions : %s
@@ -92,7 +92,7 @@ required_params = { 'criteria' : gb.req + gb.short_criteria,
         'predicted_SAD_distributions' : gb.req + predicted_SAD_distributions,
         'rarity_measure' : gb.req + rarity_measure}
 
-optional_params = {'subset' : (gb.short_subset + gb.optional, {})}
+optional_params = {'subset' : (gb.optional + gb.short_subset, {})}
 
 
 if __name__ == '__main__':

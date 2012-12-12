@@ -12,35 +12,52 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
-ds = ''' Optional. Default: ''' 
+import macroeco.utils.global_strings as gb
 
-# Columnar parameter descriptions
-delimiter = '''temp'''
-missing_values_from_a_given_column = '''temp'''
-delete_missing_values = '''temp'''
-columns_to_split = '''temp'''
-change_column_names = '''temp'''
-add_column_names_and_values = '''temp'''
-names_of_columns_to_be_removed = '''temp'''
-how_and_where_to_fractionate = '''temp'''
-merge_data = '''temp'''
-subset = '''temp'''
+gui_name = '''Convert Columnar Data'''
+
+summary = '''Converts and formats columnar data'''
+
+explanation = '''
+FORMATTING DESCRIPTION
+
+{0} 
+
+PROCESS
+
+The formatting process is as follows:
+
+1. The specified columnar data is loaded\n
+2. Any columnar data-specific formatting parameters are applied to the columnar
+data\n
+3. The columnar data is output
+
+ 
+OUTPUT
+
+{1}
+
+PARAMETERS
+
+{2}
+'''.format(gb.explanation_string.format('columnar'), gb.output_string,
+                                                gb.columnar_params_full)
 
 required_params = {}
-optional_params = {'delimiter' : (delimiter + ds,
-                    [',']), 'missing_values_from_a_given_column' :
-                    (missing_values_from_a_given_column + ds, None),
-                    'delete_missing_values' : (delete_missing_values + ds,
-                    False), 'columns_to_split' : (columns_to_split + ds, None),
-                    'change_column_names' : (change_column_names + ds, (None,
-                    None)), 'add_column_names_and_values' :
-                    (add_column_names_and_values + ds, None),
-                    'names_of_columns_to_be_removed' :
-                    (names_of_columns_to_be_removed + ds , None),
-                    'how_and_where_to_fractionate' :
-                    (how_and_where_to_fractionate + ds, (None, None, None)),
-                    'merge_data' : (merge_data + ds, 'No'), 'subset' : (subset
-                    + ds, {})}
+optional_params = {'delimiter' : (gb.optional + gb.delimiter,
+                    [',']), 'missing_values_from_a_given_column' : (gb.optional
+                    + gb.missing_values_from_a_given_column , None),
+                    'delete_missing_values' : (gb.optional +
+                    gb.delete_missing_values, False), 'columns_to_split' :
+                    (gb.optional + gb.columns_to_split, None),
+                    'change_column_names' : (gb.optional +
+                    gb.change_column_names, (None, None)),
+                    'add_column_names_and_values' : (gb.optional +
+                    gb.add_column_names_and_values, None),
+                    'names_of_columns_to_be_removed' : (gb.optional +
+                    gb.names_of_columns_to_be_removed, None), 'merge_data' :
+                    (gb.optional + gb.merge_data, 'No'), 'subset' :
+                    (gb.optional + gb.subset, {})}
 
 if __name__ == '__main__':
 
@@ -53,6 +70,9 @@ if __name__ == '__main__':
     
     for data_paths, output_IDs, params, run_name, script_name in\
                                                              wf.all_datasets():
+
+        # Check that columnar parameters are generally formatted correctly
+        gb.check_columnar_params(params, 'columnar')
     
         columnar_obj = form.Columnar_Data(data_paths, params['delimiter'][0],
                                   params['missing_values_from_a_given_column'],
@@ -70,10 +90,6 @@ if __name__ == '__main__':
         columnar_obj.add_fields_to_data_list(params['add_column_names_and_values'])
 
         columnar_obj.remove_columns(params['names_of_columns_to_be_removed'])
-
-        columnar_obj.fractionate_data(params['how_and_where_to_fractionate'][0]
-                                    , params['how_and_where_to_fractionate'][1]
-                                   , params['how_and_where_to_fractionate'][2])
 
         for data_path in data_paths:
             logging.info('Formatted the columnar data %s' % 

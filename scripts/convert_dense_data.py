@@ -12,44 +12,100 @@ __maintainer__ = "Mark Wilber"
 __email__ = "mqw@berkeley.edu"
 __status__ = "Development"
 
-ds = ''' Optional. Default: '''
+import macroeco.utils.global_strings as gb
 
-delimiter = '''temp'''
-replace_missing_with_value = '''temp'''
+gui_name = '''Convert Dense Data'''
 
-columns_to_split = '''temp'''
-change_column_names = '''temp'''
-add_column_names_and_values = '''temp'''
-names_of_columns_to_be_removed = '''temp'''
-how_and_where_to_fractionate = '''temp'''
-merge_data = '''temp'''
-subset = '''temp'''
+summary = '''Converts and formats dense data'''
 
-number_of_first_species_column = '''temp'''
-number_of_species_in_census = '''temp'''
+number_of_first_species_column = '''\n
 
-gui_name = "Gridded to columnar data conversion"
+A Dense Data specific parameter. The column number in the dataset where the
+first species occurs. 
 
-summary = "summary TODO"
-explanation = "explanation TODO"
+For example, if a dataset has the columns (x1, x1, spp1, spp2) and 'spp1' is
+the first species, this parameter would have the value of 3.'''
+
+number_of_species_in_census = '''\n
+
+A Dense Data specific parameter. The total number of species in the dataset(s).
+
+Example Input:
+
+1. 34
+
+Indicates there are 34 species in the single dataset or all datasets
+
+2. [34, 56, 102]
+
+Indicated that there are 34 species in the first dataset, 56 species in the
+second dataset, and 102 species in the third dataset'''
+
+replace_missing_with_value = '''\n
+
+A Dense Data specific parameter. Specify a missing value in the dataset and a
+value with which to replace it.
+
+Example Input:
+
+1. ('', 0)
+
+Replace '' (blank data value) with 0
+
+2. ('NA', 0)
+
+Replace 'NA' with 0.'''
+
+explanation = '''
+FORMATTING DESCRIPTION
+
+{3} 
+
+We define dense data as data with column headers specifying a given cell (row,
+column) and a column for each species in the data set. See Documentation for a
+complete description of grid data.
+
+PROCESS
+
+{5}
+
+OUTPUT
+
+{4}
+
+PARAMETERS
+
+*** number_of_first_species_column ***
+
+{0}
+
+*** number_of_species_in_census ***
+
+{1}
+
+{2}
+'''.format(number_of_first_species_column, number_of_species_in_census, 
+           gb.columnar_params_med, gb.explanation_string.format('dense'),
+           gb.output_string, gb.process_string.format('dense'))
+
 
 required_params = {'number_of_first_species_column' :
-                    number_of_first_species_column, 
+                    gb.req + number_of_first_species_column, 
                     'number_of_species_in_census' :
-                    number_of_species_in_census}
+                    gb.req + number_of_species_in_census}
 
-optional_params = {'delimiter' : (delimiter + ds, [',']), 
-                    'replace_missing_with_value': (replace_missing_with_value +
-                    ds, None), 'columns_to_split' : (columns_to_split + ds,
-                    None), 'change_column_names' : (change_column_names + ds,
-                    (None, None)), 'add_column_names_and_values' :
-                    (add_column_names_and_values + ds, None),
-                    'names_of_columns_to_be_removed' :
-                    (names_of_columns_to_be_removed + ds, None),
-                    'how_and_where_to_fractionate' :
-                    (how_and_where_to_fractionate + ds , (None, None, None)),
-                    'merge_data' : (merge_data + ds, 'No'), 'subset' : (subset
-                    + ds, {})}
+optional_params = {'delimiter' : (gb.optional + gb.delimiter, [',']), 
+                    'replace_missing_with_value': (gb.optional +
+                    replace_missing_with_value , None), 'columns_to_split' :
+                    (gb.optional + gb.columns_to_split, None),
+                    'change_column_names' : (gb.optional +
+                    gb.change_column_names, (None, None)),
+                    'add_column_names_and_values' : (gb.optional +
+                    gb.add_column_names_and_values, None),
+                    'names_of_columns_to_be_removed' : (gb.optional +
+                    gb.names_of_columns_to_be_removed, None),
+                    'merge_data' : (gb.optional + gb.merge_data, 'No'),
+                    'subset' : (gb.optional + gb.subset, {})}
 
 if __name__ == '__main__':
 
@@ -61,11 +117,10 @@ if __name__ == '__main__':
                  optional_params=optional_params,
                  clog=True, svers=__version__, short_output_name=True)
     
-    # What about formatting for multiple data sets simultaneously?  In this
-    # case it would be nice to have Workflow yield all the datasets in a given
-    # run.
     for data_paths, output_IDs, params, run_name, script_name in\
                                                              wf.all_datasets():
+
+        gb.check_columnar_params(params, 'dense')
 
         dense_data = form.Dense_Data(data_paths, params['delimiter'][0],
                           params['replace_missing_with_value'], archival=False)
@@ -91,10 +146,6 @@ if __name__ == '__main__':
         columnar_obj.add_fields_to_data_list(params['add_column_names_and_values'])
 
         columnar_obj.remove_columns(params['names_of_columns_to_be_removed'])
-
-        columnar_obj.fractionate_data(params['how_and_where_to_fractionate'][0]
-                                    , params['how_and_where_to_fractionate'][1]
-                                   , params['how_and_where_to_fractionate'][2])
 
         for data_path in data_paths:
             logging.info('Converted and formatted the dense data %s to' % 

@@ -7,6 +7,7 @@ import numpy as np
 import format_data as form
 import os
 import glob
+import copy
 gcwd = os.getcwd #get current directory
 pd = os.path.dirname #get parent directory
 chdir = os.chdir #change directories
@@ -441,11 +442,22 @@ y,2,1,300,2,f''')
         self.assertTrue(test_nm == set(col.columnar_data[0].dtype.names))
         self.assertTrue(test_nm == set(col.columnar_data[1].dtype.names))
 
-        # Fractionate is tested in test_form_func.py
+        # Fractionate is tested in test_form_func.py. Test if wid_len_old etc.
+        # parameters return expected results
         col.reset_columnar_data()
+        temp_col = copy.deepcopy(col.columnar_data)
+        col.columnar_data = [temp_col[0]]
         col.fractionate_data((1,1), (.5,.5), ('x', 'y'))
         self.assertTrue(np.all(np.array([0,.5,0,.5]) ==
                                                     col.columnar_data[0]['x']))
+        col.columnar_data = [temp_col[1]]
+        col.fractionate_data((1,1), (.5,.5), ('x', 'y'), (2,2), (1,1), (1,1))
+        self.assertTrue(np.all(np.array([.5,.5]) ==
+                                                    col.columnar_data[0]['x']))
+        self.assertTrue(np.all(np.array([0,0]) ==
+                                                    col.columnar_data[0]['y']))
+
+        col.columnar_data = temp_col
 
         # Test merge data
         col.merge_data()

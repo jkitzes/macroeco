@@ -204,6 +204,11 @@ class Columnar_Data:
         #Note: If they enter the wrong column name nothing will be removed
         #Should I error check for this?
         if split_columns != None:
+            # Check if split_columns is a list of strings. If so, change it
+            # into a list of tuples
+            split_columns = [(s,) if type(s) == str else tuple(s) for s in 
+                                                                 split_columns]
+
             split_data = []
             given_col_names = []
             for tup in split_columns:
@@ -307,7 +312,8 @@ class Columnar_Data:
                 removed_data.append(drop_fields(data, col_names))
             self.columnar_data = removed_data
 
-    def fractionate_data(self, wid_len=None, step=None, col_names=None):
+    def fractionate_data(self, wid_len=None, step=None, col_names=None,
+                                wid_len_old=None, min_old=None, step_old=None):
         '''
         This function converts grid numbers to length measurements in
         self.columnar_data
@@ -318,17 +324,29 @@ class Columnar_Data:
             A tuple containing the the absolute length of the columns being
             converted
         step : tuple
-            The precision (step or stride length) of each grid.  The first
-            element in the step tuple corresponds with the first element in the
-            wid_len tuple and so on.
+            The desierd precision (step or stride length) of each grid.  The
+            first element in the step tuple corresponds with the first element
+            in the wid_len tuple and so on.
         col_names : array-like object
             An array-like object of strings giving the names of the columns
             that will be fractionated
+        wid_len_old : tuple or None
+            If None, it assumes that a np.unique on datayears[col_name[i]]
+            gives a array that is the same length as np.arange(0,
+            wid_len_new[i], step=step_new[i]).  If it doesn't, an error will be
+            thrown.  If not None, expects the old maximum length for the given
+            columns. 
+        min_old : tuple or None
+            Same as wid_len_old but the old minimum value for each given column
+        step_old : tuple or None
+            Same as wid_len_old but the old step (or stride length/spacing) for
+            each given column.
 
         '''
         if wid_len != None and step != None and col_names != None:
             self.columnar_data = ff.fractionate(self.columnar_data, wid_len, step,
-                                                                     col_names)
+                                 col_names, wid_len_old=wid_len_old,
+                                 min_old=min_old, step_old=step_old)
 
 
     def merge_data(self):
@@ -638,7 +656,7 @@ class Dense_Data:
         delim : string
             The file delimiter
         replace : tuple
-            A tuple of length 2.  The first element is a string which
+            A tuple of length 2.  The first element is a string that
             represents the missing values that you would like to replace.  The
             second element is the value with which you would like to replace
             the missing values.
@@ -768,6 +786,7 @@ class Transect_Data:
         if replace != None:
                 
             assert len(replace) == 2, "Replace must contain 2 elements"
+            replace = (str(replace[0]), replace[1])
 
             for name in filenames:
                 self.transect_data.append(replace_vals(name, replace,

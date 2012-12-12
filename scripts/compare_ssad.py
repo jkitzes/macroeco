@@ -22,7 +22,7 @@ distribution against predicted species-level spatial abundance distributions'''
 
 # NOTE: Need to find a different way to specify which distributions they can
 # use
-predicted_SSAD_distributions = '''A list of SSAD
+predicted_SSAD_distributions = '''\nA list of SSAD
 distributions to which you can compare your observed data. 
 
 You may use any number of the following SSAD distributions: {!s} 
@@ -98,8 +98,8 @@ required_params = {'criteria' : gb.short_criteria + gb.req,
                   'predicted_SSAD_distributions': predicted_SSAD_distributions
                   + gb.req}
 
-optional_params = {'subset' : (gb.short_subset + gb.optional, 
-                  {}), 'rarity_measure' : (rarity_measure + gb.optional, [1])}
+optional_params = {'subset' : (gb.optional + gb.short_subset, 
+                  {}), 'rarity_measure' : (gb.optional + rarity_measure, [1])}
 
 if __name__ == '__main__':
 

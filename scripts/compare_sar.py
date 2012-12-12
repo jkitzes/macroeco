@@ -20,11 +20,11 @@ gui_name = '''SAR'''#''' Analyze Species-Area Relationships'''
 summary = '''Compares a dataset's observed species-area relationships against 
 theoretical species-area relationships'''
 
-columns_to_divide = '''This parameter specifies which spatial columns you would
+columns_to_divide = '''\nThis parameter specifies which spatial columns you would
 like to divide for the SAR analysis.  For example, if your data had spatial
 columns 'x' and 'y' you would enter: ('x', 'y') '''
 
-list_of_divisions_on_columns = '''This parameter specifies how you would like
+list_of_divisions_on_columns = '''\nThis parameter specifies how you would like
 to divide the columns you named in the columns_to_divide parameter.  For
 example, if you specified that you wanted to divide on columns 'x' and 'y' in
 the parameter columns_to_divide and you wanted to divide your plot into fourths
@@ -34,7 +34,7 @@ each parentheses are divisions on 'x' and 'y', respectively.  Please note that
 the number of species of the entire plot will be calculated even if you do not
 enter the division (1,1).'''
 
-predicted_SAR_curves = '''A list of SAR curves to which you can compare your
+predicted_SAR_curves = '''\nA list of SAR curves to which you can compare your
 observed data.
 
 You may use any number of the following SAR distributions: 'powerlaw',
@@ -54,7 +54,7 @@ Please specify the SAD name followed by a '-' and then the SSAD name.
 Example input: ['lognorm-binm', 'nbd_lt(k=1)-tgeo', 'powerlaw', 'mete_sar_iter']  
 '''.format(gb.SAD_distributions, gb.SSAD_distributions)
 
-name = '''A name for the plot that will be generated.
+name = '''\nA name for the plot that will be generated.
 
 Example input: My SAR Plot  
 '''
@@ -152,8 +152,8 @@ required_params = {'criteria' : gb.req + gb.short_criteria,
                    gb.req + list_of_divisions_on_columns,
                    'predicted_SAR_curves' : gb.req + predicted_SAR_curves}
 
-optional_params = {'subset' : (gb.short_subset + gb.optional, {}), 'name' : 
-                    (name + gb.optional, 'Plot')}
+optional_params = {'subset' : (gb.optional + gb.short_subset, {}), 'name' : 
+                    (gb.optional + name, 'Plot')}
 
 if __name__ == '__main__':
 

@@ -19,28 +19,28 @@ summary = '''Compares a dataset's observed energy metrics against predicted
 energy metrics'''
 
 
-predicted_SED_distributions = '''This parameter is the list of SED
+predicted_SED_distributions = '''\nThis parameter is the list of SED
 distributions to which you can compare your observed data. 
 
 You may use any number of the following SED distributions: 'theta'
 
 Example input: ['theta'].  The brackets MUST be included.  '''
 
-predicted_IED_distributions = '''This parameter is the list of IED
+predicted_IED_distributions = '''\nThis parameter is the list of IED
 distributions to which you can compare your observed data. 
 
 You may use any number of the following IED distributions: 'psi'
 
 Example input: ['psi']. The brackets MUST be included.  '''
 
-predicted_ASED_distributions = '''This parameter is the list of ASED
+predicted_ASED_distributions = '''\nThis parameter is the list of ASED
 distributions to which you can compare your observed data. 
 
 You may use any number of the following ASED distributions: 'nu'
 
 Example input: ['nu']. The brackets MUST be included.  '''
 
-energy_metrics = ''' This parameter allows you to specify which energy
+energy_metrics = '''\nThis parameter allows you to specify which energy
 metric(s) you would like to examine. Example: ['SED'], ['IED'], ['SED', 'IED']
 ['ASED'], ['ied', 'ASED', 'sed'].'''
 
@@ -138,7 +138,7 @@ required_params = {'criteria' : gb.req + gb.short_criteria,
         'predicted_IED_distributions' : gb.req + predicted_IED_distributions,
         'energy_metrics' : gb.req + energy_metrics}
 
-optional_params = {'subset' : (gb.short_subset + gb.optional, {})}
+optional_params = {'subset' : (gb. optional + gb.short_subset, {})}
 
 if __name__ == '__main__':
 
