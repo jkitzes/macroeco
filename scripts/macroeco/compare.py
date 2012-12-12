@@ -108,8 +108,6 @@ class CompareDistribution(object):
         else:
             self.observed_data = [np.array(dt) for dt in data_list]
 
-
-
         # Set this in __init__ so other methods can check if compare_rads() has
         # been called
         self.rads = None
@@ -206,10 +204,10 @@ class CompareDistribution(object):
         for dist in self.dist_list:
             
             try:
-                nlls = nll(dist.pmf(self.observed_data)[0])
+                nlls = nll(dist.pmf(self.observed_data))
             except NotImplementedError:
                 try:
-                    nlls = nll(dist.pdf(self.observed_data)[0])
+                    nlls = nll(dist.pdf(self.observed_data))
                 except NotImplementedError:
                     logging.warning('%s has neither a PMF nor a PDF. AIC set'
                                             % get_name(dist) + ' to infinity')
@@ -317,7 +315,7 @@ class CompareDistribution(object):
                                                             self.observed_data]
             for i, dist in enumerate(self.dist_list):
                 try:
-                    cdfs_dict[get_name(dist)] = dist.cdf(self.observed_data)[0]
+                    cdfs_dict[get_name(dist)] = dist.cdf(self.observed_data)
                 except NotImplementedError:
                     logging.warning('CDF method not implemented for %s' %
                                                                 get_name(dist))
@@ -354,15 +352,15 @@ class CompareDistribution(object):
         null_mdl.fit(self.observed_data)
 
         try:
-            null_nlls = nll(null_mdl.pmf(self.observed_data)[0])
+            null_nlls = nll(null_mdl.pmf(self.observed_data))
         except:
-            null_nlls = nll(null_mdl.pdf(self.observed_data)[0])
+            null_nlls = nll(null_mdl.pdf(self.observed_data))
         for i, dist in enumerate(self.dist_list):
             
             try:
-                alt_nlls = nll(dist.pmf(self.observed_data)[0])
+                alt_nlls = nll(dist.pmf(self.observed_data))
             except:
-                alt_nlls = nll(dist.pdf(self.observed_data)[0])
+                alt_nlls = nll(dist.pdf(self.observed_data))
 
             k = dist.par_num - null_mdl.par_num
             df = np.repeat(k, len(alt_nlls))

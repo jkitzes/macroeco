@@ -185,9 +185,6 @@ class Curve(object):
         -------
         vals : list of ndarrays
             List of 1D arrays of value of curve at points n.
-        vars : dict containing lists of floats
-            Intermediate parameter variables calculated for pmf, as 
-            dict.
 
         See class docstring for more specific information on this distribution.
         '''
@@ -332,6 +329,9 @@ class Distribution(object):
         Minimum support for distribution, usually 0 or 1
     par_num : int
         Number of free parameters of distribution, used for AIC calculations
+    var : dict
+        A dictionary of useful variables that are computed internally to
+        generate pmf or pdf. 
 
     Methods
     -------
@@ -360,11 +360,10 @@ class Distribution(object):
 
         See class docstring for more specific information on this distribution.
         '''
-        # This method does nothing, but exists so that derived class init
-        # methods can inherit this docstring.
-        pass
+        # Initializes empty variable dictionary 
+        self.var = {}
 
-        # TODO: Check that all params are same length
+
 
     def pmf(self, n):
         '''
@@ -380,9 +379,6 @@ class Distribution(object):
         -------
         pmf : list of ndarrays
             List of 1D arrays of probability of observing sample n.
-        vars : dict containing lists of floats
-            Intermediate parameter variables calculated for pmf, as 
-            dict.
 
         See class docstring for more specific information on this distribution.
         '''
@@ -405,9 +401,6 @@ class Distribution(object):
         -------
         pdf : list of ndarrays
             List of 1D arrays of probability of observing sample n.
-        vars : dict containing lists of floats
-            Intermediate parameter variables calculated for pdf, as 
-            dict.
 
         See class docstring for more specific information on this distribution.
         '''
@@ -432,8 +425,6 @@ class Distribution(object):
         -------
         cdf : list of ndarrays
             List of 1D arrays of probability of observing sample n.
-        vars : dict containing lists of floats
-            Intermediate parameter variables calculated for cdf, as dict.
 
         See class docstring for more specific information on this distribution.
         '''
@@ -451,10 +442,10 @@ class Distribution(object):
 
         # Extend for pdf or pmf
         try:
-            pmf_list, var = self.pdf(n_in)
+            pmf_list = self.pdf(n_in)
 
         except(NotImplementedError):
-            pmf_list, var = self.pmf(n_in)
+            pmf_list = self.pmf(n_in)
 
         # Calculate cdfs
         cdf = []
@@ -463,7 +454,7 @@ class Distribution(object):
             tcdf = np.array([full_cdf[x - self.min_supp] for x in tn])
             cdf.append(tcdf)
 
-        return cdf, var
+        return cdf 
 
 
     def rad(self):
@@ -487,7 +478,7 @@ class Distribution(object):
 
         # Calculate pmfs, going up to tot_obs for upper limit
         n_arrays = [np.arange(self.min_supp, 1*(i + 1)) for i in tot_obs]
-        pmf, var = self.pmf(n_arrays)
+        pmf = self.pmf(n_arrays)
         
         # Calculate rad
         rad = []
@@ -608,6 +599,10 @@ class most_even(Distribution):
     tot_obs: int or iterable
         Total number of individuals / observations
 
+    self.var keywords
+    -----------------
+    None
+
     '''
 
     @doc_inherit
@@ -616,6 +611,7 @@ class most_even(Distribution):
         self.params = kwargs
         self.min_supp = 1
         self.par_num = 2
+        self.var = {}
 
     @doc_inherit
     def pmf(self, n):
@@ -636,7 +632,7 @@ class most_even(Distribution):
             tpmf = np.array([0 if k != tmean else 1 for k in tn])
             pmf.append(tpmf)
 
-        return pmf, None
+        return pmf
             
     @doc_inherit
     def rad(self):
@@ -665,6 +661,10 @@ class most_uneven(Distribution):
     tot_obs: int or iterable
         Total number of individuals / observations
 
+    self.var keywords
+    -----------------
+    None
+
     '''
 
     @doc_inherit
@@ -673,6 +673,7 @@ class most_uneven(Distribution):
         self.params = kwargs
         self.min_supp = 1
         self.par_num = 2
+        self.var = {}
 
     @doc_inherit
     def pmf(self, n):
@@ -700,7 +701,7 @@ class most_uneven(Distribution):
 
             pmf.append(np.array(tpmf))
 
-        return pmf, None
+        return pmf
             
     @doc_inherit
     def rad(self):
@@ -733,8 +734,8 @@ class logser(Distribution):
     tot_obs: int or iterable
         Total number of individuals / observations
 
-    Vars
-    ----
+    self.var keywords
+    ------------------
     p : list of floats
         p parameter of standard logseries distribution
 
@@ -752,6 +753,7 @@ class logser(Distribution):
         self.params = kwargs
         self.min_supp = 1
         self.par_num = 1
+        self.var = {}
     
     @doc_inherit
     def pmf(self, n):
@@ -770,8 +772,7 @@ class logser(Distribution):
                                                 (-(np.log(1 - x)))) - n_samp
 
         pmf = []
-        var = {}
-        var['p'] = []
+        self.var['p'] = []
 
         for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
             # Catching cryptic brentq error
@@ -783,10 +784,10 @@ class logser(Distribution):
                                   % (self.__class__.__name__, ttot_obs) + 
                                   " and n_samp = %.2f" % (tn_samp)) 
             tpmf = stats.logser.pmf(tn, tp)
-            var['p'].append(tp)
+            self.var['p'].append(tp)
             pmf.append(tpmf)
    
-        return pmf, var
+        return pmf
 
     @doc_inherit
     def cdf(self, n):
@@ -805,8 +806,7 @@ class logser(Distribution):
                                                 (-(np.log(1 - x)))) - n_samp
 
         cdf = []
-        var = {}
-        var['p'] = []
+        self.var['p'] = []
 
         for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
             # Catching cryptic brentq error
@@ -818,10 +818,10 @@ class logser(Distribution):
                                   % (self.__class__.__name__, ttot_obs) + 
                                   " and n_samp = %.2f" % (tn_samp)) 
             tcdf = stats.logser.cdf(tn, tp)
-            var['p'].append(tp)
+            self.var['p'].append(tp)
             cdf.append(tcdf)
    
-        return cdf, var
+        return cdf
 
 class logser_ut(Distribution):
     __doc__ = Distribution.__doc__ + \
@@ -838,10 +838,10 @@ class logser_ut(Distribution):
     tot_obs: int or iterable
         Total number of individuals / observations
    
-    Vars
-    ----
+    self.vars keywords
+    ------------------
     x : list of floats
-         exp(-beta) parameter
+         exp(-beta) parameter. Beta is lagrange multiplier
 
     Notes
     -----
@@ -862,6 +862,7 @@ class logser_ut(Distribution):
         self.params = kwargs
         self.min_supp = 1
         self.par_num = 2 # This is highly contested
+        self.var = {}
 
     @doc_inherit    
     def pmf(self, n):
@@ -882,8 +883,7 @@ class logser_ut(Distribution):
                                                    n_samp) -  sum((x ** k) / k)
 
         pmf = []
-        var = {}
-        var['x'] = []
+        self.var['x'] = []
 
         for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
 
@@ -907,10 +907,10 @@ class logser_ut(Distribution):
                 tnorm = np.sum(tx ** k / k)
                 tpmf = (tx ** tn / tn) / tnorm
 
-            var['x'].append(tx)
+            self.var['x'].append(tx)
             pmf.append(tpmf)
    
-        return pmf, var
+        return pmf
 
     # TODO: Add exact cdf from JK dissertation
 
@@ -930,10 +930,10 @@ class logser_ut_appx(Distribution):
     tot_obs: int or iterable
         Total number of individuals / observations
    
-    Vars
-    ----
+    self.var keywords
+    ------------------
     x : list of floats
-         exp(-beta) parameter
+         exp(-beta) parameter. Beta is lagrange multiplier
         
     Notes:
     ------
@@ -961,6 +961,7 @@ class logser_ut_appx(Distribution):
         self.params = kwargs
         self.min_supp = 1
         self.par_num = 2 # This is highly contested
+        self.var = {}
     
     @doc_inherit
     def pmf(self, n):
@@ -981,8 +982,7 @@ class logser_ut_appx(Distribution):
         eq = lambda x, n_samp, tot_obs: (((-m.log(x))*(m.log(-1/(m.log(x))))) - 
                                                                 (float(n_samp)/tot_obs))
         pmf = []
-        var = {}
-        var['x'] = []
+        self.var['x'] = []
 
         for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
             
@@ -1018,10 +1018,10 @@ class logser_ut_appx(Distribution):
                 g = -1/np.log(tx)
                 tpmf = (1/np.log(g)) * ((tx**tn)/tn)
 
-            var['x'].append(tx)
+            self.var['x'].append(tx)
             pmf.append(tpmf)
 
-        return pmf, var
+        return pmf
 
 
 class plognorm(Distribution):
@@ -1040,8 +1040,8 @@ class plognorm(Distribution):
     tot_obs: int or iterable (optional)
         Total number of individuals / observations
 
-    Vars
-    ----
+    self.var keywords
+    -----------------
     None
 
     Notes
@@ -1074,6 +1074,7 @@ class plognorm(Distribution):
         self.params = kwargs
         self.min_supp = 0
         self.par_num = 2
+        self.var = {}
 
     
     # @doc_inherit cannot be used here because of derived plognorm_lt
@@ -1091,9 +1092,6 @@ class plognorm(Distribution):
         -------
         pmf : list of ndarrays
             List of 1D arrays of probability of observing sample n.
-        vars : dict containing lists of floats
-            Intermediate parameter variables calculated for pmf, as 
-            dict.
 
         See class docstring for more specific information on this distribution.
         '''
@@ -1140,7 +1138,7 @@ class plognorm(Distribution):
 
             pmf.append(tpmf)
 
-        return pmf, None
+        return pmf
 
     # TODO: Is there a known cdf?
     
@@ -1177,7 +1175,7 @@ class plognorm(Distribution):
             def pln_func(x):
                 self.params['mu'] = x[0]
                 self.params['sigma'] = x[1]
-                return -sum(np.log(self.pmf(tdata)[0][0]))
+                return -sum(np.log(self.pmf(tdata)[0]))
 
             mu, sigma = scipy.optimize.fmin(pln_func, x0=[mu0, sigma0],
                                             disp=0)
@@ -1206,8 +1204,8 @@ class plognorm_lt(plognorm):
     tot_obs: int or iterable (optional)
         Total number of individuals / observations
 
-    Vars
-    ----
+    self.var keywords
+    ------------------
     None
 
     Notes
@@ -1242,6 +1240,7 @@ class plognorm_lt(plognorm):
         self.params = kwargs
         self.min_supp = 1
         self.par_num = 2
+        self.var = {}
         
     
     # @doc_inherit cannot be used here because class is derived from plognorm
@@ -1259,9 +1258,6 @@ class plognorm_lt(plognorm):
         -------
         pmf : list of ndarrays
             List of 1D arrays of probability of observing sample n.
-        vars : dict containing lists of floats
-            Intermediate parameter variables calculated for pmf, as 
-            dict.
 
         See class docstring for more specific information on this distribution.
         '''
@@ -1273,12 +1269,13 @@ class plognorm_lt(plognorm):
 
         # Calculate pmf, using plognorm as aid
         reg_plog = plognorm(mu=mu, sigma=sigma)
-        reg_pmf, reg_var = reg_plog.pmf(n)
-        reg_pmf0, reg_var0 = reg_plog.pmf(0)
+        reg_pmf = reg_plog.pmf(n)
+        reg_pmf0 = reg_plog.pmf(0)
+        self.var = reg_plog.var
 
         trunc_pmf = [(pr / (1 - p0)) for pr, p0 in zip(reg_pmf, reg_pmf0)]
 
-        return trunc_pmf, None 
+        return trunc_pmf 
 
     # TODO: Write cdf method based on cdf of plognorm, similar to above
 
@@ -1301,8 +1298,8 @@ class lognorm(Distribution):
     tot_obs: int or iterable (optional)
         Total number of individuals / observations
 
-    Vars
-    ----
+    self.var keywords
+    -----------------
     None
         
     '''
@@ -1310,8 +1307,9 @@ class lognorm(Distribution):
     @doc_inherit
     def __init__(self, **kwargs):
         self.params = kwargs
-        self.min_supp = 1
+        self.min_supp = 0
         self.par_num = 2
+        self.var = {}
 
     @doc_inherit  
     def pmf(self, n):
@@ -1332,7 +1330,7 @@ class lognorm(Distribution):
             tpmf = stats.lognorm.pdf(tn, tsigma, scale=np.exp(tmu))
             pmf.append(tpmf)
 
-        return pmf, None
+        return pmf
 
     @doc_inherit  
     def cdf(self, n):
@@ -1352,7 +1350,7 @@ class lognorm(Distribution):
             tcdf = stats.lognorm.cdf(tn, tsigma, scale=np.exp(tmu))
             cdf.append(tcdf)
 
-        return cdf, None
+        return cdf
 
     @doc_inherit 
     def fit(self, data):
@@ -1369,7 +1367,7 @@ class lognorm(Distribution):
                 self.params['tot_obs'] = ttot_obs
                 self.params['n_samp'] = tn_samp
                 self.params['sigma'] = sigma 
-                return -sum(np.log(self.pmf(tdata)[0][0]))
+                return -sum(np.log(self.pmf(tdata)[0]))
 
             mle_sigma = scipy.optimize.fmin(ln_func,
                         np.array([np.std(np.log(tdata), ddof=1)]), disp=0)[0]
@@ -1396,8 +1394,8 @@ class geo_ser(Distribution):
         The fraction of resources that each species acquires. Range is 
         (0, 1].
 
-    Var
-    ----
+    self.var keywords
+    -----------------
     None
     
     Notes
@@ -1420,6 +1418,7 @@ class geo_ser(Distribution):
         self.params = kwargs
         self.min_supp = 1
         self.par_num = 3 # May says 2 parameters, test this
+        self.var = {}
 
     # The pmf, as adapted from May, describes a continuous SAD. The rad
     # generate by the below pmf (super.rad) does not give the rad predicted by
@@ -1448,7 +1447,7 @@ class geo_ser(Distribution):
             tpmf = (c / tn) / sumg # normalize
             pmf.append(tpmf)
 
-        return pmf, None
+        return pmf
 
     @doc_inherit
     def rad(self):
@@ -1509,8 +1508,8 @@ class broken_stick(Distribution):
     tot_obs: int or iterable
         Total number of individuals / observations
 
-    Vars
-    ----
+    self.var keywords
+    -----------------
     None
 
     The total species (S) is equivalent to n_samp and the total
@@ -1523,6 +1522,7 @@ class broken_stick(Distribution):
         self.params = kwargs
         self.min_supp = 1
         self.par_num = 2  # May says 1
+        self.var = {}
 
 
     @doc_inherit
@@ -1546,7 +1546,7 @@ class broken_stick(Distribution):
             tpmf = eq(tn, tn_samp, ttot_obs) #/ sumg # Normalizing
             pmf.append(tpmf)
 
-        return pmf, None
+        return pmf
 
 
     @doc_inherit
@@ -1585,6 +1585,10 @@ class sugihara(Distribution):
     tot_obs: int or iterable
         Total number of individuals / observations
 
+    self.var keyword
+    ----------------
+    None
+
     Notes
     -----
     This is a sampled rank abundance distribution.  It is not derived
@@ -1613,6 +1617,7 @@ class sugihara(Distribution):
         self.params = kwargs
         self.min_supp = 1
         self.par_num = 1
+        self.var = {}
     
 
     @doc_inherit
@@ -1673,13 +1678,11 @@ class binm(Distribution):
     n_samp : int or array-like object
         Number of bins/cells sampled.
 
-    Var
-    ---
+    self.var keywords
+    ------------------
     p : list of floats
         p parameter of is equal to 1 / n_samp, the 'p' parameter of the
         binomial distribution
-    tot_obs : list of ints
-        tot_obs is the N parameter of the binomial distribution
 
     Notes
     -----
@@ -1694,6 +1697,7 @@ class binm(Distribution):
         self.params = kwargs
         self.min_supp = 0
         self.par_num = 2
+        self.var = {}
     
     @doc_inherit
     def pmf(self, n):
@@ -1704,15 +1708,12 @@ class binm(Distribution):
         # TODO: Additional checks?
         
         pmf = []
-        var = {}
-        var['p'] = []
-        var['tot_obs'] = []
+        self.var['p'] = []
         for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
             ta = 1 / tn_samp
             pmf.append(stats.binom.pmf(tn, ttot_obs, ta))
-            var['p'].append(ta)
-            var['tot_obs'].append(ttot_obs)
-        return pmf, var
+            self.var['p'].append(ta)
+        return pmf
     
     @doc_inherit
     def cdf(self, n):
@@ -1722,15 +1723,12 @@ class binm(Distribution):
         # TODO: Additional checks?
 
         cdf = []
-        var = {}
-        var['p'] = []
-        var['tot_obs'] = []
+        self.var['p'] = []
         for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
             ta = 1 / tn_samp
             cdf.append(stats.binom.cdf(tn, ttot_obs, ta))
-            var['p'].append(ta)
-            var['tot_obs'].append(ttot_obs)
-        return cdf, var
+            self.var['p'].append(ta)
+        return cdf
 
 class pois(Distribution):
     __doc__ = Distribution.__doc__ + \
@@ -1746,8 +1744,8 @@ class pois(Distribution):
     n_samp : int or array-like object
         Number of bins/cells sampled.
 
-    Var
-    ---
+    self.var keywords
+    -----------------
     mu : list of floats
         the mu parameter of the poisson distribution
 
@@ -1758,6 +1756,7 @@ class pois(Distribution):
         self.params = kwargs
         self.min_supp = 0
         self.par_num = 1
+        self.var = {}
     
     @doc_inherit
     def pmf(self, n):
@@ -1768,13 +1767,12 @@ class pois(Distribution):
         # TODO: Additional checks?
         
         pmf = []
-        var = {}
-        var['mu'] = []
+        self.var['mu'] = []
         for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
             tmu = ttot_obs * (1 / tn_samp)
             pmf.append(stats.poisson.pmf(tn, tmu))
-            var['mu'].append(tmu)
-        return pmf, var 
+            self.var['mu'].append(tmu)
+        return pmf
     
     @doc_inherit
     def cdf(self, n): 
@@ -1785,13 +1783,12 @@ class pois(Distribution):
         # TODO: Additional checks?
 
         cdf = []
-        var = {}
-        var['mu'] = []
+        self.var['mu'] = []
         for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
             tmu = ttot_obs * (1 / tn_samp)
             cdf.append(stats.poisson.cdf(tn, tmu))
-            var['mu'].append(tmu)
-        return cdf, var
+            self.var['mu'].append(tmu)
+        return cdf
 
 class nbd(Distribution):
     __doc__ = Distribution.__doc__ + \
@@ -1809,15 +1806,13 @@ class nbd(Distribution):
     k : int
         Aggregation parameter
 
-    Var
-    ---
+    self.var keywords
+    -----------------
     Parameterization differs for different forms of the nbd.  We use the
     standard ecological form as described by Ben Bolker. Parameters 'a' (1 /
     n_samp), 'tot_obs', and k are used to derive the nbd parameter p (see code
     for details).  Parameters k and p are used to generate distribution.
         
-    k : list of floats
-        k parameter of nbd
     p : list of floats 
         p parameters of nbd
     '''
@@ -1827,6 +1822,7 @@ class nbd(Distribution):
         self.params = kwargs
         self.min_supp = 0
         self.par_num = 2
+        self.var = {}
     
     def pmf(self, n):
         '''
@@ -1842,9 +1838,6 @@ class nbd(Distribution):
         -------
         pmf : list of ndarrays
             List of 1D arrays of probability of observing sample n.
-        vars : dict containing lists of floats
-            Intermediate parameter variables calculated for pmf, as 
-            dict.
 
         See class docstring for more specific information on this distribution.
         '''
@@ -1855,17 +1848,14 @@ class nbd(Distribution):
         # TODO: Additional checks?
         
         pmf = []
-        var = {}
-        var['p'] = []
-        var['k'] = []
+        self.var['p'] = []
 
         for tn_samp, ttot_obs, tk, tn in zip(n_samp, tot_obs, k, n):
             tmu = ttot_obs * (1 / tn_samp)
             tp = 1 / (tmu / tk + 1) # See Bolker book Chapt 4
             pmf.append(scipy.stats.nbinom.pmf(tn, tk, tp))
-            var['p'].append(tp)
-            var['k'].append(tk)
-        return pmf, var 
+            self.var['p'].append(tp)
+        return pmf 
 
     def cdf(self, n):
         '''
@@ -1881,8 +1871,6 @@ class nbd(Distribution):
         -------
         cdf : list of ndarrays
             List of 1D arrays of probability of observing sample n.
-        vars : dict containing lists of floats
-            Intermediate parameter variables calculated for cdf, as dict.
 
         See class docstring for more specific information on this distribution.
         '''
@@ -1893,17 +1881,14 @@ class nbd(Distribution):
         # TODO: Additional checks?
         
         cdf = []
-        var = {}
-        var['p'] = []
-        var['k'] = []
+        self.var['p'] = []
 
         for tn_samp, ttot_obs, tk, tn in zip(n_samp, tot_obs, k, n):
             tmu = ttot_obs * (1 / tn_samp)
             tp = 1 / (tmu / tk + 1) # See Bolker book Chapt 4
             cdf.append(scipy.stats.nbinom.cdf(tn, tk, tp))
-            var['p'].append(tp)
-            var['k'].append(tk)
-        return cdf, var 
+            self.var['p'].append(tp)
+        return cdf
     
     def fit(self, data, guess_for_k=1):
         '''
@@ -1935,7 +1920,7 @@ class nbd(Distribution):
                 self.params['tot_obs'] = ttot_obs
                 self.params['n_samp'] = tn_samp
                 self.params['k'] = k
-                return -sum(np.log(self.pmf(tdata)[0][0]))
+                return -sum(np.log(self.pmf(tdata)[0]))
 
             mlek = scipy.optimize.fmin(nll_nb, np.array([guess_for_k]), 
                                                                     disp=0)[0]
@@ -1960,15 +1945,13 @@ class nbd_lt(nbd):
     k : int
         Aggregation parameter
 
-    Var
-    ---
+    self.var keywords
+    -----------------
     Parameterization differs for different forms of the nbd.  We use the
     standard ecological form as described by Ben Bolker. Parameters 'a' (1 /
     n_samp), 'tot_obs', and k are used to derive the nbd parameter p (see code
     for details).  Parameters k and p are used to generate distribution.
         
-    k : list of floats
-        k parameter of nbd
     p : list of floats 
         p parameters of nbd
 
@@ -1984,6 +1967,7 @@ class nbd_lt(nbd):
         self.params = kwargs
         self.min_supp = 1
         self.par_num = 2
+        self.var = {}
     
     
     def pmf(self, n):
@@ -2000,9 +1984,6 @@ class nbd_lt(nbd):
         -------
         pmf : list of ndarrays
             List of 1D arrays of probability of observing sample n.
-        vars : dict containing lists of floats
-            Intermediate parameter variables calculated for pmf, as 
-            dict.
 
         See class docstring for more specific information on this distribution.
         '''
@@ -2014,12 +1995,13 @@ class nbd_lt(nbd):
         # TODO: Additional checks?
 
         reg_nbd = nbd(n_samp=n_samp, tot_obs=tot_obs, k=k)
-        reg_pmf, reg_var = reg_nbd.pmf(n)
-        reg_pmf0, reg_var0 = reg_nbd.pmf(0)
+        reg_pmf = reg_nbd.pmf(n)
+        self.var = reg_nbd.var
+        reg_pmf0 = reg_nbd.pmf(0)
 
         trunc_pmf = [(pr / (1 - p0)) for pr, p0 in zip(reg_pmf, reg_pmf0)]
 
-        return trunc_pmf, reg_var         
+        return trunc_pmf         
 
     def cdf(self, n):
         '''
@@ -2035,8 +2017,6 @@ class nbd_lt(nbd):
         -------
         cdf : list of ndarrays
             List of 1D arrays of probability of observing sample n.
-        vars : dict containing lists of floats
-            Intermediate parameter variables calculated for cdf, as dict.
 
         See class docstring for more specific information on this distribution.
         '''
@@ -2047,12 +2027,13 @@ class nbd_lt(nbd):
         # TODO: Additional checks?
 
         reg_nbd = nbd(n_samp=n_samp, tot_obs=tot_obs, k=k)
-        p0 = reg_nbd.pmf(0)[0]
-        reg_cdf, reg_vars = reg_nbd.cdf(n)
+        p0 = reg_nbd.pmf(0)
+        self.var = reg_nbd.var
+        reg_cdf = reg_nbd.cdf(n)
 
         trun_cdf = [(tcdf - tp0) / (1 - tp0) for tcdf, tp0 in zip(reg_cdf, p0)]
 
-        return trun_cdf, reg_vars
+        return trun_cdf
 
 class fnbd(Distribution):
     __doc__ = Distribution.__doc__ + \
@@ -2070,12 +2051,10 @@ class fnbd(Distribution):
     k : int
         Aggregation parameter
 
-    Var
-    ---
+    self.var keyword
+    -----------------
     p : list of floats
         p parameter is 1 / n_samp
-    k : list of floats
-        k parameter is aggregation parameter
 
     '''
     
@@ -2084,6 +2063,7 @@ class fnbd(Distribution):
         self.params = kwargs
         self.min_supp = 0
         self.par_num = 2
+        self.var = {}
     
     @doc_inherit
     def pmf(self, n):
@@ -2101,9 +2081,7 @@ class fnbd(Distribution):
         # TODO: Additional checks?
         
         pmf = []
-        var = {}
-        var['p'] = []
-        var['k'] = []
+        self.var['p'] = []
 
         for tn_samp, ttot_obs, tk, tn in zip(n_samp, tot_obs, k, n):
 
@@ -2112,9 +2090,8 @@ class fnbd(Distribution):
             ta = 1 / tn_samp
             tpmf = ln_L(tn, ttot_obs, ta, tk) # Already log
             pmf.append(np.exp(tpmf))
-            var['p'].append(ta)
-            var['k'].append(tk)
-        return pmf, var
+            self.var['p'].append(ta)
+        return pmf
     
     def fit(self, data, upper_bnd=10):
         '''
@@ -2146,7 +2123,7 @@ class fnbd(Distribution):
                 self.params['tot_obs'] = ttot_obs
                 self.params['n_samp'] = tn_samp
                 self.params['k'] = k
-                return -sum(np.log(self.pmf(tdata)[0][0]))
+                return -sum(np.log(self.pmf(tdata)[0]))
             
             #mlek = scipy.optimize.fmin(
             mlek = scipy.optimize.brute(nll_nb, ((1e-10, upper_bnd),))
@@ -2171,8 +2148,8 @@ class geo(Distribution):
     n_samp : int or array-like object
         Number of bins/cells sampled.
 
-    Var
-    ---
+    self.var keywords
+    -----------------
     p :  list of floats
         p parameter is equal to 1 / n_samp
 
@@ -2183,6 +2160,7 @@ class geo(Distribution):
         self.params = kwargs
         self.min_supp = 0
         self.par_num = 1
+        self.var = {}
     
     @doc_inherit
     def pmf(self, n):
@@ -2194,10 +2172,9 @@ class geo(Distribution):
         # TODO: Additional checks?
 
         k = np.repeat(1, len(n_samp))
-        pmf, nvar = nbd(tot_obs=tot_obs, n_samp=n_samp, k=k).pmf(n)
-        var = {}
-        var['p'] = 1 / n_samp
-        return pmf, var
+        pmf = nbd(tot_obs=tot_obs, n_samp=n_samp, k=k).pmf(n)
+        self.var['p'] = 1 / n_samp
+        return pmf
     
     @doc_inherit
     def cdf(self, n):
@@ -2209,10 +2186,9 @@ class geo(Distribution):
         # TODO: Additional checks?
 
         k = np.repeat(1, len(n_samp))
-        cdf, nvar = nbd(tot_obs=tot_obs, n_samp=n_samp, k=k).cdf(n)
-        var = {}
-        var['p'] = 1 / n_samp
-        return cdf, var
+        cdf = nbd(tot_obs=tot_obs, n_samp=n_samp, k=k).cdf(n)
+        self.var['p'] = 1 / n_samp
+        return cdf
         
 class fgeo(Distribution):
     __doc__ = Distribution.__doc__ + \
@@ -2229,8 +2205,8 @@ class fgeo(Distribution):
     n_samp : int or array-like object
         Number of bins/cells sampled.
 
-    Var
-    ---
+    self.var keywords
+    ------------------
     p : list of floats
         a parameter is equal to 1 / n_samp
 
@@ -2246,6 +2222,7 @@ class fgeo(Distribution):
         self.params = kwargs
         self.min_supp = 0
         self.par_num = 1
+        self.var = {}
     
     @doc_inherit
     def pmf(self, n):
@@ -2257,10 +2234,10 @@ class fgeo(Distribution):
         # TODO: Additional checks?
 
         k = np.repeat(1, len(n_samp))
-        pmf, nvar = fnbd(tot_obs=tot_obs, n_samp=n_samp, k=k).pmf(n)
-        var = {}
-        var['p'] = nvar['p']
-        return pmf, var
+        tfnbd = fnbd(tot_obs=tot_obs, n_samp=n_samp, k=k)
+        pmf = tfnbd.pmf(n)
+        self.var=  tfnbd.var
+        return pmf 
     
     @doc_inherit
     def cdf(self, n):
@@ -2272,10 +2249,10 @@ class fgeo(Distribution):
         # TODO: Additional checks?
 
         k = np.repeat(1, len(n_samp))
-        cdf, nvar = fnbd(tot_obs=tot_obs, n_samp=n_samp, k=k).cdf(n)
-        var = {}
-        var['p'] = nvar['p']
-        return cdf, var
+        tfnbd = fnbd(tot_obs=tot_obs, n_samp=n_samp, k=k).cdf(n)
+        cdf = tfnbd.cdf(n)
+        self.var = tfnbd.var
+        return cdf
 
 class tgeo(Distribution):
     __doc__ = Distribution.__doc__ + \
@@ -2291,8 +2268,8 @@ class tgeo(Distribution):
     n_samp : int or array-like object
         Number of bins/cells sampled.
 
-    Var
-    ---
+    self.var keywords
+    -----------------
     x : list of floats
         -np.log(x) is the lagrange multiplier for the tgeo distribution
 
@@ -2317,6 +2294,7 @@ class tgeo(Distribution):
         self.params = kwargs
         self.min_supp = 0
         self.par_num = 1
+        self.var = {}
     
     @doc_inherit
     def pmf(self, n):
@@ -2331,8 +2309,7 @@ class tgeo(Distribution):
         eq = lambda x, N, a: ((x / (1 - x)) - (((N + 1) * x ** (N + 1)) / \
                             (1 - x ** (N + 1)))) - (N * a)
         pmf = []
-        var = {}
-        var['x'] = []
+        self.var['x'] = []
         for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
             ta = 1 / tn_samp
 
@@ -2368,9 +2345,9 @@ class tgeo(Distribution):
                 tpmf = (1 / z) * (x ** tn)
 
             pmf.append(tpmf)
-            var['x'].append(x)
+            self.var['x'].append(x)
 
-        return pmf, var
+        return pmf
 
 class mete_sar_iter(Curve):
     __doc__ = Curve.__doc__ + \
@@ -2859,7 +2836,7 @@ class gen_sar(Curve):
         if use_rad:
             rad = self.sad.rad()[0]
         else:
-            sad = self.sad.pmf(np.arange(1, N + 1))[0][0]
+            sad = self.sad.pmf(np.arange(1, N + 1))[0]
         ssad = self.ssad
         sar = []
 
@@ -2893,11 +2870,11 @@ class gen_sar(Curve):
                                                    len(ssad.params['tot_obs']))
                     
                     # Probability of presence list
-                    p_pres_list = [1 - absnt[0] for absnt in ssad.pmf(0)[0]]
+                    p_pres_list = [1 - absnt[0] for absnt in ssad.pmf(0)]
                     if use_rad:
                         return sum(np.array(p_pres_list)) - S
                     else:
-                        sadbig = self.sad.pmf(np.arange(1, Nbig + 1))[0][0]
+                        sadbig = self.sad.pmf(np.arange(1, Nbig + 1))[0]
                         val = sum(Sbig * sadbig * np.array(p_pres_list)) - S
                         return val
                 
@@ -2923,7 +2900,7 @@ class gen_sar(Curve):
             else:
                 ssad.params['n_samp'] = np.repeat(1 / a,
                                                    len(ssad.params['tot_obs']))
-                p_pres_list = [1 - absnt[0] for absnt in ssad.pmf(0)[0]]
+                p_pres_list = [1 - absnt[0] for absnt in ssad.pmf(0)]
 
                 if use_rad:
                     sar.append(sum(np.array(p_pres_list)))
@@ -2979,8 +2956,8 @@ class psi(Distribution):
     E : int or iterable
         Total energy output of community
 
-    Var
-    ---
+    self.var keywords 
+    ------------------
     beta : list of floats
         The beta lagrange multiplier
     l2 : list of floats
@@ -2998,6 +2975,7 @@ class psi(Distribution):
         self.params = kwargs
         self.par_num = 2        
         self.min_supp = 1
+        self.var = {}
 
     @doc_inherit
     def pdf(self, e):
@@ -3012,9 +2990,8 @@ class psi(Distribution):
                                                            -  sum((x ** k) / k)
 
         pdf = []
-        var = {}
-        var['beta'] = []
-        var['l2'] = []
+        self.var['beta'] = []
+        self.var['l2'] = []
 
         for tn_samp, ttot_obs, tE, te in zip(n_samp, tot_obs, E, e):
             k = np.linspace(1, ttot_obs, num=ttot_obs)
@@ -3048,10 +3025,10 @@ class psi(Distribution):
                     (1 - exp_neg_gamma)))))
                     # Harte (2011) 7.24
             pdf.append(tpdf)
-            var['beta'].append(tbeta)
-            var['l2'].append(tl2)
+            self.var['beta'].append(tbeta)
+            self.var['l2'].append(tl2)
         
-        return pdf, var
+        return pdf
     
     @doc_inherit
     def cdf(self, e):
@@ -3067,9 +3044,8 @@ class psi(Distribution):
 
         cdf = []
 
-        var = {}
-        var['beta'] = []
-        var['l2'] = []
+        self.var['beta'] = []
+        self.var['l2'] = []
 
         for tn_samp, ttot_obs, tE, te in zip(n_samp, tot_obs, E, e):
             k = np.linspace(1, ttot_obs, num=ttot_obs)
@@ -3093,10 +3069,10 @@ class psi(Distribution):
                                     (1 / (1 - np.exp(tl1 + tl2))))
 
             cdf.append(eq2(te))
-            var['beta'].append(tbeta)
-            var['l2'].append(tl2)
+            self.var['beta'].append(tbeta)
+            self.var['l2'].append(tl2)
 
-        return cdf, var
+        return cdf
 
     @doc_inherit
     def rad(self):
@@ -3182,8 +3158,8 @@ class theta(Distribution):
     n : int or iterable
         Number of individuals in a given species
 
-    Var
-    ---
+    self.var keywords
+    ------------------
     l2 : list of floats
         The lambda2 lagrange multiplier
 
@@ -3195,6 +3171,7 @@ class theta(Distribution):
         self.params = kwargs
         self.par_num = 2
         self.min_supp = 1
+        self.var = {}
     
     @doc_inherit
     def pdf(self, e):
@@ -3207,8 +3184,7 @@ class theta(Distribution):
 
 
         pdf = []
-        var = {}
-        var['l2'] = []
+        self.var['l2'] = []
 
         for tn_samp, ttot_obs, tE, tn, te in zip(n_samp, tot_obs, E, n, e):
 
@@ -3217,9 +3193,9 @@ class theta(Distribution):
                                 - np.exp(-tl2 * tn * tE)) #Harte (2011) 7.25
 
             pdf.append(tpdf)
-            var['l2'].append(tl2)
+            self.var['l2'].append(tl2)
         
-        return pdf, var
+        return pdf
 
     @doc_inherit
     def cdf(self, e):
@@ -3232,8 +3208,7 @@ class theta(Distribution):
 
 
         cdf = []
-        var = {}
-        var['l2'] = []
+        self.var['l2'] = []
 
         for tn_samp, ttot_obs, tE, tn, te in zip(n_samp, tot_obs, E, n, e):
 
@@ -3244,9 +3219,9 @@ class theta(Distribution):
                                                         np.exp(-tl2 * tn))   
 
             cdf.append(tcdf)
-            var['l2'].append(tl2)
+            self.var['l2'].append(tl2)
         
-        return cdf, var
+        return cdf
 
     @doc_inherit
     def rad(self):
@@ -3318,6 +3293,15 @@ class nu(Distribution):
     E : int or iterable
         Total energy output of community
 
+    self.var keywords
+    -----------------
+    beta : list of floats
+        The beta lagrange multiplier
+    l2 : list of floats
+        The lambda2 lagrange multiplier
+    sigma : list of floats
+        The sigma lagrange multiplier
+
     Notes
     -----
     This is a discrete distribution.
@@ -3328,6 +3312,7 @@ class nu(Distribution):
         self.params = kwargs
         self.par_num = 2
         self.min_supp = 1
+        self.var = {}
 
     @doc_inherit
     def pmf(self, e):
@@ -3353,10 +3338,9 @@ class nu(Distribution):
         flmax = sys.float_info[0]
 
         pmf = []
-        var = {}
-        var['beta'] = []
-        var['l2'] = []
-        var['sigma'] = []
+        self.var['beta'] = []
+        self.var['l2'] = []
+        self.var['sigma'] = []
 
         for tn_samp, ttot_obs, tE, te in zip(n_samp, tot_obs, E, e):
             k = np.linspace(1, ttot_obs, num=ttot_obs)
@@ -3380,11 +3364,11 @@ class nu(Distribution):
                     np.exp(-tsigma / (tl2 * (te - 1)))) / (1 / (te - 1))
 
             pmf.append(tpmf)
-            var['beta'].append(tbeta)
-            var['l2'].append(tl2)
-            var['sigma'].append(tsigma)
+            self.var['beta'].append(tbeta)
+            self.var['l2'].append(tl2)
+            self.var['sigma'].append(tsigma)
 
-        return pmf, var
+        return pmf
     
     @doc_inherit
     def cdf(self, e):
@@ -3406,7 +3390,7 @@ class nu(Distribution):
             self.params['n_samp'] = tn_samp
             self.params['tot_obs'] = ttot_obs
             self.params['E'] = tE
-            acpt_pmf = self.pmf(e_vals)[0][0]
+            acpt_pmf = self.pmf(e_vals)[0]
 
             list_bools = [tpe >= e_vals for tpe in te]
 
@@ -3428,7 +3412,7 @@ class nu(Distribution):
         self.params['E'] = E
 
         # Just Returning none for now, going to be removing the returns later
-        return cdf, None
+        return cdf
 
     def rad(self):
         '''

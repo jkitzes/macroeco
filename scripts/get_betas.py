@@ -76,7 +76,8 @@ if __name__ == '__main__':
             lgsr = logser_ut(tot_obs=n_s['n'], n_samp=n_s['s'])
         else:
             lgsr = logser_ut_appx(tot_obs=n_s['n'], n_samp=n_s['s'])
-        betas = -np.log(np.array(lgsr.pmf(1)[1]['x']))
+        lgsr.pmf(1)
+        betas = -np.log(np.array(lgsr.var['x']))
         n_s_new = np.array(zip(n_s['s'], n_s['n'], betas), dtype=[('S',
                                np.float), ('N', np.float), ('beta', np.float)])
         output_form(n_s_new, output_ID + '_betas')
