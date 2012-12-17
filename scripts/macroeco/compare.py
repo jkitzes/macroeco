@@ -1377,7 +1377,7 @@ def mean_squared_error(obs, pred):
     
     Parameters
     ----------
-    obs : lis of array-like objects
+    obs : array-like object
         The observed data
     pred : array-like object
         The predicted data

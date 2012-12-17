@@ -966,7 +966,7 @@ class logser_ut_appx(Distribution):
     @doc_inherit
     def pmf(self, n):
         
-        # Multiple roots.  root = 2 makes it a logseries
+        # Multiple roots. root = 2 makes it a logseries
         root = 2
 
         # Get parameters
@@ -980,7 +980,7 @@ class logser_ut_appx(Distribution):
         start = 0.3
         stop = 1 - 1e-10
         eq = lambda x, n_samp, tot_obs: (((-m.log(x))*(m.log(-1/(m.log(x))))) - 
-                                                                (float(n_samp)/tot_obs))
+                                                       (float(n_samp)/tot_obs))
         pmf = []
         self.var['x'] = []
 
@@ -1182,8 +1182,8 @@ class plognorm(Distribution):
             temp_mu.append(mu)
             temp_sigma.append(sigma)
 
-        self.params['mu'] = temp_mu
-        self.params['sigma'] = temp_sigma
+        self.params['mu'] = np.array(temp_mu)
+        self.params['sigma'] = np.array(temp_sigma)
 
         return self
 
@@ -1373,7 +1373,7 @@ class lognorm(Distribution):
                         np.array([np.std(np.log(tdata), ddof=1)]), disp=0)[0]
             tempsig.append(mle_sigma)
 
-        self.params['sigma'] = tempsig
+        self.params['sigma'] = np.array(tempsig)
         self.params['n_samp'] = n_samp
         self.params['tot_obs'] = tot_obs
         return self
@@ -1492,7 +1492,7 @@ class geo_ser(Distribution):
                                  % (self.__class__.__name__) + 
                                  "%.2f and n_samp = %.2f" % (ttot_obs, tn_samp))
             self.params['k'].append(tk)
-
+        self.params['k'] = np.array(self.params['k'])
         return self
 
 
@@ -1925,7 +1925,7 @@ class nbd(Distribution):
             mlek = scipy.optimize.fmin(nll_nb, np.array([guess_for_k]), 
                                                                     disp=0)[0]
             tempk.append(mlek)
-        self.params['k'] = tempk
+        self.params['k'] = np.array(tempk)
         self.params['n_samp'] = n_samp
         self.params['tot_obs'] = tot_obs
         return self
@@ -2125,11 +2125,10 @@ class fnbd(Distribution):
                 self.params['k'] = k
                 return -sum(np.log(self.pmf(tdata)[0]))
             
-            #mlek = scipy.optimize.fmin(
             mlek = scipy.optimize.brute(nll_nb, ((1e-10, upper_bnd),))
-            tempk.append(mlek)
+            tempk.append(mlek[0])
 
-        self.params['k'] = tempk
+        self.params['k'] = np.array(tempk)
         self.params['n_samp'] = n_samp
         self.params['tot_obs'] = tot_obs
         return self
