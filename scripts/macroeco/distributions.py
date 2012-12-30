@@ -1443,7 +1443,7 @@ class geo_ser(Distribution):
         #eq = lambda x, n_samp, k: (-1 / n_samp) * (1 / x) * (1 / np.log(1 - k))
         for tn_samp, ttot_obs, tk, tn in zip(n_samp, tot_obs, k, n):
             c = 1 / np.log(ttot_obs)
-            sumg = sum( c / np.arange(1,ttot_obs + 1))
+            sumg = sum( c / np.arange(1, np.floor(ttot_obs) + 1))
             tpmf = (c / tn) / sumg # normalize
             pmf.append(tpmf)
 
@@ -1528,7 +1528,7 @@ class broken_stick(Distribution):
     @doc_inherit
     def pmf(self, n):
         # TODO:  PMF is not quite summing to one. But it is checking against
-        # known results. See test_distributions 
+        # known results. See test_distributions. 
         
         # Get parameters
         n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
@@ -1542,7 +1542,7 @@ class broken_stick(Distribution):
         pmf = []
         for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
             ttot_obs = np.round(ttot_obs, decimals=0)
-            #sumg = sum(eq(np.arange(1, ttot_obs + 1), tn_samp, ttot_obs))
+            #sumg = sum(eq(np.arange(1, np.floor(ttot_obs) + 1), tn_samp, ttot_obs))
             tpmf = eq(tn, tn_samp, ttot_obs) #/ sumg # Normalizing
             pmf.append(tpmf)
 
@@ -2835,7 +2835,7 @@ class gen_sar(Curve):
         if use_rad:
             rad = self.sad.rad()[0]
         else:
-            sad = self.sad.pmf(np.arange(1, N + 1))[0]
+            sad = self.sad.pmf(np.arange(1, np.floor(N) + 1))[0]
         ssad = self.ssad
         sar = []
 
@@ -2900,7 +2900,6 @@ class gen_sar(Curve):
                 ssad.params['n_samp'] = np.repeat(1 / a,
                                                    len(ssad.params['tot_obs']))
                 p_pres_list = [1 - absnt[0] for absnt in ssad.pmf(0)]
-
                 if use_rad:
                     sar.append(sum(np.array(p_pres_list)))
                 else:
