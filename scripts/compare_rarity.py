@@ -137,7 +137,7 @@ if __name__ == '__main__':
         fout.write(explanation)
     os.chdir(cwd)
 
-    logging.info("Completed 'compare_rarity.py' script")
+    logging.info("Completed 'compare_rarity.py' analysis")
 
 
 

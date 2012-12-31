@@ -49,8 +49,8 @@ explanation = '''
 ANALYSIS EXPLANATION\n
 The compare_energy analysis allows you to compare observed energy metrics
 against predicted energy metrics. There are three energy metrics that this
-script can compare: individual energy distributions (IED), species-level energy
-distributions (SED), and average species energy distribution (ASED).  The IED
+analysis can compare: individual energy distributions (IED), species-level energy
+distributions (SED), and average species energy distributions (ASED).  The IED
 is a distribution of the energy of each individual within a community.  The
 energy of each individual can be calculated from the biomass using the 3/4
 allometric scaling law.  Other proxies for energy, such as leaf surface area,
@@ -60,7 +60,7 @@ empirical IED is divided by the smallest empirical energy value. An example of
 and IED distribution is the 'psi' distribution given in Harte (2011).
 
 The SED is a distribution of the energy of each individual within a species.
-For example, a community with 30 speices would have 30 SED's, one for each
+For example, a community with 30 species would have 30 SED's, one for each
 species.  The entire community's energy distribution is normalized in the exact
 same way as the IED and then individuals are placed into their respective
 species and the SED's are generated. For more information on energy
@@ -87,7 +87,7 @@ predicted_SED_distributions, predicted_IED_distributions, and/or
 predicted_ASED_distributions. These files are output as .png files. For each
 plot, a corresponding csv file with the same name as the plot except with a
 .csv extension is output containing the data used to make the plot. For all SED
-plots, the species name specified in the plot title.  For all of the IED and
+plots, the species name is specified in the plot title.  For all of the IED and
 ASED plots, the criteria used to make plot is printed on the right hand side of
 the plot. 
 
@@ -208,5 +208,5 @@ if __name__ == '__main__':
         fout.write(explanation)
     os.chdir(cwd)
 
-    logging.info("Completed 'compare_energy.py' script")
+    logging.info("Completed 'compare_energy.py' analysis")
 

@@ -126,7 +126,7 @@ class CompareDistribution(object):
     def compare_mse(self, mse_base='cdf'):
         '''
         This function compares the mean squared error (mse) for each distribution
-        against the observed data, self.observed_data.  Perfet predicted data
+        against the observed data, self.observed_data.  Perfect predicted data
         would yield a mse of 0.  The lower the mse the better the predicted
         values fit the data. If mse_base='cdf' the mse is calculated from the
         cdf. If mse_base='rad', the mse is calculated from the rank_abundance
@@ -150,7 +150,7 @@ class CompareDistribution(object):
 
         Notes
         -----
-        Calculating the mse from the cdf is the least bias approximator
+        Calculating the mse from the cdf is the least bias approximater
 
         '''
         if mse_base == 'cdf':
@@ -227,7 +227,7 @@ class CompareDistribution(object):
         Compare AIC weights, delta_AIC, and AIC values across the different 
         models. Output is a three item tuple where each item is a list of 
         arrays with each array having length equal to the number of models 
-        proposed and the length of the list is the lenth of self.observed_datas.
+        proposed and the length of the list is the length of self.observed_data.
         See Returns for tuple description.
         
         Parameters
@@ -241,7 +241,7 @@ class CompareDistribution(object):
         : tuple
             The first element is a list of arrays with each array having length
             equal to the number of models proposed and the length of the list
-            is the length of self.observed_datas. The first element contains
+            is the length of self.observed_data. The first element contains
             the AIC weights. The second element is the delta AIC values in the
             same format as the first tuple object. The third object are the AIC
             values in the same format as the output of the compare_aic method. 
@@ -344,7 +344,7 @@ class CompareDistribution(object):
             A dictionary with keywords 'null_model, alternative model.' Each
             keyword references a list of length len(self.observed_data) which
             contains tuples that contain the output of the function
-            likelihood_rati (chisquared, p-value).  The LRT is performed on
+            likelihood_ratio (chisquared, p-value).  The LRT is performed on
             each data set in self.observed_data for each given model pair.
 
         '''
@@ -371,13 +371,12 @@ class CompareDistribution(object):
 
     def compare_rarity(self, mins_list):
         '''
-        This script takes in the output from self.compare_rads and a list of
+        This method takes in the output from self.compare_rads and a list of
         minimum values against which to compare the observed and predicted
-        rads.
-        and outputs a dictionary with length self.dist_list + 1 (all
+        rads.  and outputs a dictionary with length self.dist_list + 1 (all
         distributions + observed).  Each keyword in this dict looks up a dict
         of len(mins_list) where the keywords are the values against which the
-        rads will be <=.  Each one of these subdictionaries looks up a list
+        rads will be <=.  Each one of these sub-dictionaries looks up a list
         with len(self.observed_data).
 
         Parameters
@@ -392,7 +391,7 @@ class CompareDistribution(object):
             Returns a dictionary with length self.dist_list + 1 (all
         distributions + observed).  Each keyword in this dict looks up a dict
         of len(mins_list) where the keywords are the values against which the
-        rads will be <=.  Each one of these subdictionaries looks up a list
+        rads will be <=.  Each one of these sub-dictionaries looks up a list
         with len(self.observed_data).
 
 
@@ -455,7 +454,7 @@ class CompareDistribution(object):
         Summarizes the given datasets and the predicted rads. Looks at
         total balls sampled ('balls'), number of urns ('urns'), the max balls
         in a given urn ('max'), number of urns with less than MIN balls ('tot
-        <= MIN'), and the fit of the the distributions in self.dist_list to the
+        <= MIN'), and the fit of the distributions in self.dist_list to the
         data in self.observed_data
 
         Parameters
@@ -531,9 +530,9 @@ class CompareSAD(CompareDistribution):
         corresponding SAD in self.observed_data.  The length of self.sad_spp_list
         should be the same length as self.observed_data and the length of any array
         within self.sad_spp_list should be the same length the corresponding array
-        in self.observed_data. The indice of any species name within any array
+        in self.observed_data. The index of any species name within any array
         within self.sad_spp_list references the species count with the same
-        indice in self.observed_data.
+        index in self.observed_data.
 
     '''
     
@@ -548,7 +547,7 @@ class CompareSAD(CompareDistribution):
             a distribution object. If they are strings, they will be evaled 
         patch : bool
             If True, expects the output from the Patch.sad method and if False, 
-            expects a list of iterables. Persumably, each iterable is an SAD.
+            expects a list of iterables. Presumably, each iterable is an SAD.
         '''
         if patch == True:
             self.criteria, sad_data, self.sad_spp_list = unpack(data_list)
@@ -592,7 +591,7 @@ class CompareSSAD(CompareDistribution):
             a distribution object. If they are strings, they will be evaled 
         patch : bool
             If True, expects the output from the Patch.sad method and if False, 
-            expects a list of iterables. Persumably, each iterable is an SSAD.
+            expects a list of iterables. Presumably, each iterable is an SSAD.
         '''
         if patch == True:
 
@@ -625,9 +624,9 @@ class CompareIED(CompareDistribution):
         corresponding SAD in self.sad_list.  The length of self.sad_spp_list
         should be the same length as self.sad_list and the length of any array
         within self.sad_spp_list should be the same length the corresponding array
-        in self.sad_list. The indice of any species name within any array
+        in self.sad_list. The index of any species name within any array
         within self.sad_spp_list references the species count with the same
-        indice in self.sad_list.
+        index in self.sad_list.
     self.criteria : a list of dictionaries or None
         If not None, each dictionary specifies the divisions made on the plot
         that generated each SAD and IED in self.sad_list and self.ied_list.
@@ -839,9 +838,9 @@ class CompareASED(CompareDistribution):
         corresponding SAD in self.sad_list.  The length of self.sad_spp_list
         should be the same length as self.sad_list and the length of any array
         within self.sad_spp_list should be the same length the corresponding array
-        in self.sad_list. The indice of any species name within any array
+        in self.sad_list. The index of any species name within any array
         within self.sad_spp_list references the species count with the same
-        indice in self.sad_list.
+        index in self.sad_list.
     self.criteria : a list of dictionaries or None
         If not None, each dictionary specifies the divisions made on the plot
         that generated each SAD and IED in self.sad_list and self.ied_list.
@@ -1072,7 +1071,7 @@ def aic(neg_L, k, loglik=True):
     ----------
     neg_L : array-like object
         The negative log likelihood of the models or a list of pdfs/pmfs,
-        depedning on nll
+        depending on nll
     k : array-like object
         The number of parameters of the model
     loglik : bool
@@ -1113,7 +1112,7 @@ def aicc(neg_L, k, n=None, loglik=True):
 
     Returns
     -------
-    : nparray
+    : np.array
         AICc for a given models
 
     '''
@@ -1194,7 +1193,7 @@ def likelihood_ratio(nll_null, nll_alt, df_list):
     nll_alt : array-like object
         The negative log-likelihood of the alternative model
     df_list : array-like object
-        the degrees of freedom calulated as (number of free parameters in
+        the degrees of freedom calculated as (number of free parameters in
         alternative model) - (number of free parameters in null model)
     
     Returns
@@ -1331,8 +1330,8 @@ def bootstrap_moment(data1, data2, moment, CI=.95, num_samp=1000):
     
     Notes
     -----
-    This test is still in the works. Persumably if the confidence doesn't
-    contain zero you can say the two higher moments are signficantly different.
+    This test is still in the works. Presumably if the confidence doesn't
+    contain zero you can say the two higher moments are significantly different.
     However, more unit testing and investigation needs to be done.
 
     '''
@@ -1372,7 +1371,7 @@ def bootstrap_moment(data1, data2, moment, CI=.95, num_samp=1000):
 
 def mean_squared_error(obs, pred):
     '''
-    Calculates the mean sqaured error between observed and predicted data sets.
+    Calculates the mean squared error between observed and predicted data sets.
     The data sets must be of the same length
     
     Parameters
@@ -1432,7 +1431,7 @@ def make_dist_list(dist_list):
                 ret_dist_list[i] = eval(dist_obj + '()')
             except:
                 # Do this if passing in a gen_sar sad and ssad
-                # Assumes the sad and ssad are seperated by '-'
+                # Assumes the sad and ssad are separated by '-'
                 try:
                     sad, ssad = tuple(dist_obj.split('-'))
                     if sad.find('(') != 1 and sad.find(')') != -1:

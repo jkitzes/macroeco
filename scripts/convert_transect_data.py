@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-'''This script will allow users to convert transect data into the columnar
+'''This format type will allow users to convert transect data into the columnar
 form'''
 
 __author__ = "Mark Wilber"
@@ -20,7 +20,7 @@ summary = '''Converts and formats transect data'''
 
 information_about_stops = '''\n
 
-A Transect Data specific parameter. Specifies the where the stop columns begin
+A Transect Data specific parameter. Specifies where the stop columns begin
 in the data, how many stop columns the data set contains, and the desired name
 of the stop column in the formatted data. See explanation for description of
 stops.
@@ -29,8 +29,8 @@ Example Input:
 
 1.  (3, 3, 'stop')
 
-Specifies that the stop columns begins in the thirds column and that there are
-three stops total.  In additional, specifyies that the stop column should be
+Specifies that the stop columns begins in the third column and that there are
+three stops total.  In addition, specifies that the stop column should be
 called 'stop' in the formatted data
 
 2. ([4, 5], [12, 34], 'pit')
@@ -58,7 +58,7 @@ Replaces all '' (blank data) with 0
 
 2. ('0', 'NA')
 
-Replaces all 0 with NA. Quotes are required around the item in the
+Replaces all 0 with NA. Quotes are required around the items in the
 parentheses. '''
 
 explanation = '''
@@ -171,7 +171,7 @@ if __name__ == '__main__':
 
             
 
-    logging.info("Completed 'convert_transect_data.py' script")
+    logging.info("Completed 'convert_transect_data.py' format type")
 
 
         

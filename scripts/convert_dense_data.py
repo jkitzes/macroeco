@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-'''This script will allow users to convert gridded data into the columnar
+'''This format type will allow users to convert gridded data into the columnar
 form'''
 
 __author__ = "Mark Wilber"
@@ -164,7 +164,7 @@ if __name__ == '__main__':
             for out in [ot + '_dense_to_columnar' for ot in output_IDs]:
                 logging.info('Saving columnar data as %s' % out)
 
-    logging.info("Completed 'convert_dense_data.py' script")
+    logging.info("Completed 'convert_dense_data.py' format type")
 
 
 

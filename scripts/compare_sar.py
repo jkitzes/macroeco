@@ -66,7 +66,7 @@ used macroecological metric which examines the number of species found in a
 given area. All SAR curves show increasing species with increasing area, but
 shape of this increasing curve differs depending on the theory used to derive
 it. It is common practice to examine SAR plots on a log-log scale because the
-curve often becomes close to a straight line. Using this script, you can
+curve often becomes close to a straight line. Using this analysis, you can
 generate the observed SARs for any nested plots within your data.  For example,
 if you had a fully censused plot with spatial coordinates x,y and you wanted to
 examine an SAR looking at the anchor area (A), 1/2 * A, 1/4 * A, and 1/8 * A,
@@ -205,7 +205,7 @@ if __name__ == '__main__':
         fout.write(explanation)
     os.chdir(cwd)
 
-    logging.info("Completed 'compare_sar' script")
+    logging.info("Completed 'compare_sar' analysis")
 
 
 

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-'''This script will allow users to convert gridded data into the columnar
+'''This format type will allow users to convert gridded data into the columnar
 form'''
 
 __author__ = "Mark Wilber"
@@ -21,7 +21,7 @@ summary = '''Converts and formats grid data'''
 # Grid parameter descriptions
 truncation_symbols = '''\n
 
-Truncate the grid at and after the first occurence of a given symbol.
+Truncate the grid at and after the first occurrence of a given symbol.
 
 Example input:
 
@@ -47,7 +47,7 @@ Remove the string 'species1' and replace it with the string 'GYSPHY'
 Remove the string 'missing' and replace with nothing. Remove all 'f' and
 replace with 't'.
 
-The parantheses, brackets, and quotation marks are required.'''
+The parentheses, brackets, and quotation marks are required.'''
 
 char_btwn_species_and_count = '''\n
 
@@ -165,7 +165,7 @@ if __name__ == '__main__':
 
         grid_data = form.Grid_Data(data_paths, archival=False)
         
-        # Allowing user to truncated grid cells.  They can do it multple times.
+        # Allowing user to truncated grid cells.  They can do it multiple times.
         grid_data.truncate_grid_cells(params['truncation_symbols'])
 
         #  User can remove and replace multiple things.  This should be a list
@@ -213,7 +213,7 @@ if __name__ == '__main__':
             for out in [ot + '_grid_to_columnar' for ot in output_IDs]:
                 logging.info('Saving columnar data as %s' % out)
 
-    logging.info("Completed 'convert_grid_data.py' script")
+    logging.info("Completed 'convert_grid_data.py' format type")
         
 
 

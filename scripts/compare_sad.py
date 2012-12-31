@@ -150,7 +150,7 @@ if __name__ == '__main__':
         fout.write(explanation)
     os.chdir(cwd)
 
-    logging.info("Completed 'compare_sad.py' script")
+    logging.info("Completed 'compare_sad.py' analysis")
 
 
 

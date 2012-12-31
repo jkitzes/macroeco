@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-'''This script will allow users to convert columnar data into a new form of
+'''This format type will allow users to convert columnar data into a new form of
 columnar data'''
 
 __author__ = "Mark Wilber"
@@ -117,6 +117,6 @@ if __name__ == '__main__':
             columnar_obj.output_columnar_data([output_ID +
                         '_formatted_columnar' for output_ID in output_IDs])
 
-    logging.info("Completed 'convert_columnar_data.py' script")
+    logging.info("Completed 'convert_columnar_data.py' format type")
 
 

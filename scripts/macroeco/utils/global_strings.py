@@ -57,7 +57,10 @@ SAD_distributions = '''\n
 'plognorm_lt' : Poisson lognormal distribution with 0 truncated;
 'nbd_lt' : Negative binomial distribution with 0 truncated;
 'geo_ser' : Geometric series distribution;
-'broken_stick' : McArthur's broken stick distribution '''
+'broken_stick' : McArthur's broken stick distribution
+'most_even' : The most even SAD
+'most_uneven' : The most uneven SAD
+'sugihara' : Sugihara's multi-dimensional breakage model.'''
 
 SSAD_distributions = '''\n 
 'binm' : Binomial distribution;
@@ -66,7 +69,7 @@ SSAD_distributions = '''\n
 'fnbd' : Finite-negative binomial distribution;
 'geo' : Geometric distribution;
 'fgeo' : Finite-geometric distribution;
-'tgeo' : Truncated geometric distrbituion derived from MaxEnt'''
+'tgeo' : Truncated geometric distribution derived from MaxEnt'''
 
 short_subset = '''\nSpecifications for how you want to subset your data before the
 analysis. Note that only the subsetted data will be included in the analysis.
@@ -83,7 +86,7 @@ detail and examples.'''
 
 optional = ''' Optional parameter. Default value:  '''
 
-req = '''Required parameter. '''
+req = ''' Required parameter.'''
 
 #### Formatting strings #### 
 
@@ -91,7 +94,7 @@ explanation_string = '''This formatting script loads {0} datasets and
 reformats them into columnar data using the parameters that you specify below.
 We define columnar data as a dataset that has distinct column headers and has
 rows that describe the attributes of a single entity (often a species).  For
-example, a row could describe the location spatial location of a species, the
+example, a row could describe the spatial location of a species, the
 total number of individuals of that species at that spatial location,
 attributes about that location, the date the species was censuses, etc. All of
 these atttributes are specified by the column headers. Please see the website
@@ -140,7 +143,7 @@ Example input:
 
 1. {'count' : 'NA', 'year' : ''}
 
-This input says that a the data column 'count' has missing values 'NA' and the
+This input says that the data column 'count' has missing values 'NA' and the
 data column 'year' has missing values '' (blank). The brackets and semicolons
 are required for this parameter'''
 
@@ -220,15 +223,15 @@ Example input:
 
 Adds the column 'year' and 'name' to all datasets.  In this example, there are
 three data sets and the values of 'year' for the first, second, and third
-dataset are set to 1998, 1999, and 2000, respectively.  Simiarly, the values of
+dataset are set to 1998, 1999, and 2000, respectively.  Similarly, the values of
 column 'name' for the first, second, and third dataset are set to 'Fred',
 'George', and 'Ron', respectively. The length of values to be assigned (i.e.
-(1998, 1999, 2000)) MUST equal the number of datasets. All brackets and
+(1998, 1999, 2000)) must equal the number of datasets or be one. All brackets and
 punctuation must be included
 
-2. {'year' : (1998,)}
+2. {'year' : 1998}
 
-Adds the columns 'year' with a value of 1998 to the one and only dataset being
+Adds the columns 'year' with a value of 1998 to all datasets being
 considered.
 
 '''

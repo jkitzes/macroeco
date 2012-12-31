@@ -151,10 +151,10 @@ class DistributionOutput(object):
         ---------
         smry : tuple
             A tuple of length two in which the first object is a dictionary as
-            returned by the fucntion compare_summary within the 
+            returned by the function compare_summary within the 
             CompareDistribution class.  The second object is  dictionary with
             the keyword 'mins' that refers to the abundance that the 'tot_min'
-            keyword is less than OR equal to. If mins = 1, tot_min desribes the
+            keyword is less than OR equal to. If mins = 1, tot_min describes the
             number of items with counts <= 1. 
 
         criteria : array-like object
@@ -722,7 +722,7 @@ class IEDOutput(object):
             #Plot all data in a single rec array
             plot_rec_columns(data)
 
-            # Make appropirate title for figure
+            # Make appropriate title for figure
             if criteria != None:
                 plt.title('Rank Energy Distribution')
                 plt.figtext(.97, .5, 'Criteria for plot: ' + str(criteria[i]), 
@@ -932,6 +932,10 @@ def make_rec_from_dict(dist_dict, num, species=None, dt=np.float, add_rank=True)
         If not None, species should be a list of iterables that is the same
         length as the list of iterables in any keyword in dist_dict.
 
+    Returns
+    -------
+    : structured array
+
     '''
     
     # Check that species has the appropriate length
@@ -965,7 +969,7 @@ def make_rec_from_dict(dist_dict, num, species=None, dt=np.float, add_rank=True)
 
 def sort_rank_abund(abund_list, spp_list):
     '''
-    Sorts and returns two lists based on abundannce
+    Sorts and returns two lists based on abundance
     
     Parameters
     ----------
