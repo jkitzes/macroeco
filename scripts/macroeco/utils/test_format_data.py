@@ -76,7 +76,7 @@ t,Garry,2,0,1,2,0,5,u,456''')
         self.trans1.close()
         
         self.col1 = open('col1.csv', 'w')
-        self.col1.write('''spp, x, y, dbh1, dbh2, john
+        self.col1.write('''SPP, x, y, dBh1, dbH%2, john
 l,1,1,34,38,g
 y,2,1,100,10,g
 h,1,2,1,1,g
@@ -84,7 +84,7 @@ y,2,2,300,2,f''')
         self.col1.close()
 
         self.col2 = open('col2.csv', 'w')
-        self.col2.write('''spp, x, y, dbh1, dbh2, john
+        self.col2.write('''sp+P, x, y, dbh1, dbh2, joH%n
 l,1,,34,38,g
 y,2,1,100,10,g
 h,,2,1,1,NA
@@ -328,7 +328,7 @@ y,2,1,300,2,f''')
 
         # No missing values; Test subsetting
         col = form.Columnar_Data('col1.csv')
-        col.subset_data({'john' : ('!=', 'f')})
+        col.subset_data({'JOHN' : ('!=', 'f')})
         self.assertTrue(np.all(col.columnar_data[0]['john'] == np.array(['g',
                                                                    'g', 'g'])))
         # Test reset
@@ -337,7 +337,7 @@ y,2,1,300,2,f''')
         self.assertTrue(np.all(col.columnar_data[0]['john'] == check))
 
         # Test splitting
-        col.split_up_data_by_field([('dbh1',), ('dbh2',)])
+        col.split_up_data_by_field([('D&Bh1',), ('dbh2',)])
         self.assertTrue(len(col.columnar_data) == 2)
         dbh1 = np.array([34,100,1,300])
         dbh2 = np.array([38,10,1,2])
@@ -470,8 +470,6 @@ y,2,1,300,2,f''')
         # Try to break merge data
         col.columnar_data = [col.merged_data]
         col.merge_data()
-
-
 
 if __name__ == '__main__':
     unittest.main() 

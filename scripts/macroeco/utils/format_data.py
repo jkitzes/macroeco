@@ -53,7 +53,8 @@ class Columnar_Data:
         missingd : dict
             Dictionary mapping munged column names to field values which 
             signify that the field does not contain actual data and should be
-            masked, e.g. '0000-00-00' or 'unused'
+            masked, e.g. '0000-00-00' or 'unused'.  The missing value must be
+            represented as a string.
         
         delete_missing : bool
             If True, deletes all of the missing values. If False, only deletes
@@ -151,8 +152,12 @@ class Columnar_Data:
             save analysis time.  Subsetting on a string would look something
             like {'name' : [('==', 'John'), ('==', 'Harry')]}
         '''
+        
 
         if subset != {}:
+            # Format column names
+            subset = ff.format_dict_names(subset)
+
             sub_data = []
             for data in self.columnar_data:
                 valid = np.ones(len(data), dtype=bool)
@@ -208,6 +213,10 @@ class Columnar_Data:
             # into a list of tuples
             split_columns = [(s,) if type(s) == str else tuple(s) for s in 
                                                                  split_columns]
+            
+            # Format the names in each tuple
+            split_columns = [tuple(ff.format_headers(nms)) for nms in
+                                                                 split_columns]
 
             split_data = []
             given_col_names = []
@@ -254,6 +263,9 @@ class Columnar_Data:
             # Convert to tuples if just received strings
             change = [(x,) if type(x) == str else tuple(x) for x in change]
 
+            # Format the names in each tuple
+            change = [tuple(ff.format_headers(nms)) for nms in change]
+
             for data in self.columnar_data:
                 column_names = np.array(data.dtype.names)
                 for i, name_tup in enumerate(change):
@@ -269,10 +281,9 @@ class Columnar_Data:
         
     def add_fields_to_data_list(self, fields_values=None, descr='S20'):
         '''
-        This functions adds given fields and values to the data list. The
-        length of values should be the same length as fields and the length of
-        each tuple within each element of values should be the same length as
-        the self.columnar_data
+        This functions adds given fields and values to the data list. If the
+        length of the value for a given keyword in one, it will be broadcast to
+        the length of self.columnar_data.  Else an error will be thrown.
 
         Parameters
         ----------
@@ -280,7 +291,6 @@ class Columnar_Data:
             dictionary with keyword being the the field name to be added and
             the value being a tuple with length self.columnar_data specifying
             the values to be added to each field in each data set.
-         descr : list of data types or single data type
         descr : a single data type or a dictionary
             A single value will be broadcast to appropriate length.  The
             dictionary must have the same keywords as fields_values and must be
@@ -303,10 +313,15 @@ class Columnar_Data:
         '''
         
         if col_names != None:
+
             if type(col_names) == str:
                 col_names = [col_names]
             else:
                 col_names = list(col_names)
+
+            # Format column names
+            col_names = ff.format_headers(col_names)
+
             removed_data = []
             for data in self.columnar_data:
                 removed_data.append(drop_fields(data, col_names))
@@ -381,8 +396,8 @@ class Columnar_Data:
             A list of filenames
 
         '''
-        assert len(filenames) == len(self.columnar_data), "Number of filenames\
-                                 must be the same as the number of datasets"
+        assert len(filenames) == len(self.columnar_data), "Number of " + \
+                         "filenames must be the same as the number of datasets"
         for i, name in enumerate(filenames):
             ff.output_form(self.columnar_data[i], name)
 
@@ -956,6 +971,7 @@ def replace_vals(filename, replace, delim=','):
         ind = np.bitwise_or(ind, isNone)
         data[nm][ind] = replace[1]
     return data
+
 
 
 

@@ -380,6 +380,9 @@ def fractionate(datayears, wid_len_new, step_new, col_names,
     This function should be used on columnar data
 
     '''
+
+    # format column names
+    col_names = format_headers(col_names)
     
     frct_array = []
     for data in datayears:
@@ -444,13 +447,19 @@ def add_data_fields(data_list, fields_values, descr='S20'):
         raise ValueError("Invalid type for descr")
 
     alt_data = []
+
     dlen = len(data_list)
     for i, data in enumerate(data_list):
         for name in list(fields_values.viewkeys()):
             data = add_field(data, [(name, descr[name])])
-            if len(fields_values[name]) != dlen:
-                raise IndexError('The length of %s in fields_values must be' %
-                            str(fields_values[name]) + ' must equal %i' % dlen)
+
+            try:
+                ind = len(fields_values[name]) != dlen
+                if ind: #broadcast
+                    fields_values[name] = broadcast(dlen, fields_values[name])
+            except TypeError:
+                # Broadcast fields_values.  Error is thrown if can't broadcast
+                fields_values[name] = broadcast(dlen, fields_values[name])
 
             data[name] = fields_values[name][i]
         alt_data.append(data)
@@ -564,7 +573,84 @@ def broadcast(length, item):
                                                     (str(item), str(length)))
     return item
 
-    
+def format_headers(headers):
+    ''' Uses same formatting code that csv2rec uses.  Converts the passed in
+    headers to the same format the csv2rec uses.
+
+    Parameters
+    ----------
+    headers : list
+        list of strings to be converted 
+
+    Return
+    ------
+    : list
+        converted strings
+
+    Notes
+    -----
+    See csv2rec documentation and code
+    '''
+
+    # convert header to list of strings
+    if type(headers) == str or type(headers) == int or type(headers) == float:
+        headers = [headers]
+    headers = [str(i) for i in headers]
+
+
+    itemd = {
+        'return' : 'return_',
+        'file' : 'file_',
+        'print' : 'print_',
+        }
+
+    # remove these chars
+    delete = set("""~!@#$%^&*()-=+~\|]}[{';: /?.>,<""")
+    delete.add('"')
+
+    names = []
+    seen = dict()
+    for i, item in enumerate(headers):
+        item = item.strip().lower().replace(' ', '_')
+        item = ''.join([c for c in item if c not in delete])
+        if not len(item):
+            item = 'column%d'%i
+
+        item = itemd.get(item, item)
+        cnt = seen.get(item, 0)
+        if cnt>0:
+            names.append(item + '_%d'%cnt)
+        else:
+            names.append(item)
+        seen[item] = cnt+1
+
+
+    return names
+
+def format_dict_names(old_dict):
+    '''
+    This function formats the names with the format_headers function and
+    returns a new dictionary with the formatted names. Both dictionaries
+    contain the same values
+
+    Parameters
+    ----------
+    old_dict : dict
+        Dictioary with old keywords that will be changed
+
+    Returns
+    -------
+    new_dict : dict
+        Dictionary with updated keywords
+
+    '''
+    new_dict = {}
+    oldkeys = sorted(old_dict)
+    newkeys = format_headers(oldkeys)
+    for i in xrange(len(oldkeys)):
+        new_dict[newkeys[i]] = old_dict[oldkeys[i]]
+
+    return new_dict
 
     
     
