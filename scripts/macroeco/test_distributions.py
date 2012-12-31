@@ -622,29 +622,29 @@ class TestDistributions(unittest.TestCase):
         EWsar_down = np.array([8.79, 12.37, 16.71, 21.81, 27.59, 34])
         #S = 23, N=3400, anchor_area=123, target_area=2000)
         EWsar_up = np.array([23, 26.47, 30.11, 33.92, 37.89, 42.01])
-        sar = mete_sar_iter(n_samp=34, tot_obs=1122).vals([(2 / 45.0)])
+        sar = mete_sar_iter(n_samp=34, tot_obs=1122).iter_vals([(2 / 45.0)])
         spp = np.round(sar['items'], decimals=2)
         error = 0.001 * spp
         diff = np.abs(spp - EWsar_down)
         self.assertTrue(np.all(diff <= error))
-        sar = mete_sar_iter(n_samp=23, tot_obs=3400).vals([2000 / 123.0])
+        sar = mete_sar_iter(n_samp=23, tot_obs=3400).iter_vals([2000 / 123.0])
         spp = np.round(sar['items'], decimals=2)
         error = 0.005 * spp
         diff = np.abs(spp - EWsar_up)
         self.assertTrue(np.all(diff <= error))
 
         # Check that Exception is raises if you downscale too far
-        self.assertRaises(Exception, mete_sar_iter(n_samp=12, tot_obs=100).vals
+        self.assertRaises(Exception, mete_sar_iter(n_samp=12, tot_obs=100).iter_vals
                                                 , downscale=8)
 
         # Check that the return has the correct length when a_list is None
-        sar = mete_sar_iter(n_samp=34, tot_obs=1000).vals(None, upscale=4
+        sar = mete_sar_iter(n_samp=34, tot_obs=1000).iter_vals(None, upscale=4
                                                                 , downscale=6)
         self.assertTrue(len(sar) == 11)
 
         # Check that only halving or doubling results are returned when 
         # non_iter=True
-        sar = mete_sar_iter(n_samp=34, tot_obs=1000).vals([1,2,.5,.25,5,.4],
+        sar = mete_sar_iter(n_samp=34, tot_obs=1000).iter_vals([1,2,.5,.25,5,.4],
                                                                  non_iter=True)
         self.assertTrue(len(sar) == 4) 
 
@@ -668,11 +668,11 @@ class TestDistributions(unittest.TestCase):
         # Test universal SAR curve values
         answ = []
         answ.append(mete_sar_iter(n_samp=100, tot_obs=1000).\
-                                                univ_curve(num_iter=0)['z'][0])
+                                                univ_curve(num_iter=0)[0]['z'][0])
         answ.append(mete_sar_iter(n_samp=100, tot_obs=5000).\
-                                                univ_curve(num_iter=0)['z'][0])
+                                                univ_curve(num_iter=0)[0]['z'][0])
         answ.append(mete_sar_iter(n_samp=10, tot_obs=200).\
-                                                univ_curve(num_iter=0)['z'][0])
+                                                univ_curve(num_iter=0)[0]['z'][0])
         answ = np.array(answ)
         #Using different methods to calculate so use error
         error = 0.05 * answ
@@ -682,6 +682,9 @@ class TestDistributions(unittest.TestCase):
         # Check correct errors thrown
         sar = mete_sar_iter(n_samp=45, tot_obs=5000)
         self.assertRaises(ValueError, sar.univ_curve, direction='hello')
+
+        # That vals method is not implemented
+        self.assertRaises(NotImplementedError, sar.vals, 4)
 
     def test_power_law(self):
 
@@ -719,7 +722,7 @@ class TestDistributions(unittest.TestCase):
         # Test that mete_sar_iter and mete_sar iterated return similar values.
         # They will be slightly different because approximations are used in
         # mete_sar_iter.
-        msi = mete_sar_iter(tot_obs=600, n_samp=40).vals([1,2,.8,.2,.1])
+        msi = mete_sar_iter(tot_obs=600, n_samp=40).iter_vals([1,2,.8,.2,.1])
         mete_sar = gen_sar(logser_ut(), tgeo(), tot_obs=600, n_samp=40)
         ms = mete_sar.iter_vals([1,2,.8,.2,.1])
         self.assertTrue(len(msi) == len(ms))

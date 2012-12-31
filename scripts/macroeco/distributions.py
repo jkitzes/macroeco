@@ -7,6 +7,8 @@ Distributions
 -------------
 
 SAD
+- `most_even` -- Most even distribution of balls into bins
+- `most_uneven` -- Most uneven distribution of balls into bins
 - `logser` -- Fisher's log series (Fisher et al. 1943) (ie, logarithmic)
 - `logser_ut` -- Upper-truncated log series (Harte 2011)
 - `geo_series' -- Geometric series distribution (Motomura 1932)
@@ -23,8 +25,7 @@ SAD
 SAR
 - `mete_sar_iter` - METE sar functions (Harte 2011)
 - `powerlaw` - Power law sar
-- `gen_sar` - A generic sar that supports any sad and ssad distribution.  Six
-  unique sars are derived classes from gen_sar.  More can be made.
+- `gen_sar` - A generic sar that supports any sad and ssad distribution. 
 
 SSAD
 - `binm` - Binomial distribution (Random Placement Model)
@@ -35,6 +36,12 @@ SSAD
 - `fgeo` - Finite geometric distribution (Zillio and He 2010)
 - `tgeo` - Truncated geometric distribution (Harte et al. 2008)
 
+Energy Distributions
+- `psi` -- The individual energy distribution described in Harte (2011)
+- `theta` -- The species energy distribution (SED) as described by Harte (2011).
+- `nu` -- The average species energy distribution (ASED) as described by Harte
+  (2011)
+
 Misc Functions
 --------------
 - `make_array` 
@@ -44,6 +51,9 @@ Misc Functions
 - `_upscale_sar_`
 - `_generate_areas_`
 - `expand_n`
+- `check_list_of_iterables`
+- `set_up_and_down`
+- `unpack`
 
 References
 ----------
@@ -204,32 +214,33 @@ class Curve(object):
         Parameters
         ----------
         num_iter : int
-            Number of halfings at which to calculate z.
+            Number of halvings at which to calculate z.
         direction : string
-            Either 'down' or 'up'.  The direction to iterate the sar.
+            Either 'down' or 'up'.  The direction to iterate the curve.
         param : string
             If not None, will look for the given string in the self.params
             dict and set multiplier to this value. If None, multiplier is one.
         iterative : bool
-            If False, uses the one-shot method calculate z via curve.vals.  If
-            iterative is true, uses the iterative method to calculate z via
+            If False, uses the one-shot method to calculate z via Curve.vals.
+            If iterative is True, uses the iterative method to calculate z via
             Curve.iter_vals.
         base : int
             Specifies whether you would like each iteration to double/half
             (base=2), triple/third (base=3), etc
         use_rad : bool
             If False, uses the sad pmf to calculate the SAR.  If True, uses the
-            sad rank abundance distribution to calculate the SAR.
+            sad rank abundance distribution to calculate the SAR. An SAR class
+            inherits curve.
 
         Returns
         -------
         : tuple
             the tuple contains two structured arrays.  The first structured
-            array an array with dtype = [('z', np.float), ('x_over_y',
+            array is an array with dtype = [('z', np.float), ('x_over_y',
             np.float)] that contains the slope and the quantity x * multiplier
-            / y. This array is teh universal curve.  The second array has dtype
+            / y. This array is the universal curve.  The second array has dtype
             = [('items', np.float), ('area', np.float)] where 'items' is often
-            equivalent ot species and 'area' is the area fraction.  This second
+            equivalent to species and 'area' is the area fraction.  This second
             array is the species/item area relationship that gives the
             universal curve specified in the first array in the tuple.
 
@@ -331,10 +342,12 @@ class Distribution(object):
         Number of free parameters of distribution, used for AIC calculations
     var : dict
         A dictionary of useful variables that are computed internally to
-        generate pmf or pdf. 
+        generate pmf, pdf, cdf, or rad. 
 
     Methods
     -------
+    pdf(n)
+        Probability density function
     pmf(n)
         Probability mass function
     cdf(n)
@@ -345,7 +358,7 @@ class Distribution(object):
         Uses data to populate params attribute
     '''
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         '''
         Initialize distribution object.
 
@@ -360,7 +373,8 @@ class Distribution(object):
 
         See class docstring for more specific information on this distribution.
         '''
-        # Initializes empty variable dictionary 
+        # Initializes self.var and self.params
+        self.params = kwargs
         self.var = {}
 
 
@@ -424,7 +438,7 @@ class Distribution(object):
         Returns
         -------
         cdf : list of ndarrays
-            List of 1D arrays of probability of observing sample n.
+            List of 1D arrays of cumulative probability of observing sample n.
 
         See class docstring for more specific information on this distribution.
         '''
@@ -513,7 +527,7 @@ class Distribution(object):
         # Check if distribution can support the fitted data
         num_zeros = np.array([sum(dt == 0) for dt in data])
         if np.any(num_zeros != 0) and self.min_supp == 1:
-            raise ValueError('%s does not suppot data with zeros' %
+            raise ValueError('%s does not support data with zeros' %
                                                     self.__class__.__name__)
 
         n_samp = []
@@ -627,7 +641,7 @@ class most_even(Distribution):
 
         for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
             
-            # The mean needs to be a descrete value
+            # The mean needs to be a discrete value
             tmean = np.round(ttot_obs / tn_samp, decimals=0)
             tpmf = np.array([0 if k != tmean else 1 for k in tn])
             pmf.append(tpmf)
@@ -716,8 +730,6 @@ class most_uneven(Distribution):
             rad.append(trad)
 
         return rad
-
-    
 
 class logser(Distribution):
     __doc__ = Distribution.__doc__ + \
@@ -938,19 +950,19 @@ class logser_ut_appx(Distribution):
     Notes:
     ------
     This distribution is the truncated logseries described in Eq 7.32 of Harte 
-    2011. Eq. 7.30, the approximte equation, is used to solve for the Lagrange 
-    multiplier. This class is faster than the logser with no approximation.
+    2011. Eq. 7.30, the approximate equation, is used to solve for the Lagrange 
+    multiplier. This class is faster than the logser_ut with no approximation.
 
     Realistic values of x where x = e**(-beta) are in the range (1/e, 1). The 
     start and stop parameters for the brentq procedure are set close to these 
     values. However, x can occasionally be greater than one, so the maximum 
     stop value of the brentq optimizer is 2.
 
-    The pmf method has an additional optional keyword argument 'roots'. In the 
+    The pmf method has an internal value named root. In the 
     approximation equation, there are two roots (solutions) in the solution for 
     the lagrange multiplier.  Root 2 is the root typically used in calculations 
     and is the default.  If root=1, the first root will be used and this is not 
-    a true pmf.
+    a true pmf. Root can only be changes within the code.
 
     The total species (S) is equivalent to n_samp and the total
     individuals (N) is equivalent to tot_obs.
@@ -1300,7 +1312,16 @@ class lognorm(Distribution):
 
     self.var keywords
     -----------------
-    None
+    mu : list of floats
+        The mu parameter of the lognormal calculated with
+        np.log(tot_obs / n_samp) - (sigma**2 / 2).
+
+
+    Notes
+    -----
+    Currently, lognormal is implemented so that mu is calculated using tot_obs,
+    n_samp, and sigma.  While, mu can be passed in as a keyword argument, this
+    mu will be ignored. 
         
     '''
     
@@ -1323,6 +1344,7 @@ class lognorm(Distribution):
         
         # Calculate mu
         mu = np.log(tot_obs / n_samp) - (sigma**2 / 2)
+        self.var['mu'] = mu
 
         # Calculate pmf
         pmf = []
@@ -1343,6 +1365,7 @@ class lognorm(Distribution):
 
         # Calculate mu
         mu = np.log(tot_obs / n_samp) - (sigma**2 / 2)
+        self.var['mu'] = mu
 
         #Calculate cdf
         cdf = []
@@ -2353,7 +2376,7 @@ class mete_sar_iter(Curve):
     '''
     Description
     -----------
-    This class explores the METE generated SAR
+    Computes values for the approximated METE generated SAR iteratively.
 
     Parameters
     ----------
@@ -2364,7 +2387,9 @@ class mete_sar_iter(Curve):
 
     Notes
     -----
-    This class uses method 1 in Harte (2011) to calculate the SAR
+    This class uses method 1 in Harte (2011) to calculate the SAR.  It is much
+    faster than the equivalent object gen_sar(logser_ut, tgeo) because of the
+    approximations used. 
     
     '''
     
@@ -2372,7 +2397,14 @@ class mete_sar_iter(Curve):
     def __init__(self, **kwargs):
         self.params = kwargs
 
-    def vals(self, a_list=None, upscale=0, downscale=0, non_iter=False,
+    def vals(*args, **kwargs):
+        '''
+        Vals is not implemented for mete_sar_iter
+        '''
+        raise NotImplementedError("'vals' method not implemented for class" + 
+                                  " 'mete_sar_iter'")
+
+    def iter_vals(self, a_list=None, upscale=0, downscale=0, non_iter=False,
                                                                      **kwargs):
         '''
         Predict the universal SAR curve for the given S and N found at 
@@ -2403,7 +2435,7 @@ class mete_sar_iter(Curve):
         With this method of the METE SAR, one cannot calculate the SAR at exact
         areas.  Rather this method iterates up and down by powers of 2.
         Therefore, the output of this function will contain all the SAR
-        calcutions in between ~min(a_list) ~max(a_list).
+        calculations in between ~min(a_list) ~max(a_list).
 
 
         '''
@@ -2443,62 +2475,12 @@ class mete_sar_iter(Curve):
                 ind = np.bitwise_or(ind, sar['area'] == a)
             return sar[ind]
 
+    @doc_inherit
     def univ_curve(self, num_iter=5, direction='down', **kwargs):
-        '''
-        Generating a universal curve for the mete iterative sar
 
-        Parameters
-        ----------
-        num_iter : int
-            Number of area halfings
-        direction : string
-            Either 'down' or 'up'.  The direction to iterate the sar.
-
-        Returns
-        -------
-        : structured array
-            Structured array with fields 'z' and 'x_over_y'.  z is the slope 
-            of the SAR at the corresponding Area_fraction (x) / S (y). 
-            Area_fraction is Area / Anchor Area. S is the total number of 
-            species in the landscape.
-
-        Notes
-        -----
-        The universal curve is generated using the the equation in Harte et al.
-        2009. 
-        '''
+        return super(mete_sar_iter, self).univ_curve(num_iter=num_iter,
+                  direction=direction, param='tot_obs', iterative=True, base=2)
         
-        multiplier = self.params.get('tot_obs', None)
-        assert multiplier != None, "tot_obs not found in self.params"
-
-        #From Harte et al. 2009
-        def z(a):
-            a1 = self.vals(a, non_iter=True)['items']
-            a2 = self.vals(2*a, non_iter=True)['items']
-            a3 = self.vals(.5 * a, non_iter=True)['items']
-            return (0.5 * (np.log(a1 / a3) + np.log(a2 / a1))) / np.log(2), a1
-
-        # Get area list
-        if direction == 'down':
-            a_list = [1 / (2**(i)) for i in np.arange(num_iter + 1)]
-
-        elif direction == 'up':
-            a_list = [2**(i) for i in np.arange(num_iter + 1)]
-
-        else:
-            raise ValueError('%s not a recognized direction' % direction)
-        
-        a_list.sort()
-        a_list = np.array(a_list)
-        zs, base_a = z(a_list)
-        x_over_y = (a_list * multiplier) / base_a 
-
-        uni =  np.array(zip(zs, x_over_y), dtype=
-                                      [('z', np.float),('x_over_y', np.float)])
-        uni.sort(order=['x_over_y'])
-        return uni
-   
-
     def fit(self, *args):
         '''
         This fit method fills the required parameters for a mete_sar_iter 
@@ -2637,7 +2619,7 @@ class gen_sar(Curve):
         Parameters
         ----------
         sad : a sad distribution object
-            A distribution object with minimum support equal to 1. pmf of sad
+            A Distribution object with minimum support equal to 1. pmf of sad
             from 1 to N should sum to approximately 1.
         ssad : a ssad distribution object
             A distribution object with minimum support equal to 0.
@@ -2910,7 +2892,7 @@ class gen_sar(Curve):
     
     def fit(self, *args):
         '''
-        This fit method fills the required parameters for an SARCurve object.
+        This fit method fills the required parameters for an gen_sar object.
         For the gen_sar object, the pmf is remade each time the vals method is
         called. A bit slower but more flexible.
 
@@ -2943,7 +2925,7 @@ class gen_sar(Curve):
 class psi(Distribution):
     __doc__ = Distribution.__doc__ + \
     '''
-    The community energy distribution (psi) described in Harte (2011)
+    The individual energy distribution (IED) described in Harte (2011)
 
     Parameters
     ----------
@@ -3142,8 +3124,7 @@ class psi(Distribution):
 class theta(Distribution):
     __doc__ = Distribution.__doc__ + \
     '''
-    The species specific energy distribution (theta) as described by Harte
-    (2011).
+    The species energy distribution (SED) as described by Harte (2011).
 
     Parameters
     ----------
@@ -3252,9 +3233,10 @@ class theta(Distribution):
 
             A list of tuple where each tuple has length 3.  The first object in
             a tuple is an iterable containing the empirical species energy
-            distribution.  The second object is a tuple is a community
-            individual energy distribution.  The third object in a tuple is a
-            empirical species abundance distribution.
+            distribution.  The second object in a tuple is an iterable
+            containing the community individual energy distribution.  The third
+            object in a tuple is an iterable containing the empirical species
+            abundance distribution.
 
         '''
         #TODO: Check format of data? 
@@ -3280,7 +3262,7 @@ class theta(Distribution):
 class nu(Distribution):
     '''
     An energy distribution describing the distribution of average energy across
-    all species in a community.
+    all species in a community.  The average species energy distribution (ASED)
     
     Parameters
     ----------
@@ -3439,7 +3421,7 @@ class nu(Distribution):
             possible_e.sort()
             pred_cdf = self.cdf(possible_e)[0][0]
             
-            # Observed cdf. Not quite true if some energys overlap
+            # Observed cdf. Not quite true if some energies overlap
             obs_cdf = np.arange(1/(tn_samp), 1 + (1/(tn_samp)), 1/tn_samp)
 
             list_bools = [np.array(obs < pred_cdf) for obs in obs_cdf]
@@ -3468,7 +3450,7 @@ class nu(Distribution):
             
             A list containing tuples of length two or a list containing tuples
             of length three.  If the tuples are of length two, the first object
-            in a tuple an iterable containing the community individual energy
+            in a tuple is an iterable containing the community individual energy
             distribution.  The second object in a tuple is an iterable
             containing the empirical species abundance distribution. If the
             tuples are of length three, the first object in the tuple is an

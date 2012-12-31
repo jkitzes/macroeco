@@ -32,7 +32,28 @@ plot.  The csv files have identical names to the png files to which they
 correspond. Each file name is a concatenation of the following strings:
 analysis name, run name, data name, and {5}.  An additional identifier is
 appended to the file name after {5} in order to make each file unique.  It is
-either a species identifier or a number.'''
+either a species identifier or a number.
+
+On the right hand side of each plot, you will see a string that begins
+'Criteria for plot'.  The criteria are either a species name or string that 
+looks like
+
+'y': [('>=', 0.0), ('<', 150.0)], 'x': [('>=', 0.0), ('<', 50.0)]
+
+This can be interpreted as follows.  The plot under consideration has 'y' values
+greater than or equal to 0 and less than 150 and 'x' values greater than or
+equal to 0 and less than 50.  Similarly a criteria string of the form
+
+'year' : ('==' , 1998)
+
+can be interpreted as the plot under consideration has 'year' values equal to
+1998. The criteria is determined by how you decided to divide your plot for the
+analysis. A criteria string of the form
+
+'temperature' : ('==', 'cool')
+
+can be interpreted as the plot under consideration has 'temperature' values
+equal to 'cool'. '''
 
 readme_info_summary=\
 u"""
