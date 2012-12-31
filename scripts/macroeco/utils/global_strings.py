@@ -155,7 +155,7 @@ Chose either: True or False.'''
 subset = '''\nA permanent subset to the formatted data, {'column_name':
 'condition'}, which will limit all analysis to records in which column_name
 meets the condition. The condition is a formatted as ('comparison operator',
-'value').  Possilbe comparison operators are '==', '!=', '<, '>', '<=', '>='.  
+'value').  Possible comparison operators are '==', '!=', '<, '>', '<=', '>='.  
 Please note that your archival data will remain unchanged. 
 
 Subsetting examples:

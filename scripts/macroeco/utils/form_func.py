@@ -123,7 +123,7 @@ def open_data(filename, delim, names=None):
     data = plt.csv2rec(filename, delimiter=delim, names=names)
     return data
 
-def create_intcodes(speclist, unq_specs, unq_ints):
+def create_intcodes(speclist, unq_specs, unq_ints, dtype=float):
     '''This function converts each value in unq_specs to the corresponding
     value in unq_ints.  Acts on speclist.
 
@@ -140,6 +140,10 @@ def create_intcodes(speclist, unq_specs, unq_ints):
     unq_int : np.array
         1D np.array of unique integers referring to the unique species codes 
         found within the plot
+
+    dtype : type
+        The type of the tot_int array. Default is float
+
         
     Returns
     -------
@@ -151,7 +155,7 @@ def create_intcodes(speclist, unq_specs, unq_ints):
     assert len(unq_specs) == len(unq_ints), "unq_specs and unq_ints must be " \
                                 + "the same length"
     speclist = speclist.astype(unq_specs.dtype)
-    tot_int = np.empty(len(speclist))
+    tot_int = np.empty(len(speclist), dtype=dtype)
     for s in xrange(len(unq_specs)):
         check = (unq_specs[s] == speclist)
         for i in xrange(len(check)):
@@ -400,6 +404,7 @@ def fractionate(datayears, wid_len_new, step_new, col_names,
             data = data.astype(dt)
             data[name] = create_intcodes(data[name], nums, frac)
         frct_array.append(data)
+
     return frct_array
 
 def add_data_fields(data_list, fields_values, descr='S20'):
