@@ -195,7 +195,7 @@ if __name__ == '__main__':
             cmpra = comp.CompareASED((ased, ied, sad), ['nu'], patch=True)
             soua = ASEDOutput(output_ID)
             soua.plot_reds(cmpra.compare_rads(), criteria=cmpra.criteria,
-                                                   species=cmpra.sad_spp_lists)
+                                                   species=cmpra.sad_spp_list)
 
 
         os.chdir(cwd)

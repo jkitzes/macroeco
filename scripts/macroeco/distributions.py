@@ -3409,17 +3409,29 @@ class nu(Distribution):
         Because nu is discrete, this rad will have distinct steps on a rank
         energy plot. 
         '''
-
+    
         n_samp, tot_obs, E = self.get_params(['n_samp', 'tot_obs', 'E'])
-        
         rad = []
+
+        # Calculate logseries rad
+        lrads = logser_ut(tot_obs=tot_obs, n_samp=n_samp).rad()
+
+        # Calculate predicted nu rad
+        l2s = (n_samp / (E - tot_obs))
+        rad = [np.sort(el) for el in (1 + (1 / (l2s * lrads)))]
+
+        return rad
+        
+        '''rad = []
         for tn_samp, ttot_obs, tE in zip(n_samp, tot_obs, E):
             
             # Get predicted cdf for all possible e values
             tl2 = (tn_samp / (tE - ttot_obs))
+
+
             possible_e = 1 + 1 / (tl2 * np.arange(1, ttot_obs + 1))
             possible_e.sort()
-            pred_cdf = self.cdf(possible_e)[0][0]
+            pred_cdf = self.cdf(possible_e)[0]
             
             # Observed cdf. Not quite true if some energies overlap
             obs_cdf = np.arange(1/(tn_samp), 1 + (1/(tn_samp)), 1/tn_samp)
@@ -3437,7 +3449,7 @@ class nu(Distribution):
 
             rad.append(pred_rad)
 
-        return rad
+        return rad'''
 
 
     def fit(self, data):
