@@ -2754,6 +2754,8 @@ class gen_sar(Curve):
             # Reset anchor values
             self.params['tot_obs'] = N
             self.params['n_samp'] = S
+            self.sad.params['tot_obs'] = N
+            self.sad.params['n_samp'] = S
 
             if up_down == 'down':
                 return np.array(S_list)[::-1]
