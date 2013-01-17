@@ -841,7 +841,7 @@ class TestDistributions(unittest.TestCase):
         self.assertTrue(np.round(sum(full_pmf), decimals=1) == 1.0)
         
         #Check that the last value in cdf is 1
-        self.assertTrue(nudist.cdf(e_vals[0])[0][0] == 1)
+        self.assertTrue(np.round(nudist.cdf(e_vals[0])[0][0], decimals=1) == 1)
 
         # Test that rad works
         g = nudist.rad()

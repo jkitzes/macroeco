@@ -2992,7 +2992,7 @@ class psi(Distribution):
             tl2 = float(tn_samp) / (tE - ttot_obs) # Harte (2011) 7.26
             tl1 = tbeta - tl2
             tsigma = tl1 + (tE * tl2)
-
+            
             norm = (float(tn_samp) / (tl2 * ttot_obs)) * (((np.exp(-tbeta) - \
                     np.exp(-tbeta*(ttot_obs + 1))) / (1 - np.exp(-tbeta))) - \
                     ((np.exp(-tsigma) - np.exp(-tsigma*(ttot_obs + 1))) / \
@@ -3001,10 +3001,17 @@ class psi(Distribution):
             #Notation from E.W.
             exp_neg_gamma = np.exp(-(tbeta + (te - 1) * tl2))
 
-            tpdf = (float(tn_samp) / (ttot_obs * norm)) * ((exp_neg_gamma  / \
-                    (1 - exp_neg_gamma)**2) - ((exp_neg_gamma**ttot_obs / \
-                    (1 - exp_neg_gamma)) * (ttot_obs + (exp_neg_gamma / \
-                    (1 - exp_neg_gamma)))))
+            #tpdf = tl2 * tbeta * (exp_neg_gamma / (1 - exp_neg_gamma)**2)
+            
+            tpdf = (float(tn_samp) / (ttot_obs * norm)) * exp_neg_gamma * (1
+                        - ((ttot_obs + 1) * exp_neg_gamma ** ttot_obs) + (ttot_obs *
+                        exp_neg_gamma ** (ttot_obs + 1))) / ((1 -
+                        exp_neg_gamma) ** 2)
+
+            #tpdf = (float(tn_samp) / (ttot_obs * norm)) * ((exp_neg_gamma  / \
+            #        (1 - exp_neg_gamma)**2) - ((exp_neg_gamma**ttot_obs / \
+            #        (1 - exp_neg_gamma)) * (ttot_obs + (exp_neg_gamma / \
+            #        (1 - exp_neg_gamma)))))
                     # Harte (2011) 7.24
             pdf.append(tpdf)
             self.var['beta'].append(tbeta)
@@ -3058,7 +3065,7 @@ class psi(Distribution):
 
     @doc_inherit
     def rad(self):
-
+        
         n_samp, tot_obs, E = self.get_params(['n_samp', 'tot_obs', 'E'])
 
         start = 0.3
@@ -3092,7 +3099,8 @@ class psi(Distribution):
             rad.append(trad)
 
         return rad
-    
+        
+
     def fit(self, data):
         '''
         Fit the community individual energy distribution data
@@ -3307,6 +3315,11 @@ class nu(Distribution):
         only sum to one when provided with the proper support. lambda2 can be
         calculated by the equation: n_samp / (E - tot_obs) or S / (E - N)
 
+        Note:  As currently written, the nu distribution written here does not
+        match the results given in Harte 2011.  Harte 2011 is not properly
+        normalized and this distribution is
+
+
         '''
 
         n_samp, tot_obs, E = self.get_params(['n_samp', 'tot_obs', 'E'])
@@ -3340,10 +3353,18 @@ class nu(Distribution):
             tl2 = float(tn_samp) / (tE - ttot_obs) # Harte (2011) 7.26
             tl1 = tbeta - tl2
             tsigma = tl1 + tE * tl2
-            Z = sum((np.exp(-tbeta * k) - np.exp(-tsigma * k)) / (tl2 * k))
+            Z = ((tn_samp) / (tl2 * ttot_obs)) * np.sum((np.exp(-tbeta * k) -\
+                                                          np.exp(-tsigma * k)))
+            
+            #tpmf = (1 / np.log(1 / tbeta)) * (np.exp(-tbeta / (tl2 * (te -
+            #                                    1)))) / (te - 1)
 
-            tpmf = (1 / Z) * (np.exp(-tbeta / (tl2 * (te - 1))) - 
-                    np.exp(-tsigma / (tl2 * (te - 1)))) / (1 / (te - 1))
+            #tpmf = (1 / Z) * (np.exp(-tbeta / (tl2 * (te - 1))) - 
+            #        np.exp(-tsigma / (tl2 * (te - 1)))) / (1 / (te - 1))
+            
+            ne = (1 / (tl2 * (te - 1)))
+
+            tpmf = (1 / (ne * tl2 * Z)) * (np.exp(-tbeta * ne) - np.exp(-tsigma * ne))
 
             pmf.append(tpmf)
             self.var['beta'].append(tbeta)
