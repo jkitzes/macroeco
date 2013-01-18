@@ -2593,9 +2593,10 @@ class powerlaw(Curve):
 class gen_sar(Curve):
     __doc__ = Curve.__doc__ + \
     '''
-    A generic sar function the utilizes the relationship between the sad
-    and the ssad to generate the sar.  Can take any combination of sad and
-    ssad. 
+    A generic species area relationship (SAR/sar) function the utilizes the
+    relationship between the sad and the ssad to generate the sar.  Can take
+    any combination of sad and ssad. This function can also generate a endemic
+    species area relationship (EAR)
 
     Parameters
     ----------
@@ -2649,7 +2650,7 @@ class gen_sar(Curve):
         return self.sad.__class__.__name__ + '-' + self.ssad.__class__.__name__
 
     def iter_vals(self, a_list=None, upscale=0, downscale=0, non_iter=False, 
-                                                    base=2, use_rad=False):
+                                            base=2, use_rad=False, form='sar'):
         '''
         Calculates values in a_list by iteration.
 
@@ -2678,12 +2679,20 @@ class gen_sar(Curve):
             calculate the species area relationship. If you chose to use the
             rank abundance distribution, please note that you cannot upscale
             with the rad past one iteration.
+        form : string
+            Default value is 'sar' which calculates the SAR given the
+            parameters. You can also use 'ear' which calculates the EAR with
+            the given parameters. 
 
         Returns
         -------
         : structured np.array
             A structured np.array with dtype=[('items', np.float),
             ('area', np.float)]. Items can be species.
+
+        Notes
+        -----
+        At the moment, you cannot upscale the EAR
         '''
 
         S, N = self.get_params(['n_samp', 'tot_obs'])
@@ -2723,7 +2732,8 @@ class gen_sar(Curve):
 
                     self.params['tot_obs'] = N 
                     self.params['n_samp'] = S
-                    S_list.append(self.vals([da], use_rad=use_rad)['items'][0])
+                    S_list.append(self.vals([da], use_rad=use_rad, 
+                                                        form=form)['items'][0])
                     N_list.append(N)
 
                 else:
@@ -2742,7 +2752,8 @@ class gen_sar(Curve):
 
                     self.params['tot_obs'] = N_list[i - 1]
                     self.params['n_samp'] = S_list[i - 1]
-                    S_list.append(self.vals([a], use_rad=use_rad)['items'][0])
+                    S_list.append(self.vals([a], use_rad=use_rad, 
+                                                        form=form)['items'][0])
 
                     # Can't have less then one individual
                     if N * da < 1:
@@ -2777,7 +2788,7 @@ class gen_sar(Curve):
                                                        np.round(a, decimals=8))
             return sar[ind]
 
-    def vals(self, a_list, use_rad=False):
+    def vals(self, a_list, use_rad=False, form='sar'):
         '''
 
         Calculates sar value at each value in a_list
@@ -2789,6 +2800,10 @@ class gen_sar(Curve):
         use_rad : bool
             If False, uses the sad pmf to calculate the SAR.  If True, uses the
             sad rank abundance distribution to calculate the SAR.
+        form : string
+            Default value is 'sar' which calculates the SAR given the
+            parameters. You can also use 'ear' which calculates the EAR with
+            the given parameters. 
 
         Returns
         -------
@@ -2803,12 +2818,19 @@ class gen_sar(Curve):
         used when upscaling. Using the rad while upscaling will not give
         exactly the same value at upscaling with the pmf.  However, the SAR
         curves should have the same general pattern.
+
+        At the moment you cannot upscale the EAR.
         '''
         
         # If sad is plognorm or plognorm_lt Throw and error for now
         nm = self.sad.__class__.__name__
         if nm == 'plognorm' or nm == 'plognorm_lt':
             raise ValueError("SAD %s not supported" % (nm))
+
+        # Check that form is correct
+        if not(form == 'sar' or form == 'ear'):
+            raise ValueError("Parameter 'form' with value '%s' is not supported" %
+                            (form))
     
         # Calculating sad in this method, not in fit.  More flexible this way.
         # However, this is a bit slower
@@ -2853,7 +2875,12 @@ class gen_sar(Curve):
                                                    len(ssad.params['tot_obs']))
                     
                     # Probability of presence list
-                    p_pres_list = [1 - absnt[0] for absnt in ssad.pmf(0)]
+                    if form == 'sar':
+                        p_pres_list = [1 - absnt[0] for absnt in ssad.pmf(0)]
+                    elif form == 'ear':
+                        p_pres_list = [fval[0] for fval in 
+                                        ssad.pmf(zip(ssad.params['tot_obs']))]
+                        
                     if use_rad:
                         return sum(np.array(p_pres_list)) - S
                     else:
@@ -2883,7 +2910,11 @@ class gen_sar(Curve):
             else:
                 ssad.params['n_samp'] = np.repeat(1 / a,
                                                    len(ssad.params['tot_obs']))
-                p_pres_list = [1 - absnt[0] for absnt in ssad.pmf(0)]
+                if form == 'sar':
+                    p_pres_list = [1 - absnt[0] for absnt in ssad.pmf(0)]
+                elif form == 'ear':
+                    p_pres_list = [fval[0] for fval in 
+                                        ssad.pmf(zip(ssad.params['tot_obs']))]
                 if use_rad:
                     sar.append(sum(np.array(p_pres_list)))
                 else:

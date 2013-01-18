@@ -107,15 +107,15 @@ FOLDER DESCRIPTION
 ------------------
 
 The folder {0} contains {1} png files and {2} csv files.  The png file(s) are 
-log-log SAR plot(s) with area_fraction on the x-axis and species on the y-axis.
+log-log SAR-EAR plot(s) with area_fraction on the x-axis and species on the y-axis.
 The names of the png file(s) are a concatenation of the following strings:
-analysis name, run_name, data_name, and SAR_plot. A number is appended to the
+analysis name, run_name, data_name, and SAR-EAR_plot. A number is appended to the
 end of the plot to ensure the filename is unique. The csv
 files contain the data required to make the given plot(s). Each csv file
 contains two columns, species and area_fraction.  area_fraction assigns the
 base area a value of 1 and represents all other areas as a fraction of the base
 area. The csv file name(s) are a concatenation of the following strings:
-analysis_name, run_name, data_name, SAR_plot_, a unique number, and the SAR
+analysis_name, run_name, data_name, SAR-EAR_plot_, a unique number, and the SAR-EAR
 name.
 
 '''
@@ -510,7 +510,7 @@ class SAROutput(object):
         '''
         self.out_dir = out_dir
 
-    def plot_sars(self, sars, names=[]):
+    def plot_sars(self, sars, names=[], form='sar'):
         '''
         Plots observed vs predicted sars
 
@@ -524,16 +524,29 @@ class SAROutput(object):
             desired names for the plots.
 
         '''
-
-        folder_name = 'sar_plots_' + self.out_dir
-        make_directory(folder_name)
+        
+        if form == 'sar':
+            file_str = '_SAR_plot_'
+            ylab = 'log(Species Number)'
+            stype = 'species'
+            folder_name = 'sar_plots_' + self.out_dir
+            make_directory(folder_name)
+        elif form == 'ear':
+            file_str = '_EAR_plot_'
+            ylab = 'log(Endemic Species Number)'
+            stype = 'endemic_species'
+            folder_name = 'ear_plots_' + self.out_dir
+            make_directory(folder_name)
+        else:
+            raise ValueError("Parameter 'form' must be 'ear' or 'sar' not '%s'"
+                                                                        % form)
 
         if len(names) != 0:
             assert len(names) == len(sars); "Length of names must equal" + \
                                            "length of sars"
         count = 0
         for i, sar in enumerate(sars):
-            filename = os.path.join(folder_name, self.out_dir + '_SAR_plot_' +
+            filename = os.path.join(folder_name, self.out_dir + file_str +
                                                                         str(i))
             legend = []
             for kw in sar.iterkeys():
@@ -545,7 +558,7 @@ class SAROutput(object):
 
                 # Change dtype names and output
                 defnm = sar[kw].dtype.names
-                sar[kw].dtype.names = ('species', 'area_fraction')
+                sar[kw].dtype.names = (stype, 'area_fraction')
                 output_form(sar[kw], filename + '_' + kw)
                 sar[kw].dtype.names = defnm
 
@@ -556,12 +569,12 @@ class SAROutput(object):
             plt.loglog()
             plt.legend(tuple(legend), loc='best')
             plt.xlabel('log(Area Fraction)')
-            plt.ylabel('log(Species Number)')
+            plt.ylabel(ylab)
             if len(names) != 0:
                 plt.title(names[i])
             else:
-                plt.title('SAR plot %i' % (i))
-            filename = os.path.join(folder_name, self.out_dir + '_SAR_plot_' +
+                plt.title(form.upper() + ' plot %i' % (i))
+            filename = os.path.join(folder_name, self.out_dir + file_str +
                                                                         str(i))
             logging.info('Saving figure ' + filename)
             plt.savefig(filename)

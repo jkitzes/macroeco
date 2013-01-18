@@ -969,7 +969,7 @@ class CompareSAR(object):
         self.curve_list = make_dist_list(curve_list)
 
 
-    def compare_curves(self, iter_vals=False, use_rad=False):
+    def compare_curves(self, iter_vals=False, use_rad=False, form='sar'):
         '''
         Method generates predicted SAR curves from the given observed data and
         curve objects for comparison
@@ -982,6 +982,10 @@ class CompareSAR(object):
         iter_val : bool
             If True, uses the iterative method to calculate SAR. If False uses
             the one shot method.
+        form : string
+            Default value is 'sar' which calculates the SAR given the
+            parameters. You can also use 'ear' which calculates the EAR with
+            the given parameters.
 
         Returns
         -------
@@ -1006,14 +1010,18 @@ class CompareSAR(object):
 
                 if iter_vals:
                     try:
-                        psar[cur.get_name()] = cur.iter_vals(a, use_rad=use_rad)
+                        psar[cur.get_name()] = cur.iter_vals(a,
+                                                    use_rad=use_rad, form=form)
                     except AttributeError:
-                        psar[cur.get_name()] = cur.iter_vals(a, use_rad=True)
+                        psar[cur.get_name()] = cur.iter_vals(a, use_rad=True,
+                                                                     form=form)
                 else:
                     try:
-                        psar[cur.get_name()] = cur.vals(a, use_rad=use_rad)
+                        psar[cur.get_name()] = cur.vals(a, use_rad=use_rad,
+                                                                     form=form)
                     except AttributeError:
-                        psar[cur.get_name()] = cur.vals(a, use_rad=True)
+                        psar[cur.get_name()] = cur.vals(a, use_rad=True,
+                                                                     form=form)
                     
             for kw in psar.iterkeys():
                 psar[kw].sort(order='area')
