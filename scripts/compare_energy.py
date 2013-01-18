@@ -136,6 +136,7 @@ predicted_IED_distributions, energy_metrics, predicted_ASED_distributions)
 required_params = {'criteria' : gb.req + gb.short_criteria,
         'predicted_SED_distributions' :gb.req + predicted_SED_distributions,
         'predicted_IED_distributions' : gb.req + predicted_IED_distributions,
+        'predicted_ASED_distributions' : gb.req + predicted_ASED_distributions,
         'energy_metrics' : gb.req + energy_metrics}
 
 optional_params = {'subset' : (gb. optional + gb.short_subset, {})}
@@ -192,7 +193,8 @@ if __name__ == '__main__':
 
         if ased_there:
             ased = patch.ased(params['criteria'])
-            cmpra = comp.CompareASED((ased, ied, sad), ['nu'], patch=True)
+            cmpra = comp.CompareASED((ased, ied, sad),
+            params['predicted_ASED_distributions'], patch=True)
             soua = ASEDOutput(output_ID)
             soua.plot_reds(cmpra.compare_rads(), criteria=cmpra.criteria,
                                                    species=cmpra.sad_spp_list)
