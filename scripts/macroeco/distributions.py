@@ -1328,7 +1328,7 @@ class lognorm(Distribution):
     @doc_inherit
     def __init__(self, **kwargs):
         self.params = kwargs
-        self.min_supp = 0
+        self.min_supp = 1
         self.par_num = 2
         self.var = {}
 
