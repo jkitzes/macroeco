@@ -1328,7 +1328,7 @@ class lognorm(Distribution):
     @doc_inherit
     def __init__(self, **kwargs):
         self.params = kwargs
-        self.min_supp = 0
+        self.min_supp = 1
         self.par_num = 2
         self.var = {}
 
@@ -1423,13 +1423,15 @@ class geo_ser(Distribution):
     
     Notes
     -----
-    Equation for pmf and fit from May (1975).
-    
-    The support of this distribution is from [1, N] where N is the total number
-    of individuals/observations. Therefore, the cdf of this function is one at
-    N.  The empirical cdf of observed data reaches one at N - S + 1 (if not
-    sooner) and therefore comparisons of geo_ser cdfs and empirical cdfs will
-    often deviate near as n approaches N - S + 1 (if not sooner).
+    Equation for pmf and fit from May (1975).  Note that the pmf derived by May
+    is continuous. In this case, the pmf given in the .pmf() method DOES NOT
+    sum to one. If we normalize the distribution, the super(geo_ser,
+    self).rad() does not return a rank abundance distribution with the proper
+    tot_obs and the the value of fitted value of'k' is inherently changed.
+    Because our fitting method for 'k' has been tested and verified, we chose
+    not to change the value of 'k' computed in geo_ser.fit().  Therefore, we
+    recommend that the rank abundance distribution (geo_ser.rad()) is used for
+    serious analyses with geo_ser.  
 
     The total species (S) is equivalent to n_samp and the total
     individuals (N) is equivalent to tot_obs.
@@ -1451,6 +1453,7 @@ class geo_ser(Distribution):
     def pmf(self, n):
 
         # Get parameters
+
         n_samp, tot_obs, k = self.get_params(['n_samp', 'tot_obs', 'k'])
         n = expand_n(n, len(n_samp))
         assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
@@ -1461,13 +1464,37 @@ class geo_ser(Distribution):
         pmf = []
 
         # Equation from May 1975.  
-        #eq = lambda x, n_samp, k: (1 / x) * (1 / n_samp) * (1 / np.log(1 / 
-        #                                                         (1 - k)))
+        eq = lambda x, n_samp, k: (1 / x) * (1 / n_samp) * (1 / np.log(1 / 
+                                                                (1 - k)))
+        ### Other possible equations for calculating the geo_ser pmf ###
+        # Normalization for continuous pdf
+        #kfxn = lambda N, S: (np.exp((np.log(N) / S)) - 1) / np.exp(np.log(N) /
+        #                                                                     S)
+        #Normalization for discrete pmf
+        #keq = lambda k, N, S: 1  - (((1/S) * (1 / (np.log(1 / (1 - k))))) * sum((1 /
+        #                                                 np.arange(1, N + 1))))
+
+        #self.var['k'] = []
         #eq = lambda x, n_samp, k: (-1 / n_samp) * (1 / x) * (1 / np.log(1 - k))
+
+        ### END ###
+
         for tn_samp, ttot_obs, tk, tn in zip(n_samp, tot_obs, k, n):
-            c = 1 / np.log(ttot_obs)
-            sumg = sum( c / np.arange(1, np.floor(ttot_obs) + 1))
-            tpmf = (c / tn) / sumg # normalize
+
+            ### Other possible ways in which to calculate the geo_ser pmf ###
+
+            #c = 1 / np.log(ttot_obs)
+            #sumg = sum( c / np.arange(1, np.floor(ttot_obs) + 1))
+            #tpmf = (c / tn) / sumg # normalize
+            #tk = kfxn(ttot_obs, tn_samp)
+            #tk = scipy.optimize.brentq(keq, 1e-10, 1 - 1e-10, args=(ttot_obs, tn_samp),
+            #                                                        disp=True)
+            #self.var['k'] = tk
+            #sumg = sum(eq(np.arange(1, ttot_obs + 1), tn_samp, tk))
+
+            ### END ###
+
+            tpmf = eq(tn, tn_samp, tk) #/ sumg
             pmf.append(tpmf)
 
         return pmf
@@ -1479,9 +1506,11 @@ class geo_ser(Distribution):
         n_samp, tot_obs, k = self.get_params(['n_samp', 'tot_obs', 'k'])
         assert np.all(k > 0) and np.all(k <= 1), ('k must be in the ' + 
                                                   'interval (0, 1]')
+
         # Calculate rad
         rad = []
         for tn_samp, ttot_obs, tk in zip(n_samp, tot_obs, k):
+            tn_samp = np.round(tn_samp, decimals=0)
             tC = (1 - (1 - tk ) ** tn_samp) ** - 1
             trad = ttot_obs * tC * tk * (1 - tk) ** (np.arange(1, tn_samp + 1) 
                                                                            - 1)
@@ -1566,7 +1595,7 @@ class broken_stick(Distribution):
         for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
             ttot_obs = np.round(ttot_obs, decimals=0)
             #sumg = sum(eq(np.arange(1, np.floor(ttot_obs) + 1), tn_samp, ttot_obs))
-            tpmf = eq(tn, tn_samp, ttot_obs) #/ sumg # Normalizing
+            tpmf = eq(tn, tn_samp, ttot_obs)# / sumg # Normalizing
             pmf.append(tpmf)
 
         return pmf
@@ -2839,6 +2868,10 @@ class gen_sar(Curve):
 
         # Calculate either rad or full pmf
         if use_rad:
+            # If n_samp is fractional, need to round
+            self.sad.params['n_samp'] = np.round(self.sad.params['n_samp'],
+                                                                    decimals=0)
+
             rad = self.sad.rad()[0]
         else:
             sad = self.sad.pmf(np.arange(1, np.floor(N) + 1))[0]
@@ -3608,6 +3641,8 @@ def make_rank_abund(pmf, n_samp, min_supp=1):
         Probability of observing a species from 1 to length pmf individs.
     n_samp : int
         Total number of samples 
+    min_supp : int
+        The minimum support of the distribution. Often either 1 or 0.
 
     Returns
     -------
@@ -3621,6 +3656,7 @@ def make_rank_abund(pmf, n_samp, min_supp=1):
     '''
     points = np.arange(1/(2*n_samp), 1, 1/n_samp)
     counts = np.zeros(n_samp)
+
     
     if min_supp == 1:
         pmf = np.array([0] + list(pmf)) # Add 0 to start of pmf
@@ -3633,7 +3669,7 @@ def make_rank_abund(pmf, n_samp, min_supp=1):
         if not greater_thans.any():  # If no greater thans, done with samples
             break
     
-    return counts #/ (sum(counts) / len(pmf))
+    return counts # / (sum(counts) / len(pmf))
 
 
 def canonical_lognorm_pmf(r, S, param_ret=False):
