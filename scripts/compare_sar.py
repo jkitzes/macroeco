@@ -56,7 +56,12 @@ Example input: ['lognorm-binm', 'nbd_lt(k=1)-tgeo', 'powerlaw', 'mete_sar_iter']
 
 name = '''\nA name for the plot that will be generated.
 
+
 Example input: My SAR Plot  
+'''
+
+iterative = '''\nUse an iterative or non-iterative SAR.  Iterative SARs are
+calculated by halving and doubling: True or False
 '''
 
 explanation = '''ANALYSIS EXPALANTION\n
@@ -134,6 +139,10 @@ then be ignored. Generating multiple SARs is not yet implemented.
 
 {5}
 
+*** iterative ***
+
+{6}
+
 REFERENCES
 
 Harte, J. 2011. Maximum Entropy and Ecology: A Theory of Abundance,
@@ -143,7 +152,7 @@ Rosenzweig, M. L. 1995. Species Diversity in Space and Time. Cambridge
 University Press.
 
 '''.format(gb.subset, gb.criteria, columns_to_divide,
-list_of_divisions_on_columns, predicted_SAR_curves, name)
+list_of_divisions_on_columns, predicted_SAR_curves, name, iterative)
 
 
 required_params = {'criteria' : gb.req + gb.short_criteria,
@@ -153,7 +162,8 @@ required_params = {'criteria' : gb.req + gb.short_criteria,
                    'predicted_SAR_curves' : gb.req + predicted_SAR_curves}
 
 optional_params = {'subset' : (gb.optional + gb.short_subset, {}), 'name' : 
-                    (gb.optional + name, 'Plot')}
+                    (gb.optional + name, 'Plot'), 'iterative' : (gb.optional +
+                    iterative, 'False')}
 
 if __name__ == '__main__':
 
@@ -194,7 +204,8 @@ if __name__ == '__main__':
         cmpr = comp.CompareSAR([sar], params['predicted_SAR_curves'],
                                                     [sad[0][1]], patch=True)
         srout = SAROutput(output_ID)
-        srout.plot_sars(cmpr.compare_curves(), names=[params['name']])
+        srout.plot_sars(cmpr.compare_curves(iter_vals=params['iterative']), 
+                                                        names=[params['name']])
         logging.info('Completed analysis %s\n' % output_ID)
 
         os.chdir(cwd)
