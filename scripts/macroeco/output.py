@@ -132,12 +132,13 @@ class DistributionOutput(object):
         Parameters
         ----------
         out_dir : string
-            Output directory of object
+            String appended to output directory
         '''
 
         self.out_dir = out_dir
         self.urns = 'Urns'
         self.balls = 'Balls'
+        self.Nmax = 'Nmax'
         self.rad_x_axis = 'Rank'
         self.rad_y_axis = 'Abundance'
         self.cdf_x_axis = 'Abundance'
@@ -145,7 +146,7 @@ class DistributionOutput(object):
         self.variable = 'abundance'
 
 
-    def write_summary_table(self, smry, criteria=None):
+    def write_summary_table(self, smry, criteria=None, labels='sad'):
         '''
         Parameters
         ---------
@@ -170,7 +171,7 @@ class DistributionOutput(object):
         # Make output folder
         folder_name = 'summary_statistics_' + self.out_dir
         make_directory(folder_name)
-        
+       
         tot_sad = len(smry['observed']['balls'])
         if criteria != None:
             assert len(criteria) == tot_sad, "len(criteria) must  equal" + \
@@ -210,7 +211,7 @@ class DistributionOutput(object):
 
             fout.write('EMPIRICAL VALUES:\n' + self.urns + ' = ' + 
                     str(ob['urns'][i]) + '\n' + self.balls + ' = ' + 
-                    str(ob['balls'][i]) + '\nObserved Nmax= ' + 
+                    str(ob['balls'][i]) + '\nObserved ' + self.Nmax + ' = ' + 
                     str(ob['max'][i]) + '\nObserved Rarity = ' +
                     str(ob_rare) + '\n\n')
 
@@ -232,6 +233,9 @@ class DistributionOutput(object):
                     dt_rare = {}
                     for mins in dt['tot_min'].iterkeys():
                         dt_rare['<=' + str(mins)] = dt['tot_min'][mins][i]
+                    dt_vars = {}
+                    for key in dt['vars'].iterkeys():
+                        dt_vars[key] = dt['vars'][key][i]
 
                     fout.write('PREDICTED DISTRIBUTION : ' + kw + '\n' + 
                     self.urns + ' = ' + str(dt['urns'][i]) + '\n' + 
@@ -239,9 +243,10 @@ class DistributionOutput(object):
                     '\nAIC = ' + str(dt['aic'][i]) + '\nDelta_AIC = ' +
                     str(dt['aic_d'][i]) + '\nAIC_weight = ' +
                     str(dt['aic_w'][i]) + '\nNumber of Parameters = ' + 
-                    str(dt['par_num'][i]) + '\nPredicted Nmax = ' + 
+                    str(dt['par_num'][i]) + '\nPredicted '+ self.Nmax + ' = ' + 
                     str(dt['max'][i]) + '\nPredicted Rarity = ' +
-                    str(dt_rare) + '\n\n')
+                    str(dt_rare) + '\nOther Variables = ' +
+                    str(dt_vars) + '\n\n')
             fout.close()
             count += 1
 
@@ -462,12 +467,13 @@ class SADOutput(DistributionOutput):
         Parameters
         ----------
         out_dir : string
-            Output directory of object
+            String appended to output directory
 
         '''
         self.out_dir = out_dir
         self.urns = 'Species'
         self.balls = 'Total Individuals'
+        self.Nmax = 'Nmax'
         self.rad_x_axis = 'Rank'
         self.rad_y_axis = 'Abundance'
         self.cdf_x_axis = 'Abundance'
@@ -484,12 +490,13 @@ class SSADOutput(DistributionOutput):
         Parameters
         ----------
         out_dir : string
-            Output directory of object
+            String appended to output directory
 
         '''
         self.out_dir = out_dir
         self.urns = 'Cells'
         self.balls = 'Individuals'
+        self.Nmax = 'Nmax'
         self.rad_x_axis = 'Rank'
         self.rad_y_axis = 'Abundance'
         self.cdf_x_axis = 'Abundance'
@@ -506,7 +513,7 @@ class SAROutput(object):
         Parameters
         ----------
         out_dir : string
-            Output directory of object
+            String appended to output directory
         '''
         self.out_dir = out_dir
 
@@ -597,7 +604,7 @@ class ASEDOutput(object):
         Parameters
         ----------
         out_dir : string
-            Output directory of object
+            String appended to output directory
         '''
         self.out_dir = out_dir         
 
@@ -641,7 +648,8 @@ class ASEDOutput(object):
             
             if criteria != None and np.all([type(crt) != dict for crt in
                                                                     criteria]):
-                plt.title('ASED rank energy distribution for ' + str(criteria[i]))
+                plt.title('ASED rank energy distribution for ' + 
+                                                              str(criteria[i]))
                 filename = os.path.join(folder_name, self.out_dir +
                                     '_rank_abundance_plot_' + str(criteria[i]))
 
@@ -686,7 +694,7 @@ class ASEDOutput(object):
         
 
 
-class IEDOutput(object):
+class IEDOutput(DistributionOutput):
     '''
     Class outputs individual energy distributions by interacting with
     CompareIED
@@ -698,9 +706,12 @@ class IEDOutput(object):
         Parameters
         ----------
         out_dir : string
-            Output directory of object
+            String appended to output directory
         '''
         self.out_dir = out_dir 
+        self.urns = 'Individuals' 
+        self.balls = 'Energy' 
+        self.Nmax = 'Max Energy'
 
     def plot_reds(self, reds, criteria=None):
         '''
@@ -781,7 +792,7 @@ class SEDOutput(object):
         Parameters
         ----------
         out_dir : string
-            Output directory of object
+            String appended to output directory
         '''
         self.out_dir = out_dir  
 
@@ -872,7 +883,7 @@ class OutputRarity(object):
         Parameters
         ----------
         out_dir : string
-            The output directory ID
+           String appended to output directory 
 
         '''
 
@@ -1077,140 +1088,3 @@ def make_directory(folder_name):
         shutil.rmtree(folder_name)
         os.mkdir(folder_name)
 
-            
-
-
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-           
-            
-            
-                        
-
-            
-
-
-        
-
-
-
-"""
-def sad_cdf_obs_pred_plot(sad, outputID, params={}, interactive=False):
-    '''Makes a plot of observed vs predicted cdf values
-    based on the given sad
-
-    Parameters
-    ----------
-    sad : ndarray
-        SAD
-    outputID : string
-        The name of the saved plot
-    params : dict
-        If empty uses default values, if not incorporates given params
-        into params into dict
-    interactive : bool
-        If True, figure is shown in interactive window.  
-        If false, no figure is shown.
-
-    Notes
-    -----
-    Saves plot to current working directory. Default distribution to graph
-    is METE. Need top specify in parameters.xml if another distribution is
-    desired.
-
-    '''
-
-    #Allowing the user to set parameters if they pass some in
-    prm = {'clr_jit':'grey', 'clr_sct':'black', 'ln_clr':'grey', 'jit_scl':0.007,\
-          'ylbl':'Observed cdf', 'xlbl':'Predicted cdf',\
-          'title': 'Observed vs. predicted values of SAD cdf', 'distr':'mete'}
-    if len(params) != 0:
-        inter = set(params.viewkeys()).intersection(set(prm.viewkeys()))
-        if len(inter) != 0:
-            module_logger.debug('Setting parameters ' + str(inter))
-            for key in inter:
-                if key is 'jit_scl':
-                    prm[key] = eval(params[key])
-                else:
-                    prm[key] = params[key]
-          
-    cdf = sad_analysis.get_obs_vs_pred_cdf(sad, prm['distr'])
-    jitt_x, jitt_y = jitter(cdf['pred'], cdf['observed'], jitter_scale=prm['jit_scl'])
-    plt.plot([0] + list(cdf['observed']),[0] +  list(cdf['observed']),\
-                                            color=prm['ln_clr'], linestyle='--')
-        
-    plt.scatter(jitt_x, jitt_y, color=prm['clr_jit']) 
-    plt.scatter(cdf['pred'], cdf['observed'], color=prm['clr_sct'])
-    '''for s in xrange(len(cdf)):
-        plt.text(cdf['pred'][s], cdf['observed'][s] + 0.01, "n=" + str(cdf['n'][s]),\
-                                fontsize=7)'''
-    plt.ylabel(prm['ylbl'])
-    plt.xlabel(prm['xlbl'])
-    plt.title(prm['title'])
-    plt.xlim(-0.1,1.1)
-    plt.ylim(-0.1,1.1)
-    plt.legend(('Slope 1', 'All species cum.\nprob. (jittered)',\
-                    'Cum. prob.\nfor given n'),loc='best', prop={'size':12})
-    plt.savefig(outputID + '_cdf')
-    form_func.output_form(cdf, outputID + '_cdf.csv')
-    module_logger.debug('Plot and csv saved to cwd')
-
-    if interactive:
-        plt.show()
-    else:
-        plt.clf()
-
-
-def jitter(x, y, jitter_scale=0.001):
-    '''Function takes in x and y values and jitters
-    the identical points (x,y) in the x direction
-    
-    Parameters
-    ----------
-    x : ndarray
-      x points
-    y : ndarray
-      y points
-    jitter_scale : float
-        The distance a point is jittered in the x direction
-
-    Returns
-    -------
-    : ndarrays
-        returns jittered x and y as separate ndarrays
-
-
-
-    '''
-
-    #TODO: Add option to jitter in y direction
-    assert len(x) == len(y), "x and y must be the same length"
-    jitt_x = np.copy(x)
-    jitt_y = np.copy(y)
-    xy_tuple = []
-    for i in xrange(len(x)):
-        xy_tuple.append((x[i], y[i]))
-
-    xy_tuple = np.array(xy_tuple)
-    unq_xy = np.unique(xy_tuple)
-    for xy in unq_xy:
-        indices = np.where(xy_tuple == xy)[0]
-        if len(indices > 1):
-            for ind in xrange(len(indices)):
-                if ind > 0:
-                    jitt_x[indices[ind]] += (jitter_scale * ind)
-    return jitt_x, jitt_y
-
-"""

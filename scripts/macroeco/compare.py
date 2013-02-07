@@ -457,6 +457,14 @@ class CompareDistribution(object):
         <= MIN'), and the fit of the distributions in self.dist_list to the
         data in self.observed_data
 
+        'balls' is the sum of the observed data.  For a Species Abundance
+        Distribution 'balls' would represent individuals.  For an Individual
+        Energy Distribution 'balls' would represent energy.
+        
+        'urns' is the length of the observed data. For a Species Abundance
+        Distribution 'urns' would represent species and for a Individual Energy
+        Distribution 'urns' would represent individuals.
+
         Parameters
         ----------
         mins_list : list
@@ -468,8 +476,8 @@ class CompareDistribution(object):
         -------
         : dict
             Dictionary of dictionaries of length self.dist_list + 1.  Each
-            sub-dictionary other than 'observed' contains the keywords balls, urns,
-            max, tot_min, aic, aic_d, aic_w, and par_num.  Each of these
+            sub-dictionary other than 'observed' contains the keywords balls,
+            urns, max, tot_min, aic, aic_d, aic_w, and par_num.  Each of these
             keywords contains a list that is the same length as the number of
             sads under consideration.
 
@@ -478,6 +486,7 @@ class CompareDistribution(object):
             aic_w = AIC weights
             par_num = Parameter number of the given distribution
             tot_min = total counts less than or equal numbers in min_list
+            vars = Additional variables computed for the given distribution
 
 
         '''
@@ -505,6 +514,7 @@ class CompareDistribution(object):
             summary[nm]['aic_w'] = list(np.array(aic_vals[0]).T)[i]
             summary[nm]['par_num'] = np.repeat(self.dist_list[i].par_num,
                                         len(list(np.array(aic_vals[2]).T)[i]))
+            summary[nm]['vars'] = self.dist_list[i].var
 
         return summary
 
@@ -523,16 +533,16 @@ class CompareSAD(CompareDistribution):
         self.observed_data will be compared.  
     self.criteria : a list of dictionaries or None
         If not None, each dictionary specifies the divisions made on the plot
-        that generated each SAD in self.observed_data.  self.criteria should be the
-        same length as self.observed_data
+        that generated each SAD in self.observed_data.  self.criteria should be
+        the same length as self.observed_data
     self.sad_spp_list : list of arrays or None
         If not None, each array contains the species strings for the
-        corresponding SAD in self.observed_data.  The length of self.sad_spp_list
-        should be the same length as self.observed_data and the length of any array
-        within self.sad_spp_list should be the same length the corresponding array
-        in self.observed_data. The index of any species name within any array
-        within self.sad_spp_list references the species count with the same
-        index in self.observed_data.
+        corresponding SAD in self.observed_data.  The length of
+        self.sad_spp_list should be the same length as self.observed_data and
+        the length of any array within self.sad_spp_list should be the same
+        length the corresponding array in self.observed_data. The index of any
+        species name within any array within self.sad_spp_list references the
+        species count with the same index in self.observed_data.
 
     '''
     
@@ -548,6 +558,11 @@ class CompareSAD(CompareDistribution):
         patch : bool
             If True, expects the output from the Patch.sad method and if False, 
             expects a list of iterables. Presumably, each iterable is an SAD.
+
+        Notes
+        -----
+        If data_list is a list of tuples containing iterables, the 1st entry
+        (0th element) in each tuple is considered the observed SADs
         '''
         if patch == True:
             self.criteria, sad_data, self.sad_spp_list = unpack(data_list)
@@ -570,8 +585,8 @@ class CompareSSAD(CompareDistribution):
         self.observed_data will be compared.  
     self.criteria : a list of dictionaries or None
         If not None, each dictionary specifies the divisions made on the plot
-        that generated each SAD in self.observed_data.  self.criteria should be the
-        same length as self.observed_data
+        that generated each SAD in self.observed_data.  self.criteria should be
+        the same length as self.observed_data
     self.sad_spp_list : List of strings or None
         If not None, self.sad_spp_list is a list of strings where each string
         refers to a species.  The length of self.sad_spp_list should be the same
@@ -592,6 +607,12 @@ class CompareSSAD(CompareDistribution):
         patch : bool
             If True, expects the output from the Patch.sad method and if False, 
             expects a list of iterables. Presumably, each iterable is an SSAD.
+
+
+        Notes
+        -----
+        If data_list is a list of tuples containing iterables, the 1st entry
+        (0th element) in each tuple is considered the observed SSADs
         '''
         if patch == True:
 
@@ -623,8 +644,8 @@ class CompareIED(CompareDistribution):
         If not None, each array contains the species strings for the
         corresponding SAD in self.sad_list.  The length of self.sad_spp_list
         should be the same length as self.sad_list and the length of any array
-        within self.sad_spp_list should be the same length the corresponding array
-        in self.sad_list. The index of any species name within any array
+        within self.sad_spp_list should be the same length the corresponding
+        array in self.sad_list. The index of any species name within any array
         within self.sad_spp_list references the species count with the same
         index in self.sad_list.
     self.criteria : a list of dictionaries or None
@@ -660,6 +681,9 @@ class CompareIED(CompareDistribution):
         Notes
         -----
         The __init__ method always removes zeros from the SADs
+        
+        If data_list is a list of tuples containing iterables, the 1st entry
+        (0th element) in each tuple is considered the observed IEDs 
         '''
 
         if patch == True:
@@ -724,6 +748,11 @@ class CompareSED(CompareDistribution):
             Patch.sad. If False expects what argument data_list describes.
             Empirical sads and energy distributions should be made with the
             same criteria (See Patch class for criteria explanation).
+
+        Notes
+        -----
+        If data_list is a list of tuples containing iterables, the 1st entry
+        (0th element) in each tuple is considered the observed SEDs. 
         '''
 
         if patch:
@@ -874,6 +903,11 @@ class CompareASED(CompareDistribution):
             output from Patch.sad. If False expects what argument data_list
             describes. Empirical sads and energy distributions should be made 
             with the same criteria.
+
+        Notes
+        -----
+        If data_list is a list of tuples containing iterables, the 1st entry
+        (0th element) in each tuple is considered the observed ASEDs. 
         '''
 
         if patch:
