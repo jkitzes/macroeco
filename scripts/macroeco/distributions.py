@@ -3280,8 +3280,8 @@ class theta(Distribution):
 
         n_arrays = [np.arange(1, i + 1) for i in n]
 
-        prad = lambda r, n, l2, e_max : 1 + (1 / (l2 * n)) * np.log( n / 
-                                    (r - 0.5)) + np.exp(-l2 * n * (e_max))
+        prad = lambda r, n, l2, e_max : 1 + (1 / (l2 * n)) * \
+                    np.log(1 / (((r - 0.5) / n) + np.exp(-l2 * n * (e_max))))
 
         rad = []
         terms= []
