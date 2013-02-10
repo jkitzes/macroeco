@@ -3271,7 +3271,7 @@ class theta(Distribution):
         return cdf
 
     @doc_inherit
-    def rad(self):
+    def rad(self, tol=.1):
 
         n_samp, tot_obs, E, n = self.get_params(['n_samp', 'tot_obs', 'E','n'])
         
@@ -3280,14 +3280,28 @@ class theta(Distribution):
 
         n_arrays = [np.arange(1, i + 1) for i in n]
 
-        prad = lambda r, n, l2 : 1 + (1 / (l2 * n)) * np.log( n / (r - 0.5))
+        prad = lambda r, n, l2, e_max : 1 + (1 / (l2 * n)) * np.log( n / 
+                                    (r - 0.5)) + np.exp(-l2 * n * (e_max))
+
         rad = []
+        terms= []
         for tn_samp, ttot_obs, tE, tn, tn_arr in zip(n_samp, tot_obs, E, n, 
-                                                                    n_arrays):
-           
-           tl2 = float(tn_samp) / (tE - ttot_obs)
-           trad = prad(tn_arr, tn, tl2)
-           rad.append(trad)
+                                                        n_arrays):
+            
+            tl2 = float(tn_samp) / (tE - ttot_obs)
+
+            # Exact cdf
+            cdf_eq = lambda es: -np.exp(tl2 * tn) * (np.exp(-tl2 * tn * es) - 
+                                                        np.exp(-tl2 * tn))
+
+            # Calculate e_max for correction term
+            max_obs_cdf = 1 - (1 / (2 * tn))
+            min_func = lambda e_max: max_obs_cdf - cdf_eq(e_max)
+            e_max = scipy.optimize.brentq(min_func, 1, tE, disp=True)
+            terms.append((tn, e_max, np.exp(-tl2 * tn * (e_max))))
+
+            trad = prad(tn_arr, tn, tl2, e_max)
+            rad.append(trad)
 
         return rad
 
