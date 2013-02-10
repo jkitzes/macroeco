@@ -832,14 +832,25 @@ class TestDistributions(unittest.TestCase):
         self.assertRaises(NotImplementedError, nu(n_samp=30, tot_obs=400,
                             E=5000).pdf, 0)
 
+
         # Check that pmf sums to one with appropriate values of e
         E = 5000
         nudist = nu(tot_obs=500, n_samp=50, E=E)
         pmf = nudist.pmf(np.arange(1.1, E + .1, step=.1))[0]
         self.assertTrue(np.round(sum(.1 * pmf), decimals=1) == 1.0)
+
+        # Value with no support should equal 0
+        self.assertTrue(nudist.pmf(1)[0][0] == 0)
+        self.assertTrue(nudist.cdf(1)[0][0] == 0)
         
         #Check that the last value in cdf is 1
         self.assertTrue(np.round(nudist.cdf(E)[0][0], decimals=1) == 1)
+
+        # Max support should equal 1
+        l2 = nudist.var['l2'][0]
+        e_max = 1 + (1 / l2)
+        self.assertTrue(np.round(nudist.cdf(e_max), decimals=1) == 1)
+
 
         # Test that rad works
         g = nudist.rad()
