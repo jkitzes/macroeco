@@ -3386,7 +3386,6 @@ class nu(Distribution):
         pmf = []
         self.var['beta'] = []
         self.var['l2'] = []
-        self.var['sigma'] = []
 
         for tn_samp, ttot_obs, tE, te in zip(n_samp, tot_obs, E, e):
             k = np.linspace(1, ttot_obs, num=ttot_obs)
@@ -3402,23 +3401,35 @@ class nu(Distribution):
             # Set lagrange multipliers
             tbeta = -np.log(tx)
             tl2 = float(tn_samp) / (tE - ttot_obs) # Harte (2011) 7.26
-            tl1 = tbeta - tl2
-            tsigma = tl1 + tE * tl2
+            e_max = 1 + (1 / tl2)
+            e_min = 1 + (1 / (ttot_obs * tl2))
             
-            norm = integrate.quad(nu_pmf_eq, 1, tE, (tbeta, tl2, tn_samp))[0] 
-            tpmf = nu_pmf_eq(te, tbeta, tl2, tn_samp) / norm
+            norm = integrate.quad(nu_pmf_eq, e_min, e_max, (tbeta, tl2, 
+                                                                   tn_samp))[0]
+            tpmf = np.empty(len(te), dtype=float)
+            
+            # Parse values that aren't in range as set to zero
+            ind_tot = np.arange(len(tpmf))
+            ind_less = np.where(te >= e_min)[0]
+            ind_more = np.where(te <= e_max)[0]
+            ind_include = np.intersect1d(ind_more, ind_less)
+            ind_exclude = np.array(list(set(ind_tot) - set(ind_include)))
+            if len(ind_exclude) != 0:
+                tpmf[ind_exclude] = 0
+            
+            if len(ind_include) != 0:
+                tpmf[ind_include] =\
+                        nu_pmf_eq(te[ind_include], tbeta, tl2, tn_samp) / norm
 
             pmf.append(tpmf)
             self.var['beta'].append(tbeta)
             self.var['l2'].append(tl2)
-            self.var['sigma'].append(tsigma)
 
         return pmf
     
     @doc_inherit
     def cdf(self, e):
         
-        # TODO: Break repetitive cdf and pmf code into functions
         n_samp, tot_obs, E = self.get_params(['n_samp', 'tot_obs', 'E'])
         e = expand_n(e, len(n_samp))
 
@@ -3429,7 +3440,6 @@ class nu(Distribution):
         cdf = []
         self.var['beta'] = []
         self.var['l2'] = []
-        self.var['sigma'] = []
 
         for tn_samp, ttot_obs, tE, te in zip(n_samp, tot_obs, E, e):
             k = np.linspace(1, ttot_obs, num=ttot_obs)
@@ -3445,21 +3455,37 @@ class nu(Distribution):
             # Set lagrange multipliers
             tbeta = -np.log(tx)
             tl2 = float(tn_samp) / (tE - ttot_obs) # Harte (2011) 7.26
-            tl1 = tbeta - tl2
-            tsigma = tl1 + tE * tl2
+            e_max = 1 + (1 / tl2)
+            e_min = 1 + (1 / (ttot_obs * tl2))
+
+            tcdf = np.empty(len(te), dtype=float)
+
+            # Parse values that aren't in range as set to 0 or 1
+            ind_tot = np.arange(len(tcdf))
+            ind_less = np.where(te < e_min)[0]
+            ind_more = np.where(te > e_max)[0]
+            ind_combo = np.concatenate((ind_more, ind_less))
+            ind_include = np.array(list(set(ind_tot) - set(ind_combo)))
             
-            norm = integrate.quad(nu_pmf_eq, 1, tE, (tbeta, tl2, tn_samp))[0] 
-            tcdf = [integrate.quad(nu_pmf_eq, 1, se, (tbeta, tl2, tn_samp))[0] 
-                    / norm for se in te]
+            if len(ind_less) != 0:
+                tcdf[ind_less] = 0
+            if len(ind_more) != 0:
+                tcdf[ind_more] = 1
+
+            norm = integrate.quad(nu_pmf_eq, e_min, e_max, (tbeta, tl2, 
+                                                                   tn_samp))[0] 
+            if len(ind_include) != 0:
+                tcdf[ind_include] = np.array([integrate.quad(nu_pmf_eq, e_min, se, 
+                                    (tbeta, tl2, tn_samp))[0] / norm for se in 
+                                    te[ind_include]])
 
             cdf.append(tcdf)
             self.var['beta'].append(tbeta)
             self.var['l2'].append(tl2)
-            self.var['sigma'].append(tsigma)
 
         return cdf
         
-    def rad(self, tol=0.1):
+    def rad(self, tol=.1):
         '''
         This rad uses the observed cdf for a given nu distribution and the
         predicted cdf to calculate the rank energy distribution.  
@@ -3488,9 +3514,16 @@ class nu(Distribution):
             self.params['n_samp'] = tn_samp
             self.params['ttot_obs'] = ttot_obs
             self.params['E'] = tE
+
+            tl2 = float(tn_samp) / (tE - ttot_obs) # Harte (2011) 7.26
+            e_max = 1 + (1 / tl2)
+            e_min = 1 + (1 / (ttot_obs * tl2))
             
-            eng = np.arange(1 + tol, tE + tol, step=tol)
-            tcdf = np.cumsum(tol * self.pmf(eng)[0])
+            num = np.round((e_max - e_min) / tol, decimals=0)
+            eng = np.linspace(e_min, e_max + tol, num=num)
+            diff = eng[1] - eng[0]
+
+            tcdf = np.cumsum(diff * self.pmf(eng)[0])
 
             # Observed cdf. Not quite true if some energies overlap
             obs_cdf = np.arange(1 / (2 * (tn_samp)), 1, 1/tn_samp)

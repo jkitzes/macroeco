@@ -833,15 +833,13 @@ class TestDistributions(unittest.TestCase):
                             E=5000).pdf, 0)
 
         # Check that pmf sums to one with appropriate values of e
-        nudist = nu(tot_obs=500, n_samp=50, E=50000)
-        pmf = nudist.pmf(3)
-        l2 = nudist.var['l2'][0]
-        e_vals = (lambda n: 1 + (1 / (l2 * n)))(np.arange(1,501))
-        full_pmf = nudist.pmf(e_vals)[0]
-        self.assertTrue(np.round(sum(full_pmf), decimals=1) == 1.0)
+        E = 5000
+        nudist = nu(tot_obs=500, n_samp=50, E=E)
+        pmf = nudist.pmf(np.arange(1.1, E + .1, step=.1))[0]
+        self.assertTrue(np.round(sum(.1 * pmf), decimals=1) == 1.0)
         
         #Check that the last value in cdf is 1
-        self.assertTrue(np.round(nudist.cdf(e_vals[0])[0][0], decimals=1) == 1)
+        self.assertTrue(np.round(nudist.cdf(E)[0][0], decimals=1) == 1)
 
         # Test that rad works
         g = nudist.rad()
@@ -852,9 +850,6 @@ class TestDistributions(unittest.TestCase):
         self.assertTrue(g.params['tot_obs'][0] == 28)
         self.assertTrue(g.params['n_samp'][0] == 7)
         self.assertTrue(g.params['E'][0] == 28)
-
-
-
         
 if __name__ == '__main__':
     unittest.main()

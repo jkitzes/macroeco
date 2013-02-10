@@ -169,13 +169,13 @@ if __name__ == '__main__':
         ied = patch.ied(params['criteria'])
 
         # Check which distributions where specified
-        dist_str = str(params['energy_metrics'])
+        dist_str = params['energy_metrics']
         sed_there, ied_there, ased_there = (False, False, False)
-        if dist_str.find('sed') != -1 or dist_str.find('SED') != -1:
+        if 'sed' in dist_str  or 'SED' in dist_str:
             sed_there = True
-        if dist_str.find('ied') != -1 or dist_str.find('IED') != -1:
+        if 'ied' in dist_str  or 'IED' in dist_str:
             ied_there = True
-        if dist_str.find('ased') != -1 or dist_str.find('ASED') != -1:
+        if 'ased' in dist_str  or 'ASED' in dist_str:
             ased_there = True
 
         if sed_there:
