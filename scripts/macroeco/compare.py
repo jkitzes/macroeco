@@ -323,7 +323,7 @@ class CompareDistribution(object):
                                                xrange(len(self.observed_data))]
                     
             self.cdfs = cdfs_dict
-        return cdfs_dict
+        return self.cdfs
     
 
     def compare_LRT(self, null_mdl):
@@ -481,6 +481,13 @@ class CompareDistribution(object):
             keywords contains a list that is the same length as the number of
             sads under consideration.
 
+
+            urns = total number of items in self.observed_data.  Could be
+                   species (SAD, ASED), cells (SSAD), or individuals (IED, SED)
+            balls = Items that are placed in urns. Could be individuals (SAD,
+                    SSAD), energy (ASED, IED, SED).
+            max = Maximum number of balls in an urn
+            tot_min = Total number of urns with with <= a given number of balls
             aic = AIC
             aic_d = Delta AIC
             aic_w = AIC weights
@@ -495,9 +502,11 @@ class CompareDistribution(object):
         # Check that rads is already set, if not set it
         if self.rads == None:
             rads = self.compare_rads()
+            if type(rads) == type((1,)):
+                rads = rads[0]
         else:
             rads = self.rads
-
+        
         rarity = self.compare_rarity(mins_list=mins_list)
         for kw in rads.iterkeys():
             summary[kw] = {}
@@ -799,8 +808,11 @@ class CompareSED(CompareDistribution):
                 tsad = [obj[1] for i in xrange(num)]
                 sad_list += tsad
             
-            self.sad_spp_list = list(np.array(spp_names).flatten())
+            self.sad_spp_list = []
+            for i in xrange(len(spp_names)):
+                self.sad_spp_list += spp_names[i]
             self.criteria = sad_criteria
+
             super(CompareSED, self).__init__(zip(sed_list, ied_list, sad_list),
                                                                   dist_list, 0)
 
@@ -808,11 +820,17 @@ class CompareSED(CompareDistribution):
             
             super(CompareSED, self).__init__(data_list, dist_list, 0)
         
-    def compare_rads(self):
+    def compare_rads(self, return_spp=False):
         '''
         Comparison of species level energy distributions rank abundance
         distributions.
 
+        Parameters
+        ----------
+        return_spp : bool
+            If True, the returns a tuple with a species list as the second
+            element.
+
         Returns
         -------
         : dict
@@ -825,16 +843,26 @@ class CompareSED(CompareDistribution):
         : list or None
             Returns self.sad_spp_list which could be a list of lists or None.
             These names are the species names that correspond numerically with
-            the arrays in within each distribution.
+            the arrays in within each distribution. Only returned if
+            return_spp=True.
 
         '''
-        
-        return super(CompareSED, self).compare_rads(), self.sad_spp_list
+        if return_spp:
+            return super(CompareSED, self).compare_rads(), self.sad_spp_list
+        else:
+            return super(CompareSED, self).compare_rads()
 
-    def compare_cdfs(self):
+
+    def compare_cdfs(self, return_spp=False):
         '''
         Comparison of species level energy distributions cdfs
 
+        Parameters
+        ----------
+        return_spp : bool
+            If True, the returns a tuple with a species list as the second
+            element.
+
         Returns
         -------
         : dict
@@ -847,12 +875,14 @@ class CompareSED(CompareDistribution):
         : list or None
             Returns self.sad_spp_list which could be a list of lists or None.
             These names are the species names that correspond numerically with
-            the arrays within each distribution.
+            the arrays within each distribution. Only returned if
+            return_spp=True.
 
         '''
-        
-        return super(CompareSED, self).compare_cdfs(), self.sad_spp_list
-
+        if return_spp: 
+            return super(CompareSED, self).compare_cdfs(), self.sad_spp_list
+        else:
+            return super(CompareSED, self).compare_cdfs()
 
 class CompareASED(CompareDistribution):
     '''

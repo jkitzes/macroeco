@@ -444,8 +444,8 @@ class TestCompare(unittest.TestCase):
                                                dist_list=['theta'], patch=True)
         
         # Both returns should have a species list
-        cdfs = sed_c.compare_rads()
-        rads = sed_c.compare_cdfs()
+        cdfs = sed_c.compare_rads(return_spp=True)
+        rads = sed_c.compare_cdfs(return_spp=True)
         nt.assert_array_equal(np.array(['a', 'b', 'c', 'd', 'a', 'b', 'c',
                                         'd']), np.array(cdfs[1]))
         nt.assert_array_equal(np.array(['a', 'b', 'c', 'd', 'a', 'b', 'c',

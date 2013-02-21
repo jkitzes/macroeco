@@ -146,41 +146,53 @@ class DistributionOutput(object):
         self.variable = 'abundance'
 
 
-    def write_summary_table(self, smry, criteria=None, labels='sad'):
+    def write_summary_table(self, smry, criteria=None, species=None,
+                                                                dist_name=''):
         '''
         Parameters
         ---------
-        smry : tuple
-            A tuple of length two in which the first object is a dictionary as
-            returned by the function compare_summary within the 
-            CompareDistribution class.  The second object is  dictionary with
-            the keyword 'mins' that refers to the abundance that the 'tot_min'
-            keyword is less than OR equal to. If mins = 1, tot_min describes the
-            number of items with counts <= 1. 
-
+        smry : dict
+            A dictionary as returned by the function compare_summary within the
+            CompareDistribution class.
         criteria : array-like object
             An array-like object in which contains either string or dicts that
             tell how each dataset was generated.  Describes the subsetting of
             an sad and the species ID of an ssad.
+        species : array_like object
+            If not None, must be the an array-like object of the same length as
+            criteria, but containing species strings. Can only be used if
+            criteria is also not None.
+        dist_name : string
+            Distribution name to append to folder name
 
         Notes
         -----
-        Writes out a formatted txt file to self.out_dir 
+        Writes out a formatted txt file 
 
         '''
         # Make output folder
-        folder_name = 'summary_statistics_' + self.out_dir
+        folder_name = dist_name + '_summary_statistics_' + self.out_dir
         make_directory(folder_name)
        
         tot_sad = len(smry['observed']['balls'])
         if criteria != None:
-            assert len(criteria) == tot_sad, "len(criteria) must  equal" + \
+            assert len(criteria) == tot_sad, "len(criteria) must equal" + \
+                                   " number of data arrays under consideration"
+            if species != None:
+                assert len(species) == tot_sad, "len(species) must equal" + \
                                    " number of data arrays under consideration"
         ob = smry['observed']
 
         count = 0
         for i in xrange(tot_sad):
-            if criteria != None and np.all([type(crt) != dict for crt in
+            if criteria != None and species != None:
+                filename = os.path.join(folder_name, self.out_dir + \
+                        '_summary_table_' + str(species[i]) + '_' + str(i) +
+                        '.txt')
+                filename_aic = os.path.join(folder_name, self.out_dir + \
+                        '_AIC_table_' + str(species[i]) + '_' + str(i))
+                
+            elif criteria != None and np.all([type(crt) != dict for crt in
                                                                   criteria]):
                 filename = os.path.join(folder_name, self.out_dir + \
                         '_summary_table_' + str(criteria[i]) + '.txt')
@@ -199,8 +211,14 @@ class DistributionOutput(object):
             logging.info('Writing summary table %s' % filename)
 
 
-            if criteria != None:
+            if criteria != None and species != None:
+
+                fout.write('CRITERIA: ' + str(criteria[i]) + '\n' +
+                           'SPECIES: ' + str(species[i]) + '\n\n')
+
+            elif criteria != None:
                 fout.write('CRITERIA: ' + str(criteria[i]) + '\n\n')
+
             else:
                 fout.write('CRITERIA: NONE ' + str(i) + '\n\n')
 
@@ -216,7 +234,7 @@ class DistributionOutput(object):
                     str(ob_rare) + '\n\n')
 
 
-            # Also output AIC values in for each table. Could add other other
+            # Also output AIC values in for each table. Could add other
             # measures to this table as well. 
             # Might break this out later
             aic_vals = {}
@@ -284,8 +302,13 @@ class DistributionOutput(object):
             CompareDistribution class.
 
         criteria : list of objects
-            If not none, the objects in criteria will be printed a strings in
-            the plots and file names.
+            If not none, the objects in criteria will be printed as strings in
+            the plots and/or file names.  They will only be included in the
+            file name if they are strings.   
+
+        species : list
+            A list of species names to be included in the csv file.  Must
+            contain the same number of iterables 
 
         Notes
         -----
@@ -355,7 +378,8 @@ class DistributionOutput(object):
         fout.close()
 
     
-    def plot_cdfs(self, cdfs, obs_sads, criteria=None, species=None):
+    def plot_cdfs(self, cdfs, obs_data, criteria=None, species=None,
+                                                                dist_name=''):
         '''
 
         Plots observed vs predicted cdfs and returns a csv file with values
@@ -368,13 +392,30 @@ class DistributionOutput(object):
             A dictionary that is returned from the function compare_cdfs in the
             CompareDistribution class. 
 
-        obs_sads : list
-            A list of arrays.  The observed sad(s)
+        obs_data : list
+            A list of arrays. The observed data
+            (CompareDistribution.observed_data)
+
+        criteria : dict or None
+            The criteria for splitting the data. Can be species names.  If not
+            None, the criteria will be printed on the plots
+
+        species : array-like object or None
+            The species names that will be added to the csv files.
+
+        dist_name : string
+            Name to be appended to folders
 
         '''
         # Make directory
-        folder_name = 'cdf_plots_' + self.out_dir
+        folder_name = dist_name + '_cdf_plots_' + self.out_dir
         make_directory(folder_name)
+        
+        # SEDOutput could pass in tuple
+        spp = None
+        if type(cdfs) == type((1,)) and len(cdfs) == 2:
+            spp = cdfs[1]
+            cdfs = cdfs[0]
 
         tot_sad = len(cdfs['observed'])
         recs = make_rec_from_dict(cdfs, tot_sad, add_rank=False)
@@ -387,7 +428,7 @@ class DistributionOutput(object):
             
             names = data.dtype.names
             for nm in names:
-                fig = plt.plot(np.sort(obs_sads[i]), np.sort(data[nm]), '-o')
+                fig = plt.plot(np.sort(obs_data[i]), np.sort(data[nm]), '-o')
             
             # Formatting
             fig[0].axes.xaxis.tick_bottom()
@@ -405,7 +446,7 @@ class DistributionOutput(object):
             
             # Add observed to cdf array
             if species != None:
-                sorted_ab, sorted_spp = sort_rank_abund([obs_sads[i]],
+                sorted_ab, sorted_spp = sort_rank_abund([obs_data[i]],
                                                                 [species[i]])
                 n_rec = add_field(data, [(self.variable, np.float)])
                 n_rec = add_field(n_rec, [('species', 'S40')])
@@ -413,10 +454,12 @@ class DistributionOutput(object):
                 n_rec['species'] = sorted_spp[0]
             else:
                 n_rec = add_field(data, [(self.variable, np.float)])
-                n_rec[self.variable] = np.sort(obs_sads[i])
+                n_rec[self.variable] = np.sort(obs_data[i])
+            
+            # Used for SSAD
+            if criteria != None and spp == None and np.all([type(crt) != dict
+                                                        for crt in criteria]):
 
-            if criteria != None and np.all([type(crt) != dict for crt in
-                                                                    criteria]):
                 plt.title('Cumulative density function for species ' + str(criteria[i]))
 
                 filename = os.path.join(folder_name, self.out_dir +
@@ -426,8 +469,9 @@ class DistributionOutput(object):
                 output_form(n_rec, filename)
                 count += 2
 
-            elif criteria != None and np.all([type(crt) == dict for crt in
-                                                                    criteria]):
+            # Used for SAD
+            elif criteria != None and spp == None and np.all([type(crt) == dict
+                                                         for crt in criteria]):
                 plt.title('Cumulative Density Function')
                 plt.figtext(.97, .5, 'Criteria for plot: ' + str(criteria[i]), 
                                 rotation='vertical', size=8,
@@ -440,6 +484,26 @@ class DistributionOutput(object):
                 plt.savefig(filename)
                 output_form(n_rec, filename)
                 count += 2
+
+            # Used for SED
+            elif criteria != None and spp != None and np.all([type(crt) == dict
+                                                         for crt in criteria]):
+
+                plt.title('Cumulative Density Function for species ' +
+                                                                   str(spp[i]))
+
+                plt.figtext(.97, .5, 'Criteria for plot: ' + str(criteria[i]), 
+                                rotation='vertical', size=8,
+                                horizontalalignment='center',
+                                verticalalignment='center')
+
+                filename = os.path.join(folder_name, self.out_dir + 
+                                    '_cdf_plot_' + str(spp[i]) + '_' + str(i)) 
+                logging.info('Saving figure ' + filename)
+                plt.savefig(filename)
+                output_form(n_rec, filename)
+                count += 2
+                
 
             else:
                 plt.title('CDF: plot number ' + str(i))
@@ -593,7 +657,7 @@ class SAROutput(object):
         fout.close()
 
 
-class ASEDOutput(object):
+class ASEDOutput(DistributionOutput):
     '''
     Class outputs the average species energy distributions by interacting with
     CompareASED
@@ -606,7 +670,21 @@ class ASEDOutput(object):
         out_dir : string
             String appended to output directory
         '''
-        self.out_dir = out_dir         
+        self.out_dir = out_dir
+        self.urns = 'Species'
+        self.balls = 'Sum of Species Average Energies'
+        self.Nmax = 'Max Average Energy'
+        self.cdf_x_axis = 'Average Energy'
+        self.cdf_y_axis = 'Cumulative Probability'
+        self.variable = 'average energy'         
+
+    def plot_rads(self, *args, **kwargs):
+        '''
+        Not implemented for this class object
+        '''
+
+        raise NotImplementedError('plot_rads is not implemented for object %s'
+                        % (self.__class__.__name__))
 
     def plot_reds(self, reds, criteria=None, species=None):
         '''
@@ -712,6 +790,18 @@ class IEDOutput(DistributionOutput):
         self.urns = 'Individuals' 
         self.balls = 'Energy' 
         self.Nmax = 'Max Energy'
+        self.cdf_x_axis = 'Energy'
+        self.cdf_y_axis = 'Cumulative Probability'
+        self.variable = 'energy'
+
+    def plot_rads(self, *args, **kwargs):
+        '''
+        Not implemented for this class object
+        '''
+
+        raise NotImplementedError('plot_rads is not implemented for object %s'
+                        % (self.__class__.__name__))
+        
 
     def plot_reds(self, reds, criteria=None):
         '''
@@ -780,7 +870,7 @@ class IEDOutput(DistributionOutput):
                    'ied_rank_energy'))
         fout.close()
 
-class SEDOutput(object):
+class SEDOutput(DistributionOutput):
     '''
     Class outputs species-level energy distributions by interacting with
     CompareSED
@@ -794,7 +884,22 @@ class SEDOutput(object):
         out_dir : string
             String appended to output directory
         '''
-        self.out_dir = out_dir  
+        self.out_dir = out_dir 
+        self.urns = 'Individuals in Species' 
+        self.balls = 'Energy' 
+        self.Nmax = 'Max Energy'
+        self.cdf_x_axis = 'Energy'
+        self.cdf_y_axis = 'Cumulative Probability'
+        self.variable = 'energy' 
+
+    def plot_rads(self, *args, **kwargs):
+        '''
+        Not implemented for this class object
+        '''
+
+        raise NotImplementedError('plot_rads is not implemented for object %s'
+                        % (self.__class__.__name__))
+
 
     def plot_reds(self, reds, criteria=None):
         '''
@@ -803,7 +908,8 @@ class SEDOutput(object):
         Parameters
         ----------
         reds : tuple
-            The output from the CompareSED.compare_rads method
+            The output from the CompareSED.compare_rads method with
+            return_spp=True.
         criteria : list or None
             A list of dicts with the criteria for divisions.  See Patch.sad
 
@@ -816,6 +922,9 @@ class SEDOutput(object):
         folder_name = 'sed_rank_energy_plots_' + self.out_dir
         make_directory(folder_name)
 
+        if type(reds) != type((1,)):
+            raise TypeError("Input reds must be a tuple. Set return_spp=True" + 
+                            " in CompareSED.compare_rads")
         spp = reds[1]
         tot_reds = len(reds[0]['observed'])
         recs = make_rec_from_dict(reds[0], tot_reds)

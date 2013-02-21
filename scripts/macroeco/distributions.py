@@ -3004,12 +3004,12 @@ class psi(Distribution):
     ------------------
     beta : list of floats
         The beta lagrange multiplier
-    l2 : list of floats
+    lambda_2 : list of floats
         The lambda2 lagrange multiplier
 
     Notes
     -----
-    All other lagrange multipliers can be calculated from beta and l2.
+    All other lagrange multipliers can be calculated from beta and lambda_2.
 
     '''
 
@@ -3033,7 +3033,7 @@ class psi(Distribution):
 
         pdf = []
         self.var['beta'] = []
-        self.var['l2'] = []
+        self.var['lambda_2'] = []
 
         for tn_samp, ttot_obs, tE, te in zip(n_samp, tot_obs, E, e):
             k = np.linspace(1, ttot_obs, num=ttot_obs)
@@ -3075,7 +3075,7 @@ class psi(Distribution):
                     # Harte (2011) 7.24
             pdf.append(tpdf)
             self.var['beta'].append(tbeta)
-            self.var['l2'].append(tl2)
+            self.var['lambda_2'].append(tl2)
         
         return pdf
     
@@ -3092,7 +3092,7 @@ class psi(Distribution):
         cdf = []
 
         self.var['beta'] = []
-        self.var['l2'] = []
+        self.var['lambda_2'] = []
 
         for tn_samp, ttot_obs, tE, te in zip(n_samp, tot_obs, E, e):
             k = np.linspace(1, ttot_obs, num=ttot_obs)
@@ -3117,7 +3117,7 @@ class psi(Distribution):
 
             cdf.append(eq2(te))
             self.var['beta'].append(tbeta)
-            self.var['l2'].append(tl2)
+            self.var['lambda_2'].append(tl2)
 
         return cdf
 
@@ -3129,8 +3129,6 @@ class psi(Distribution):
         start = 0.3
         stop = 2
         flmax = sys.float_info[0]
-        eq = lambda x,k,tot_obs,n_samp: sum(x ** k / float(tot_obs) * n_samp)\
-                                                        -  sum((x ** k) / k)
 
         n_arrays = [np.arange(1, i + 1) for i in tot_obs]
         
@@ -3142,7 +3140,7 @@ class psi(Distribution):
 
             k = np.linspace(1, ttot_obs, num=ttot_obs)
             try:
-                tx = scipy.optimize.brentq(eq, start,
+                tx = scipy.optimize.brentq(beta_solver, start,
                                 min((flmax/tn_samp)**(1/float(ttot_obs)), stop), 
                                 args = (k, ttot_obs, tn_samp), disp=True)
             except(ValueError):
@@ -3207,7 +3205,7 @@ class theta(Distribution):
 
     self.var keywords
     ------------------
-    l2 : list of floats
+    lambda_2 : list of floats
         The lambda2 lagrange multiplier
 
     '''
@@ -3231,7 +3229,7 @@ class theta(Distribution):
 
 
         pdf = []
-        self.var['l2'] = []
+        self.var['lambda_2'] = []
 
         for tn_samp, ttot_obs, tE, tn, te in zip(n_samp, tot_obs, E, n, e):
 
@@ -3240,7 +3238,7 @@ class theta(Distribution):
                                 - np.exp(-tl2 * tn * tE)) #Harte (2011) 7.25
 
             pdf.append(tpdf)
-            self.var['l2'].append(tl2)
+            self.var['lambda_2'].append(tl2)
         
         return pdf
 
@@ -3255,7 +3253,7 @@ class theta(Distribution):
 
 
         cdf = []
-        self.var['l2'] = []
+        self.var['lambda_2'] = []
 
         for tn_samp, ttot_obs, tE, tn, te in zip(n_samp, tot_obs, E, n, e):
 
@@ -3266,7 +3264,7 @@ class theta(Distribution):
                                                         np.exp(-tl2 * tn))   
 
             cdf.append(tcdf)
-            self.var['l2'].append(tl2)
+            self.var['lambda_2'].append(tl2)
         
         return cdf
 
@@ -3359,7 +3357,7 @@ class nu(Distribution):
     -----------------
     beta : list of floats
         The beta lagrange multiplier
-    l2 : list of floats
+    lambda_2 : list of floats
         The lambda2 lagrange multiplier
     sigma : list of floats
         The sigma lagrange multiplier
@@ -3399,7 +3397,7 @@ class nu(Distribution):
         
         pmf = []
         self.var['beta'] = []
-        self.var['l2'] = []
+        self.var['lambda_2'] = []
 
         for tn_samp, ttot_obs, tE, te in zip(n_samp, tot_obs, E, e):
             k = np.linspace(1, ttot_obs, num=ttot_obs)
@@ -3437,7 +3435,7 @@ class nu(Distribution):
 
             pmf.append(tpmf)
             self.var['beta'].append(tbeta)
-            self.var['l2'].append(tl2)
+            self.var['lambda_2'].append(tl2)
 
         return pmf
     
@@ -3453,7 +3451,7 @@ class nu(Distribution):
         
         cdf = []
         self.var['beta'] = []
-        self.var['l2'] = []
+        self.var['lambda_2'] = []
 
         for tn_samp, ttot_obs, tE, te in zip(n_samp, tot_obs, E, e):
             k = np.linspace(1, ttot_obs, num=ttot_obs)
@@ -3495,7 +3493,7 @@ class nu(Distribution):
 
             cdf.append(tcdf)
             self.var['beta'].append(tbeta)
-            self.var['l2'].append(tl2)
+            self.var['lambda_2'].append(tl2)
 
         return cdf
         

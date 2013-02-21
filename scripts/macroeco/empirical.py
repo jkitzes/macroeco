@@ -445,7 +445,7 @@ class Patch:
 
         return result
 
-    def sed(self, criteria, normalize=True, exponent=0.75):
+    def sed(self, criteria, normalize=True, exponent=0.75, clean=False):
         '''
         Calculates the species-level energy distribution for each given species
         in the community.
@@ -455,6 +455,16 @@ class Patch:
         criteria : dict
             Dictionary must have contain a key with the value 'energy' or
             'mass'.  See sad method for further requirements.
+        normalize : bool
+            If True, this distribution is normalized by dividing by the lowest
+            energy value within each element of criteria. If False, returns raw
+            energy values.
+        exponent : float
+            The exponent of the allometric scaling relationship if energy is
+            calculated from mass
+        clean : bool
+            If False, sed dictionary contains all species.  If True, species
+            with no individuals are removed.  This is useful when subsetting.
 
         Returns
         -------
@@ -483,7 +493,12 @@ class Patch:
             for spp in spp_list:
                 spp_ind = (spp == this_ied[2])
                 this_spp_sed = this_ied[1][spp_ind]
-                this_criteria_sed[spp] = this_spp_sed
+
+                if clean: # If True, don't add empty species lists
+                    if len(this_spp_sed) > 0:
+                        this_criteria_sed[spp] = this_spp_sed
+                else:
+                    this_criteria_sed[spp] = this_spp_sed
 
             result.append((this_ied[0], this_criteria_sed))
         

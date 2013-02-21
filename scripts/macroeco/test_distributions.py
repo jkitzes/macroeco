@@ -782,13 +782,13 @@ class TestDistributions(unittest.TestCase):
         # Test lambda values
         tht = theta(n_samp=4, tot_obs=4*4, E=4*4*4, n=10)
         pdf = tht.pdf(1)
-        self.assertTrue(np.round(tht.var['l2'][0], decimals=3) == 0.083)
+        self.assertTrue(np.round(tht.var['lambda_2'][0], decimals=3) == 0.083)
         S = 16
         N = S * (2**8)
         E = N * (2**10)
         tht = theta(n_samp=S, tot_obs=N, E=E, n=N - 1)
         pdf = tht.pdf(1)
-        self.assertTrue(np.round(tht.var['l2'][0], decimals=8) == 3.82e-6)
+        self.assertTrue(np.round(tht.var['lambda_2'][0], decimals=8) == 3.82e-6)
 
         # Test cdf
         self.assertTrue(tht.cdf(E)[0][0] == 1)
@@ -808,16 +808,16 @@ class TestDistributions(unittest.TestCase):
         E = N * (2**2)
         ps = psi(n_samp=S, tot_obs=N, E=E)
         pdf  = ps.pdf(1)
-        self.assertTrue(np.round(ps.var['beta'][0] - ps.var['l2'][0], decimals=3) 
-                                                                    == -0.030)
+        self.assertTrue(np.round(ps.var['beta'][0] - ps.var['lambda_2'][0],
+                                                        decimals=3) == -0.030)
         S = 16
         N = S * (2**8)
         E = N * (4)
         ps = psi(n_samp=S, tot_obs=N, E=E)
         pdf = ps.pdf(1)
-        self.assertTrue(np.round(ps.var['beta'][0] - ps.var['l2'][0], decimals=5) 
-                                                                == -0.00089)
-        self.assertTrue(np.round(ps.var['l2'], decimals=4) == 0.0013)
+        self.assertTrue(np.round(ps.var['beta'][0] - ps.var['lambda_2'][0],
+                                                    decimals=5) == -0.00089)
+        self.assertTrue(np.round(ps.var['lambda_2'], decimals=4) == 0.0013)
 
         # Test cdf
         self.assertTrue(np.round(ps.cdf(E)[0][0], decimals=0) == 1)
@@ -847,7 +847,7 @@ class TestDistributions(unittest.TestCase):
         self.assertTrue(np.round(nudist.cdf(E)[0][0], decimals=1) == 1)
 
         # Max support should equal 1
-        l2 = nudist.var['l2'][0]
+        l2 = nudist.var['lambda_2'][0]
         e_max = 1 + (1 / l2)
         self.assertTrue(np.round(nudist.cdf(e_max), decimals=1) == 1)
 

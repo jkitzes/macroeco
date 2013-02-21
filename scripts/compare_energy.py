@@ -76,11 +76,12 @@ example of an ASED is the 'nu' distribution given in Harte (2011).
 
 OUTPUT
 
-This analysis outputs up to three folders per dataset, a logfile.txt, and, if
-possible, a .png file with a map of the location of the datasets(s). The three
-possible folders begin with the names ied_rank_energy_plots_compare_energy_*,
-sed_rank_energy_plots_compare_energy_*, and
-ased_rank_energy_plots_compare_energy_* .  Within each folder, there are rank
+This analysis outputs up to nine folders per dataset (three for ASED, SED,
+and/or IED), a logfile.txt, and, if
+possible, a .png file with a map of the location of the datasets(s). Within
+each folder that begins with ied_rank_energy_plots_compare_energy_*,
+sed_rank_energy_plots_compare_energy_*, or
+ased_rank_energy_plots_compare_energy_*, there are rank
 energy distribution (red) plots in which the observed energy distribution is
 compared to the distributions given in the required parameter
 predicted_SED_distributions, predicted_IED_distributions, and/or
@@ -90,6 +91,16 @@ plot, a corresponding csv file with the same name as the plot except with a
 plots, the species name is specified in the plot title.  For all of the IED and
 ASED plots, the criteria used to make plot is printed on the right hand side of
 the plot. 
+
+Each folder that begins with ied_cdf_plots_compare_energy_*,
+sed_cdf_plots_compare_energy_*, or ased_cdf_plots_compare_energy_* contains the
+same same content as the rank energy plots, but cumulative density is plotted
+instead.
+
+Within each folder that begins with ied_summary*,  sed_summary*, and/or 
+ased_summary*, there are .txt file(s) summarizing each each distribution and
+there are .csv files that contain the AIC output for the predicted
+distributions of the metric.
 
 The logfile.txt contains the analysis process information. Please see the
 logfile if the analysis fails.
@@ -179,25 +190,41 @@ if __name__ == '__main__':
             ased_there = True
 
         if sed_there:
+            nm = 'sed'
             sed = patch.sed(params['criteria'])
             cmprt = comp.CompareSED((sed, ied, sad),
                              params['predicted_SED_distributions'], patch=True)
             sout = SEDOutput(output_ID)
-            sout.plot_reds(cmprt.compare_rads(), criteria=cmprt.criteria)
+            sout.plot_reds(cmprt.compare_rads(return_spp=True), 
+                                                       criteria=cmprt.criteria)
+            sout.plot_cdfs(cmprt.compare_cdfs(return_spp=True), 
+                    cmprt.observed_data, criteria=cmprt.criteria, dist_name=nm)
+            sout.write_summary_table(cmprt.summary(), criteria=cmprt.criteria,
+                                species=cmprt.sad_spp_list, dist_name=nm)
 
         if ied_there:
-             cmprp = comp.CompareIED((ied, sad), 
+            nm = 'ied' 
+            cmprp = comp.CompareIED((ied, sad), 
                              params['predicted_IED_distributions'], patch=True)
-             soup = IEDOutput(output_ID)
-             soup.plot_reds(cmprp.compare_rads(), criteria=cmprp.criteria)
+            soup = IEDOutput(output_ID)
+            soup.plot_reds(cmprp.compare_rads(), criteria=cmprp.criteria)
+            soup.plot_cdfs(cmprp.compare_cdfs(), cmprp.observed_data,
+                                criteria=cmprp.criteria, dist_name=nm)
+            soup.write_summary_table(cmprp.summary(),
+                                    criteria=cmprp.criteria, dist_name=nm)
 
         if ased_there:
+            nm = 'ased'
             ased = patch.ased(params['criteria'])
             cmpra = comp.CompareASED((ased, ied, sad),
             params['predicted_ASED_distributions'], patch=True)
             soua = ASEDOutput(output_ID)
             soua.plot_reds(cmpra.compare_rads(), criteria=cmpra.criteria,
                                                    species=cmpra.sad_spp_list)
+            soua.plot_cdfs(cmpra.compare_cdfs(), cmpra.observed_data,
+                                criteria=cmpra.criteria, dist_name=nm)
+            soua.write_summary_table(cmpra.summary(), criteria=cmpra.criteria,
+                                    dist_name=nm)
 
 
         os.chdir(cwd)
