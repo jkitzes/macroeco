@@ -534,9 +534,9 @@ class TestCompare(unittest.TestCase):
         smry = sad_c.summary()
         self.assertTrue(len(smry) == 3)
 
-        # Logseries dict and sugihara dict should have 8 kw
-        self.assertTrue(len(smry['logser']) == 8 and len(smry['sugihara']) ==
-                                                                             8)
+        # Logseries dict and sugihara dict should have 9 kw
+        self.assertTrue(len(smry['logser']) == 9 and len(smry['sugihara']) ==
+                                                                             9)
 
         # AIC values for sugihara should in inf
         self.assertTrue(np.all(smry['sugihara']['aic'] == np.array([np.inf,
