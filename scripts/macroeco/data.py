@@ -16,6 +16,7 @@ import numpy as np
 import xml.etree.ElementTree as etree
 from matplotlib.mlab import csv2rec
 import sqlite3 as lite
+import pandas as pd
 
 
 class DataTable:
@@ -68,7 +69,10 @@ class DataTable:
         # Check that file is csv. If so, read in as rec array
         if end == 'csv':
             # Load main table - dtype detected automatically
-            table = csv2rec(data_path)
+            # Use panda to load and convert to records
+            table = pd.read_csv(data_path)
+            table = table.to_records()
+
         elif end == 'db' or end == 'sql':
 
             if type(subset) == type({}):
