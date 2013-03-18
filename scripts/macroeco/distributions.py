@@ -356,6 +356,23 @@ class Distribution(object):
         Rank abundance distribution, calculated from cdf
     fit(data)
         Uses data to populate params attribute
+
+    Examples
+    --------
+
+    # logser is a Distribution object
+    dist_object = logser(tot_obs=500, n_samp=30)
+    pmf_vals = dist_object.pmf(3)
+    dist_object = dist_object.pmf([1,1,1,2,3,4])
+    fitted = logser().fit([1,1,1,1,2,3,4,5])
+    rad = fitted.rad()
+
+    # nbd is a Distribution object
+    dist_object = nbd(tot_obs=120, n_samp=20, k=4)
+    cdf_vals = dist_object.cdf([1,2,3,4])
+    dist_object = nbd(tot_obs=[345,678], n_samp=[23, 45], k=1)
+    pmf_vals = dist_object.pmf([[2,34,2], [15, 16, 17]])
+
     '''
 
     def __init__(self, **kwargs):
