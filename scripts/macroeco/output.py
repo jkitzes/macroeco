@@ -144,10 +144,10 @@ class DistributionOutput(object):
         self.cdf_x_axis = 'Abundance'
         self.cdf_y_axis = 'Cumulative Probability'
         self.variable = 'abundance'
+        self.dist_name = ''
 
 
-    def write_summary_table(self, smry, criteria=None, species=None,
-                                                                dist_name=''):
+    def write_summary_table(self, smry, criteria=None, species=None):
         '''
         Parameters
         ---------
@@ -162,8 +162,6 @@ class DistributionOutput(object):
             If not None, must be the an array-like object of the same length as
             criteria, but containing species strings. Can only be used if
             criteria is also not None.
-        dist_name : string
-            Distribution name to append to folder name
 
         Notes
         -----
@@ -171,7 +169,7 @@ class DistributionOutput(object):
 
         '''
         # Make output folder
-        folder_name = dist_name + '_summary_statistics_' + self.out_dir
+        folder_name = self.dist_name + '_summary_statistics_' + self.out_dir
         make_directory(folder_name)
        
         tot_sad = len(smry['observed']['balls'])
@@ -378,8 +376,8 @@ class DistributionOutput(object):
         fout.close()
 
     
-    def plot_cdfs(self, cdfs, obs_data, criteria=None, species=None,
-                                                                dist_name=''):
+    def plot_cdfs(self, cdfs, obs_data, criteria=None, species=None):
+                                                                
         '''
 
         Plots observed vs predicted cdfs and returns a csv file with values
@@ -403,12 +401,9 @@ class DistributionOutput(object):
         species : array-like object or None
             The species names that will be added to the csv files.
 
-        dist_name : string
-            Name to be appended to folders
-
         '''
         # Make directory
-        folder_name = dist_name + '_cdf_plots_' + self.out_dir
+        folder_name = self.dist_name + '_cdf_plots_' + self.out_dir
         make_directory(folder_name)
         
         # SEDOutput could pass in tuple
@@ -543,6 +538,7 @@ class SADOutput(DistributionOutput):
         self.cdf_x_axis = 'Abundance'
         self.cdf_y_axis = 'Cumulative Probability'
         self.variable = 'abundance'
+        self.dist_name = 'sad'
 
 class SSADOutput(DistributionOutput):
     '''
@@ -566,6 +562,7 @@ class SSADOutput(DistributionOutput):
         self.cdf_x_axis = 'Abundance'
         self.cdf_y_axis = 'Cumulative Probability'
         self.variable = 'abundance'
+        self.dist_name = 'ssad'
 
 class SAROutput(object):
     '''
@@ -677,6 +674,7 @@ class ASEDOutput(DistributionOutput):
         self.cdf_x_axis = 'Average Energy'
         self.cdf_y_axis = 'Cumulative Probability'
         self.variable = 'average energy'         
+        self.dist_name = 'ased'
 
     def plot_rads(self, *args, **kwargs):
         '''
@@ -793,6 +791,7 @@ class IEDOutput(DistributionOutput):
         self.cdf_x_axis = 'Energy'
         self.cdf_y_axis = 'Cumulative Probability'
         self.variable = 'energy'
+        self.dist_name = 'ied'
 
     def plot_rads(self, *args, **kwargs):
         '''
@@ -891,6 +890,7 @@ class SEDOutput(DistributionOutput):
         self.cdf_x_axis = 'Energy'
         self.cdf_y_axis = 'Cumulative Probability'
         self.variable = 'energy' 
+        self.dist_name = 'sed'
 
     def plot_rads(self, *args, **kwargs):
         '''

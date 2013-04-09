@@ -68,10 +68,17 @@ class DataTable:
         end = data_path.split('.')[-1]
         # Check that file is csv. If so, read in as rec array
         if end == 'csv':
+            table = csv2rec(data_path)
             # Load main table - dtype detected automatically
             # Use panda to load and convert to records
-            table = pd.read_csv(data_path)
-            table = table.to_records()
+            #table = pd.read_csv(data_path)
+            # Check if there is a column named index, if so rename and delete
+            # it. Why? Index is a special word
+            #if hasattr(table, 'index'):
+            #    table['index_1'] = table['index']
+            #    del table['index']
+
+            #table = table.to_records()
 
         elif end == 'db' or end == 'sql':
 
