@@ -12,6 +12,7 @@ Patch Methods
 -------------
 - `sad` -- calculate species abundance distribution (grid or sample)
 - `sar` -- calculate species-area relationship (grid or sample)
+- `universal_sar` -- calculates the universal sar curve
 - `ear` -- calculate endemics-area relationship (grid or sample)
 - `comm` -- calculate commonality between sub-patches (grid)
 - `ssad` -- calculate species-level spatial abundance distrib (grid or sample)
@@ -54,7 +55,7 @@ class Patch:
         Dictionary of permanent subset to data, {'column_name': 'condition'},
         which will limit all analysis to records in which column_name meets the
         condition, ie, {'year': ('==', 2005), 'x': [('>', 20), ('<', 40)]}
-        restricts analysis to year 2005 and x values between 20 and 40. These
+        restricts analysis to year 2005 and x values between 20 and 4. These
         conditions can also be passed to the individual methods, but subsetting
         the data table up front may save analysis time.  Subsetting on a string
         would look something like {'name' : [('==', 'John'), ('==', 'Harry')]}.
@@ -282,9 +283,9 @@ class Patch:
 
 
 
-    def sar(self, div_cols, div_list, criteria, form='sar'):
+    def sar(self, div_cols, div_list, criteria, form='sar', output_N=False):
         '''
-        Calulate an empirical species-area relationship given criteria.
+        Calculate an empirical species-area relationship given criteria.
 
         Parameters
         ----------
@@ -299,6 +300,9 @@ class Patch:
         form : string
             'sar' or 'ear' for species or endemics area relationship. EAR is 
             relative to the subtable selected after criteria is applied.
+        output_N : bool
+            Adds the column N to the output rec array which contains the
+            average N for a given area.
 
         Returns
         -------
@@ -319,6 +323,7 @@ class Patch:
         areas = []
         mean_result = []
         full_result = []
+        N_result = []
 
         for div in div_list:
 
@@ -329,6 +334,10 @@ class Patch:
 
             # Get flattened sad for all criteria and this div
             sad_return = self.sad(this_criteria)
+
+            if output_N:
+                N_result.append(np.mean([sum(sad[1]) for sad in sad_return]))
+
             flat_sad = flatten_sad(sad_return)[1]
 
             # Store results
@@ -361,9 +370,89 @@ class Patch:
             areas.append(area)
 
         # Return
-        rec_sar = np.array(zip(mean_result, areas), dtype=[('items', np.float),
-                                                           ('area', np.float)])
+        if not output_N:
+            rec_sar = np.array(zip(mean_result, areas), dtype=[('items',
+                                                np.float), ('area', np.float)])
+        else:
+            rec_sar = np.array(zip(mean_result, N_result, areas),
+              dtype=[('items', np.float), ('N', np.float), ('area', np.float)])
+
         return rec_sar, full_result
+
+
+    def universal_sar(self, div_cols, div_list, criteria, include_full=False):
+        '''
+        Calculates the empirical universal sar given criteria. The universal
+        sar calculates the slope of the SAR and the ratio of N / S at all
+        the areas in div_cols (where N is the total number of species and S is 
+        the total number of species). 
+
+        This function assumes that the div_list contains halvings.  If they are not,
+        the function will still work but the results will be meaningless.  An
+        example a of div_list with halvings is:
+
+        [(1,1), (1,2), (2,2), (2,4), (4,4)]
+
+        Parameters
+        ----------
+        div_cols : tuple
+            Column names to divide, eg, ('x', 'y'). Must be metric.
+        div_list : list of tuples
+            List of division pairs in same order as div_cols, eg, [(2,2), 
+            (2,4), (4,4)]. Values are number of divisions of div_col.
+        criteria : dict
+            See docstring for EPatch.sad. Here, criteria SHOULD NOT include 
+            items referring to div_cols (if there are any, they are ignored).
+        include_full : bool
+            If include_full = True, the division (1,1) will be included if it
+            was now already included. Else it will not be included.  (1,1) is
+            equivalent to the full plot
+
+
+        Returns
+        -------
+        z_array : a structured array
+            Has the columns names:
+            'z' : slope of the SAR at the given area
+            'S' : Number of species at the given division
+            'N' : Number of individuals at the given division
+            'N/S' : The ratio of N/S at the given division
+
+
+        Notes
+        -----
+        If you give it n divisions in div_list you will get a structured array
+        back that has length n - 2.  Therefore, if you only have one
+        '''
+
+        # If (1,1) is not included, include it
+        if include_full:
+            try:
+                div_list.index((1,1))
+            except ValueError:
+                div_list.insert(0, (1,1))
+
+        # Run sar with the div_cols
+        sar = self.sar(div_cols, div_list, criteria, output_N=True)[0]
+
+        # sort by area
+        sar = np.sort(sar, order=['area'])[::-1]
+
+        # Calculate z's
+        if len(sar) >= 3: # Check the length of sar
+            z_list = [z(sar['items'][i - 1], sar['items'][i + 1]) for i in
+                 np.arange(1, len(sar)) if sar['items'][i] != sar['items'][-1]] 
+        else:
+            return np.empty(0, dtype=[('z', np.float), ('S', np.float), ('N',
+                                                 np.float), ('N/S', np.float)])
+
+        N_over_S = sar['N'][1:len(sar) - 1] / sar['items'][1:len(sar) - 1]
+
+        z_array = np.array(zip(z_list, sar['items'][1:len(sar) - 1],
+            sar['N'][1:len(sar) - 1], N_over_S), dtype=[('z', np.float), ('S',
+            np.float), ('N', np.float), ('N/S', np.float)])  
+        
+        return z_array
 
     def ied(self, criteria, normalize=True, exponent=0.75):
         '''
@@ -597,3 +686,8 @@ def rnd(num):
     subpatches not lie exactly on even divisions of patch.
     '''
     return round(num, 6)
+
+def z(doubleS, halfS):
+    '''Calculates the z for a double S value and a half S value'''
+
+    return np.log(doubleS / halfS) / (2 * np.log(2))
