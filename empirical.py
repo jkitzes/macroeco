@@ -55,7 +55,7 @@ class Patch:
         Dictionary of permanent subset to data, {'column_name': 'condition'},
         which will limit all analysis to records in which column_name meets the
         condition, ie, {'year': ('==', 2005), 'x': [('>', 20), ('<', 40)]}
-        restricts analysis to year 2005 and x values between 20 and 4. These
+        restricts analysis to year 2005 and x values between 20 and 40. These
         conditions can also be passed to the individual methods, but subsetting
         the data table up front may save analysis time.  Subsetting on a string
         would look something like {'name' : [('==', 'John'), ('==', 'Harry')]}.
