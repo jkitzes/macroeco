@@ -20,14 +20,6 @@ from data import Metadata
 import itertools
 import logging
 
-__author__ = "Mark Wilber"
-__copyright__ = "Copyright 2012, Regents of University of California"
-__credits__ = "John Harte"
-__license__ = None
-__version__ = "0.1"
-__maintainer__ = "Mark Wilber"
-__email__ = "mqw@berkeley.edu"
-__status__ = "Development"
 
 #Formatting functions
 def get_metadata(asklist, folder_name, dataname):

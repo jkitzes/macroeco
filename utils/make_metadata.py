@@ -8,15 +8,6 @@ import metadata_writer
 import sys
 
 
-__author__ = "Mark Wilber"
-__copyright__ = "Copyright 2012, Regents of University of California"
-__credits__ = "John Harte"
-__license__ = None
-__version__ = "0.1"
-__maintainer__ = "Mark Wilber"
-__email__ = "mqw@berkeley.edu"
-__status__ = "Development"
-
 #The user may want to make minimal metadata for multiple files
 if len(sys.argv) == 1:
     print "No data files included.  Minimal metadata not made"

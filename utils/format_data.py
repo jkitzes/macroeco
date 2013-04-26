@@ -14,14 +14,6 @@ import form_func as ff
 from numpy.lib.recfunctions import drop_fields
 import csv
 
-__author__ = "Mark Wilber"
-__copyright__ = "Copyright 2012, Regents of University of California"
-__credits__ = "John Harte"
-__license__ = None
-__version__ = "0.1"
-__maintainer__ = "Mark Wilber"
-__email__ = "mqw@berkeley.edu"
-__status__ = "Development"
 
 class Columnar_Data:
     '''

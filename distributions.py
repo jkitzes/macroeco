@@ -114,14 +114,6 @@ from macroeco.utils.docinherit import DocInherit
 
 doc_inherit = DocInherit
 
-__author__ = "Justin Kitzes and Mark Wilber"
-__copyright__ = "Copyright 2012, Regents of the University of California"
-__credits__ = ["John Harte"]
-__license__ = None
-__version__ = "0.1"
-__maintainer__ = "Justin Kitzes and Mark Wilber"
-__email__ = "jkitzes@berkeley.edu"
-__status__ = "Development"
 
 # TODO: Add truncated log-normal?
 

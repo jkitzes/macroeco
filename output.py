@@ -13,13 +13,6 @@ import copy as cp
 import os
 import shutil
 
-__author__ = "Mark Wilber"
-__copyright__ = "Copyright 2012, Regents of the University of California"
-__license__ = None
-__version__ = "0.5"
-__maintainer__ = "Mark Wilber"
-__email__ = "mqw@berkeley.edu"
-__status__ = "Development"
 
 readme_info_plots =\
 '''

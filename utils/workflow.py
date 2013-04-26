@@ -16,14 +16,6 @@ import sys, os, logging
 import matplotlib.pyplot as plt
 from macroeco.data import Metadata
 
-__author__ = "Chloe Lewis"
-__copyright__ = "Copyright 2012, Regents of the University of California"
-__credits__ = []
-__license__ = None
-__version__ = "0.5"
-__maintainer__ = "Chloe Lewis"
-__email__ = "chlewis@berkeley.edu"
-__status__ = "Development"
 
 paramfile = 'parameters.xml'  # Parameter file found in output dir
 logfile   = 'logfile.txt'  # Logfile to save in output dir

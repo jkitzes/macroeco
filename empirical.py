@@ -32,15 +32,6 @@ import numpy as np
 from copy import deepcopy
 from data import DataTable
 
-__author__ = "Justin Kitzes"
-__copyright__ = "Copyright 2012, Regents of the University of California"
-__credits__ = ["John Harte"]
-__license__ = None
-__version__ = "0.1"
-__maintainer__ = "Justin Kitzes"
-__email__ = "jkitzes@berkeley.edu"
-__status__ = "Development"
-
 
 class Patch:
     '''
