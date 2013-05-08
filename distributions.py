@@ -110,7 +110,7 @@ import math as m
 import scipy.integrate as integrate
 import sys
 #from docinherit import DocInherit
-from macroeco.utils.docinherit import DocInherit
+from utils.docinherit import DocInherit
 
 doc_inherit = DocInherit
 
