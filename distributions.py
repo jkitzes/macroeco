@@ -740,6 +740,16 @@ class most_uneven(Distribution):
 
         return rad
 
+class dgamma(Distribution):
+    __doc__ = Distribution.__doc__ + \
+    '''
+    Description
+    -----------
+    Discrete gamma distribution as discussed my Frank and Pueyo
+    
+    '''
+    pass
+
 class logser(Distribution):
     __doc__ = Distribution.__doc__ + \
     '''
