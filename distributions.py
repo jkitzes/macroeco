@@ -1417,7 +1417,58 @@ class lognorm(Distribution):
         self.params['n_samp'] = n_samp
         self.params['tot_obs'] = tot_obs
         return self
-        
+
+class dgamma(Distribution):
+    __doc__ = Distribution.__doc__ + \
+    '''
+    Discrete Gamma distribution as specified by Ugland et al. 2007 and Frank et
+    al 2011.
+
+    Parameters
+    ----------
+    n_samp : int or iterable
+        Total number of species / samples
+    tot_obs: int or iterable
+        Total number of individuals / observations
+    alpha : float
+
+    theta : float
+
+    '''
+
+    @doc_inherit
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.min_supp = 1
+        self.par_num = 2 
+        self.var = {}
+
+    @doc_inherit
+    def pmf(self, n):
+
+        # Get parameters
+        n_samp, tot_obs, alpha, theta =\
+                self.get_params(['n_samp', 'tot_obs', 'alpha', 'theta'])
+        n = expand_n(n, len(n_samp))
+
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
+
+        # Calculate pmf
+        eq = lambda x, alpha, theta: x**(alpha - 1) * theta**x       
+
+        pmf = []
+        for tn_samp, ttot_obs, talpha, ttheta, tn in zip(n_samp, tot_obs,
+                                                alpha, theta, n):
+            # Normalization constant
+            sumg = sum(eq(np.arange(1, np.floor(ttot_obs) + 1), talpha,
+                                                                    ttheta))
+            import pdb; pdb.set_trace()
+            tpmf = eq(tn, talpha, ttheta) / sumg # Normalizing
+            pmf.append(tpmf)
+
+        return pmf
+
+
 
 class geo_ser(Distribution):
     __doc__ = Distribution.__doc__ + \
