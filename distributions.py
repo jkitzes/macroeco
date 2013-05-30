@@ -740,15 +740,6 @@ class most_uneven(Distribution):
 
         return rad
 
-class dgamma(Distribution):
-    __doc__ = Distribution.__doc__ + \
-    '''
-    Description
-    -----------
-    Discrete gamma distribution as discussed my Frank and Pueyo
-    
-    '''
-    pass
 
 class logser(Distribution):
     __doc__ = Distribution.__doc__ + \
@@ -1430,9 +1421,10 @@ class dgamma(Distribution):
         Total number of species / samples
     tot_obs: int or iterable
         Total number of individuals / observations
-    alpha : float
-
-    theta : float
+    alpha : float or iterable 
+        The alpha parameter of the discrete gamma distribution
+    theta : float or iterable
+        The theta parameter of the discrete gamma distribution
 
     '''
 
@@ -1462,12 +1454,52 @@ class dgamma(Distribution):
             # Normalization constant
             sumg = sum(eq(np.arange(1, np.floor(ttot_obs) + 1), talpha,
                                                                     ttheta))
-            import pdb; pdb.set_trace()
             tpmf = eq(tn, talpha, ttheta) / sumg # Normalizing
             pmf.append(tpmf)
 
         return pmf
 
+    def fit(self, data):
+        '''
+        Fit method.
+
+        Uses input data to get best fit parameters for distribution, and stores 
+        these parameters in params attribute.
+        
+        Parameters
+        ----------
+        data : list of ndarrays
+            Data to use to fit parameters of distribution. Even if only one 
+            data array, must be in a list with one element.
+
+        See class docstring for more specific information on this distribution.
+        '''
+
+        super(dgamma, self).fit(data)
+        data = check_list_of_iterables(data)
+
+        # Calculate and store parameters
+        temp_alpha = []
+        temp_theta = []
+
+        for tdata in data:
+            alpha0 = 1 # starting guesses for alpha and theta 
+            theta0 = .9 
+            
+            def dgm_func(x):
+                self.params['alpha'] = x[0]
+                self.params['theta'] = x[1]
+                return -sum(np.log(self.pmf(tdata)[0]))
+
+            alpha, theta = scipy.optimize.fmin(dgm_func, x0=[alpha0, theta0],
+                                            disp=0)
+            temp_alpha.append(alpha)
+            temp_theta.append(theta)
+
+        self.params['alpha'] = np.array(temp_alpha)
+        self.params['theta'] = np.array(temp_theta)
+
+        return self
 
 
 class geo_ser(Distribution):
