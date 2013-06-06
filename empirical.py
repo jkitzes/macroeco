@@ -445,6 +445,96 @@ class Patch:
         
         return z_array
 
+    def comm_sep(self, plot_locs, criteria):
+        '''
+        Calculates commonality (Sorensen and Jaccard) between pairs of plots.
+
+        Parameters
+        ----------
+        plot_locs : tuple
+            Dictionary with keys equal to each plot name, which must be 
+            represented by a column in the data table, and values equal to a 
+            tuple of the x and y coordinate of each plot
+        criteria : dict
+            See docstring for Patch.sad.
+
+        Returns
+        -------
+        result: structured array
+            Returns a structured array with fields plot-a and plot-b (names of 
+            two plots), dist (distance between plots), and sorensen and jaccard 
+            (similarity indices). Has row for each unique pair of plots.
+        '''
+
+        # Set up sad_dict with key=plot and val=clean sad for that plot
+        sad_dict = {}
+
+        # Loop through all plot cols, updating criteria, and getting spp_list
+        for plot in plot_locs.keys():
+
+            # Find current count col and remove it from criteria
+            for crit_key in criteria.keys():
+                if criteria[crit_key] == 'count':
+                    criteria.pop(crit_key, None)
+
+            # Add this plot as col with counts
+            criteria[plot] = 'count'
+
+            # Get SAD for existing criteria with this plot as count col
+            sad_return = self.sad(criteria, clean=True)
+
+            # Check that sad_return only has one element, or throw error
+            if len(sad_return) > 1:
+                raise NotImplementedError('Too many criteria for comm_sep')
+
+            # Get unique species list for this plot and store in sad_dict
+            sad_dict[plot] = sad_return[0][2]
+
+        # Set up recarray to hold Sorensen index for all pairs of plots
+        n_pairs = np.sum(np.arange(len(plot_locs.keys())))
+        result = np.recarray((n_pairs,), dtype=[('plot-a','S32'),
+                                                ('plot-b', 'S32'),                                                                
+                                                ('dist', float),
+                                                ('sorensen', float),
+                                                ('jaccard', float)])
+
+        # Loop through all combinations of plots and fill in result table
+        row = 0
+        for pair in itertools.combinations(plot_locs.keys(), 2):
+
+            # Names of plots
+            plota = pair[0]
+            plotb = pair[1]
+
+            result[row]['plot-a'] = plota
+            result[row]['plot-b'] = plotb
+
+            # Calculate inter-plot distance
+            result[row]['dist'] = distance(plot_locs[plota], plot_locs[plotb])
+
+            # Get similarity indices
+            spp_a = len(sad_dict[plota])
+            spp_b = len(sad_dict[plota])
+            intersect = set(sad_dict[plota]).intersection(sad_dict[plotb])
+            union = set(sad_dict[plota]).union(sad_dict[plotb])
+
+            # Fill in zero if denom is zero
+            if spp_a + spp_b == 0:
+                result[row]['sorensen'] = 0
+            else:
+                result[row]['sorensen'] = (2 * len(intersect)) / (spp_a + spp_b)
+            
+            if len(union) == 0:
+                result[row]['jaccard'] = 0
+            else:
+                result[row]['jaccard'] = len(intersect) / len(union)
+
+            # Increment row counter
+            row += 1
+
+        return result
+            
+
     def ied(self, criteria, normalize=True, exponent=0.75):
         '''
         Calculates the individual energy distribution for the entire community
