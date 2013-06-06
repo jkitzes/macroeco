@@ -1352,6 +1352,7 @@ class lognorm(Distribution):
         # Calculate mu
         mu = np.log(tot_obs / n_samp) - (sigma**2 / 2)
         self.var['mu'] = mu
+        self.var['sigma'] = sigma
 
         # Calculate pmf
         pmf = []
