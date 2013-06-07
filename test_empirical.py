@@ -225,6 +225,38 @@ d, 1, 1, 1, snake''')
         self.pat8 = Patch('xyfile12.csv')
         self.pat8.data_table.meta = self.xymeta12
 
+        # Data file with three count colums, unique row for each species
+        self.xyfile13 = open('xyfile13.csv', 'w')
+        self.xyfile13.write('''spp_code, order, plot1, plot2, plot3
+a, pred, 0, 0, 0
+b, pred, 0, 0, 1
+c, pred, 0, 1, 0
+d, pred, 0, 2, 3
+e, scav, 0, 1, 0
+f, scav, 0, 1, 4''')
+        self.xyfile13.close()
+        self.xymeta13 = {('spp_code', 'maximum'): None,
+                         ('spp_code', 'minimum'): None,
+                         ('spp_code', 'precision'): None,
+                         ('spp_code', 'type'): 'ordinal',
+                         ('order', 'maximum'): None,
+                         ('order', 'minimum'): None,
+                         ('order', 'precision'): None,
+                         ('order', 'type'): 'ordinal',
+                         ('plot1', 'maximum'): None,
+                         ('plot1', 'minimum'): None,
+                         ('plot1', 'precision'): None,
+                         ('plot1', 'type'): 'ratio',
+                         ('plot2', 'maximum'): None,
+                         ('plot2', 'minimum'): None,
+                         ('plot2', 'precision'): None,
+                         ('plot2', 'type'): 'ratio',
+                         ('plot3', 'maximum'): None,
+                         ('plot3', 'minimum'): None,
+                         ('plot3', 'precision'): None,
+                         ('plot3', 'type'): 'ratio'}
+        self.pat9 = Patch('xyfile13.csv')
+        self.pat9.data_table.meta = self.xymeta13
 
 
 
@@ -238,6 +270,7 @@ d, 1, 1, 1, snake''')
         os.remove('xyfile10.csv')
         os.remove('xyfile11.csv')
         os.remove('xyfile12.csv')
+        os.remove('xyfile13.csv')
 
     #
     # init and set_attributes
@@ -391,6 +424,27 @@ d, 1, 1, 1, snake''')
         vals = self.pat8.universal_sar(div_cols, [(1,1), (2,2), (2,4), (4,4)], 
                                                                     criteria)
         self.assertTrue(len(vals) == 2)
+
+    def test_comm_sep(self):
+
+        # Create result recarray 
+        comm = self.pat9.comm_sep({'plot1': (0,0), 'plot2': (0,1),
+                                   'plot3': (3,4)},
+                                  {'spp_code': 'species', 'count': 'count'})
+
+        # Check distances
+        dist_sort = np.sort(comm['dist'])
+        np.testing.assert_array_almost_equal(dist_sort, np.array((1,4.242,5)), 
+                                             3)
+
+        # Check Sorensen - 2 zeros from empty plot1
+        sor_sort = np.sort(comm['sorensen'])
+        np.testing.assert_array_almost_equal(sor_sort, 
+                                             np.array((0,0,0.571428571)), 5)
+
+        # Check Jaccard - 2 zeros from empty plot1
+        jac_sort = np.sort(comm['jaccard'])
+        np.testing.assert_array_almost_equal(jac_sort, np.array((0,0,0.4)), 5)
 
     def test_ssad(self):
         
