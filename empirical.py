@@ -493,7 +493,7 @@ class Patch:
         # Set up recarray to hold Sorensen index for all pairs of plots
         n_pairs = np.sum(np.arange(len(plot_locs.keys())))
         result = np.recarray((n_pairs,), dtype=[('plot-a','S32'),
-                                                ('plot-b', 'S32'),                                                                
+                                                ('plot-b', 'S32'),
                                                 ('dist', float),
                                                 ('sorensen', float),
                                                 ('jaccard', float)])
