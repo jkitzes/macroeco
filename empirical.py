@@ -30,6 +30,7 @@ Misc functions
 
 from __future__ import division
 import numpy as np
+import itertools
 from copy import deepcopy
 from data import DataTable
 
@@ -451,7 +452,7 @@ class Patch:
 
         Parameters
         ----------
-        plot_locs : tuple
+        plot_locs : dict
             Dictionary with keys equal to each plot name, which must be 
             represented by a column in the data table, and values equal to a 
             tuple of the x and y coordinate of each plot
