@@ -515,7 +515,7 @@ class Patch:
 
             # Get similarity indices
             spp_a = len(sad_dict[plota])
-            spp_b = len(sad_dict[plota])
+            spp_b = len(sad_dict[plotb])
             intersect = set(sad_dict[plota]).intersection(sad_dict[plotb])
             union = set(sad_dict[plota]).union(sad_dict[plotb])
 
