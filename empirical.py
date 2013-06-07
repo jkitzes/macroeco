@@ -523,7 +523,7 @@ class Patch:
             if spp_a + spp_b == 0:
                 result[row]['sorensen'] = 0
             else:
-                result[row]['sorensen'] = (2 * len(intersect)) / (spp_a + spp_b)
+                result[row]['sorensen'] = (2*len(intersect)) / (spp_a+spp_b)
             
             if len(union) == 0:
                 result[row]['jaccard'] = 0
