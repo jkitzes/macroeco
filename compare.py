@@ -1413,6 +1413,7 @@ def bootstrap_moment(data1, data2, moment, CI=.95, num_samp=1000):
 
     data1 = np.array(data1)
     data2 = np.array(data2)
+
     # Bootstrap the data
     data1_boot = bootstrap([data1], num_samp=num_samp)[0]
     data2_boot = bootstrap([data2], num_samp=num_samp)[0]

@@ -334,7 +334,8 @@ class Distribution(object):
         Number of free parameters of distribution, used for AIC calculations
     var : dict
         A dictionary of useful variables that are computed internally to
-        generate pmf, pdf, cdf, or rad. 
+        generate pmf, pdf, cdf, or rad. If parameters are calculated in the fit
+        method, they are included in var dict
 
     Methods
     -------
@@ -808,7 +809,8 @@ class logser(Distribution):
             tpmf = stats.logser.pmf(tn, tp)
             self.var['p'].append(tp)
             pmf.append(tpmf)
-   
+        
+        self.var['p'] = np.array(self.var['p'])
         return pmf
 
     @doc_inherit
@@ -843,6 +845,8 @@ class logser(Distribution):
             self.var['p'].append(tp)
             cdf.append(tcdf)
    
+        self.var['p'] = np.array(self.var['p'])
+
         return cdf
 
 class logser_ut(Distribution):
@@ -930,6 +934,7 @@ class logser_ut(Distribution):
             self.var['x'].append(tx)
             pmf.append(tpmf)
    
+        self.var['x'] = np.array(self.var['x'])
         return pmf
 
     # TODO: Add exact cdf from JK dissertation
@@ -1041,6 +1046,8 @@ class logser_ut_appx(Distribution):
             self.var['x'].append(tx)
             pmf.append(tpmf)
 
+        self.var['x'] = np.array(self.var['x'])
+
         return pmf
 
 
@@ -1062,7 +1069,13 @@ class plognorm(Distribution):
 
     self.var keywords
     -----------------
-    None
+    mu : float or iterable
+        The mu parameter of the poisson log normal
+    sigma : float or iterable
+        The sigma parameter of the poisson log normal
+
+    These parameters are stored in var as well as params if they are calculated
+    with the fit method.
 
     Notes
     -----
@@ -1204,6 +1217,8 @@ class plognorm(Distribution):
 
         self.params['mu'] = np.array(temp_mu)
         self.params['sigma'] = np.array(temp_sigma)
+        self.var['mu'] = np.array(temp_mu)
+        self.var['sigma'] = np.array(temp_sigma)
 
         return self
 
@@ -1226,7 +1241,13 @@ class plognorm_lt(plognorm):
 
     self.var keywords
     ------------------
-    None
+    mu : float or iterable
+        The mu parameter of the poisson log normal
+    sigma : float or iterable
+        The sigma parameter of the poisson log normal
+
+    These parameters are stored in var as well as params if they are calculated
+    with the fit method.
 
     Notes
     -----
@@ -1323,7 +1344,8 @@ class lognorm(Distribution):
     mu : list of floats
         The mu parameter of the lognormal calculated with
         np.log(tot_obs / n_samp) - (sigma**2 / 2).
-
+    sigma : list of float
+        The sigma parameter of the log normal
 
     Notes
     -----
@@ -1406,8 +1428,10 @@ class lognorm(Distribution):
             tempsig.append(mle_sigma)
 
         self.params['sigma'] = np.array(tempsig)
+        self.var['sigma'] = np.array(tempsig)
         self.params['n_samp'] = n_samp
         self.params['tot_obs'] = tot_obs
+
         return self
 
 class dgamma(Distribution):
@@ -1426,6 +1450,17 @@ class dgamma(Distribution):
         The alpha parameter of the discrete gamma distribution
     theta : float or iterable
         The theta parameter of the discrete gamma distribution
+
+    self.var keywords
+    -----------------
+    alpha : float or iterable 
+        The alpha parameter of the discrete gamma distribution
+    theta : float or iterable
+        The theta parameter of the discrete gamma distribution
+
+    Alpha and theta are included in vars if they are calculated from the fit
+    function.
+
 
     '''
 
@@ -1499,6 +1534,8 @@ class dgamma(Distribution):
 
         self.params['alpha'] = np.array(temp_alpha)
         self.params['theta'] = np.array(temp_theta)
+        self.var['alpha'] = np.array(temp_alpha)
+        self.var['theta'] = np.array(temp_theta)
 
         return self
 
@@ -1520,7 +1557,12 @@ class geo_ser(Distribution):
 
     self.var keywords
     -----------------
-    None
+    k : array of floats
+        The fraction of resources that each species acquires. Range is 
+        (0, 1].
+        
+        k is only in vars if it is calculated with the fit function
+    
     
     Notes
     -----
@@ -1646,6 +1688,7 @@ class geo_ser(Distribution):
                                  "%.2f and n_samp = %.2f" % (ttot_obs, tn_samp))
             self.params['k'].append(tk)
         self.params['k'] = np.array(self.params['k'])
+        self.var['k'] = deepcopy(self.params['k'])
         return self
 
 
@@ -1964,10 +2007,13 @@ class nbd(Distribution):
     Parameterization differs for different forms of the nbd.  We use the
     standard ecological form as described by Ben Bolker. Parameters 'a' (1 /
     n_samp), 'tot_obs', and k are used to derive the nbd parameter p (see code
-    for details).  Parameters k and p are used to generate distribution.
+    for details).  Parameters k and p are used to generate distribution. k is
+    included in self.var if it is calculated in fit.
         
-    p : list of floats 
+    p : array of floats 
         p parameters of nbd
+    k : array of floats
+        Aggregation parameter
     '''
     
     @doc_inherit
@@ -2008,6 +2054,9 @@ class nbd(Distribution):
             tp = 1 / (tmu / tk + 1) # See Bolker book Chapt 4
             pmf.append(scipy.stats.nbinom.pmf(tn, tk, tp))
             self.var['p'].append(tp)
+
+        self.var['p'] = np.array(self.var['p'])
+
         return pmf 
 
     def cdf(self, n):
@@ -2041,6 +2090,8 @@ class nbd(Distribution):
             tp = 1 / (tmu / tk + 1) # See Bolker book Chapt 4
             cdf.append(scipy.stats.nbinom.cdf(tn, tk, tp))
             self.var['p'].append(tp)
+        
+        self.var['p'] = np.array(self.var['p'])
         return cdf
     
     def fit(self, data, guess_for_k=1):
@@ -2081,6 +2132,8 @@ class nbd(Distribution):
         self.params['k'] = np.array(tempk)
         self.params['n_samp'] = n_samp
         self.params['tot_obs'] = tot_obs
+        self.var['k'] = np.array(tempk)
+
         return self
 
 class nbd_lt(nbd):
@@ -2095,7 +2148,7 @@ class nbd_lt(nbd):
         Total number of individuals in landscape
     n_samp : int or array-like object
         Number of bins/cells sampled.
-    k : int
+    k : float
         Aggregation parameter
 
     self.var keywords
@@ -2103,10 +2156,13 @@ class nbd_lt(nbd):
     Parameterization differs for different forms of the nbd.  We use the
     standard ecological form as described by Ben Bolker. Parameters 'a' (1 /
     n_samp), 'tot_obs', and k are used to derive the nbd parameter p (see code
-    for details).  Parameters k and p are used to generate distribution.
+    for details).  Parameters k and p are used to generate distribution. k is
+        included in self.var if it is calculated in fit.
         
-    p : list of floats 
+    p : array of floats 
         p parameters of nbd
+    k : array of floats
+        Aggregation parameter
 
     Notes
     -----
@@ -2201,13 +2257,16 @@ class fnbd(Distribution):
         Total number of individuals in landscape
     n_samp : int or array-like object
         Number of bins/cells sampled.
-    k : int
+    k : float
         Aggregation parameter
 
     self.var keyword
     -----------------
-    p : list of floats
+    p : array of floats
         p parameter is 1 / n_samp
+    k : array of floats
+        Aggregation parameter. k is included if it is calculated in the fit
+        method.
 
     '''
     
@@ -2244,6 +2303,9 @@ class fnbd(Distribution):
             tpmf = ln_L(tn, ttot_obs, ta, tk) # Already log
             pmf.append(np.exp(tpmf))
             self.var['p'].append(ta)
+
+        self.var['p'] = np.array(self.var['p'])
+
         return pmf
     
     def fit(self, data, upper_bnd=10):
@@ -2282,8 +2344,11 @@ class fnbd(Distribution):
             tempk.append(mlek[0])
 
         self.params['k'] = np.array(tempk)
+        self.var['k'] = np.array(tempk)
+
         self.params['n_samp'] = n_samp
         self.params['tot_obs'] = tot_obs
+
         return self
 
 class geo(Distribution):
