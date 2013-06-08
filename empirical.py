@@ -495,6 +495,8 @@ class Patch:
         n_pairs = np.sum(np.arange(len(plot_locs.keys())))
         result = np.recarray((n_pairs,), dtype=[('plot-a','S32'),
                                                 ('plot-b', 'S32'),
+                                                ('spp-a', int),
+                                                ('spp-b', int),
                                                 ('dist', float),
                                                 ('sorensen', float),
                                                 ('jaccard', float)])
@@ -516,6 +518,10 @@ class Patch:
             # Get similarity indices
             spp_a = len(sad_dict[plota])
             spp_b = len(sad_dict[plotb])
+
+            result[row]['spp-a'] = spp_a
+            result[row]['spp-b'] = spp_b
+
             intersect = set(sad_dict[plota]).intersection(sad_dict[plotb])
             union = set(sad_dict[plota]).union(sad_dict[plotb])
 
