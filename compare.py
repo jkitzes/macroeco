@@ -38,6 +38,8 @@ Functions
 -`skew` -- Calculates the skew for given datasets
 -`kurtosis` -- Calculates the kurtosis for given data sets
 -`bootstrap` -- Get bootstrapped samples from a dataset
+- `bootstrap_moment` -- Gives a BS confidence interval for a comparison of
+  first three moments of two distributions
 -`'mean_squared_error` -- Calculates the MSE between an obs and pred data set
 
 
