@@ -437,6 +437,10 @@ f, scav, 0, 1, 4''')
         np.testing.assert_array_almost_equal(dist_sort, np.array((1,4.242,5)), 
                                              3)
 
+        # Check species in each plot
+        spp_sort = np.sort(np.array(list(comm['spp-a']) + list(comm['spp-b'])))
+        np.testing.assert_array_equal(spp_sort, np.array((0,0,3,3,4,4)))
+
         # Check Sorensen - 2 zeros from empty plot1
         sor_sort = np.sort(comm['sorensen'])
         np.testing.assert_array_almost_equal(sor_sort, 
