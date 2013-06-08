@@ -8,7 +8,7 @@ import os
 gcwd = os.getcwd
 pd = os.path.dirname
 jp = os.path.join
-from macroeco.empirical import *
+from empirical import *
 import numpy as np
 
 
@@ -196,6 +196,68 @@ d, 1, 1, 1, snake''')
         self.pat7 = Patch('xyfile11.csv')
         self.pat7.data_table.meta = self.xymeta11
 
+        self.xyfile12 = open('xyfile12.csv', 'w')
+        self.xyfile12.write('''spp_code, x, y, count
+3, 0, 0, 3
+3, 0, 1, 1
+2, 0, 2, 3
+1, 0, 3, 8
+3, 1, 0, 1
+3, 1, 1, 1
+0, 1, 2, 5
+3, 1, 3, 1
+2, 2, 0, 1
+1, 2, 1, 3
+1, 2, 2, 6
+0, 2, 3, 1
+1, 3, 0, 9
+2, 3, 1, 1
+0, 3, 2, 3
+3, 3, 3, 1''')
+        self.xyfile12.close()
+        self.xymeta12 = {('x', 'maximum'): 3, ('x', 'minimum'): 0, ('x',
+        'precision'): 1, ('x', 'type'): 'interval', ('y', 'maximum'): 3,
+        ('y', 'minimum'): 0, ('y', 'precision'): 1, ('y', 'type'): 'interval',
+        ('spp_code', 'maximum'): None, ('spp_code', 'minimum'): None,
+        ('spp_code', 'precision'): None, ('spp_code', 'type'): 'ordinal',
+        ('count', 'maximum'): None, ('count', 'minimum'): None, ('count',
+        'precision'): None, ('count', 'type'): 'ratio'}
+        self.pat8 = Patch('xyfile12.csv')
+        self.pat8.data_table.meta = self.xymeta12
+
+        # Data file with three count colums, unique row for each species
+        self.xyfile13 = open('xyfile13.csv', 'w')
+        self.xyfile13.write('''spp_code, order, plot1, plot2, plot3
+a, pred, 0, 0, 0
+b, pred, 0, 0, 1
+c, pred, 0, 1, 0
+d, pred, 0, 2, 3
+e, scav, 0, 1, 0
+f, scav, 0, 1, 4''')
+        self.xyfile13.close()
+        self.xymeta13 = {('spp_code', 'maximum'): None,
+                         ('spp_code', 'minimum'): None,
+                         ('spp_code', 'precision'): None,
+                         ('spp_code', 'type'): 'ordinal',
+                         ('order', 'maximum'): None,
+                         ('order', 'minimum'): None,
+                         ('order', 'precision'): None,
+                         ('order', 'type'): 'ordinal',
+                         ('plot1', 'maximum'): None,
+                         ('plot1', 'minimum'): None,
+                         ('plot1', 'precision'): None,
+                         ('plot1', 'type'): 'ratio',
+                         ('plot2', 'maximum'): None,
+                         ('plot2', 'minimum'): None,
+                         ('plot2', 'precision'): None,
+                         ('plot2', 'type'): 'ratio',
+                         ('plot3', 'maximum'): None,
+                         ('plot3', 'minimum'): None,
+                         ('plot3', 'precision'): None,
+                         ('plot3', 'type'): 'ratio'}
+        self.pat9 = Patch('xyfile13.csv')
+        self.pat9.data_table.meta = self.xymeta13
+
 
 
 
@@ -207,6 +269,8 @@ d, 1, 1, 1, snake''')
         os.remove('xyfile9.csv')
         os.remove('xyfile10.csv')
         os.remove('xyfile11.csv')
+        os.remove('xyfile12.csv')
+        os.remove('xyfile13.csv')
 
     #
     # init and set_attributes
@@ -331,6 +395,57 @@ d, 1, 1, 1, snake''')
         self.assertTrue(np.round(sar[0]['area'][0], decimals=2) == 0.06)
         self.assertTrue(sar[0]['items'][0] == 2)
 
+    def test_universal_sar(self):
+
+        # Check that it returns the right length
+        criteria = {'spp_code': 'species', 'count' : 'count'}
+        div_cols = ('x', 'y')
+        vals = self.pat8.universal_sar(div_cols, [(1,1), (1,2), (2,2), (2,4),
+                                            (4,4)], criteria)
+        self.assertTrue(len(vals) == 3)
+        
+        # If (1,1) is not passed in it should have a length of zero
+        vals = self.pat8.universal_sar(div_cols, [(1,2), (2,2)], criteria)
+        self.assertTrue(len(vals) == 0)
+
+        # If (1,1) is not passed in but include_full == True should have len
+        # equal to 1       
+        vals = self.pat8.universal_sar(div_cols, [(1,2), (2,2), (2,4)], criteria,
+                                                            include_full=True)
+        self.assertTrue(len(vals) == 2)
+
+        # Test that I get the correct z-value back
+        vals = self.pat8.universal_sar(div_cols, [(1,1), (1,2), (2,2)], 
+                                                                    criteria)
+        self.assertTrue(np.round(vals['z'][0], decimals=4) == 0.3390)
+
+        # If I pass in something other than a halving I should still get
+        # something back
+        vals = self.pat8.universal_sar(div_cols, [(1,1), (2,2), (2,4), (4,4)], 
+                                                                    criteria)
+        self.assertTrue(len(vals) == 2)
+
+    def test_comm_sep(self):
+
+        # Create result recarray 
+        comm = self.pat9.comm_sep({'plot1': (0,0), 'plot2': (0,1),
+                                   'plot3': (3,4)},
+                                  {'spp_code': 'species', 'count': 'count'})
+
+        # Check distances
+        dist_sort = np.sort(comm['dist'])
+        np.testing.assert_array_almost_equal(dist_sort, np.array((1,4.242,5)), 
+                                             3)
+
+        # Check Sorensen - 2 zeros from empty plot1
+        sor_sort = np.sort(comm['sorensen'])
+        np.testing.assert_array_almost_equal(sor_sort, 
+                                             np.array((0,0,0.571428571)), 5)
+
+        # Check Jaccard - 2 zeros from empty plot1
+        jac_sort = np.sort(comm['jaccard'])
+        np.testing.assert_array_almost_equal(jac_sort, np.array((0,0,0.4)), 5)
+
     def test_ssad(self):
         
         # Check that ssad does not lose any individuals
@@ -402,5 +517,7 @@ d, 1, 1, 1, snake''')
         self.assertTrue(np.array_equal(eng[1][1]['rty'], np.array([1])))
         self.assertTrue(len(eng[1][1]) == 2)
 
+if __name__ == "__main__":
+    unittest.main()
 
 

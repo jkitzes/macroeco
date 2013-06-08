@@ -1353,6 +1353,7 @@ class lognorm(Distribution):
         # Calculate mu
         mu = np.log(tot_obs / n_samp) - (sigma**2 / 2)
         self.var['mu'] = mu
+        self.var['sigma'] = sigma
 
         # Calculate pmf
         pmf = []
@@ -3814,6 +3815,9 @@ def make_rank_abund(pmf, n_samp, min_supp=1):
     Function actually implements (philosophically) a step quantile function.
 
     '''
+    
+    pmf = pmf / np.sum(pmf)  # Ensure distribution is normalized
+
     points = np.arange(1/(2*n_samp), 1, 1/n_samp)
     counts = np.zeros(n_samp)
 
