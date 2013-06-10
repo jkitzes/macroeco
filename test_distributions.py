@@ -427,14 +427,11 @@ class TestDistributions(unittest.TestCase):
 
         # Test that cdf is about one
         dist = nbd_lt(tot_obs=2300, n_samp=45, k=3)
-        self.assertTrue(np.round(dist.cdf(2300)[0][0], decimals=1) == 1.0)
+        d = dist.cdf(2300)[0][0]
+        print dist.var
+        print dist.params
+        self.assertTrue(np.round(d, decimals=1) == 1.0)
 
-        # Check that k of length one is extended to length 2 based on p
-        # parameter
-        dist = nbd_lt(tot_obs=[400, 600], n_samp=[30, 23], k=[3])
-        pmf = dist.pmf(1)
-        self.assertTrue(np.array_equal(np.round(dist.var['p'], decimals=4), 
-                                                      np.array([.1837,.1031]))) 
 
         # Multiple entries both yield cdf with 1
         dist = nbd_lt(tot_obs=[400, 600], n_samp=[30, 23], k=[3,2])
@@ -444,38 +441,30 @@ class TestDistributions(unittest.TestCase):
         self.assertTrue(a == b)
 
         # Test pmf against scipy
-        mu = 500 * (1. / 20); k = 2; p = 1. / (mu / k + 1)
-        scipy_0 = stats.nbinom.pmf(0, k, p)
-        vals = np.array([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17])
-        test_vals = stats.nbinom.pmf(vals, k, p) / (1 - scipy_0)
-        pred_vals = nbd_lt(tot_obs=500, n_samp=20, k=2).pmf(vals)[0]
-        self.assertTrue(np.array_equal(test_vals, pred_vals))
+        ks = np.linspace(0.01, 5, 100)
+        for k in ks:
+            mu = 500 * (1. / 20); p = 1. / (mu / k + 1)
+            scipy_0 = stats.nbinom.pmf(0, k, p)
+            vals = np.array([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17])
+            test_vals = stats.nbinom.pmf(vals, k, p) / (1 - scipy_0)
+            pred_vals = nbd_lt(tot_obs=500, n_samp=20, k=k).pmf(vals,
+                                                            fix_bias=False)[0]
+            if not np.array_equal(np.round(test_vals, decimals=3), 
+                                np.round(pred_vals, decimals=3)):
+                print pred_vals
+                print test_vals
+            self.assertTrue(np.array_equal(np.round(test_vals, decimals=3), 
+                                np.round(pred_vals, decimals=3)))
 
-        # Test pmf against Published Truncated NBD. Sampford 1955, The
-        # Truncated Negative Binomial Distribution. 
-        def test_pmf(n, p, k):
-            om = (1 / (1 + (mu/k))); eta = 1 - om
 
-            norm = np.math.gamma(k + n) / (np.math.gamma(k) *
-                                            np.math.gamma(n + 1))
-
-            kernel = (om**k / (1 - om**k)) * (eta**n)
-            return norm * kernel
-
-        test_vals = np.array([test_pmf(x, p, k) for x in vals])
-        test_vals = np.round(test_vals, decimals=7)
-        pred_vals = np.round(pred_vals, decimals=7)
-        self.assertTrue(np.array_equal(test_vals, pred_vals))
-        
-        # Test cdf against Published TNBD:
-        pred_cdf = nbd_lt(tot_obs=500, n_samp=20, k=2).cdf(vals)[0]
-        pred_cdf = np.round(pred_cdf, decimals=7)
-        test_vals = np.array([test_pmf(x, p, k) for x in vals])
-        test_cdf = np.round(np.cumsum(test_vals), decimals=7)
-        self.assertTrue(np.array_equal(pred_cdf, test_cdf))
-
-        
-        
+        # Test that fixing the bias leads to the proper mean
+        ks = np.linspace(.01, 5, num=100)
+        vals = np.arange(1,1000)
+        for k in ks:
+            ob = nbd_lt(tot_obs=500, n_samp=20, k=k)
+            pred_vals = ob.pmf(vals)[0]
+            bmean = sum(vals * pred_vals)
+            self.assertTrue(np.round(bmean, decimals=1) == 500 / 20.)
 
     def test_fnbd(self):
 

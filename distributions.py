@@ -104,7 +104,7 @@ from __future__ import division
 import numpy as np
 import scipy.stats as stats
 import scipy.optimize 
-import scipy.special
+import scipy.special as spec
 from copy import deepcopy
 import math as m
 import scipy.integrate as integrate
@@ -2136,7 +2136,9 @@ class nbd(Distribution):
 
         return self
 
-class nbd_lt(nbd):
+
+class nbd_lt(Distribution):
+    __doc__ = Distribution.__doc__ + \
     '''
     Description
     -----------
@@ -2153,34 +2155,37 @@ class nbd_lt(nbd):
 
     self.var keywords
     -----------------
-    Parameterization differs for different forms of the nbd.  We use the
-    standard ecological form as described by Ben Bolker. Parameters 'a' (1 /
-    n_samp), 'tot_obs', and k are used to derive the nbd parameter p (see code
-    for details).  Parameters k and p are used to generate distribution. k is
-        included in self.var if it is calculated in fit.
-        
-    p : array of floats 
-        p parameters of nbd
+    mu : array of floats 
+        mu parameters of nbd
+    bias_mu : array of float
+        mu used to correct for bias in mean
     k : array of floats
         Aggregation parameter
+        k is included in self.var if it is calculated in fit.
 
     Notes
     -----
     The total species (S) is equivalent to n_samp and the total
     individuals (N) is equivalent to tot_obs.
 
+    Parameterization based on Sampford 1955
+
+    There is a bias in the mean when k is small.  The mean tends to be larger
+    than expected.  This method used brute force to correct for the bias so
+    that the mean of the distribution 
+
 
     '''
 
+    @doc_inherit
     def __init__(self, **kwargs):
         self.params = kwargs
         self.min_supp = 1
-        self.par_num = 2
+        self.par_num = 2 
         self.var = {}
-    
-    
-    def pmf(self, n):
-        '''
+
+    def pmf(self, n, fix_bias=True, vals=1e3):
+        """
         Probability mass function method.
 
         Parameters
@@ -2188,6 +2193,14 @@ class nbd_lt(nbd):
         n : int, float or array-like object
             Values at which to calculate pmf. May be a list of same length as 
             parameters, or single iterable.
+        fix_bias : bool
+            If True, fixes the bias in the truncated negative binomial such
+            that the mean of the distribution is equal to tot_obs / n_samp.
+            The bias increases as k -> 0.
+        vals : float
+            Creates a vector np.arange(1, vals + 1) to correct the bias.  A
+            higher vals will mean a more precise correction but slower run
+            time.
 
         Returns
         -------
@@ -2195,24 +2208,57 @@ class nbd_lt(nbd):
             List of 1D arrays of probability of observing sample n.
 
         See class docstring for more specific information on this distribution.
-        '''
+
+        """
 
         # Get parameters
-        n_samp, tot_obs, k = self.get_params(['n_samp', 'tot_obs', 'k'])
+        n_samp, tot_obs, k =\
+                self.get_params(['n_samp', 'tot_obs', 'k'])
         n = expand_n(n, len(n_samp))
-        
-        # TODO: Additional checks?
 
-        reg_nbd = nbd(n_samp=n_samp, tot_obs=tot_obs, k=k)
-        reg_pmf = reg_nbd.pmf(n)
-        self.var = reg_nbd.var
-        reg_pmf0 = reg_nbd.pmf(0)
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
 
-        trunc_pmf = [(pr / (1 - p0)) for pr, p0 in zip(reg_pmf, reg_pmf0)]
+        # Calculate pmf
+        def pmf_eq(n, m, k):
+            om = (1 / (1 + (m/k))); eta = 1 - om
 
-        return trunc_pmf         
+            norm = np.exp(spec.gammaln(k + n) - ((spec.gammaln(k) + 
+                                            spec.gammaln(n + 1))))
 
-    def cdf(self, n):
+            kernel = (om**k / (1 - om**k)) * (eta**n)
+            return norm * kernel
+
+        mu = tot_obs / n_samp
+        self.var['mu'] = mu
+        self.var['bias_mu'] = []
+
+        pmf = []
+        nums = np.arange(1, vals + 1)
+        bias_eq = lambda m, ks: sum(nums * pmf_eq(nums, m, ks)) - tmu
+
+        for tn_samp, ttot_obs, tmu, tk, tn in zip(n_samp, tot_obs,
+                                                mu, k, n):
+            # Fix bias
+            if fix_bias:
+                try:
+                    tmu =  scipy.optimize.brentq(bias_eq, 1, tmu, args=(tk,))
+                    self.var['bias_mu'].append(tmu)
+                except(ValueError):
+                    try:
+                        tmu =  scipy.optimize.brentq(bias_eq, 1e-10, tmu,
+                                                        args=(tk,))
+                        self.var['bias_mu'].append(tmu)
+                    except(ValueError):
+                        self.var['bias_mu'].append(np.nan)
+
+            tpmf = pmf_eq(tn, tmu, tk)
+
+            pmf.append(tpmf)
+     
+        self.var['bias_mu'] = np.array(self.var['bias_mu'])
+        return pmf
+
+    def cdf(self, n, fix_bias=True, vals=1e3):
         '''
         Cumulative distribution method.  
 
@@ -2221,28 +2267,86 @@ class nbd_lt(nbd):
         n : int, float or array-like object
             Values at which to calculate cdf. May be a list of same length as 
             parameters, or single iterable.
+        fix_bias : bool
+            If True, fixes the bias in the truncated negative binomial such
+            that the mean of the distribution is equal to tot_obs / n_samp.
+            The bias increases as k -> 0.
+        vals : float
+            Creates a vector np.arange(1, vals + 1) to correct the bias.  A
+            higher vals will mean a more precise correction but slower run
+            time.
 
         Returns
         -------
         cdf : list of ndarrays
-            List of 1D arrays of probability of observing sample n.
+            List of 1D arrays of cumulative probability of observing sample n.
+
+        See class docstring for more specific information on this distribution.
+        '''
+    
+        for kw in self.params.iterkeys():
+            if not np.iterable(self.params[kw]):
+                self.params[kw] = make_array(self.params[kw])
+
+        # Expand n argument if needed, assumes all params same length
+        n = expand_n(n, len(self.params.values()[0]))
+
+        # Calculate pmfs
+        max_n = [np.max(tn) for tn in n]
+        n_in = [np.arange(self.min_supp, i + 1) for i in max_n]
+
+        pmf_list = self.pmf(n_in, fix_bias=fix_bias, vals=vals)
+
+        # Calculate cdfs
+        cdf = []
+        for tpmf, tn in zip(pmf_list, n):
+            full_cdf = np.cumsum(tpmf)
+            tcdf = np.array([full_cdf[x - self.min_supp] for x in tn])
+            cdf.append(tcdf)
+
+        return cdf 
+
+    def fit(self, data, guess_for_k=1):
+        '''
+        Fit method.
+
+        Uses input data to get best fit parameters for distribution, and stores 
+        these parameters in params attribute.
+        
+        Parameters
+        ----------
+        data : list of ndarrays
+            Data to use to fit parameters of distribution. Even if only one 
+            data array, must be in a list with one element.
+        guess_for_k : float
+            Initial guess for parameter k in solver
 
         See class docstring for more specific information on this distribution.
         '''
 
-        n_samp, tot_obs, k = self.get_params(['n_samp', 'tot_obs', 'k'])
-        n = expand_n(n, len(n_samp))
-        
-        # TODO: Additional checks?
+        super(nbd_lt, self).fit(data)
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
 
-        reg_nbd = nbd(n_samp=n_samp, tot_obs=tot_obs, k=k)
-        p0 = reg_nbd.pmf(0)
-        self.var = reg_nbd.var
-        reg_cdf = reg_nbd.cdf(n)
+        data = check_list_of_iterables(data) 
+        tempk = []
 
-        trun_cdf = [(tcdf - tp0) / (1 - tp0) for tcdf, tp0 in zip(reg_cdf, p0)]
+        for tdata, tn_samp, ttot_obs in zip(data, n_samp, tot_obs): 
 
-        return trun_cdf
+            def nll_nb(k):
+                self.params['tot_obs'] = ttot_obs
+                self.params['n_samp'] = tn_samp
+                self.params['k'] = k
+                return -sum(np.log(self.pmf(tdata, fix_bias=False)[0]))
+
+            mlek = scipy.optimize.fmin(nll_nb, np.array([guess_for_k]), 
+                                                                    disp=0)[0]
+            tempk.append(mlek)
+        self.params['k'] = np.array(tempk)
+        self.params['n_samp'] = n_samp
+        self.params['tot_obs'] = tot_obs
+        self.var['k'] = np.array(tempk)
+
+        return self
 
 class fnbd(Distribution):
     __doc__ = Distribution.__doc__ + \
@@ -3952,7 +4056,7 @@ def _ln_choose(n, k):
     Log binomial coefficient with extended gamma factorials. n and k may be int 
     or array - if both array, must be the same length.
     '''
-    gammaln = scipy.special.gammaln
+    gammaln = spec.gammaln
     return gammaln(n + 1) - (gammaln(k + 1) + gammaln(n - k + 1))
 
 def set_up_and_down(anch, a_list, base=2):
