@@ -3909,12 +3909,20 @@ def beta_solver(x, k, tot_obs, n_samp):
     return sum(x ** k / float(tot_obs) * n_samp) -  sum((x ** k) / k)
 
 
-def make_array(n):
-    '''Cast n as iterable array.'''
+def make_array(n, dtype=None):
+    '''Cast n as iterable array. If dtype not none this will be the dtype of
+    the array.  Otherwise it lets python choose.  Must be a valid dtype or an
+    error will be thrown'''
     if np.iterable(n):
-        return np.array(n)
+        if dtype==None:
+            return np.array(n)
+        else:
+            return np.array(n, dtype=dtype)
     else:
-        return np.array([n])
+        if dtype==None:
+            return np.array([n])
+        else:
+            return np.array([n], dtype=dtype)
 
 
 def expand_n(n, size):
