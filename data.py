@@ -16,7 +16,6 @@ import numpy as np
 import xml.etree.ElementTree as etree
 from matplotlib.mlab import csv2rec
 import sqlite3 as lite
-import pandas as pd
 
 
 class DataTable:
