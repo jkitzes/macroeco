@@ -337,7 +337,23 @@ class TestDistributions(unittest.TestCase):
         self.assertTrue(np.all(check.params['n_samp'] == np.array([len(ab) for
                         ab in self.abund_list])))
 
-    
+    def test_dgamma(self):
+        
+        # Don't have any good published graphs to test it against. Test
+        # everything is working
+
+        obs_sad = [103,115,13,2,67,36,51,8,6,61,10,21,7,65,4,49,92,37,16,6,23,\
+                   9,2,6,5,4,1,3,1,9,2]
+        dg = dgamma().fit([obs_sad])
+        
+        # Check that the parameters are in vars
+        self.assertTrue('alpha' in dg.var)
+        self.assertTrue('theta' in dg.var)
+
+        # Check that the distribution sums to one.
+        pmf = dg.pmf(np.arange(1, sum(obs_sad)))[0]
+        self.assertTrue(np.round(sum(pmf), decimals=1) == 1)
+
     def test_sugihara(self):
         # Data from A. J. Baczkowski 1997
         sugi = [.4761, .1962, .1180, .0751, .0499, .0337, .0226, .0148,\
@@ -493,7 +509,7 @@ class TestDistributions(unittest.TestCase):
         # Code to generate plots: Unquote and run nosetest if you want to see
         # the plots
 
-        '''a = np.array([0.1, .3, .8])
+        a = np.array([0.1, .3, .8])
         k = np.array([.1, 1, 10])
         fnbd_vec = []
         nbd_vec = []
@@ -518,7 +534,8 @@ class TestDistributions(unittest.TestCase):
             plt.xlabel('abundance')
             plt.ylabel('P(x)')
             plt.text(plt.xlim()[1] * 0.6, plt.ylim()[1] * 0.8, descrip[i])
-            plt.show()'''
+            #plt.show()
+            plt.clf()
 
         # Based on Zillio and He 2010, Calculating a few pmf values by hand.
         # Going to test the fnbd against these values. 
