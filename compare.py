@@ -38,6 +38,8 @@ Functions
 -`skew` -- Calculates the skew for given datasets
 -`kurtosis` -- Calculates the kurtosis for given data sets
 -`bootstrap` -- Get bootstrapped samples from a dataset
+- `bootstrap_moment` -- Gives a BS confidence interval for a comparison of
+  first three moments of two distributions
 -`'mean_squared_error` -- Calculates the MSE between an obs and pred data set
 
 
@@ -407,7 +409,7 @@ class CompareDistribution(object):
     def compare_moments(self):
         '''
         Compare the higher order moments (variance, skew, kurtosis) for the
-        given distributions and observed data
+        given distributions and observed data. 
 
         Returns
         -------
@@ -1368,8 +1370,10 @@ def bootstrap(data_sets, num_samp=1000):
 
 def bootstrap_moment(data1, data2, moment, CI=.95, num_samp=1000):
     '''
-    A bootstrap two-sample test of kurtosis or kurtosis. Returns the test_statistic 
-    distribution and the confidence interval as specified by parameter CI.
+    A bootstrap two-sample test of a moment. Returns the test_statistic 
+    distribution and the confidence interval as specified by parameter CI.  The
+    confidence interval is the difference of the moment from data1 minus the
+    moment from data2.
 
     Parameters
     ----------
@@ -1377,8 +1381,9 @@ def bootstrap_moment(data1, data2, moment, CI=.95, num_samp=1000):
         An array like object containing data
     data2 : array-like object
         An array-like object containing data
-    moment : str
-        Either skew or kurtosis
+    moment : list 
+        List of strings (mean, skew, kurtosis, and/or variance).
+        Will calculate the bootstrap CI's for all the moments in the list
     CI : float
         The desired confidence interval
     num_samp : int
@@ -1386,51 +1391,84 @@ def bootstrap_moment(data1, data2, moment, CI=.95, num_samp=1000):
 
     Returns
     -------
-    : tuple
-        A tuple with two elements.  The first element is an array containing
-        the distribution of the higher moment statistic. The second element is
-        a tuple containing the confidence interval (lower_bound, upper_bound).
+    res : dict
+        A dictionary with key words equivalent to the strings found in moment.
+        Each keyword looks up tuple with two elements.  The first element is
+        the observed difference between the moment of data1 and the moment of
+        data2.  The second element is a tuple containing the confidence
+        interval (lower_bound, upper_bound) on the difference between the
+        specified moment of data1 and data2.
     
     Notes
     -----
-    This test is still in the works. Presumably if the confidence doesn't
-    contain zero you can say the two higher moments are significantly different.
-    However, more unit testing and investigation needs to be done.
+    From the returned confidence interval, one is CI confident that the
+    returned confidence interval contains the true difference between the
+    moment of data1 and data2.  Therefore, if the confidence interval does not
+    contain 0 you can be CI confident that the moments are different.
+
+    Bootstrapping in typically only appropriate for sample sizes >= 25. 
+
 
     '''
-    # Set the higher order moment
-    if moment == 'skew':
-        moment_est = skew
-    elif moment == 'kurtosis':
-        moment_est = kurtosis
 
     data1 = np.array(data1)
     data2 = np.array(data2)
 
+    # Bootstrap the data
     data1_boot = bootstrap([data1], num_samp=num_samp)[0]
     data2_boot = bootstrap([data2], num_samp=num_samp)[0]
 
-    # data1_samp_kurt = kurtosis([data1])
-    # data1_samp_var = variance([data1])
-    data1_boot_mom = np.array(moment_est(data1_boot))
-    data1_boot_var = np.array(variance(data1_boot))
+    def calc_ci(stat1, stat2):
+        """ Calculate CI """
+        
+        diff = stat1 - stat2
+        lci = (1 - CI) / 2.
+        uci = 1 - lci
+        ci = (stats.scoreatpercentile(diff, 100 * lci),\
+          stats.scoreatpercentile(diff, 100 * uci))
+        return ci
 
-    # data2_samp_kurt = kurtosis([data2])
-    # data2_samp_var = variance([data2])
-    data2_boot_mom = np.array(moment_est(data2_boot))
-    data2_boot_var = np.array(variance(data2_boot))
     
-    # Test statistic for moment that accounts for variance
-    # NOTE: not correcting for bias
-    stat_dist = (data1_boot_mom - data2_boot_mom)\
-                / (np.sqrt(data1_boot_var + data2_boot_var))
-    
-    lci = (1 - CI) / 2.
-    uci = 1 - lci
-    ci = (stats.scoreatpercentile(stat_dist, 100 * lci),\
-          stats.scoreatpercentile(stat_dist, 100 * uci))
-    
-    return stat_dist, ci 
+    res = {}
+    # Set the higher order moment
+    if 'skew' in moment:
+
+        stat_1 = np.array(skew(data1_boot))
+        stat_2 = np.array(skew(data2_boot))
+        
+        stat_dist = skew([data1])[0] - skew([data2])[0]
+        ci = calc_ci(stat_1, stat_2)
+
+        res['skew'] = (stat_dist, ci)
+
+    if 'variance' in moment:
+        stat_1 = np.array(variance(data1_boot))
+        stat_2 = np.array(variance(data2_boot))
+        
+        stat_dist = variance([data1])[0] - variance([data2])[0]
+        ci = calc_ci(stat_1, stat_2)
+
+        res['variance'] = (stat_dist, ci)
+
+    if 'kurtosis' in moment:
+        stat_1 = np.array(kurtosis(data1_boot))
+        stat_2 = np.array(kurtosis(data2_boot))
+        
+        stat_dist = kurtosis([data1])[0] - kurtosis([data2])[0]
+        ci = calc_ci(stat_1, stat_2)
+
+        res['kurtosis'] = (stat_dist, ci)
+
+    if "mean" in moment:
+        stat_1 = np.array([np.mean(bs) for bs in data1_boot])
+        stat_2 = np.array([np.mean(bs) for bs in data2_boot])
+        
+        stat_dist = np.mean(data1) - np.mean(data2) 
+        ci = calc_ci(stat_1, stat_2)
+
+        res['mean'] = (stat_dist, ci)
+
+    return res 
 
 def mean_squared_error(obs, pred):
     '''
