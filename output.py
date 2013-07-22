@@ -1167,8 +1167,9 @@ def plot_rec_columns(rec_array):
                     legend.append(nm)
                 else:
                     fig = plt.plot(np.arange(1, len(rec_array) + 1),
-                                        np.sort(rec_array[nm])[::-1], '-' +
-                                        str(plot_symbols[cnt]))
+                                   np.sort(rec_array[nm])[::-1], '-' +
+                                   str(plot_symbols[cnt]), 
+                                   markeredgecolor='none')
                     legend.append(nm)
                 cnt += 1
     # Include ticks only on bottom and left 

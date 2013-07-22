@@ -12,6 +12,7 @@ Patch Methods
 -------------
 - `sad` -- calculate species abundance distribution (grid or sample)
 - `sar` -- calculate species-area relationship (grid or sample)
+- `universal_sar` -- calculates the universal sar curve
 - `ear` -- calculate endemics-area relationship (grid or sample)
 - `comm` -- calculate commonality between sub-patches (grid)
 - `ssad` -- calculate species-level spatial abundance distrib (grid or sample)
@@ -29,6 +30,8 @@ Misc functions
 
 from __future__ import division
 import numpy as np
+from math import radians, cos, sin, asin, sqrt
+import itertools
 from copy import deepcopy
 from data import DataTable
 
@@ -273,9 +276,9 @@ class Patch:
 
 
 
-    def sar(self, div_cols, div_list, criteria, form='sar'):
+    def sar(self, div_cols, div_list, criteria, form='sar', output_N=False):
         '''
-        Calulate an empirical species-area relationship given criteria.
+        Calculate an empirical species-area relationship given criteria.
 
         Parameters
         ----------
@@ -290,6 +293,9 @@ class Patch:
         form : string
             'sar' or 'ear' for species or endemics area relationship. EAR is 
             relative to the subtable selected after criteria is applied.
+        output_N : bool
+            Adds the column N to the output rec array which contains the
+            average N for a given area.
 
         Returns
         -------
@@ -310,6 +316,7 @@ class Patch:
         areas = []
         mean_result = []
         full_result = []
+        N_result = []
 
         for div in div_list:
 
@@ -320,6 +327,10 @@ class Patch:
 
             # Get flattened sad for all criteria and this div
             sad_return = self.sad(this_criteria)
+
+            if output_N:
+                N_result.append(np.mean([sum(sad[1]) for sad in sad_return]))
+
             flat_sad = flatten_sad(sad_return)[1]
 
             # Store results
@@ -352,9 +363,193 @@ class Patch:
             areas.append(area)
 
         # Return
-        rec_sar = np.array(zip(mean_result, areas), dtype=[('items', np.float),
-                                                           ('area', np.float)])
+        if not output_N:
+            rec_sar = np.array(zip(mean_result, areas), dtype=[('items',
+                                                np.float), ('area', np.float)])
+        else:
+            rec_sar = np.array(zip(mean_result, N_result, areas),
+              dtype=[('items', np.float), ('N', np.float), ('area', np.float)])
+
         return rec_sar, full_result
+
+
+    def universal_sar(self, div_cols, div_list, criteria, include_full=False):
+        '''
+        Calculates the empirical universal sar given criteria. The universal
+        sar calculates the slope of the SAR and the ratio of N / S at all
+        the areas in div_cols (where N is the total number of species and S is 
+        the total number of species). 
+
+        This function assumes that the div_list contains halvings.  If they are not,
+        the function will still work but the results will be meaningless.  An
+        example a of div_list with halvings is:
+
+        [(1,1), (1,2), (2,2), (2,4), (4,4)]
+
+        Parameters
+        ----------
+        div_cols : tuple
+            Column names to divide, eg, ('x', 'y'). Must be metric.
+        div_list : list of tuples
+            List of division pairs in same order as div_cols, eg, [(2,2), 
+            (2,4), (4,4)]. Values are number of divisions of div_col.
+        criteria : dict
+            See docstring for EPatch.sad. Here, criteria SHOULD NOT include 
+            items referring to div_cols (if there are any, they are ignored).
+        include_full : bool
+            If include_full = True, the division (1,1) will be included if it
+            was now already included. Else it will not be included.  (1,1) is
+            equivalent to the full plot
+
+
+        Returns
+        -------
+        z_array : a structured array
+            Has the columns names:
+            'z' : slope of the SAR at the given area
+            'S' : Number of species at the given division
+            'N' : Number of individuals at the given division
+            'N/S' : The ratio of N/S at the given division
+
+
+        Notes
+        -----
+        If you give it n divisions in div_list you will get a structured array
+        back that has length n - 2.  Therefore, if you only have one
+        '''
+
+        # If (1,1) is not included, include it
+        if include_full:
+            try:
+                div_list.index((1,1))
+            except ValueError:
+                div_list.insert(0, (1,1))
+
+        # Run sar with the div_cols
+        sar = self.sar(div_cols, div_list, criteria, output_N=True)[0]
+
+        # sort by area
+        sar = np.sort(sar, order=['area'])[::-1]
+
+        # Calculate z's
+        if len(sar) >= 3: # Check the length of sar
+            z_list = [z(sar['items'][i - 1], sar['items'][i + 1]) for i in
+                 np.arange(1, len(sar)) if sar['items'][i] != sar['items'][-1]] 
+        else:
+            return np.empty(0, dtype=[('z', np.float), ('S', np.float), ('N',
+                                                 np.float), ('N/S', np.float)])
+
+        N_over_S = sar['N'][1:len(sar) - 1] / sar['items'][1:len(sar) - 1]
+
+        z_array = np.array(zip(z_list, sar['items'][1:len(sar) - 1],
+            sar['N'][1:len(sar) - 1], N_over_S), dtype=[('z', np.float), ('S',
+            np.float), ('N', np.float), ('N/S', np.float)])  
+        
+        return z_array
+
+    def comm_sep(self, plot_locs, criteria, loc_unit=None):
+        '''
+        Calculates commonality (Sorensen and Jaccard) between pairs of plots.
+
+        Parameters
+        ----------
+        plot_locs : dict
+            Dictionary with keys equal to each plot name, which must be 
+            represented by a column in the data table, and values equal to a 
+            tuple of the x and y coordinate of each plot
+        criteria : dict
+            See docstring for Patch.sad.
+        loc_unit : str
+            Unit of plot locations. Special cases include 'decdeg' (decimal 
+            degrees), returns result in km. Otherwise ignored.
+
+        Returns
+        -------
+        result: structured array
+            Returns a structured array with fields plot-a and plot-b (names of 
+            two plots), dist (distance between plots), and sorensen and jaccard 
+            (similarity indices). Has row for each unique pair of plots.
+        '''
+
+        # Set up sad_dict with key=plot and val=clean sad for that plot
+        sad_dict = {}
+
+        # Loop through all plot cols, updating criteria, and getting spp_list
+        for plot in plot_locs.keys():
+
+            # Find current count col and remove it from criteria
+            for crit_key in criteria.keys():
+                if criteria[crit_key] == 'count':
+                    criteria.pop(crit_key, None)
+
+            # Add this plot as col with counts
+            criteria[plot] = 'count'
+
+            # Get SAD for existing criteria with this plot as count col
+            sad_return = self.sad(criteria, clean=True)
+
+            # Check that sad_return only has one element, or throw error
+            if len(sad_return) > 1:
+                raise NotImplementedError('Too many criteria for comm_sep')
+
+            # Get unique species list for this plot and store in sad_dict
+            sad_dict[plot] = sad_return[0][2]
+
+        # Set up recarray to hold Sorensen index for all pairs of plots
+        n_pairs = np.sum(np.arange(len(plot_locs.keys())))
+        result = np.recarray((n_pairs,), dtype=[('plot-a','S32'),
+                                                ('plot-b', 'S32'),
+                                                ('spp-a', int),
+                                                ('spp-b', int),
+                                                ('dist', float),
+                                                ('sorensen', float),
+                                                ('jaccard', float)])
+
+        # Loop through all combinations of plots and fill in result table
+        row = 0
+        for pair in itertools.combinations(plot_locs.keys(), 2):
+
+            # Names of plots
+            plota = pair[0]
+            plotb = pair[1]
+
+            result[row]['plot-a'] = plota
+            result[row]['plot-b'] = plotb
+
+            # Calculate inter-plot distance
+            if loc_unit == 'decdeg':
+                result[row]['dist'] = decdeg_distance(plot_locs[plota], 
+                                                      plot_locs[plotb])
+            else:
+                result[row]['dist'] = distance(plot_locs[plota], 
+                                               plot_locs[plotb])
+
+            # Get similarity indices
+            spp_a = len(sad_dict[plota])
+            spp_b = len(sad_dict[plotb])
+
+            result[row]['spp-a'] = spp_a
+            result[row]['spp-b'] = spp_b
+
+            intersect = set(sad_dict[plota]).intersection(sad_dict[plotb])
+            union = set(sad_dict[plota]).union(sad_dict[plotb])
+
+            # Fill in zero if denom is zero
+            if spp_a + spp_b == 0:
+                result[row]['sorensen'] = 0
+            else:
+                result[row]['sorensen'] = (2*len(intersect)) / (spp_a+spp_b)
+            
+            if len(union) == 0:
+                result[row]['jaccard'] = 0
+            else:
+                result[row]['jaccard'] = len(intersect) / len(union)
+
+            # Increment row counter
+            row += 1
+
+        return result
+            
 
     def ied(self, criteria, normalize=True, exponent=0.75):
         '''
@@ -560,6 +755,27 @@ def distance(pt1, pt2):
     return np.sqrt((pt1[0] - pt2[0]) ** 2 + (pt1[1] - pt2[1]) ** 2)
 
 
+def decdeg_distance(pt1, pt2):
+    ''' Calculate Earth surface distance (in km) between decimal latlong points 
+    using Haversine approximation.
+    
+    http://stackoverflow.com/questions/15736995/how-can-i-quickly-estimate-the-distance-between-two-latitude-longitude-points    
+    '''
+    lat1, lon1 = pt1
+    lat2, lon2 = pt2
+
+    # Convert decimal degrees to radians
+    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+
+    # haversine formula 
+    dlon = lon2 - lon1 
+    dlat = lat2 - lat1 
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    c = 2 * asin(sqrt(a)) 
+    km = 6367 * c
+
+    return km
+
 def divisible(dividend, precision, divisor, tol = 1e-9):
     '''
     Check if dividend (here width or height of patch) is evenly divisible by 
@@ -588,3 +804,8 @@ def rnd(num):
     subpatches not lie exactly on even divisions of patch.
     '''
     return round(num, 6)
+
+def z(doubleS, halfS):
+    '''Calculates the z for a double S value and a half S value'''
+
+    return np.log(doubleS / halfS) / (2 * np.log(2))

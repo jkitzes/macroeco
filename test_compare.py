@@ -678,6 +678,33 @@ class TestCompare(unittest.TestCase):
         pred = mean_squared_error(pred, obs)
         self.assertEqual(pred, comp_val)
 
+    def test_bootstrap_moment(self):
+        
+        data1 = np.arange(1, 31)
+        data2 = np.arange(20, 50)
+        # Test the return is empty if wrong keyword is given
+        bs_vals = bootstrap_moment(data1, data2, ['men', 'vaiance',
+                            'sew', 'kurtoss'], num_samp=100)
+
+        self.assertTrue(len(bs_vals) == 0)
+        
+        # Test bootstrap moment against William Rice's (UCSB) bootstrap 
+        # programs in Statistics 101.  Just testing the mean, but the
+        # implementation is the same for all of them
+        test_ci = np.array([-23.4, -14.6])
+
+        bs_vals = bootstrap_moment(data1, data2, ['mean', 'variance',
+                            'skew', 'kurtosis'], num_samp=50000)
+
+        # Check that Bill Rice's and our 95% CIs match
+        self.assertTrue(np.array_equal(test_ci, np.round(bs_vals['mean'][1],
+            decimals=1)))
+        
+        # Check that the deltas match
+        self.assertTrue(-19 == bs_vals["mean"][0])
+
+        # Check that the length is right
+        self.assertTrue(len(bs_vals) == 4)
 
 if __name__ == '__main__':
     unittest.main()
