@@ -462,7 +462,7 @@ class TestDistributions(unittest.TestCase):
         vals = np.arange(1,1000)
         for k in ks:
             ob = nbd_lt(tot_obs=500, n_samp=20, k=k)
-            pred_vals = ob.pmf(vals)[0]
+            pred_vals = ob.pmf(vals, fix_bias=True)[0]
             bmean = sum(vals * pred_vals)
             self.assertTrue(np.round(bmean, decimals=1) == 500 / 20.)
 

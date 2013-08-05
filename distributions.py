@@ -2183,7 +2183,7 @@ class nbd_lt(Distribution):
         self.par_num = 2 
         self.var = {}
 
-    def pmf(self, n, fix_bias=True, vals=1e3):
+    def pmf(self, n, fix_bias=False, vals=1e3):
         """
         Probability mass function method.
 
@@ -2257,7 +2257,7 @@ class nbd_lt(Distribution):
         self.var['bias_mu'] = np.array(self.var['bias_mu'])
         return pmf
 
-    def cdf(self, n, fix_bias=True, vals=1e3):
+    def cdf(self, n, fix_bias=False, vals=1e3):
         '''
         Cumulative distribution method.  
 

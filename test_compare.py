@@ -461,6 +461,8 @@ class TestCompare(unittest.TestCase):
         sad_c = CompareSAD(self.sad_data, ['logser', 'most_even', 'nbd_lt'])
         
         aic_out = sad_c.compare_aic(crt=True)
+        print aic_out
+
         # Most even should have the lowest AIC value for the second dataset
         self.assertTrue(aic_out[1][1] == np.min(aic_out[1]))
 
