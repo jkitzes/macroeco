@@ -30,6 +30,7 @@ Misc functions
 
 from __future__ import division
 import numpy as np
+from math import radians, cos, sin, asin, sqrt
 import itertools
 from copy import deepcopy
 from data import DataTable
@@ -446,7 +447,7 @@ class Patch:
         
         return z_array
 
-    def comm_sep(self, plot_locs, criteria):
+    def comm_sep(self, plot_locs, criteria, loc_unit=None):
         '''
         Calculates commonality (Sorensen and Jaccard) between pairs of plots.
 
@@ -458,6 +459,9 @@ class Patch:
             tuple of the x and y coordinate of each plot
         criteria : dict
             See docstring for Patch.sad.
+        loc_unit : str
+            Unit of plot locations. Special cases include 'decdeg' (decimal 
+            degrees), returns result in km. Otherwise ignored.
 
         Returns
         -------
@@ -495,6 +499,8 @@ class Patch:
         n_pairs = np.sum(np.arange(len(plot_locs.keys())))
         result = np.recarray((n_pairs,), dtype=[('plot-a','S32'),
                                                 ('plot-b', 'S32'),
+                                                ('spp-a', int),
+                                                ('spp-b', int),
                                                 ('dist', float),
                                                 ('sorensen', float),
                                                 ('jaccard', float)])
@@ -511,11 +517,20 @@ class Patch:
             result[row]['plot-b'] = plotb
 
             # Calculate inter-plot distance
-            result[row]['dist'] = distance(plot_locs[plota], plot_locs[plotb])
+            if loc_unit == 'decdeg':
+                result[row]['dist'] = decdeg_distance(plot_locs[plota], 
+                                                      plot_locs[plotb])
+            else:
+                result[row]['dist'] = distance(plot_locs[plota], 
+                                               plot_locs[plotb])
 
             # Get similarity indices
             spp_a = len(sad_dict[plota])
             spp_b = len(sad_dict[plotb])
+
+            result[row]['spp-a'] = spp_a
+            result[row]['spp-b'] = spp_b
+
             intersect = set(sad_dict[plota]).intersection(sad_dict[plotb])
             union = set(sad_dict[plota]).union(sad_dict[plotb])
 
@@ -739,6 +754,27 @@ def distance(pt1, pt2):
     ''' Calculate Euclidean distance between two points '''
     return np.sqrt((pt1[0] - pt2[0]) ** 2 + (pt1[1] - pt2[1]) ** 2)
 
+
+def decdeg_distance(pt1, pt2):
+    ''' Calculate Earth surface distance (in km) between decimal latlong points 
+    using Haversine approximation.
+    
+    http://stackoverflow.com/questions/15736995/how-can-i-quickly-estimate-the-distance-between-two-latitude-longitude-points    
+    '''
+    lat1, lon1 = pt1
+    lat2, lon2 = pt2
+
+    # Convert decimal degrees to radians
+    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+
+    # haversine formula 
+    dlon = lon2 - lon1 
+    dlat = lat2 - lat1 
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    c = 2 * asin(sqrt(a)) 
+    km = 6367 * c
+
+    return km
 
 def divisible(dividend, precision, divisor, tol = 1e-9):
     '''

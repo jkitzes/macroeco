@@ -432,10 +432,28 @@ f, scav, 0, 1, 4''')
                                    'plot3': (3,4)},
                                   {'spp_code': 'species', 'count': 'count'})
 
+        # Create result recarray with dec degree locs
+        comm_decdeg = self.pat9.comm_sep({'plot1': (9.1,79.0),
+                                   'plot2': (9.2,79.5), 'plot3': (12.7,50)},
+                                  {'spp_code': 'species', 'count': 'count'}, 
+                                         loc_unit='decdeg')
+
         # Check distances
         dist_sort = np.sort(comm['dist'])
         np.testing.assert_array_almost_equal(dist_sort, np.array((1,4.242,5)), 
                                              3)
+
+        # Check distances dec degree
+        # TODO: Find exact third party comparison formula - formulas online use 
+        # different radii, etc. and give approx same answer
+        dist_sort = np.sort(comm_decdeg['dist'])
+        #np.testing.assert_array_almost_equal(dist_sort,
+        #                                     np.array((56.058,3193.507,
+        #                                               3245.820)), 3)
+
+        # Check species in each plot
+        spp_sort = np.sort(np.array(list(comm['spp-a']) + list(comm['spp-b'])))
+        np.testing.assert_array_equal(spp_sort, np.array((0,0,3,3,4,4)))
 
         # Check Sorensen - 2 zeros from empty plot1
         sor_sort = np.sort(comm['sorensen'])
