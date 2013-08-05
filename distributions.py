@@ -512,7 +512,6 @@ class Distribution(object):
 
         return rad
 
-
     def fit(self, data):
         '''
         Fit method.
