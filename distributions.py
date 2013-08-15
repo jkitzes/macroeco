@@ -2170,8 +2170,8 @@ class nbd_lt(Distribution):
     Parameterization based on Sampford 1955
 
     There is a bias in the mean when k is small.  The mean tends to be larger
-    than expected.  This method used brute force to correct for the bias so
-    that the mean of the distribution 
+    than expected.  This method uses brute force to correct for the bias so
+    that the mean of the distribution is correct for small k 
 
 
     '''
@@ -2908,7 +2908,25 @@ class gen_sar(Curve):
     plognorm and plognorm_lt are not supported by gen_sar. If one would like
     them to be supported, the full pmf for the sad must be calculated in the
     fit method.
-    
+
+    Examples
+    --------
+    import distributions as dist
+
+    # Make an SAR with a Logseries SAD and Truncated Geometric SSAD.  The
+    # community has 500 individuals and 14 species
+
+    sar1 = dist.gen_sar(dist.logser(), dist.tgeo(), tot_obs=500, n_samp=14)
+
+    # Number of species in half the base area and double the base area
+    sar1.vals([.5, 2])
+
+    # Make an SAR with Logseries and Truncated NBD
+    sar2 = dist.gen_sar(dist.logser(), dist.tnbd(k=.2), tot_obs=500, n_samp=14)
+
+    # Iterated the SAR 2 doublings from the base scale 
+    sar2.iter_vals(upscale=2)
+
 
     '''
 
