@@ -441,20 +441,21 @@ class TestDistributions(unittest.TestCase):
         self.assertTrue(a == b)
 
         # Test pmf against scipy
-        ks = np.linspace(0.01, 5, 100)
-        for k in ks:
-            mu = 500 * (1. / 20); p = 1. / (mu / k + 1)
-            scipy_0 = stats.nbinom.pmf(0, k, p)
-            vals = np.array([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17])
-            test_vals = stats.nbinom.pmf(vals, k, p) / (1 - scipy_0)
-            pred_vals = nbd_lt(tot_obs=500, n_samp=20, k=k).pmf(vals,
-                                                            fix_bias=False)[0]
-            if not np.array_equal(np.round(test_vals, decimals=3), 
-                                np.round(pred_vals, decimals=3)):
-                print pred_vals
-                print test_vals
-            self.assertTrue(np.array_equal(np.round(test_vals, decimals=3), 
-                                np.round(pred_vals, decimals=3)))
+        # This unit test passes when we are not fixing the bias. 
+#        ks = np.linspace(0.01, 5, 100)
+#        for k in ks:
+#            mu = 500 * (1. / 20); p = 1. / (mu / k + 1)
+#            scipy_0 = stats.nbinom.pmf(0, k, p)
+#            vals = np.array([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17])
+#            test_vals = stats.nbinom.pmf(vals, k, p) / (1 - scipy_0)
+#            pred_vals = nbd_lt(tot_obs=500, n_samp=20, k=k).pmf(vals,
+#                                                            fix_bias=False)[0]
+#            if not np.array_equal(np.round(test_vals, decimals=3), 
+#                                np.round(pred_vals, decimals=3)):
+#                print pred_vals
+#                print test_vals
+#            self.assertTrue(np.array_equal(np.round(test_vals, decimals=3), 
+#                                np.round(pred_vals, decimals=3)))
 
 
         # Test that fixing the bias leads to the proper mean
@@ -462,7 +463,7 @@ class TestDistributions(unittest.TestCase):
         vals = np.arange(1,1000)
         for k in ks:
             ob = nbd_lt(tot_obs=500, n_samp=20, k=k)
-            pred_vals = ob.pmf(vals, fix_bias=True)[0]
+            pred_vals = ob.pmf(vals)[0]
             bmean = sum(vals * pred_vals)
             self.assertTrue(np.round(bmean, decimals=1) == 500 / 20.)
 

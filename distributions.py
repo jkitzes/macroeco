@@ -2155,9 +2155,7 @@ class nbd_lt(Distribution):
     self.var keywords
     -----------------
     mu : array of floats 
-        mu parameters of nbd
-    bias_mu : array of float
-        mu used to correct for bias in mean
+        mu parameters of nbd_lt
     k : array of floats
         Aggregation parameter
         k is included in self.var if it is calculated in fit.
@@ -2169,9 +2167,9 @@ class nbd_lt(Distribution):
 
     Parameterization based on Sampford 1955
 
-    There is a bias in the mean when k is small.  The mean tends to be larger
+    The mean tends to be larger
     than expected.  This method uses brute force to correct for the bias so
-    that the mean of the distribution is correct for small k 
+    that the mean of the distribution is correct for small k.  
 
 
     '''
@@ -2192,10 +2190,6 @@ class nbd_lt(Distribution):
         n : int, float or array-like object
             Values at which to calculate pmf. May be a list of same length as 
             parameters, or single iterable.
-        fix_bias : bool
-            If True, fixes the bias in the truncated negative binomial such
-            that the mean of the distribution is equal to tot_obs / n_samp.
-            The bias increases as k -> 0.
         vals : float
             Creates a vector np.arange(1, vals + 1) to correct the bias.  A
             higher vals will mean a more precise correction but slower run
@@ -2207,6 +2201,7 @@ class nbd_lt(Distribution):
             List of 1D arrays of probability of observing sample n.
 
         See class docstring for more specific information on this distribution.
+
 
         """
 
@@ -2227,37 +2222,36 @@ class nbd_lt(Distribution):
             kernel = (om**k / (1 - om**k)) * (eta**n)
             return norm * kernel
 
-        mu = tot_obs / n_samp
-        self.var['mu'] = mu
-        self.var['bias_mu'] = []
+        nt_mu = tot_obs / n_samp # Non_truncated mu
+        self.var['mu'] = []
 
         pmf = []
         nums = np.arange(1, vals + 1)
-        bias_eq = lambda m, ks: sum(nums * pmf_eq(nums, m, ks)) - tmu
+        bias_eq = lambda m, ks, temp_mu: sum(nums * pmf_eq(nums, m, ks)) -\
+                                    temp_mu
 
-        for tn_samp, ttot_obs, tmu, tk, tn in zip(n_samp, tot_obs,
-                                                mu, k, n):
-            # Fix bias
-            if fix_bias:
+        for tn_samp, ttot_obs, tnt_mu, tk, tn in zip(n_samp, tot_obs,
+                                                nt_mu, k, n):
+            # Find tmu 
+            try:
+                tmu =  scipy.optimize.brentq(bias_eq, 1, tnt_mu, 
+                                                        args=(tk, tnt_mu))
+            except(ValueError):
                 try:
-                    tmu =  scipy.optimize.brentq(bias_eq, 1, tmu, args=(tk,))
-                    self.var['bias_mu'].append(tmu)
-                except(ValueError):
-                    try:
-                        tmu =  scipy.optimize.brentq(bias_eq, 1e-10, tmu,
-                                                        args=(tk,))
-                        self.var['bias_mu'].append(tmu)
-                    except(ValueError):
-                        self.var['bias_mu'].append(np.nan)
+                    tmu =  scipy.optimize.brentq(bias_eq, 1e-10, tnt_mu,
+                                                    args=(tk, tnt_mu))
+                except(ValueError): # Set to nan if all else fails
+                    tmu = np.nan
 
+            self.var['mu'].append(tmu)
             tpmf = pmf_eq(tn, tmu, tk)
 
             pmf.append(tpmf)
      
-        self.var['bias_mu'] = np.array(self.var['bias_mu'])
+        self.var['mu'] = np.array(self.var['mu'])
         return pmf
 
-    def cdf(self, n, fix_bias=False, vals=1e3):
+    def cdf(self, n, vals=1e3):
         '''
         Cumulative distribution method.  
 
@@ -2266,12 +2260,8 @@ class nbd_lt(Distribution):
         n : int, float or array-like object
             Values at which to calculate cdf. May be a list of same length as 
             parameters, or single iterable.
-        fix_bias : bool
-            If True, fixes the bias in the truncated negative binomial such
-            that the mean of the distribution is equal to tot_obs / n_samp.
-            The bias increases as k -> 0.
         vals : float
-            Creates a vector np.arange(1, vals + 1) to correct the bias.  A
+            Creates a vector np.arange(1, vals + 1) to calculate mu.  A
             higher vals will mean a more precise correction but slower run
             time.
 
@@ -2294,7 +2284,7 @@ class nbd_lt(Distribution):
         max_n = [np.max(tn) for tn in n]
         n_in = [np.arange(self.min_supp, i + 1) for i in max_n]
 
-        pmf_list = self.pmf(n_in, fix_bias=fix_bias, vals=vals)
+        pmf_list = self.pmf(n_in, vals=vals)
 
         # Calculate cdfs
         cdf = []
@@ -2305,7 +2295,7 @@ class nbd_lt(Distribution):
 
         return cdf 
 
-    def fit(self, data, guess_for_k=1):
+    def fit(self, data, guess_for_k=1, vals=1e3):
         '''
         Fit method.
 
@@ -2319,6 +2309,9 @@ class nbd_lt(Distribution):
             data array, must be in a list with one element.
         guess_for_k : float
             Initial guess for parameter k in solver
+        vals : float
+            Creates a vector np.arange(1, vals + 1) to estimate mu.  A
+            higher vals will mean a more precise mu, but a slower run time.
 
         See class docstring for more specific information on this distribution.
         '''
@@ -2335,7 +2328,7 @@ class nbd_lt(Distribution):
                 self.params['tot_obs'] = ttot_obs
                 self.params['n_samp'] = tn_samp
                 self.params['k'] = k
-                return -sum(np.log(self.pmf(tdata, fix_bias=False)[0]))
+                return -sum(np.log(self.pmf(tdata, vals=vals)[0]))
 
             mlek = scipy.optimize.fmin(nll_nb, np.array([guess_for_k]), 
                                                                     disp=0)[0]
