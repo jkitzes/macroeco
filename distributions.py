@@ -1737,8 +1737,8 @@ class broken_stick(Distribution):
         pmf = []
         for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
             ttot_obs = np.round(ttot_obs, decimals=0)
-            sumg = sum(eq(np.arange(1, np.floor(ttot_obs) + 1), tn_samp, ttot_obs))
-            tpmf = eq(tn, tn_samp, ttot_obs) / sumg # Normalizing
+            #sumg = sum(eq(np.arange(1, np.floor(ttot_obs) + 1), tn_samp, ttot_obs))
+            tpmf = eq(tn, tn_samp, ttot_obs) #/ sumg # Normalizing
             pmf.append(tpmf)
 
         return pmf
@@ -2165,11 +2165,7 @@ class nbd_lt(Distribution):
     The total species (S) is equivalent to n_samp and the total
     individuals (N) is equivalent to tot_obs.
 
-    Parameterization based on Sampford 1955
-
-    The mean tends to be larger
-    than expected.  This method uses brute force to correct for the bias so
-    that the mean of the distribution is correct for small k.  
+    Parameterization based on Sampford 1955 and He and Legendre 2002
 
 
     '''
@@ -2181,7 +2177,7 @@ class nbd_lt(Distribution):
         self.par_num = 2 
         self.var = {}
 
-    def pmf(self, n, fix_bias=False, vals=1e3):
+    def pmf(self, n):
         """
         Probability mass function method.
 
@@ -2190,10 +2186,6 @@ class nbd_lt(Distribution):
         n : int, float or array-like object
             Values at which to calculate pmf. May be a list of same length as 
             parameters, or single iterable.
-        vals : float
-            Creates a vector np.arange(1, vals + 1) to correct the bias.  A
-            higher vals will mean a more precise correction but slower run
-            time.
 
         Returns
         -------
@@ -2214,24 +2206,18 @@ class nbd_lt(Distribution):
 
         # Calculate pmf
         def pmf_eq(n, p, k):
-            #om = (1 / (1 + (p))); eta = 1 - om
 
             norm = np.exp(spec.gammaln(k + n) - ((spec.gammaln(k) + 
                                             spec.gammaln(n + 1))))
             
             kernel = (p / (1 + p))**n * (1 / ((1 + p)**k - 1))
-            #kernel = (om**k / (1 - om**k)) * (eta**n)
             return norm * kernel
 
-        #nt_mu = tot_obs / n_samp # Non_truncated mu
         self.var['p'] = []
 
         pmf = []
-        #nums = np.arange(1, vals + 1)
         p_eq = lambda p, k, N, S : (k * p) / (1 - (1 + p)**-k) -\
                                     (float(N) / S) 
-        #bias_eq = lambda m, ks, temp_mu: sum(nums * pmf_eq(nums, m, ks)) -\
-        #                            temp_mu
 
         for tn_samp, ttot_obs, tk, tn in zip(n_samp, tot_obs, k, n):
             # Find p
@@ -2259,7 +2245,7 @@ class nbd_lt(Distribution):
         self.var['p'] = np.array(self.var['p'])
         return pmf
 
-    def cdf(self, n, vals=1e3):
+    def cdf(self, n):
         '''
         Cumulative distribution method.  
 
@@ -2268,10 +2254,6 @@ class nbd_lt(Distribution):
         n : int, float or array-like object
             Values at which to calculate cdf. May be a list of same length as 
             parameters, or single iterable.
-        vals : float
-            Creates a vector np.arange(1, vals + 1) to calculate mu.  A
-            higher vals will mean a more precise correction but slower run
-            time.
 
         Returns
         -------
@@ -2303,7 +2285,7 @@ class nbd_lt(Distribution):
 
         return cdf 
 
-    def fit(self, data, guess_for_k=1, vals=1e3):
+    def fit(self, data, guess_for_k=1):
         '''
         Fit method.
 
@@ -2317,9 +2299,6 @@ class nbd_lt(Distribution):
             data array, must be in a list with one element.
         guess_for_k : float
             Initial guess for parameter k in solver
-        vals : float
-            Creates a vector np.arange(1, vals + 1) to estimate mu.  A
-            higher vals will mean a more precise mu, but a slower run time.
 
         See class docstring for more specific information on this distribution.
         '''
