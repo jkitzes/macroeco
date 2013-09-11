@@ -1737,8 +1737,8 @@ class broken_stick(Distribution):
         pmf = []
         for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
             ttot_obs = np.round(ttot_obs, decimals=0)
-            #sumg = sum(eq(np.arange(1, np.floor(ttot_obs) + 1), tn_samp, ttot_obs))
-            tpmf = eq(tn, tn_samp, ttot_obs)# / sumg # Normalizing
+            sumg = sum(eq(np.arange(1, np.floor(ttot_obs) + 1), tn_samp, ttot_obs))
+            tpmf = eq(tn, tn_samp, ttot_obs) / sumg # Normalizing
             pmf.append(tpmf)
 
         return pmf
@@ -2213,42 +2213,50 @@ class nbd_lt(Distribution):
         assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
 
         # Calculate pmf
-        def pmf_eq(n, m, k):
-            om = (1 / (1 + (m/k))); eta = 1 - om
+        def pmf_eq(n, p, k):
+            #om = (1 / (1 + (p))); eta = 1 - om
 
             norm = np.exp(spec.gammaln(k + n) - ((spec.gammaln(k) + 
                                             spec.gammaln(n + 1))))
-
-            kernel = (om**k / (1 - om**k)) * (eta**n)
+            
+            kernel = (p / (1 + p))**n * (1 / ((1 + p)**k - 1))
+            #kernel = (om**k / (1 - om**k)) * (eta**n)
             return norm * kernel
 
-        nt_mu = tot_obs / n_samp # Non_truncated mu
-        self.var['mu'] = []
+        #nt_mu = tot_obs / n_samp # Non_truncated mu
+        self.var['p'] = []
 
         pmf = []
-        nums = np.arange(1, vals + 1)
-        bias_eq = lambda m, ks, temp_mu: sum(nums * pmf_eq(nums, m, ks)) -\
-                                    temp_mu
+        #nums = np.arange(1, vals + 1)
+        p_eq = lambda p, k, N, S : (k * p) / (1 - (1 + p)**-k) -\
+                                    (float(N) / S) 
+        #bias_eq = lambda m, ks, temp_mu: sum(nums * pmf_eq(nums, m, ks)) -\
+        #                            temp_mu
 
-        for tn_samp, ttot_obs, tnt_mu, tk, tn in zip(n_samp, tot_obs,
-                                                nt_mu, k, n):
-            # Find tmu 
-            try:
-                tmu =  scipy.optimize.brentq(bias_eq, 1, tnt_mu, 
-                                                        args=(tk, tnt_mu))
-            except(ValueError):
+        for tn_samp, ttot_obs, tk, tn in zip(n_samp, tot_obs, k, n):
+            # Find p
+            
+            do_it = True
+            count = 0
+            while do_it and count < 20:
+
+                stop = 10**(count + 1)
+                count += 1
+
                 try:
-                    tmu =  scipy.optimize.brentq(bias_eq, 1e-10, tnt_mu,
-                                                    args=(tk, tnt_mu))
-                except(ValueError): # Set to nan if all else fails
-                    tmu = np.nan
-
-            self.var['mu'].append(tmu)
-            tpmf = pmf_eq(tn, tmu, tk)
+                    tp = scipy.optimize.brentq(p_eq, 1e-10, stop, args=(tk,
+                                ttot_obs, tn_samp))
+                    do_it = False
+                except(ValueError):
+                    if count >= 20:
+                        tp = np.nan
+                    
+            self.var['p'].append(tp)
+            tpmf = pmf_eq(tn, tp, tk)
 
             pmf.append(tpmf)
      
-        self.var['mu'] = np.array(self.var['mu'])
+        self.var['p'] = np.array(self.var['p'])
         return pmf
 
     def cdf(self, n, vals=1e3):
