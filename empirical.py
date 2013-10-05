@@ -19,6 +19,7 @@ Patch Methods
 - `sed` -- calculate species energy distribution (grid or sample)
 - `ied` -- calculate the community (individual) energy distribution
 - `ased` -- calculate the average species energy distribution
+- `tsed` -- calculate the total species energy distribution
 
 - `get_sp_centers` --
 - 'get_div_areas' -- return list of areas made by div_list
@@ -733,6 +734,47 @@ class Patch:
             result.append((this_sed[0], np.array(nu), np.array(spp_list)))
 
         return result
+
+    def tsed(self, criteria, normalize=True, exponent=0.75):
+        '''
+        Calculates the total species energy distribution for each given
+        species in a subset. 
+        
+        Parameters
+        ----------
+        criteria : dict
+            Dictionary must have contain a key with the value 'energy' or
+            'mass'.  See sad method for further requirements.
+        
+        Returns
+        -------
+        result : list 
+            List of tuples containing results, where the first element is a
+            dictionary of criteria for this calculation and second element is a 
+            1D ndarray of length species containing the average energy for each 
+            species. The third element is 1D array listing identifiers for 
+            species in the same order as they appear in the second element of 
+            result.         
+
+        '''
+
+        sed = self.sed(criteria, normalize=normalize, exponent=exponent)
+
+        result = []
+        for this_sed in sed:
+            spp_list = list(this_sed[1].viewkeys())
+            spp_list.sort()
+
+            # Take the mean energy for each species
+            omega = [np.sum(this_sed[1][spp]) for spp in spp_list if
+                                                    len(this_sed[1][spp]) != 0]
+            # Truncated spp_list if necessary
+            spp_list = [spp for spp in spp_list if len(this_sed[1][spp]) != 0]
+            
+            result.append((this_sed[0], np.array(omega), np.array(spp_list)))
+
+        return result
+
 
 def flatten_sad(sad):
     '''
