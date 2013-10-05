@@ -2154,8 +2154,8 @@ class nbd_lt(Distribution):
 
     self.var keywords
     -----------------
-    mu : array of floats 
-        mu parameters of nbd_lt
+    p : array of floats 
+        p parameters of nbd_lt
     k : array of floats
         Aggregation parameter
         k is included in self.var if it is calculated in fit.
@@ -2274,7 +2274,7 @@ class nbd_lt(Distribution):
         max_n = [np.max(tn) for tn in n]
         n_in = [np.arange(self.min_supp, i + 1) for i in max_n]
 
-        pmf_list = self.pmf(n_in, vals=vals)
+        pmf_list = self.pmf(n_in)
 
         # Calculate cdfs
         cdf = []
@@ -2315,7 +2315,7 @@ class nbd_lt(Distribution):
                 self.params['tot_obs'] = ttot_obs
                 self.params['n_samp'] = tn_samp
                 self.params['k'] = k
-                return -sum(np.log(self.pmf(tdata, vals=vals)[0]))
+                return -sum(np.log(self.pmf(tdata)[0]))
 
             mlek = scipy.optimize.fmin(nll_nb, np.array([guess_for_k]), 
                                                                     disp=0)[0]
