@@ -380,9 +380,9 @@ class Patch:
         the areas in div_cols (where N is the total number of species and S is
         the total number of species).
 
-        This function assumes that the div_list contains halvings.  If they are not,
-        the function will still work but the results will be meaningless.  An
-        example a of div_list with halvings is:
+        This function assumes that the div_list contains halvings.  If they are
+        not, the function will still work but the results will be meaningless.
+        An example a of div_list with halvings is:
 
         [(1,1), (1,2), (2,2), (2,4), (4,4)]
 
