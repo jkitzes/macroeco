@@ -104,7 +104,7 @@ from __future__ import division
 import numpy as np
 import scipy.stats as stats
 import scipy.optimize 
-import scipy.special
+import scipy.special as spec
 from copy import deepcopy
 import math as m
 import scipy.integrate as integrate
@@ -511,7 +511,6 @@ class Distribution(object):
             rad.append(trad)
 
         return rad
-
 
     def fit(self, data):
         '''
@@ -1739,7 +1738,7 @@ class broken_stick(Distribution):
         for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
             ttot_obs = np.round(ttot_obs, decimals=0)
             #sumg = sum(eq(np.arange(1, np.floor(ttot_obs) + 1), tn_samp, ttot_obs))
-            tpmf = eq(tn, tn_samp, ttot_obs)# / sumg # Normalizing
+            tpmf = eq(tn, tn_samp, ttot_obs) #/ sumg # Normalizing
             pmf.append(tpmf)
 
         return pmf
@@ -2136,7 +2135,9 @@ class nbd(Distribution):
 
         return self
 
-class nbd_lt(nbd):
+
+class nbd_lt(Distribution):
+    __doc__ = Distribution.__doc__ + \
     '''
     Description
     -----------
@@ -2153,34 +2154,31 @@ class nbd_lt(nbd):
 
     self.var keywords
     -----------------
-    Parameterization differs for different forms of the nbd.  We use the
-    standard ecological form as described by Ben Bolker. Parameters 'a' (1 /
-    n_samp), 'tot_obs', and k are used to derive the nbd parameter p (see code
-    for details).  Parameters k and p are used to generate distribution. k is
-        included in self.var if it is calculated in fit.
-        
-    p : array of floats 
-        p parameters of nbd
+    mu : array of floats 
+        mu parameters of nbd_lt
     k : array of floats
         Aggregation parameter
+        k is included in self.var if it is calculated in fit.
 
     Notes
     -----
     The total species (S) is equivalent to n_samp and the total
     individuals (N) is equivalent to tot_obs.
 
+    Parameterization based on Sampford 1955 and He and Legendre 2002
+
 
     '''
 
+    @doc_inherit
     def __init__(self, **kwargs):
         self.params = kwargs
         self.min_supp = 1
-        self.par_num = 2
+        self.par_num = 2 
         self.var = {}
-    
-    
+
     def pmf(self, n):
-        '''
+        """
         Probability mass function method.
 
         Parameters
@@ -2195,22 +2193,57 @@ class nbd_lt(nbd):
             List of 1D arrays of probability of observing sample n.
 
         See class docstring for more specific information on this distribution.
-        '''
+
+
+        """
 
         # Get parameters
-        n_samp, tot_obs, k = self.get_params(['n_samp', 'tot_obs', 'k'])
+        n_samp, tot_obs, k =\
+                self.get_params(['n_samp', 'tot_obs', 'k'])
         n = expand_n(n, len(n_samp))
-        
-        # TODO: Additional checks?
 
-        reg_nbd = nbd(n_samp=n_samp, tot_obs=tot_obs, k=k)
-        reg_pmf = reg_nbd.pmf(n)
-        self.var = reg_nbd.var
-        reg_pmf0 = reg_nbd.pmf(0)
+        assert np.all(n_samp <= tot_obs), 'n_samp must be <= tot_obs'
 
-        trunc_pmf = [(pr / (1 - p0)) for pr, p0 in zip(reg_pmf, reg_pmf0)]
+        # Calculate pmf
+        def pmf_eq(n, p, k):
 
-        return trunc_pmf         
+            norm = np.exp(spec.gammaln(k + n) - ((spec.gammaln(k) + 
+                                            spec.gammaln(n + 1))))
+            
+            kernel = (p / (1 + p))**n * (1 / ((1 + p)**k - 1))
+            return norm * kernel
+
+        self.var['p'] = []
+
+        pmf = []
+        p_eq = lambda p, k, N, S : (k * p) / (1 - (1 + p)**-k) -\
+                                    (float(N) / S) 
+
+        for tn_samp, ttot_obs, tk, tn in zip(n_samp, tot_obs, k, n):
+            # Find p
+            
+            do_it = True
+            count = 0
+            while do_it and count < 20:
+
+                stop = 10**(count + 1)
+                count += 1
+
+                try:
+                    tp = scipy.optimize.brentq(p_eq, 1e-10, stop, args=(tk,
+                                ttot_obs, tn_samp))
+                    do_it = False
+                except(ValueError):
+                    if count >= 20:
+                        tp = np.nan
+                    
+            self.var['p'].append(tp)
+            tpmf = pmf_eq(tn, tp, tk)
+
+            pmf.append(tpmf)
+     
+        self.var['p'] = np.array(self.var['p'])
+        return pmf
 
     def cdf(self, n):
         '''
@@ -2225,24 +2258,74 @@ class nbd_lt(nbd):
         Returns
         -------
         cdf : list of ndarrays
-            List of 1D arrays of probability of observing sample n.
+            List of 1D arrays of cumulative probability of observing sample n.
+
+        See class docstring for more specific information on this distribution.
+        '''
+    
+        for kw in self.params.iterkeys():
+            if not np.iterable(self.params[kw]):
+                self.params[kw] = make_array(self.params[kw])
+
+        # Expand n argument if needed, assumes all params same length
+        n = expand_n(n, len(self.params.values()[0]))
+
+        # Calculate pmfs
+        max_n = [np.max(tn) for tn in n]
+        n_in = [np.arange(self.min_supp, i + 1) for i in max_n]
+
+        pmf_list = self.pmf(n_in, vals=vals)
+
+        # Calculate cdfs
+        cdf = []
+        for tpmf, tn in zip(pmf_list, n):
+            full_cdf = np.cumsum(tpmf)
+            tcdf = np.array([full_cdf[x - self.min_supp] for x in tn])
+            cdf.append(tcdf)
+
+        return cdf 
+
+    def fit(self, data, guess_for_k=1):
+        '''
+        Fit method.
+
+        Uses input data to get best fit parameters for distribution, and stores 
+        these parameters in params attribute.
+        
+        Parameters
+        ----------
+        data : list of ndarrays
+            Data to use to fit parameters of distribution. Even if only one 
+            data array, must be in a list with one element.
+        guess_for_k : float
+            Initial guess for parameter k in solver
 
         See class docstring for more specific information on this distribution.
         '''
 
-        n_samp, tot_obs, k = self.get_params(['n_samp', 'tot_obs', 'k'])
-        n = expand_n(n, len(n_samp))
-        
-        # TODO: Additional checks?
+        super(nbd_lt, self).fit(data)
+        n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
 
-        reg_nbd = nbd(n_samp=n_samp, tot_obs=tot_obs, k=k)
-        p0 = reg_nbd.pmf(0)
-        self.var = reg_nbd.var
-        reg_cdf = reg_nbd.cdf(n)
+        data = check_list_of_iterables(data) 
+        tempk = []
 
-        trun_cdf = [(tcdf - tp0) / (1 - tp0) for tcdf, tp0 in zip(reg_cdf, p0)]
+        for tdata, tn_samp, ttot_obs in zip(data, n_samp, tot_obs): 
 
-        return trun_cdf
+            def nll_nb(k):
+                self.params['tot_obs'] = ttot_obs
+                self.params['n_samp'] = tn_samp
+                self.params['k'] = k
+                return -sum(np.log(self.pmf(tdata, vals=vals)[0]))
+
+            mlek = scipy.optimize.fmin(nll_nb, np.array([guess_for_k]), 
+                                                                    disp=0)[0]
+            tempk.append(mlek)
+        self.params['k'] = np.array(tempk)
+        self.params['n_samp'] = n_samp
+        self.params['tot_obs'] = tot_obs
+        self.var['k'] = np.array(tempk)
+
+        return self
 
 class fnbd(Distribution):
     __doc__ = Distribution.__doc__ + \
@@ -2805,7 +2888,25 @@ class gen_sar(Curve):
     plognorm and plognorm_lt are not supported by gen_sar. If one would like
     them to be supported, the full pmf for the sad must be calculated in the
     fit method.
-    
+
+    Examples
+    --------
+    import distributions as dist
+
+    # Make an SAR with a Logseries SAD and Truncated Geometric SSAD.  The
+    # community has 500 individuals and 14 species
+
+    sar1 = dist.gen_sar(dist.logser(), dist.tgeo(), tot_obs=500, n_samp=14)
+
+    # Number of species in half the base area and double the base area
+    sar1.vals([.5, 2])
+
+    # Make an SAR with Logseries and Truncated NBD
+    sar2 = dist.gen_sar(dist.logser(), dist.tnbd(k=.2), tot_obs=500, n_samp=14)
+
+    # Iterated the SAR 2 doublings from the base scale 
+    sar2.iter_vals(upscale=2)
+
 
     '''
 
@@ -3805,12 +3906,20 @@ def beta_solver(x, k, tot_obs, n_samp):
     return sum(x ** k / float(tot_obs) * n_samp) -  sum((x ** k) / k)
 
 
-def make_array(n):
-    '''Cast n as iterable array.'''
+def make_array(n, dtype=None):
+    '''Cast n as iterable array. If dtype not none this will be the dtype of
+    the array.  Otherwise it lets python choose.  Must be a valid dtype or an
+    error will be thrown'''
     if np.iterable(n):
-        return np.array(n)
+        if dtype==None:
+            return np.array(n)
+        else:
+            return np.array(n, dtype=dtype)
     else:
-        return np.array([n])
+        if dtype==None:
+            return np.array([n])
+        else:
+            return np.array([n], dtype=dtype)
 
 
 def expand_n(n, size):
@@ -3952,7 +4061,7 @@ def _ln_choose(n, k):
     Log binomial coefficient with extended gamma factorials. n and k may be int 
     or array - if both array, must be the same length.
     '''
-    gammaln = scipy.special.gammaln
+    gammaln = spec.gammaln
     return gammaln(n + 1) - (gammaln(k + 1) + gammaln(n - k + 1))
 
 def set_up_and_down(anch, a_list, base=2):

@@ -1470,7 +1470,7 @@ def bootstrap_moment(data1, data2, moment, CI=.95, num_samp=1000):
 
     return res 
 
-def mean_squared_error(obs, pred):
+def mean_squared_error(obs, pred, divide_by_n=True):
     '''
     Calculates the mean squared error between observed and predicted data sets.
     The data sets must be of the same length
@@ -1481,6 +1481,9 @@ def mean_squared_error(obs, pred):
         The observed data
     pred : array-like object
         The predicted data
+    divide_by_n : bool
+        If True, returns mean squared error. If False returns sum of squares
+        error.
 
     Returns
     -------
@@ -1493,7 +1496,10 @@ def mean_squared_error(obs, pred):
 
     obs, pred = cnvrt_to_arrays(obs, pred)
 
-    return sum((pred - obs)**2) / len(obs)
+    if divide_by_n:
+        return sum((pred - obs)**2) / len(obs)
+    else:
+        return sum((pred - obs)**2)
 
 
 def cnvrt_to_arrays(*args):

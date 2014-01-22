@@ -8,7 +8,7 @@ from __future__ import division
 import matplotlib.pyplot as plt
 import numpy as np
 import logging
-from macroeco.utils.form_func import output_form, add_field
+from utils.form_func import output_form, add_field
 import copy as cp
 import os
 import shutil
