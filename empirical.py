@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 '''
-Calculating macroecological metrics for empirical or theoretical patch. Patch 
+Calculating macroecological metrics for empirical or theoretical patch. Patch
 is interpreted broadly as any temporally and spatially defined census.
 
 Classes
@@ -63,15 +63,15 @@ class Patch:
 
     def __init__(self, datapath, subset = {}):
         '''Initialize object of class Patch. See class documentation.'''
-        
-        # Handle csv 
+
+        # Handle csv
         self.data_table = DataTable(datapath, subset=subset)
-        
+
         # If datapath is sql or db the subsetting is already done.
         if type(subset) == type({}):
             self.data_table.table = self.data_table.get_subtable(subset)
 
-    
+
     def sad(self, criteria, clean=False):
         '''
         Calculates an empirical species abundance distribution given criteria.
@@ -79,10 +79,10 @@ class Patch:
         Parameters
         ----------
         criteria : dict
-            Dictionary of form {column_name: value}. Must contain a key with a 
-            value of 'species' indicating the column with species identifiers 
-            (this column must be type categorical in metadata). If a column 
-            giving the counts of species found at a point is also in the data, 
+            Dictionary of form {column_name: value}. Must contain a key with a
+            value of 'species' indicating the column with species identifiers
+            (this column must be type categorical in metadata). If a column
+            giving the counts of species found at a point is also in the data,
             a key with the value 'count' should also be given.
 
             Value has a different meaning depending on column type:
@@ -92,18 +92,18 @@ class Patch:
         clean : bool
             If True, all the zeros are removed from the sads.  If False, sads
             are left as is.
-        
+
         Returns
         -------
-        result : list 
+        result : list
             List of tuples containing results, where the first element is a
-            dictionary of criteria for this calculation and second element is a 
-            1D ndarray of length species containing the abundance for each 
-            species. The third element is 1D array listing identifiers for 
-            species in the same order as they appear in the second element of 
-            result. 
+            dictionary of criteria for this calculation and second element is a
+            1D ndarray of length species containing the abundance for each
+            species. The third element is 1D array listing identifiers for
+            species in the same order as they appear in the second element of
+            result.
         '''
-        
+
         spp_list, spp_col, count_col, engy_col, mass, combinations = \
             self.parse_criteria(criteria)
 
@@ -112,7 +112,7 @@ class Patch:
                                                                    'parameter')
         result = []
         for comb in combinations:
-            
+
             subtable = self.data_table.get_subtable(comb)
 
             sad_list = []
@@ -133,7 +133,7 @@ class Patch:
             else:
                 temp_spp_list = spp_list
 
-                    
+
             result.append((comb, sad_list, temp_spp_list))
 
         return result
@@ -157,7 +157,7 @@ class Patch:
             specified.  The second object is a dictionary that has length
             species and each keyword is a species.  Each species keyword looks
             up an array with the ssad for the given species.  The array that
-            each keyword looks up is the same length as criteria. 
+            each keyword looks up is the same length as criteria.
 
 
         '''
@@ -165,7 +165,7 @@ class Patch:
         spp_list = sad_return[0][2]
         combs, array_res = flatten_sad(sad_return)
         ssad = {}
-        
+
         for i, spp in enumerate(spp_list):
             ssad[spp] = array_res[i,:]
 
@@ -182,19 +182,19 @@ class Patch:
         energy : bool
             If False, does not return an energy column, if True, returns an
             energy column.
-            
+
         Returns
         -------
         spp_list : ndarray
-            1D array listing identifiers for species in the same order as they 
+            1D array listing identifiers for species in the same order as they
             appear in arrays found in result.
         spp_col : str
             Name of column containing species identifiers.
         count_col : str
             Name of column containing counts, if any.
         combinations : list of dicts
-            List of dictionaries giving all possible combinations of criteria. 
-            Columns not mentioned in criteria are ignored and will be averaged 
+            List of dictionaries giving all possible combinations of criteria.
+            Columns not mentioned in criteria are ignored and will be averaged
             over in later analyses.
 
         '''
@@ -209,7 +209,7 @@ class Patch:
         # Calculate all possible combinations of columns based on criteria
         # TODO: Add error checking
         for key, value in criteria.items():
-            
+
             # Look for two special values indicating species and count cols
             if value == 'species':
                 spp_list = np.unique(self.data_table.table[key])
@@ -247,9 +247,9 @@ class Patch:
                     ends = starts + step
                 except TypeError:
                     raise TypeError('Unable to proceed to with values ' +
-                                    'obtained from metadata.  Please check ' + 
+                                    'obtained from metadata.  Please check ' +
                                     'the metadata file and/or parameters file')
-                
+
 
                 starts_str = [('>=', x) for x in starts]
                 ends_str = [('<', x) for x in ends]
@@ -268,10 +268,10 @@ class Patch:
                         rec[key] = level
                     temp_comb += exist_recs
                 combinations = temp_comb
-        
+
         if len(combinations) == 0:
             combinations.append({})
-        
+
         return spp_list, spp_col, count_col, engy_col, mass_col, combinations
 
 
@@ -285,13 +285,13 @@ class Patch:
         div_cols : tuple
             Column names to divide, eg, ('x', 'y'). Must be metric.
         div_list : list of tuples
-            List of division pairs in same order as div_cols, eg, [(2,2), 
+            List of division pairs in same order as div_cols, eg, [(2,2),
             (2,4), (4,4)]. Values are number of divisions of div_col.
         criteria : dict
-            See docstring for EPatch.sad. Here, criteria SHOULD NOT include 
+            See docstring for EPatch.sad. Here, criteria SHOULD NOT include
             items referring to div_cols (if there are any, they are ignored).
         form : string
-            'sar' or 'ear' for species or endemics area relationship. EAR is 
+            'sar' or 'ear' for species or endemics area relationship. EAR is
             relative to the subtable selected after criteria is applied.
         output_N : bool
             Adds the column N to the output rec array which contains the
@@ -304,8 +304,8 @@ class Patch:
             contains the average items/species for each given area specified by
             critieria.
         full_result : list of ndarrays
-            List of same length as areas containing arrays with element for 
-            count of species or endemics in each subpatch at corresponding 
+            List of same length as areas containing arrays with element for
+            count of species or endemics in each subpatch at corresponding
             area.
         '''
 
@@ -377,8 +377,8 @@ class Patch:
         '''
         Calculates the empirical universal sar given criteria. The universal
         sar calculates the slope of the SAR and the ratio of N / S at all
-        the areas in div_cols (where N is the total number of species and S is 
-        the total number of species). 
+        the areas in div_cols (where N is the total number of species and S is
+        the total number of species).
 
         This function assumes that the div_list contains halvings.  If they are not,
         the function will still work but the results will be meaningless.  An
@@ -391,10 +391,10 @@ class Patch:
         div_cols : tuple
             Column names to divide, eg, ('x', 'y'). Must be metric.
         div_list : list of tuples
-            List of division pairs in same order as div_cols, eg, [(2,2), 
+            List of division pairs in same order as div_cols, eg, [(2,2),
             (2,4), (4,4)]. Values are number of divisions of div_col.
         criteria : dict
-            See docstring for EPatch.sad. Here, criteria SHOULD NOT include 
+            See docstring for EPatch.sad. Here, criteria SHOULD NOT include
             items referring to div_cols (if there are any, they are ignored).
         include_full : bool
             If include_full = True, the division (1,1) will be included if it
@@ -434,7 +434,7 @@ class Patch:
         # Calculate z's
         if len(sar) >= 3: # Check the length of sar
             z_list = [z(sar['items'][i - 1], sar['items'][i + 1]) for i in
-                 np.arange(1, len(sar)) if sar['items'][i] != sar['items'][-1]] 
+                 np.arange(1, len(sar)) if sar['items'][i] != sar['items'][-1]]
         else:
             return np.empty(0, dtype=[('z', np.float), ('S', np.float), ('N',
                                                  np.float), ('N/S', np.float)])
@@ -443,8 +443,8 @@ class Patch:
 
         z_array = np.array(zip(z_list, sar['items'][1:len(sar) - 1],
             sar['N'][1:len(sar) - 1], N_over_S), dtype=[('z', np.float), ('S',
-            np.float), ('N', np.float), ('N/S', np.float)])  
-        
+            np.float), ('N', np.float), ('N/S', np.float)])
+
         return z_array
 
     def comm_sep(self, plot_locs, criteria, loc_unit=None):
@@ -454,20 +454,20 @@ class Patch:
         Parameters
         ----------
         plot_locs : dict
-            Dictionary with keys equal to each plot name, which must be 
-            represented by a column in the data table, and values equal to a 
+            Dictionary with keys equal to each plot name, which must be
+            represented by a column in the data table, and values equal to a
             tuple of the x and y coordinate of each plot
         criteria : dict
             See docstring for Patch.sad.
         loc_unit : str
-            Unit of plot locations. Special cases include 'decdeg' (decimal 
+            Unit of plot locations. Special cases include 'decdeg' (decimal
             degrees), returns result in km. Otherwise ignored.
 
         Returns
         -------
         result: structured array
-            Returns a structured array with fields plot-a and plot-b (names of 
-            two plots), dist (distance between plots), and sorensen and jaccard 
+            Returns a structured array with fields plot-a and plot-b (names of
+            two plots), dist (distance between plots), and sorensen and jaccard
             (similarity indices). Has row for each unique pair of plots.
         '''
 
@@ -518,10 +518,10 @@ class Patch:
 
             # Calculate inter-plot distance
             if loc_unit == 'decdeg':
-                result[row]['dist'] = decdeg_distance(plot_locs[plota], 
+                result[row]['dist'] = decdeg_distance(plot_locs[plota],
                                                       plot_locs[plotb])
             else:
-                result[row]['dist'] = distance(plot_locs[plota], 
+                result[row]['dist'] = distance(plot_locs[plota],
                                                plot_locs[plotb])
 
             # Get similarity indices
@@ -539,7 +539,7 @@ class Patch:
                 result[row]['sorensen'] = 0
             else:
                 result[row]['sorensen'] = (2*len(intersect)) / (spp_a+spp_b)
-            
+
             if len(union) == 0:
                 result[row]['jaccard'] = 0
             else:
@@ -549,7 +549,7 @@ class Patch:
             row += 1
 
         return result
-            
+
 
     def ied(self, criteria, normalize=True, exponent=0.75):
         '''
@@ -572,11 +572,11 @@ class Patch:
         Returns
         -------
         result : list
-            List of tuples containing results, where first element is 
-            dictionary of criteria for this calculation and second element is a 
+            List of tuples containing results, where first element is
+            dictionary of criteria for this calculation and second element is a
             1D ndarray containing the energy measurement of each individual in
             the subset.  The third element is the full (not unique) species
-            list for the given criteria. 
+            list for the given criteria.
 
         Notes
         -----
@@ -587,7 +587,7 @@ class Patch:
 
 
         '''
-        
+
         spp_list, spp_col, count_col, engy_col, mass_col, combinations = \
             self.parse_criteria(criteria)
 
@@ -604,10 +604,10 @@ class Patch:
         for comb in combinations:
 
             subtable = self.data_table.get_subtable(comb)
-            
+
             # If all counts are not 1
             if count_col and (not np.all(subtable[count_col] == 1)):
-                
+
                 # Remove any zero counts
                 subtable = subtable[subtable[count_col] != 0]
                 # Convert counts to ints
@@ -617,13 +617,13 @@ class Patch:
                         subtable[count_col]), temp_counts)
                 species = np.repeat(subtable[spp_col], temp_counts)
             else:
-                energy = subtable[this_engy] 
+                energy = subtable[this_engy]
                 species = subtable[spp_col]
 
             # Convert mass to energy if mass is True
             if mass:
                 energy = (energy ** exponent)
-                
+
             # Normalizing energy
             if normalize:
                 energy = energy / np.min(energy)
@@ -687,29 +687,29 @@ class Patch:
                     this_criteria_sed[spp] = this_spp_sed
 
             result.append((this_ied[0], this_criteria_sed))
-        
+
         return result
-    
+
     def ased(self, criteria, normalize=True, exponent=0.75):
         '''
         Calculates the average species energy distribution for each given
-        species in a subset. 
-        
+        species in a subset.
+
         Parameters
         ----------
         criteria : dict
             Dictionary must have contain a key with the value 'energy' or
             'mass'.  See sad method for further requirements.
-        
+
         Returns
         -------
-        result : list 
+        result : list
             List of tuples containing results, where the first element is a
-            dictionary of criteria for this calculation and second element is a 
-            1D ndarray of length species containing the average energy for each 
-            species. The third element is 1D array listing identifiers for 
-            species in the same order as they appear in the second element of 
-            result.         
+            dictionary of criteria for this calculation and second element is a
+            1D ndarray of length species containing the average energy for each
+            species. The third element is 1D array listing identifiers for
+            species in the same order as they appear in the second element of
+            result.
 
         Notes
         -----
@@ -729,15 +729,15 @@ class Patch:
                                                     len(this_sed[1][spp]) != 0]
             # Truncated spp_list if necessary
             spp_list = [spp for spp in spp_list if len(this_sed[1][spp]) != 0]
-            
+
             result.append((this_sed[0], np.array(nu), np.array(spp_list)))
 
         return result
 
 def flatten_sad(sad):
     '''
-    Takes a list of tuples, like sad output, ignores keys, and converts values 
-    into a 2D array with each value as a column (ie, species in rows, samples 
+    Takes a list of tuples, like sad output, ignores keys, and converts values
+    into a 2D array with each value as a column (ie, species in rows, samples
     in columns.
     '''
 
@@ -756,10 +756,10 @@ def distance(pt1, pt2):
 
 
 def decdeg_distance(pt1, pt2):
-    ''' Calculate Earth surface distance (in km) between decimal latlong points 
+    ''' Calculate Earth surface distance (in km) between decimal latlong points
     using Haversine approximation.
-    
-    http://stackoverflow.com/questions/15736995/how-can-i-quickly-estimate-the-distance-between-two-latitude-longitude-points    
+
+    http://stackoverflow.com/questions/15736995/how-can-i-quickly-estimate-the-distance-between-two-latitude-longitude-points
     '''
     lat1, lon1 = pt1
     lat2, lon2 = pt2
@@ -767,19 +767,19 @@ def decdeg_distance(pt1, pt2):
     # Convert decimal degrees to radians
     lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
 
-    # haversine formula 
-    dlon = lon2 - lon1 
-    dlat = lat2 - lat1 
+    # haversine formula
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
     a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-    c = 2 * asin(sqrt(a)) 
+    c = 2 * asin(sqrt(a))
     km = 6367 * c
 
     return km
 
 def divisible(dividend, precision, divisor, tol = 1e-9):
     '''
-    Check if dividend (here width or height of patch) is evenly divisible by 
-    divisor (here a number of patch divs) while accounting for floating point 
+    Check if dividend (here width or height of patch) is evenly divisible by
+    divisor (here a number of patch divs) while accounting for floating point
     rounding issues.
     '''
     if divisor == 0:
@@ -799,8 +799,8 @@ def divisible(dividend, precision, divisor, tol = 1e-9):
 
 def rnd(num):
     '''
-    Round num to number of decimal places in precision. Used to avoid issues 
-    with floating points in the patch and subpatch width and height that make 
+    Round num to number of decimal places in precision. Used to avoid issues
+    with floating points in the patch and subpatch width and height that make
     subpatches not lie exactly on even divisions of patch.
     '''
     return round(num, 6)
