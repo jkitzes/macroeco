@@ -72,105 +72,6 @@ class Patch:
             self.data_table.table = self.data_table.get_subtable(subset)
 
 
-    def sad(self, criteria, clean=False):
-        '''
-        Calculates an empirical species abundance distribution given criteria.
-
-        Parameters
-        ----------
-        criteria : dict
-            Dictionary of form {column_name: value}. Must contain a key with a
-            value of 'species' indicating the column with species identifiers
-            (this column must be type categorical in metadata). If a column
-            giving the counts of species found at a point is also in the data,
-            a key with the value 'count' should also be given.
-
-            Value has a different meaning depending on column type:
-            - metric - number of divisions of data along this axis, int/float
-            - categorical - 'split' calculates each category separately,
-              'whole' takes the entire column.
-        clean : bool
-            If True, all the zeros are removed from the sads.  If False, sads
-            are left as is.
-
-        Returns
-        -------
-        result : list
-            List of tuples containing results, where the first element is a
-            dictionary of criteria for this calculation and second element is a
-            1D ndarray of length species containing the abundance for each
-            species. The third element is 1D array listing identifiers for
-            species in the same order as they appear in the second element of
-            result.
-        '''
-
-        spp_list, spp_col, count_col, engy_col, mass, combinations = \
-            self.parse_criteria(criteria)
-
-        if spp_col == None:
-            raise TypeError('No species column specified in "criteria" ' +
-                                                                   'parameter')
-        result = []
-        for comb in combinations:
-
-            subtable = self.data_table.get_subtable(comb)
-
-            sad_list = []
-            for species in spp_list:
-                spp_subtable = subtable[subtable[spp_col] == species]
-                if count_col:
-                    count = np.sum(spp_subtable[count_col])
-                else:
-                    count = len(spp_subtable)
-                sad_list.append(count)
-
-            sad_list = np.array(sad_list)
-
-            if clean:
-                ind = np.where(sad_list != 0)[0]
-                sad_list = sad_list[ind]
-                temp_spp_list = spp_list[ind]
-            else:
-                temp_spp_list = spp_list
-
-
-            result.append((comb, sad_list, temp_spp_list))
-
-        return result
-
-    def ssad(self, criteria):
-        '''
-        Calculates empirical species-level spatial abundance distributions
-        given criteria.
-
-        Parameters
-        ----------
-        criteria : dict
-            See Patch.sad docstring
-
-        Returns
-        -------
-        : tuple
-            Returns a tuple with two objects.  The first object is an array of
-            dicts that correspond to the criteria used to generate each cell.
-            The length of the first object in equal to the number of divisions
-            specified.  The second object is a dictionary that has length
-            species and each keyword is a species.  Each species keyword looks
-            up an array with the ssad for the given species.  The array that
-            each keyword looks up is the same length as criteria.
-
-
-        '''
-        sad_return = self.sad(criteria, clean=False)
-        spp_list = sad_return[0][2]
-        combs, array_res = flatten_sad(sad_return)
-        ssad = {}
-
-        for i, spp in enumerate(spp_list):
-            ssad[spp] = array_res[i,:]
-
-        return combs, ssad
-
     def parse_criteria(self, criteria):
         '''
         Parses criteria list to get all possible column combinations.
@@ -274,6 +175,105 @@ class Patch:
 
         return spp_list, spp_col, count_col, engy_col, mass_col, combinations
 
+
+    def sad(self, criteria, clean=False):
+        '''
+        Calculates an empirical species abundance distribution given criteria.
+
+        Parameters
+        ----------
+        criteria : dict
+            Dictionary of form {column_name: value}. Must contain a key with a
+            value of 'species' indicating the column with species identifiers
+            (this column must be type categorical in metadata). If a column
+            giving the counts of species found at a point is also in the data,
+            a key with the value 'count' should also be given.
+
+            Value has a different meaning depending on column type:
+            - metric - number of divisions of data along this axis, int/float
+            - categorical - 'split' calculates each category separately,
+              'whole' takes the entire column.
+        clean : bool
+            If True, all the zeros are removed from the sads.  If False, sads
+            are left as is.
+
+        Returns
+        -------
+        result : list
+            List of tuples containing results, where the first element is a
+            dictionary of criteria for this calculation and second element is a
+            1D ndarray of length species containing the abundance for each
+            species. The third element is 1D array listing identifiers for
+            species in the same order as they appear in the second element of
+            result.
+        '''
+
+        spp_list, spp_col, count_col, engy_col, mass, combinations = \
+            self.parse_criteria(criteria)
+
+        if spp_col == None:
+            raise TypeError('No species column specified in "criteria" ' +
+                                                                   'parameter')
+        result = []
+        for comb in combinations:
+
+            subtable = self.data_table.get_subtable(comb)
+
+            sad_list = []
+            for species in spp_list:
+                spp_subtable = subtable[subtable[spp_col] == species]
+                if count_col:
+                    count = np.sum(spp_subtable[count_col])
+                else:
+                    count = len(spp_subtable)
+                sad_list.append(count)
+
+            sad_list = np.array(sad_list)
+
+            if clean:
+                ind = np.where(sad_list != 0)[0]
+                sad_list = sad_list[ind]
+                temp_spp_list = spp_list[ind]
+            else:
+                temp_spp_list = spp_list
+
+
+            result.append((comb, sad_list, temp_spp_list))
+
+        return result
+
+    def ssad(self, criteria):
+        '''
+        Calculates empirical species-level spatial abundance distributions
+        given criteria.
+
+        Parameters
+        ----------
+        criteria : dict
+            See Patch.sad docstring
+
+        Returns
+        -------
+        : tuple
+            Returns a tuple with two objects.  The first object is an array of
+            dicts that correspond to the criteria used to generate each cell.
+            The length of the first object in equal to the number of divisions
+            specified.  The second object is a dictionary that has length
+            species and each keyword is a species.  Each species keyword looks
+            up an array with the ssad for the given species.  The array that
+            each keyword looks up is the same length as criteria.
+
+
+        '''
+        sad_return = self.sad(criteria, clean=False)
+        spp_list = sad_return[0][2]
+        combs, array_res = flatten_sad(sad_return)
+        ssad = {}
+
+        for i, spp in enumerate(spp_list):
+            ssad[spp] = array_res[i,:]
+
+        return combs, ssad
 
 
     def sar(self, div_cols, div_list, criteria, form='sar', output_N=False):
