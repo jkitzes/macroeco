@@ -34,6 +34,7 @@ from math import radians, cos, sin, asin, sqrt
 import itertools
 from copy import deepcopy
 from data import DataTable
+import scipy.spatial.distance as dist
 
 
 class Patch:
@@ -552,6 +553,91 @@ class Patch:
 
         return result
 
+    def pair_dist(self, div_cols, bin_edges, criteria, edge_correct=True,
+                  n0_min_max=None):
+        """
+        Calculates pairwise distances between individuals of a species.
+
+        Parameters
+        ----------
+        div_cols : tuple
+            Column names containing x and y coordinates of individuals
+        bin_edges : iterable
+            List of edges of distance classes to bin histogram of distances
+        criteria : dict
+            See docstring for Patch.sad.
+        edge_correct : bool
+            Correct histograms by replacing count of individuals at distance
+            bin with expected count if entire ring at that distance was
+            available (part of ring may fall outside of plot). Default True.
+        n0_min_max : tuple
+            Optional min and max abundance for species to consider. Useful for
+            ignoring rare species with few samples and abundant species for
+            which calculation would take a long time.
+
+        Returns
+        -------
+        result : tuple
+            Tuple with two elements. First is list of combinations used to
+            generate result. Second is another tuple with first element giving
+            list of species and second element giving list of histograms of
+            pairwise distances for that species.
+
+        """
+
+        spp_list, spp_col, count_col, engy_col, mass, combinations = \
+            self.parse_criteria(criteria)
+
+        result = []
+        for comb in combinations:
+
+            # Get appropriate subtable for this combination
+            subtable = self.data_table.get_subtable(comb)
+
+            # Loop all species
+            for spp in spp_list:
+
+                spp_subtable = subtable[subtable[spp_col] == spp]
+
+                # Get n0, accounting for count col
+                if count_col:
+                    count = np.sum(spp_subtable[count_col])
+                else:
+                    count = len(spp_subtable)
+
+                # Skip this spp if no min max or n0 outside of range
+                if n0_min_max and (count < n0_min_max[0] or count >
+                                   n0_min_max[1]):
+                    continue
+
+                # Get list of all points
+                x = spp_subtable[div_cols[0]]
+                y = spp_subtable[div_cols[1]]
+                all_points = zip(x,y)
+
+                # If n0 < 1e5, get all pairwise distances at once
+                if count < 1e5:
+                    all_dist = dist.pdist(all_points)
+                    hist, _ = np.histogram(all_points, bin_edges)
+
+                # If n0 > 1e5, loop individuals (all dist too large)
+                # TODO: Write unit test to test this
+                else:
+                    hist = np.array(len(bin_edges) - 1)
+                    for i, point in enumerate(all_points()):
+
+                        # Skip current index
+                        this_point = all_points[i]
+                        all_other_points = all_points[:i] + all_points[i+1:]
+
+                        # Get dist from this point to all other points
+                        other_dist = dist.cdist(this_point, all_other_points)
+                        hist += other_dist
+
+                result.append(hist)
+
+        return result
+
 
     def ied(self, criteria, normalize=True, exponent=0.75):
         '''
@@ -580,7 +666,7 @@ class Patch:
             the subset.  The third element is the full (not unique) species
             list for the given criteria.
 
-        Notes
+        lNotes
         -----
         If count_col is None or is all ones, the entire energy column for each
         subtable is returned.  Else, the average energy per individual,
