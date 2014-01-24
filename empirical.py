@@ -88,7 +88,9 @@ class Patch:
         -------
         spp_list : ndarray
             1D array listing identifiers for species in the same order as they
-            appear in arrays found in result.
+            appear in arrays found in result. Contains all species in table,
+            although all species may not appear in subtables that are defined
+            by combinations.
         spp_col : str
             Name of column containing species identifiers.
         count_col : str
