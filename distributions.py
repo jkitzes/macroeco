@@ -1319,6 +1319,93 @@ class plognorm_lt(plognorm):
 
     # TODO: Write cdf method based on cdf of plognorm, similar to above
 
+class canonical_lognorm(Distribution):
+    __doc__ = Distribution.__doc__ + \
+    '''
+    Description
+    ------------
+    Lognormal distribution
+
+    Parameters
+    ----------
+    mu : float
+        The mu parameter of the log normal
+    sigma : float
+        The sigma parameter of the log normal
+    n_samp : int or iterable (optional)
+        Total number of species / samples
+    tot_obs: int or iterable (optional)
+        Total number of individuals / observations
+
+    self.var keywords
+    -----------------
+    mu : list of floats
+        The mu parameter of the lognormal calculated with
+        np.log(tot_obs / n_samp) - (sigma**2 / 2).
+    sigma : list of float
+        The sigma parameter of the log normal
+
+    Notes
+    -----
+    Currently, lognormal is implemented so that mu is calculated using tot_obs,
+    n_samp, and sigma.  While, mu can be passed in as a keyword argument, this
+    mu will be ignored. 
+        
+    '''
+    
+    @doc_inherit
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.min_supp = 1
+        self.par_num = 2
+        self.var = {}
+
+    @doc_inherit  
+    def pmf(self, n):
+
+        # Get parameters
+        tot_obs, n_samp = self.get_params(['tot_obs','n_samp'])
+        n = expand_n(n, len(tot_obs))
+
+        # Calculate sigma
+        sigma = np.sqrt((2 * np.log(n_samp)) / np.log(2)**2)
+
+        # Calculate mu
+        mu = np.log(tot_obs / n_samp) - (sigma**2 / 2)
+        self.var['mu'] = mu
+        self.var['sigma'] = sigma
+
+        # Calculate pmf
+        pmf = []
+        for tmu, tsigma, tn in zip(mu, sigma, n):
+            tpmf = stats.lognorm.pdf(tn, tsigma, scale=np.exp(tmu))
+            pmf.append(tpmf)
+
+        return pmf
+
+    @doc_inherit  
+    def cdf(self, n):
+
+        # Get parameters
+        tot_obs, n_samp = self.get_params(['tot_obs','n_samp'])
+        n = expand_n(n, len(tot_obs))
+
+        # Calculate sigma
+        sigma = np.sqrt((2 * np.log(n_samp)) / np.log(2)**2)
+
+        # Calculate mu
+        mu = np.log(tot_obs / n_samp) - (sigma**2 / 2)
+        self.var['mu'] = mu
+        self.var['sigma'] = sigma
+
+        #Calculate cdf
+        cdf = []
+        for tmu, tsigma, tn in zip(mu, sigma, n):
+            tcdf = stats.lognorm.cdf(tn, tsigma, scale=np.exp(tmu))
+            cdf.append(tcdf)
+
+        return cdf
+
 
 class lognorm(Distribution):
     __doc__ = Distribution.__doc__ + \
@@ -2602,12 +2689,11 @@ class tgeo(Distribution):
         # Get parameters
         n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
         n = expand_n(n, len(n_samp))
-        
-        # TODO: Additional checks?
+       
+        # Define normalizing constant and pmf functions
+        z_func = lambda x, ttot_obs: (1 - x ** (ttot_obs + 1)) / (1 - x)
+        pmf_func = lambda z, x, tn: (1 / z) * (x ** tn)
 
-        #NOTE: Overflow warning but not affecting results
-        eq = lambda x, N, a: ((x / (1 - x)) - (((N + 1) * x ** (N + 1)) / \
-                            (1 - x ** (N + 1)))) - (N * a)
         pmf = []
         self.var['x'] = []
         for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
@@ -2624,25 +2710,49 @@ class tgeo(Distribution):
                 tpmf[np.where(tn == ttot_obs)[0]] = 1
                 x = 0 
 
+            elif ta < 0.5:
+                try:
+                    stop = 1 - 1e-10
+                    # This is very brittle for some reason.  Changing the stop
+                    # value can make this fail for strange reasons
+                    x = scipy.optimize.brentq(l_solver, 0, .999999,
+                            args=(ttot_obs, ta), disp=False)
+                except:
+                    try:
+                        x = scipy.optimize.brentq(l_solver, 0, .95,
+                                args=(ttot_obs, ta), disp=False)
+                    except:
+                        raise ValueError("No solution to " + 
+                                "%s.pmf when tot_obs = " % 
+                                (self.__class__.__name__) +
+                                "%.2f, n_samp = %.10f and a = %.10f" % 
+                                 (ttot_obs, tn_samp, ta))
+                z = z_func(x, ttot_obs)
+                tpmf = pmf_func(z, x, tn)
             else:
                 try:
                     
-                    x = scipy.optimize.brentq(eq, 0, min((sys.float_info[0] *
-                        ta)**(1/float(ttot_obs)), 8), args=(ttot_obs, ta), 
-                        disp=False, xtol=1e-60)
+                    x = scipy.optimize.brentq(l_solver, 0,
+                            min((sys.float_info[0] * ta)**(1/float(ttot_obs)),
+                                8), args=(ttot_obs, ta), disp=False,
+                            xtol=1e-60, max_iter=200)
+
                 except: 
+
                     try: # Allows it to pass, but optimizer starts rounding.
                          # Not Sure why it is doing this.
-                        x = scipy.optimize.brentq(eq, 8.0, 50.0, \
-                                   args=(ttot_obs, ta), disp=False, xtol=1e-60)
+                        x = scipy.optimize.brentq(l_solver, 8.0, 50.0, \
+                                   args=(ttot_obs, ta), disp=False, xtol=1e-60,
+                                   max_iter=200)
                     except:
 
-                        raise ValueError("No solution to %s.pmf when tot_obs = " %
-                                     (self.__class__.__name__) +
-                                     "%.2f, n_samp = %.10f and a = %.10f" % 
-                                     (ttot_obs, tn_samp, ta))
-                z = (1 - x ** (ttot_obs + 1)) / (1 - x)
-                tpmf = (1 / z) * (x ** tn)
+                        raise ValueError("No solution to " + 
+                                "%s.pmf when tot_obs = " % 
+                                (self.__class__.__name__) +
+                                "%.2f, n_samp = %.10f and a = %.10f" % 
+                                 (ttot_obs, tn_samp, ta))
+                z = z_func(x, ttot_obs)
+                tpmf = pmf_func(z, x, tn)
 
             pmf.append(tpmf)
             self.var['x'].append(x)
@@ -4029,6 +4139,28 @@ def nu_pmf_eq(es, beta, l2, s):
     # Nu pmf equation
     return (1 / np.log(s / beta)) * (np.exp(-beta / (l2 * (es - 1)))) / \
                                                                     (es - 1)
+
+def l_solver(x, N, a):
+    """
+    Used with a solver to get the langrange multiplier for a pi distribution
+
+    Parameters
+    ----------
+    x : float
+        Lagrange multiplier x = e**-lambda
+    N : float
+        total balls (individuals) in urn (species)
+    a : float
+        area fraction. 1 / n_samp or 1 / urn_number
+
+    Returns
+    -------
+    : float
+    
+
+    """
+    return ((x / (1 - x)) - (((N + 1) * x ** (N + 1)) / \
+                            (1 - x ** (N + 1)))) - (N * a)
 
 def beta_solver(x, k, tot_obs, n_samp):
     """ Used with a solver to get the beta lagrange multiplier in the METE
