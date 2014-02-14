@@ -35,6 +35,7 @@ import itertools
 from copy import deepcopy
 from data import DataTable
 import scipy.spatial.distance as dist
+import shapely.geometry as geo
 
 
 class Patch:
@@ -553,9 +554,9 @@ class Patch:
 
         return result
 
-    def pair_dist(self, div_cols, bin_edges, criteria, edge_correct=True,
-                  n0_min_max=None):
-        """
+    def pair_dist(self, div_cols, bin_edges, criteria, edge_correct=False,
+                  n0_min_max=None, density=False):
+        '''
         Calculates pairwise distances between individuals of a species.
 
         Parameters
@@ -569,35 +570,75 @@ class Patch:
         edge_correct : bool
             Correct histograms by replacing count of individuals at distance
             bin with expected count if entire ring at that distance was
-            available (part of ring may fall outside of plot). Default True.
+            available (part of ring may fall outside of plot). Default False.
         n0_min_max : tuple
             Optional min and max abundance for species to consider. Useful for
             ignoring rare species with few samples and abundant species for
             which calculation would take a long time.
+        density : bool
+            If True, return densities (counts divided by area of torus defined
+            by bin edges) instead of counts. Default False.
 
         Returns
         -------
         result : tuple
-            Tuple with two elements. First is list of combinations used to
-            generate result. Second is another tuple with first element giving
-            list of species and second element giving list of histograms of
-            pairwise distances for that species.
+            List of tuples with three elements each. First is combination used
+            to generate results, second is spp_list for that combination
+            (includes all species in entire landscape), and third is list of
+            length spp_list giving histogram of pairwise distances for each
+            species.
 
-        """
+        '''
 
         spp_list, spp_col, count_col, engy_col, mass, combinations = \
             self.parse_criteria(criteria)
 
-        result = []
+        bin_edges = np.array(bin_edges)
+
+        result_list = []
+
         for comb in combinations:
+
+            # If comb includes division, cannot also use edge correction
+            # This would require better parsing of plot boundaries for division
+            if (not comb.keys() == []) and edge_correct:
+                raise NotImplementedError("Edge correction cannot be used "
+                                          "with combinations at present.")
 
             # Get appropriate subtable for this combination
             subtable = self.data_table.get_subtable(comb)
+
+            # Declare empty list for all histograms for all species
+            spp_hist_list = []
+
+            # Set up plot polygon for edge correction
+            if edge_correct:
+                xmin = self.data_table.meta[(div_cols[0], 'minimum')]
+                xmax = self.data_table.meta[(div_cols[0], 'maximum')]
+                ymin = self.data_table.meta[(div_cols[1], 'minimum')]
+                ymax = self.data_table.meta[(div_cols[1], 'maximum')]
+
+                plot = geo.box(xmin, ymin, xmax, ymax)
+
+                all_r = (bin_edges[:-1] + bin_edges[1:]) / 2
+
+            # Calculate areas of all toruses
+            if density:
+                assert edge_correct, 'Edge correct must be used with density'
+                areas = []
+                for i in range(len(bin_edges) - 1):
+                    areas.append(np.pi*(bin_edges[i+1]**2 - bin_edges[i]**2))
+                areas = np.array(areas)
 
             # Loop all species
             for spp in spp_list:
 
                 spp_subtable = subtable[subtable[spp_col] == spp]
+
+                # If spp not in this combination, continue
+                if len(spp_subtable) == 0:
+                    spp_hist_list.append(None)
+                    continue
 
                 # Get n0, accounting for count col
                 if count_col:
@@ -605,38 +646,83 @@ class Patch:
                 else:
                     count = len(spp_subtable)
 
-                # Skip this spp if no min max or n0 outside of range
+                # Skip this spp if there is a min_max set and n0 out of range
                 if n0_min_max and (count < n0_min_max[0] or count >
                                    n0_min_max[1]):
+                    spp_hist_list.append(None)
                     continue
 
-                # Get list of all points
+                # Get list of all points and all counts
                 x = spp_subtable[div_cols[0]]
                 y = spp_subtable[div_cols[1]]
                 all_points = zip(x,y)
+                all_counts = list(spp_subtable[count_col])
 
-                # If n0 < 1e5, get all pairwise distances at once
-                if count < 1e5:
-                    all_dist = dist.pdist(all_points)
-                    hist, _ = np.histogram(all_points, bin_edges)
+                # Declare array to hold histogram of pairwise distances
+                all_hist = np.zeros(len(bin_edges) - 1)
 
-                # If n0 > 1e5, loop individuals (all dist too large)
-                # TODO: Write unit test to test this
-                else:
-                    hist = np.array(len(bin_edges) - 1)
-                    for i, point in enumerate(all_points()):
+                # Go through all_points until only one left
+                while len(all_points) > 1:
 
-                        # Skip current index
-                        this_point = all_points[i]
-                        all_other_points = all_points[:i] + all_points[i+1:]
+                    # Get this point and remove from list of all points
+                    this_point = all_points.pop(0)
+                    print this_point
+                    this_count = all_counts.pop(0)
 
-                        # Get dist from this point to all other points
-                        other_dist = dist.cdist(this_point, all_other_points)
-                        hist += other_dist
+                    # Get dist from this point to all other points
+                    other_dist = dist.cdist(np.array([this_point]),
+                                            np.array(all_points))
 
-                result.append(hist)
+                    # Repeat other point distances to acccount for their counts
+                    other_dist = np.repeat(other_dist, all_counts)
 
-        return result
+                    # Repeat entire other_dist to account for count here
+                    other_dist = np.tile(other_dist, this_count)
+                    print other_dist
+
+                    # Add 0 distances between individs at this point
+                    n_this_dists = this_count * (this_count-1) / 2
+                    if n_this_dists > 0:
+                        other_dist = np.concatenate((other_dist,
+                                                np.zeros(n_this_dists)))
+
+                    hist, _ = np.histogram(other_dist, bin_edges)
+
+                    # Edge correct distance
+                    if edge_correct:
+                        corr_fact = np.zeros(len(all_r))
+                        for i, r in enumerate(all_r):
+                            x, y = this_point
+                            circ = 2 * np.pi * r
+                            ring = geo.Point(x,y).buffer(r,resolution=128)
+                            out_len = ring.boundary.difference(plot).length
+                            in_frac = ((ring.boundary.length - out_len) /
+                                       ring.boundary.length)
+                            corr_fact[i] = in_frac
+                        hist = hist / corr_fact
+
+                    # Add this point results to main histogram
+                    print hist
+                    all_hist += hist
+                    print all_hist
+
+                # Account for distance between counts at last point if needed
+                if all_counts[0] > 1:
+                    n_this_dists = all_counts[0] * (all_counts[0]-1) / 2
+                    hist, _ = np.histogram(np.zeros(n_this_dists), bin_edges)
+                    all_hist += hist
+
+                # If density, divide all values by area of torus between bins
+                if density:
+                    all_hist = all_hist / np.array(areas)
+
+                # Append final hist for this species to running list
+                spp_hist_list.append(all_hist)
+
+            # For this comb, create and append tuple to result list
+            result_list.append((comb, spp_list, spp_hist_list))
+
+        return result_list
 
 
     def ied(self, criteria, normalize=True, exponent=0.75):
