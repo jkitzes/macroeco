@@ -1319,6 +1319,93 @@ class plognorm_lt(plognorm):
 
     # TODO: Write cdf method based on cdf of plognorm, similar to above
 
+class canonical_lognorm(Distribution):
+    __doc__ = Distribution.__doc__ + \
+    '''
+    Description
+    ------------
+    Lognormal distribution
+
+    Parameters
+    ----------
+    mu : float
+        The mu parameter of the log normal
+    sigma : float
+        The sigma parameter of the log normal
+    n_samp : int or iterable (optional)
+        Total number of species / samples
+    tot_obs: int or iterable (optional)
+        Total number of individuals / observations
+
+    self.var keywords
+    -----------------
+    mu : list of floats
+        The mu parameter of the lognormal calculated with
+        np.log(tot_obs / n_samp) - (sigma**2 / 2).
+    sigma : list of float
+        The sigma parameter of the log normal
+
+    Notes
+    -----
+    Currently, lognormal is implemented so that mu is calculated using tot_obs,
+    n_samp, and sigma.  While, mu can be passed in as a keyword argument, this
+    mu will be ignored. 
+        
+    '''
+    
+    @doc_inherit
+    def __init__(self, **kwargs):
+        self.params = kwargs
+        self.min_supp = 1
+        self.par_num = 2
+        self.var = {}
+
+    @doc_inherit  
+    def pmf(self, n):
+
+        # Get parameters
+        tot_obs, n_samp = self.get_params(['tot_obs','n_samp'])
+        n = expand_n(n, len(tot_obs))
+
+        # Calculate sigma
+        sigma = np.sqrt((2 * np.log(n_samp)) / np.log(2)**2)
+
+        # Calculate mu
+        mu = np.log(tot_obs / n_samp) - (sigma**2 / 2)
+        self.var['mu'] = mu
+        self.var['sigma'] = sigma
+
+        # Calculate pmf
+        pmf = []
+        for tmu, tsigma, tn in zip(mu, sigma, n):
+            tpmf = stats.lognorm.pdf(tn, tsigma, scale=np.exp(tmu))
+            pmf.append(tpmf)
+
+        return pmf
+
+    @doc_inherit  
+    def cdf(self, n):
+
+        # Get parameters
+        tot_obs, n_samp = self.get_params(['tot_obs','n_samp'])
+        n = expand_n(n, len(tot_obs))
+
+        # Calculate sigma
+        sigma = np.sqrt((2 * np.log(n_samp)) / np.log(2)**2)
+
+        # Calculate mu
+        mu = np.log(tot_obs / n_samp) - (sigma**2 / 2)
+        self.var['mu'] = mu
+        self.var['sigma'] = sigma
+
+        #Calculate cdf
+        cdf = []
+        for tmu, tsigma, tn in zip(mu, sigma, n):
+            tcdf = stats.lognorm.cdf(tn, tsigma, scale=np.exp(tmu))
+            cdf.append(tcdf)
+
+        return cdf
+
 
 class lognorm(Distribution):
     __doc__ = Distribution.__doc__ + \
@@ -2154,8 +2241,8 @@ class nbd_lt(Distribution):
 
     self.var keywords
     -----------------
-    mu : array of floats 
-        mu parameters of nbd_lt
+    p : array of floats 
+        p parameters of nbd_lt
     k : array of floats
         Aggregation parameter
         k is included in self.var if it is calculated in fit.
@@ -2274,7 +2361,7 @@ class nbd_lt(Distribution):
         max_n = [np.max(tn) for tn in n]
         n_in = [np.arange(self.min_supp, i + 1) for i in max_n]
 
-        pmf_list = self.pmf(n_in, vals=vals)
+        pmf_list = self.pmf(n_in)
 
         # Calculate cdfs
         cdf = []
@@ -2315,7 +2402,7 @@ class nbd_lt(Distribution):
                 self.params['tot_obs'] = ttot_obs
                 self.params['n_samp'] = tn_samp
                 self.params['k'] = k
-                return -sum(np.log(self.pmf(tdata, vals=vals)[0]))
+                return -sum(np.log(self.pmf(tdata)[0]))
 
             mlek = scipy.optimize.fmin(nll_nb, np.array([guess_for_k]), 
                                                                     disp=0)[0]
@@ -2602,12 +2689,11 @@ class tgeo(Distribution):
         # Get parameters
         n_samp, tot_obs = self.get_params(['n_samp', 'tot_obs'])
         n = expand_n(n, len(n_samp))
-        
-        # TODO: Additional checks?
+       
+        # Define normalizing constant and pmf functions
+        z_func = lambda x, ttot_obs: (1 - x ** (ttot_obs + 1)) / (1 - x)
+        pmf_func = lambda z, x, tn: (1 / z) * (x ** tn)
 
-        #NOTE: Overflow warning but not affecting results
-        eq = lambda x, N, a: ((x / (1 - x)) - (((N + 1) * x ** (N + 1)) / \
-                            (1 - x ** (N + 1)))) - (N * a)
         pmf = []
         self.var['x'] = []
         for tn_samp, ttot_obs, tn in zip(n_samp, tot_obs, n):
@@ -2624,25 +2710,49 @@ class tgeo(Distribution):
                 tpmf[np.where(tn == ttot_obs)[0]] = 1
                 x = 0 
 
+            elif ta < 0.5:
+                try:
+                    stop = 1 - 1e-10
+                    # This is very brittle for some reason.  Changing the stop
+                    # value can make this fail for strange reasons
+                    x = scipy.optimize.brentq(l_solver, 0, .999999,
+                            args=(ttot_obs, ta), disp=False)
+                except:
+                    try:
+                        x = scipy.optimize.brentq(l_solver, 0, .95,
+                                args=(ttot_obs, ta), disp=False)
+                    except:
+                        raise ValueError("No solution to " + 
+                                "%s.pmf when tot_obs = " % 
+                                (self.__class__.__name__) +
+                                "%.2f, n_samp = %.10f and a = %.10f" % 
+                                 (ttot_obs, tn_samp, ta))
+                z = z_func(x, ttot_obs)
+                tpmf = pmf_func(z, x, tn)
             else:
                 try:
                     
-                    x = scipy.optimize.brentq(eq, 0, min((sys.float_info[0] *
-                        ta)**(1/float(ttot_obs)), 8), args=(ttot_obs, ta), 
-                        disp=False, xtol=1e-60)
+                    x = scipy.optimize.brentq(l_solver, 0,
+                            min((sys.float_info[0] * ta)**(1/float(ttot_obs)),
+                                8), args=(ttot_obs, ta), disp=False,
+                            xtol=1e-60, max_iter=200)
+
                 except: 
+
                     try: # Allows it to pass, but optimizer starts rounding.
                          # Not Sure why it is doing this.
-                        x = scipy.optimize.brentq(eq, 8.0, 50.0, \
-                                   args=(ttot_obs, ta), disp=False, xtol=1e-60)
+                        x = scipy.optimize.brentq(l_solver, 8.0, 50.0, \
+                                   args=(ttot_obs, ta), disp=False, xtol=1e-60,
+                                   max_iter=200)
                     except:
 
-                        raise ValueError("No solution to %s.pmf when tot_obs = " %
-                                     (self.__class__.__name__) +
-                                     "%.2f, n_samp = %.10f and a = %.10f" % 
-                                     (ttot_obs, tn_samp, ta))
-                z = (1 - x ** (ttot_obs + 1)) / (1 - x)
-                tpmf = (1 / z) * (x ** tn)
+                        raise ValueError("No solution to " + 
+                                "%s.pmf when tot_obs = " % 
+                                (self.__class__.__name__) +
+                                "%.2f, n_samp = %.10f and a = %.10f" % 
+                                 (ttot_obs, tn_samp, ta))
+                z = z_func(x, ttot_obs)
+                tpmf = pmf_func(z, x, tn)
 
             pmf.append(tpmf)
             self.var['x'].append(x)
@@ -3624,12 +3734,8 @@ class nu(Distribution):
 
     self.var keywords
     -----------------
-    beta : list of floats
-        The beta lagrange multiplier
     lambda_2 : list of floats
         The lambda2 lagrange multiplier
-    sigma : list of floats
-        The sigma lagrange multiplier
 
     Notes
     -----
@@ -3660,36 +3766,23 @@ class nu(Distribution):
         n_samp, tot_obs, E = self.get_params(['n_samp', 'tot_obs', 'E'])
         e = expand_n(e, len(n_samp))
 
-        start = 0.3
-        stop = 2                                                           
-        flmax = sys.float_info[0]
         
         pmf = []
-        self.var['beta'] = []
         self.var['lambda_2'] = []
 
+        convert_e = lambda ep, l2: 1 / (l2 * (ep - 1))
+        
         for tn_samp, ttot_obs, tE, te in zip(n_samp, tot_obs, E, e):
-            k = np.linspace(1, ttot_obs, num=ttot_obs)
-            try:
-                tx = scipy.optimize.brentq(beta_solver, start,
-                               min((flmax/tn_samp)**(1/float(ttot_obs)), stop), 
-                               args = (k, ttot_obs, tn_samp), disp=True)
-            except(ValueError):
-                raise ValueError("No solution to %s.pmf for tot_obs = %.2f"
-                                 % (self.__class__.__name__, ttot_obs) + 
-                                 " and n_samp = %.2f" % (tn_samp))
 
             # Set lagrange multipliers
-            tbeta = -np.log(tx)
             tl2 = float(tn_samp) / (tE - ttot_obs) # Harte (2011) 7.26
             e_max = 1 + (1 / tl2)
             e_min = 1 + (1 / (ttot_obs * tl2))
             
-            norm = integrate.quad(nu_pmf_eq, e_min, e_max, (tbeta, tl2, 
-                                                                   tn_samp))[0]
             tpmf = np.empty(len(te), dtype=float)
+            tns = np.ceil(convert_e(te, tl2))
             
-            # Parse values that aren't in range as set to zero
+            # Parse values that aren't in range and set to zero
             ind_tot = np.arange(len(tpmf))
             ind_less = np.where(te >= e_min)[0]
             ind_more = np.where(te <= e_max)[0]
@@ -3699,11 +3792,10 @@ class nu(Distribution):
                 tpmf[ind_exclude] = 0
             
             if len(ind_include) != 0:
-                tpmf[ind_include] =\
-                        nu_pmf_eq(te[ind_include], tbeta, tl2, tn_samp) / norm
+                tpmf[ind_include] = logser_ut(tot_obs=ttot_obs,
+                        n_samp=tn_samp).pmf(tns[ind_include])[0]
 
             pmf.append(tpmf)
-            self.var['beta'].append(tbeta)
             self.var['lambda_2'].append(tl2)
 
         return pmf
@@ -3714,70 +3806,36 @@ class nu(Distribution):
         n_samp, tot_obs, E = self.get_params(['n_samp', 'tot_obs', 'E'])
         e = expand_n(e, len(n_samp))
 
-        start = 0.3
-        stop = 2                                                           
-        flmax = sys.float_info[0]
         
         cdf = []
         self.var['beta'] = []
         self.var['lambda_2'] = []
 
+        convert_n = lambda n, l2: 1 + (1 / (n *  l2))
+
         for tn_samp, ttot_obs, tE, te in zip(n_samp, tot_obs, E, e):
-            k = np.linspace(1, ttot_obs, num=ttot_obs)
-            try:
-                tx = scipy.optimize.brentq(beta_solver, start,
-                               min((flmax/tn_samp)**(1/float(ttot_obs)), stop), 
-                               args = (k, ttot_obs, tn_samp), disp=True)
-            except(ValueError):
-                raise ValueError("No solution to %s.pmf for tot_obs = %.2f"
-                                 % (self.__class__.__name__, ttot_obs) + 
-                                 " and n_samp = %.2f" % (tn_samp))
 
-            # Set lagrange multipliers
-            tbeta = -np.log(tx)
             tl2 = float(tn_samp) / (tE - ttot_obs) # Harte (2011) 7.26
-            e_max = 1 + (1 / tl2)
-            e_min = 1 + (1 / (ttot_obs * tl2))
 
-            tcdf = np.empty(len(te), dtype=float)
+            # Set all e so you can sum
+            all_e = convert_n(np.arange(1, ttot_obs + 1), tl2)[::-1]
 
-            # Parse values that aren't in range as set to 0 or 1
-            ind_tot = np.arange(len(tcdf))
-            ind_less = np.where(te < e_min)[0]
-            ind_more = np.where(te > e_max)[0]
-            ind_combo = np.concatenate((ind_more, ind_less))
-            ind_include = np.array(list(set(ind_tot) - set(ind_combo)))
-            
-            if len(ind_less) != 0:
-                tcdf[ind_less] = 0
-            if len(ind_more) != 0:
-                tcdf[ind_more] = 1
+            pmf_for_all_e = nu(tot_obs=ttot_obs, n_samp=tn_samp,
+                    E=tE).pmf(all_e)[0]
+            cum_sum = np.cumsum(pmf_for_all_e)
 
-            norm = integrate.quad(nu_pmf_eq, e_min, e_max, (tbeta, tl2, 
-                                                                   tn_samp))[0] 
-            if len(ind_include) != 0:
-                tcdf[ind_include] = np.array([integrate.quad(nu_pmf_eq, e_min, se, 
-                                    (tbeta, tl2, tn_samp))[0] / norm for se in 
-                                    te[ind_include]])
+            tcdf = np.array([cum_sum[np.sum(e_val >= all_e) - 1] if sum(e_val
+                >= all_e) - 1 != -1 else 0 for e_val in te])
 
             cdf.append(tcdf)
-            self.var['beta'].append(tbeta)
             self.var['lambda_2'].append(tl2)
 
         return cdf
         
-    def rad(self, tol=.1):
+    def rad(self):
         '''
         This rad uses the observed cdf for a given nu distribution and the
         predicted cdf to calculate the rank energy distribution.  
-
-        Parameter
-        ----------
-        tol : float
-            Precision interval.  The integral of nu is approximated at the
-            interval tol.  Smaller intervals can be more precise, but a tol
-            between 0.1 and 0.5 is more effecient and the results are changed
-            only marginally.
 
         Returns
         -------
@@ -3789,6 +3847,8 @@ class nu(Distribution):
         n_samp, tot_obs, E = self.get_params(['n_samp', 'tot_obs', 'E'])
         rad = []
         
+        convert_n = lambda n, l2: 1 + (1 / (n *  l2))
+
         for tn_samp, ttot_obs, tE in zip(n_samp, tot_obs, E):
 
             # Set temp params
@@ -3797,19 +3857,15 @@ class nu(Distribution):
             self.params['E'] = tE
 
             tl2 = float(tn_samp) / (tE - ttot_obs) # Harte (2011) 7.26
-            e_max = 1 + (1 / tl2)
-            e_min = 1 + (1 / (ttot_obs * tl2))
-            
-            num = np.round((e_max - e_min) / tol, decimals=0)
-            eng = np.linspace(e_min, e_max + tol, num=num)
-            diff = eng[1] - eng[0]
-
-            tcdf = np.cumsum(diff * self.pmf(eng)[0])
+            all_e = convert_n(np.arange(1, ttot_obs + 1), tl2)[::-1]
+            tpmf = self.pmf(all_e)[0]
+            tcdf = np.cumsum(tpmf)
 
             # Observed cdf. Not quite true if some energies overlap
             obs_cdf = np.arange(1 / (2 * (tn_samp)), 1, 1/tn_samp)
 
-            trad = [eng[sum(oc >= tcdf) - 1] for oc in obs_cdf]
+            trad = [all_e[sum(oc >= tcdf) - 1] if sum(oc >= tcdf) - 1 != -1
+                    else all_e[0] for oc in obs_cdf]
 
             rad.append(trad)
 
@@ -3860,6 +3916,209 @@ class nu(Distribution):
 
         return self
 
+class omega(Distribution):
+    """
+    This distribution is the distribution of total energy within a species
+    across all species. The means of this distribution is E / S.
+
+    Parameters
+    ----------
+    n_samp : int or iterable
+        Total number of species / samples
+    tot_obs: int or iterable
+        Total number of individuals / observations
+    E : int or iterable
+        Total energy output of community
+
+    self.var keywords
+    -----------------
+    lambda_2 : list of floats
+        The lambda2 lagrange multiplier
+    emaxmin : list fo tuples
+        Each tuple contains the max total energy and min total energy for the
+        given state variables.  
+
+    Notes
+    -----
+    This is a discrete distribution.
+
+    
+    """
+    
+    def pmf(self, e):
+        '''
+        Notes
+        -----
+        The omega distribution is only defined at e values given by 
+        e = n + (1 / lambda2). While this function will return a pmf 
+        value for all e greater than or equal to one, note that the pmf will
+        only sum to one when provided with the proper support. lambda2 can be
+        calculated by the equation: n_samp / (E - tot_obs) or S / (E - N)
+
+
+        '''
+
+        n_samp, tot_obs, E = self.get_params(['n_samp', 'tot_obs', 'E'])
+        e = expand_n(e, len(n_samp))
+        
+        pmf = []
+        self.var['lambda_2'] = []
+        self.var['emaxmin'] = []
+
+        convert_e = lambda ep, l2: ep - (1 / l2)
+        
+        for tn_samp, ttot_obs, tE, te in zip(n_samp, tot_obs, E, e):
+
+            # Set lagrange multipliers
+            tl2 = float(tn_samp) / (tE - ttot_obs) # Harte (2011) 7.26
+            e_max = ttot_obs + (1 / tl2)
+            e_min = 1 + (1 / tl2)
+            
+            tpmf = np.empty(len(te), dtype=float)
+            tns = convert_e(te, tl2)
+            
+            # Parse values that aren't in range and set to zero
+            ind_tot = np.arange(len(tpmf))
+            ind_less = np.where(te >= e_min)[0]
+            ind_more = np.where(te <= e_max)[0]
+            ind_include = np.intersect1d(ind_more, ind_less)
+            ind_exclude = np.array(list(set(ind_tot) - set(ind_include)))
+            if len(ind_exclude) != 0:
+                tpmf[ind_exclude] = 0
+            
+            if len(ind_include) != 0:
+                tpmf[ind_include] = logser_ut(tot_obs=ttot_obs,
+                        n_samp=tn_samp).pmf(tns[ind_include])[0]
+
+            pmf.append(tpmf)
+            self.var['lambda_2'].append(tl2)
+            self.var['emaxmin'].append((e_max, e_min))
+
+        return pmf
+
+    @doc_inherit
+    def cdf(self, e):
+        
+        n_samp, tot_obs, E = self.get_params(['n_samp', 'tot_obs', 'E'])
+        e = expand_n(e, len(n_samp))
+
+        
+        cdf = []
+        self.var['lambda_2'] = []
+
+        convert_n = lambda n, l2: n + (1 / l2)
+
+        for tn_samp, ttot_obs, tE, te in zip(n_samp, tot_obs, E, e):
+
+            tl2 = float(tn_samp) / (tE - ttot_obs) # Harte (2011) 7.26
+
+            # Set all e so you can sum
+            all_e = convert_n(np.arange(1, ttot_obs + 1), tl2)
+
+            pmf_for_all_e = omega(tot_obs=ttot_obs, n_samp=tn_samp,
+                    E=tE).pmf(all_e)[0]
+            cum_sum = np.cumsum(pmf_for_all_e)
+
+            tcdf = np.array([cum_sum[np.sum(e_val >= all_e) - 1] if sum(e_val
+                >= all_e) - 1 != -1 else 0 for e_val in te])
+
+            cdf.append(tcdf)
+            self.var['lambda_2'].append(tl2)
+
+        return cdf
+        
+    def rad(self):
+        '''
+        This rad uses the observed cdf for a given omega distribution and the
+        predicted cdf to calculate the rank energy distribution.  
+
+        Parameter
+        ----------
+        tol : float
+            Precision interval.  The integral of omega is approximated at the
+            interval tol.  Smaller intervals can be more precise, but a tol
+            between 0.1 and 0.5 is more effecient and the results are changed
+            only marginally.
+
+        Returns
+        -------
+        : list
+            A list of rank energy distributions 
+
+        '''
+    
+        n_samp, tot_obs, E = self.get_params(['n_samp', 'tot_obs', 'E'])
+        rad = []
+        
+        convert_n = lambda n, l2: n + (1 / l2)
+
+        for tn_samp, ttot_obs, tE in zip(n_samp, tot_obs, E):
+
+            # Set temp params
+            self.params['n_samp'] = tn_samp
+            self.params['ttot_obs'] = ttot_obs
+            self.params['E'] = tE
+
+            tl2 = float(tn_samp) / (tE - ttot_obs) # Harte (2011) 7.26
+            all_e = convert_n(np.arange(1, ttot_obs + 1), tl2)
+            tpmf = self.pmf(all_e)[0]
+            tcdf = np.cumsum(tpmf)
+
+            # Observed cdf. Not quite true if some energies overlap
+            obs_cdf = np.arange(1 / (2 * (tn_samp)), 1, 1/tn_samp)
+
+            trad = [all_e[sum(oc >= tcdf) - 1] if sum(oc >= tcdf) - 1 != -1
+                    else all_e[0] for oc in obs_cdf]
+
+            rad.append(trad)
+
+        self.params['n_samp'] = n_samp
+        self.params['ttot_obs'] = tot_obs
+        self.params['E'] = E
+
+        return rad
+
+
+    def fit(self, data):
+        '''
+        Fit the average species energy distribution to data
+        
+        Parameters
+        ----------
+        data : list of tuples
+            
+            A list containing tuples of length two or a list containing tuples
+            of length three.  If the tuples are of length two, the first object
+            in a tuple is an iterable containing the community individual
+            energy distribution.  The second object in a tuple is an iterable
+            containing the empirical species abundance distribution. If the
+            tuples are of length three, the first object in the tuple is an
+            iterable containing the total species energy distribution. The
+            second object in a tuple an iterable containing the community
+            individual energy distribution.  The third object in a tuple is an
+            iterable containing the empirical species abundance distribution.  
+
+        '''
+
+        # Unpack the list of tuples
+        # Can either take 
+        if len(data[0]) == 2:
+            ied, sad = unpack(data)
+        elif len(data[0]) == 3:
+            tsed, ied, sad = unpack(data)
+
+        # Use base class fit
+        super(nu, self).fit(sad)
+
+        # Format and check energy data
+        data_eng = check_list_of_iterables(ied)
+
+        # Store energy data in self.params
+        E = [np.sum(np.array(edata)) for edata in data_eng]
+        self.params['E'] = E
+
+        return self
+
 def nu_pmf_eq(es, beta, l2, s):
     '''Nu pmf
     
@@ -3880,6 +4139,28 @@ def nu_pmf_eq(es, beta, l2, s):
     # Nu pmf equation
     return (1 / np.log(s / beta)) * (np.exp(-beta / (l2 * (es - 1)))) / \
                                                                     (es - 1)
+
+def l_solver(x, N, a):
+    """
+    Used with a solver to get the langrange multiplier for a pi distribution
+
+    Parameters
+    ----------
+    x : float
+        Lagrange multiplier x = e**-lambda
+    N : float
+        total balls (individuals) in urn (species)
+    a : float
+        area fraction. 1 / n_samp or 1 / urn_number
+
+    Returns
+    -------
+    : float
+    
+
+    """
+    return ((x / (1 - x)) - (((N + 1) * x ** (N + 1)) / \
+                            (1 - x ** (N + 1)))) - (N * a)
 
 def beta_solver(x, k, tot_obs, n_samp):
     """ Used with a solver to get the beta lagrange multiplier in the METE
