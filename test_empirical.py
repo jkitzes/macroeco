@@ -11,7 +11,6 @@ jp = os.path.join
 from empirical import *
 import numpy as np
 
-
 class TestPatch(unittest.TestCase):
 
     def setUp(self):
@@ -21,7 +20,7 @@ grt, .1, .1, 2
 grt, .1, .2, 1
 grt, .1, .3, 1
 rty, .1, .2, 1
-rty, .2, .3, 1''')
+rty, .2, .3, 2''')
         self.xyfile5.close()
         self.xymeta5 = {('x', 'maximum'): .2, ('x', 'minimum'): .1, ('x',
         'precision'): .1, ('x', 'type'): 'interval', ('y', 'maximum'): .3,
@@ -297,10 +296,10 @@ f, scav, 0, 1, 4''')
         # Test correct result with 'whole' and one division
         sad = self.pat1.sad({'spp_code': 'species', 'count': 'count',
                                                                     'x': 1})
-        self.assertTrue(np.array_equal(sad[0][1], np.array([4,2])))
+        self.assertTrue(np.array_equal(sad[0][1], np.array([4,3])))
         sad = self.pat1.sad({'spp_code': 'species', 'count': 'count',
                                                         'x': 'whole'})
-        self.assertTrue(np.array_equal(sad[0][1], np.array([4,2])))
+        self.assertTrue(np.array_equal(sad[0][1], np.array([4,3])))
         sad = self.pat4.sad({'spp_code': 'species', 'count' :'count', 'x': 1})
         self.assertTrue(np.array_equal(sad[0][2], np.array([0,1,2,3])))
 
@@ -465,6 +464,45 @@ f, scav, 0, 1, 4''')
         jac_sort = np.sort(comm['jaccard'])
         np.testing.assert_array_almost_equal(jac_sort, np.array((0,0,0.4)), 5)
 
+    def test_o_ring(self):
+
+        # Check standard case, no min max, no edge correction, no criteria
+        # Tests that distances and repeats for count col are correct
+        result_list = self.pat1.o_ring(('x','y'), [0,.11,.2],
+                                     {'spp_code': 'species', 'count': 'count'})
+
+        np.testing.assert_array_equal(result_list[0][2][0], np.array((8,4)))
+        np.testing.assert_array_equal(result_list[0][2][1], np.array((2,4)))
+
+        # Check standard case, no min max, no edge correction, with division
+        result_list = self.pat1.o_ring(('x','y'), [0,.11,.2],
+                                     {'spp_code': 'species', 'count': 'count',
+                                      'y': 2})
+
+        # - First half of y, both species
+        np.testing.assert_array_equal(result_list[0][2][0], np.array((6,0)))
+        np.testing.assert_array_equal(result_list[0][2][1], np.array((0,0)))
+
+        # - Second half of y, both species
+        np.testing.assert_array_equal(result_list[1][2][0], np.array((0,0)))
+        np.testing.assert_array_equal(result_list[1][2][1], np.array((2,0)))
+
+        # Check edge correction - check only first species
+        # Almost equal required due to float division
+        result_list = self.pat1.o_ring(('x','y'), [0,.05,.1],
+                                     {'spp_code': 'species', 'count': 'count'},
+                                          edge_correct=True)
+        np.testing.assert_array_almost_equal(result_list[0][2][0],
+                                             np.array((8,18)))
+
+        # Check density - check only second species
+        print 'here '
+        result_list = self.pat1.o_ring(('x','y'), [0,.05,.1],
+                                     {'spp_code': 'species', 'count': 'count'},
+                                          density=True)
+        np.testing.assert_array_almost_equal(result_list[0][2][1],
+                                             np.array((1358.12218105,0)))
+
     def test_ssad(self):
 
         # Check that ssad does not lose any individuals
@@ -538,5 +576,3 @@ f, scav, 0, 1, 4''')
 
 if __name__ == "__main__":
     unittest.main()
-
-
