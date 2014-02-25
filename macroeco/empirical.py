@@ -197,7 +197,6 @@ class Patch:
             Value has a different meaning depending on column type:
             - metric - number of divisions of data along this axis, int/float
             - categorical - 'split' calculates each category separately,
-              'whole' takes the entire column.
         clean : bool
             If True, all the zeros are removed from the sads.  If False, sads
             are left as is.
@@ -864,8 +863,8 @@ class Patch:
             keyword looks up a np.array that contains the given species
             energy distribution.
 
-        Note
-        ----
+        Notes
+        -----
         The theta distribution from Harte (2011) is a an sed.
 
         '''
