@@ -15,7 +15,7 @@ ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 # the i18n builder cannot share the environment and doctrees with the others
 I18NSPHINXOPTS  = $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 
-.PHONY: help clean html dirhtml singlehtml pickle json htmlhelp qthelp devhelp epub latex latexpdf text man changes linkcheck doctest gettext
+.PHONY: help clean html dirhtml singlehtml pickle json htmlhelp qthelp devhelp epub latex latexpdf text man changes linkcheck doctest gettext gh-pages
 
 help:
 	@echo "Please use \`make <target>' where <target> is one of"
@@ -152,3 +152,9 @@ doctest:
 	$(SPHINXBUILD) -b doctest $(ALLSPHINXOPTS) $(BUILDDIR)/doctest
 	@echo "Testing of doctests in the sources finished, look at the " \
 	      "results in $(BUILDDIR)/doctest/output.txt."
+
+gh-pages:
+	rm -rf ../../macroeco-docs/*
+	make html
+	cp -r _build/html/* ../../macroeco-docs/
+	cd ../../macroeco-docs; git checkout gh-pages && touch .nojekyll && git add -A && git ci -m "Generated gh-pages for macroeco commit `git --git-dir=../macroeco/.git log --pretty=format:'%h' -n 1`" && git push origin gh-pages
