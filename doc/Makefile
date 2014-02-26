@@ -154,7 +154,17 @@ doctest:
 	      "results in $(BUILDDIR)/doctest/output.txt."
 
 gh-pages:
-	rm -rf ../../macroeco-docs/*
+
+gh-pages:
+	git checkout gh-pages
+	rm -rf * ../macroeco ../*.* ../_*
+	cd ../; git checkout develop doc macroeco
 	make html
-	cp -r _build/html/* ../../macroeco-docs/
-	cd ../../macroeco-docs; git checkout gh-pages && touch .nojekyll && git add -A && git ci -m "Generated gh-pages for macroeco commit `git --git-dir=../macroeco/.git log --pretty=format:'%h' -n 1`" && git push origin gh-pages
+	cp -r _build/html/* ../
+	rm -rf _build generated ../macroeco
+	touch ../.nojekyll
+	git add --all :/
+	git commit -m "Generated gh-pages for `git log develop -1 --pretty=short --abbrev-commit`" && git push origin gh-pages
+	rm -rf * ../*.* ../_*
+	git checkout develop
+	git checkout -- .
