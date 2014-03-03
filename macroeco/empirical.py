@@ -181,22 +181,22 @@ class Patch:
         return spp_list, spp_col, count_col, engy_col, mass_col, combinations
 
 
-    def sad(self, criteria, clean=False):
+    def sad(self, cols, splits, clean=False):
         '''
         Calculates an empirical species abundance distribution given criteria.
 
         Parameters
         ----------
+        cols : dict
+            Identifier with keys for columns to use for species ID (spp_col), 
+            count (count_col), energy (energy_col), and mass (mass_col). Only 
+            spp_col is mandatory.
         criteria : dict
-            Dictionary of form {column_name: value}. Must contain a key with a
-            value of 'species' indicating the column with species identifiers
-            (this column must be type categorical in metadata). If a column
-            giving the counts of species found at a point is also in the data,
-            a key with the value 'count' should also be given.
-
-            Value has a different meaning depending on column type:
-            - metric - number of divisions of data along this axis, int/float
-            - categorical - 'split' calculates each category separately,
+            Keys for column names and value determining how to split column. 
+            Value of 'split' divides into all unique values in column, 
+            especially appropriate for categorical columns. Any other value is 
+            evaluated as an integer giving the number of divisions of data 
+            along this axis
         clean : bool
             If True, all the zeros are removed from the sads.  If False, sads
             are left as is.
@@ -211,13 +211,22 @@ class Patch:
             species in the same order as they appear in the second element of
             result.
         '''
+        # TODO: Convert all methods to take cols separately
+        # TODO: Incorporate correct criteria syntax into parameters
+        # TODO: Ensure that all methods return a list of tuples where first
+        # element is comb and second is array of data that is the result
 
-        spp_list, spp_col, count_col, engy_col, mass, combinations = \
-            self.parse_criteria(criteria)
+        # Define cols and spp_list for whole Patch
+        for col in ['spp_col', 'count_col', 'energy_col', 'mass_col']:
+            exec col + " = cols.get(col, None)"
+        spp_list = np.unique(self.data_table.table[spp_col])
 
         if spp_col == None:
             raise TypeError('No species column specified in "criteria" ' +
                                                                    'parameter')
+        _,_,_,_,_, combinations = \
+            self.parse_criteria(splits)
+
         result = []
         for comb in combinations:
 

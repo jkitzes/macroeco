@@ -47,8 +47,7 @@ from scipy.stats.distributions import (rv_discrete, rv_continuous, docdict,
                                        docdict_discrete, docheaders)
 import scipy.stats.distributions as spdist
 import scipy.optimize as optim
-import scipy.special as spec
-
+import scipy.special as special
 
 _doc_param_note = \
 """There are many available methods of `%(name)s`, each of which require one or 
@@ -97,10 +96,38 @@ class rv_continuous_meco(rv_continuous):
 
     Methods
     -------
+    translate_args
+        takes user-friendly params as input and returns shape params
+
     fit2
         calls method `fit` with fixed loc=0 and scale=1 (defaults)
 
     """
+
+    def translate_args(self, *args):
+        """
+        Translates user-friendly arguments into shape parameters
+
+        See distribution docstring for description of user arguments and shape 
+        parameters.
+
+        Parameters
+        ----------
+        uargs : floats
+            User argument(s), usually easily measured and specified
+
+        Returns
+        -------
+        tuple of floats
+            Shape parameter(s) of distribution
+
+        Notes
+        -----
+        """
+
+        raise NotImplementedError, ("translate_args method not implemented "
+                                    "for this distribution")
+
 
     def fit2(self, *args):
         """
@@ -297,7 +324,7 @@ class geom_uptrunc_gen(rv_discrete_meco):
         return _geom_solve_p_from_mu_vect(mu, b), b
 
     @inherit_docstring_from(rv_discrete_meco)
-    def fit2(self, data, b):
+    def fit2(self, data, b=None):
         """%(super)s
         Requires two arguments consisting of data to fit and ``b``, the upper 
         limit of the distribution (held constant).
@@ -316,7 +343,7 @@ class geom_uptrunc_gen(rv_discrete_meco):
         return pmf
 
     def _cdf(self, x, p, b):
-        k = np.floor(x)
+        x = np.floor(x)
         cdf = (1.0-(1.0-p)**(x+1)) / (1.0-(1.0-p)**(b+1))
         cdf[x > b] = 1
         return cdf
@@ -361,8 +388,14 @@ class nbinom_gen(spdist.nbinom_gen):
     used.
 
     %(before_notes)s
+    uargs : float
+        distribution mean and k parameter
 
     """
+
+    @inherit_docstring_from(rv_discrete_meco)
+    def translate_args(self, mu, k):
+        return mu, k
 
     @inherit_docstring_from(rv_discrete_meco)
     def fit2(self, x, k_range=(0.1,100,0.1)):
@@ -397,13 +430,20 @@ class nbinom_gen(spdist.nbinom_gen):
 
     def _logpmf(self, x, mu, k):
         p = self._get_p_from_mu(mu, k)
-        coeff = spec.gammaln(k+x) - spec.gammaln(x+1) - spec.gammaln(k)
+        coeff = special.gammaln(k+x)-special.gammaln(x+1)-special.gammaln(k)
         return coeff + k*np.log(p) + x*np.log(1-p)
 
     def _cdf(self, x, mu, k):
         p = self._get_p_from_mu(mu, k)
         x = np.floor(x)
-        return spec.betainc(k, x+1, p)
+        return special.betainc(k, x+1, p)
+
+    def _ppf(self, q, mu, k):
+        p = self._get_p_from_mu(mu, k)
+        vals = np.ceil(special.nbdtrik(q, k, p))
+        vals1 = (vals-1).clip(0.0, np.inf)
+        temp = self._cdf(vals1, k, p)
+        return np.where(temp >= q, vals1, vals)
 
     def _stats(self, mu, k):
         p = self._get_p_from_mu(mu, k)
@@ -453,8 +493,19 @@ class expon_gen(rv_continuous_meco):
     for ``x >= 0``.
 
     %(before_notes)s
+    uargs : float
+        distribution mean
 
     """
+
+    @inherit_docstring_from(rv_continuous_meco)
+    def translate_args(self, mu):
+        return 1 / mu
+
+    @inherit_docstring_from(rv_continuous_meco)
+    def fit2(self, data):
+        expon = expon_gen(a=0.0)
+        return 1/expon.fit(data, floc=0)[2], 
 
     def _rvs(self, lam):
         return nprand.exponential(1/lam, self._size)
@@ -485,6 +536,8 @@ class expon_uptrunc_gen(rv_continuous_meco):
     for ``b >= x >= 0``.
 
     %(before_notes)s
+    uargs : float
+        distribution mean and upper limit
 
     """
 
@@ -492,6 +545,15 @@ class expon_uptrunc_gen(rv_continuous_meco):
     # appropriate upper limit and calling its methods.
 
     # TODO: Do all of these broadcast correctly, or should we call _pdf, etc.?
+
+    @inherit_docstring_from(rv_continuous_meco)
+    def translate_args(self, mu, b):
+        raise NotImplementedError, "Translation of mu to lam not implemented"
+
+    @inherit_docstring_from(rv_continuous_meco)
+    def fit2(self, data, b=np.inf):
+        expon = expon_gen(a=0.0, b=b)
+        return expon.fit(data, floc=0)[2], b
 
     def _rvs(self, lam, b):
         expon = expon_gen(a=0.0, b=b)
@@ -512,11 +574,6 @@ class expon_uptrunc_gen(rv_continuous_meco):
     def _stats(self, lam, b):
         expon = expon_gen(a=0.0, b=b)
         return expon.stats(lam)
-
-    @inherit_docstring_from(rv_discrete_meco)
-    def fit2(self, data, lam, b):
-        expon = expon_gen(a=0.0, b=b)
-        return expon.fit(data, lam, floc=0, fscale=1), b
 
 expon_uptrunc = expon_uptrunc_gen(a=0.0, name='expon_uptrunc', shapes='lam, b')
 
