@@ -24,6 +24,7 @@ from pandas import DataFrame
 import matplotlib.pyplot as plt
 from matplotlib.mlab import rec2csv, rec_append_fields
 
+from twiggy_setup import get_log
 from empirical import Patch
 from distributions2 import *
 from compare import *
@@ -38,7 +39,7 @@ metric_types = {
 }
 
 
-def main(param_dir, param_file='parameters.txt'):
+def main(param_path='parameters.txt'):
     """
     Entry point function for analysis based on parameter files.
 
@@ -48,11 +49,15 @@ def main(param_dir, param_file='parameters.txt'):
         Path to directory containing user-generated parameter file
 
     """
-    
-    # Get full path and confirm file is present
-    param_path = os.path.join(param_dir, param_file)
+  
+    # Confirm file is present and extract dir name
     if not os.path.isfile(param_path):
         raise IOError, "Parameter file not found at %s" % param_path
+    param_dir = os.path.dirname(param_path)
+    
+    # Get logger and announce start
+    log = get_log(param_dir, clear=True)
+    log.info('Starting analysis')
 
     # Read parameter file into params object
     params = configparser.ConfigParser()
@@ -61,11 +66,13 @@ def main(param_dir, param_file='parameters.txt'):
     # Do analysis for each run with options dict (params + addl options)
     run_names = params.sections()
     for run_name in run_names:
+        log.info('Starting run %s' % run_name)
         options = dict(params[run_name])
         options['param_dir'] = os.path.abspath(param_dir)
         options['run_dir'] = os.path.join(param_dir, run_name)
         options['metric_type'] = _check_metric(options)
         _do_analysis(options)
+    log.info('Finished analysis successfully')
 
 
 def _check_metric(options):
