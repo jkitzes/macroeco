@@ -36,7 +36,7 @@ import itertools
 from copy import deepcopy
 from data import DataTable
 import scipy.spatial.distance as dist
-import shapely.geometry as geo
+#import shapely.geometry as geo
 
 
 class Patch:
