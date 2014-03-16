@@ -2,3 +2,7 @@
 */build/*
 */_build/*
 */dist/*
+*.swp
+*.pyc
+*.DS_Store
+*.pdf
