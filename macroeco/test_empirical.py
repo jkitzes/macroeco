@@ -11,7 +11,6 @@ jp = os.path.join
 from empirical import *
 import numpy as np
 
-
 class TestPatch(unittest.TestCase):
 
     def setUp(self):
@@ -21,7 +20,7 @@ grt, .1, .1, 2
 grt, .1, .2, 1
 grt, .1, .3, 1
 rty, .1, .2, 1
-rty, .2, .3, 1''')
+rty, .2, .3, 2''')
         self.xyfile5.close()
         self.xymeta5 = {('x', 'maximum'): .2, ('x', 'minimum'): .1, ('x',
         'precision'): .1, ('x', 'type'): 'interval', ('y', 'maximum'): .3,
@@ -33,7 +32,7 @@ rty, .2, .3, 1''')
 
         self.pat1 = Patch('xyfile5.csv')
         # Line below sets metadata manually-no metadata file loaded
-        self.pat1.data_table.meta = self.xymeta5 
+        self.pat1.data_table.meta = self.xymeta5
 
         self.xyfile6 = open('xyfile6.csv', 'w')
         self.xyfile6.write('''spp_code, x, y, count
@@ -146,7 +145,7 @@ rty, .2, .3, 1, 5, 110''')
         'precision'): None, ('count', 'type'): 'ratio'}
 
         self.pat5 = Patch('xyfile9.csv')
-        self.pat5.data_table.meta = self.xymeta9 
+        self.pat5.data_table.meta = self.xymeta9
         self.xyfile10 = open('xyfile10.csv', 'w')
         self.xyfile10.write('''spp_code, x, y, count
 a, 0, 0, 1
@@ -291,16 +290,16 @@ f, scav, 0, 1, 4''')
 
         # Testing that metadata was set correctly
         self.assertTrue(self.pat1.data_table.meta[('x', 'maximum')] == .2)
-        
+
     def test_sad(self):
-        
+
         # Test correct result with 'whole' and one division
-        sad = self.pat1.sad({'spp_code': 'species', 'count': 'count', 
+        sad = self.pat1.sad({'spp_code': 'species', 'count': 'count',
                                                                     'x': 1})
-        self.assertTrue(np.array_equal(sad[0][1], np.array([4,2])))
-        sad = self.pat1.sad({'spp_code': 'species', 'count': 'count', 
+        self.assertTrue(np.array_equal(sad[0][1], np.array([4,3])))
+        sad = self.pat1.sad({'spp_code': 'species', 'count': 'count',
                                                         'x': 'whole'})
-        self.assertTrue(np.array_equal(sad[0][1], np.array([4,2])))
+        self.assertTrue(np.array_equal(sad[0][1], np.array([4,3])))
         sad = self.pat4.sad({'spp_code': 'species', 'count' :'count', 'x': 1})
         self.assertTrue(np.array_equal(sad[0][2], np.array([0,1,2,3])))
 
@@ -337,14 +336,14 @@ f, scav, 0, 1, 4''')
 
     def test_parse_criteria(self):
 
-        # Checking parse returns what we would expect 
+        # Checking parse returns what we would expect
         pars = self.pat4.parse_criteria({'spp_code': 'species', 'count': 'count',
         'x': 1})
         self.assertTrue(pars[1] == 'spp_code')
         self.assertTrue(pars[2] == 'count')
 
         # Test that energy, mass and count col are None
-        pars = self.pat4.parse_criteria({'spp_code': 'species', 
+        pars = self.pat4.parse_criteria({'spp_code': 'species',
                                                 'y': 'whole'})
         self.assertTrue((pars[2] == None) and (pars[3] == None) and (pars[4] ==
                         None))
@@ -355,7 +354,7 @@ f, scav, 0, 1, 4''')
         # Make sure if count is not passed, no error is thrown
         self.pat3.parse_criteria({'spp_code': 'species'})
 
-        # Check energy and mass returns 
+        # Check energy and mass returns
         pars = self.pat5.parse_criteria({'spp_code': 'species', 'count':
         'count', 'energy': 'energy'})
 
@@ -370,7 +369,7 @@ f, scav, 0, 1, 4''')
         # TODO: Test that error is thrown if step < prec
 
     def test_sar(self):
-        
+
         # Checking that sar function returns correct S0 for full plot
         sar = self.pat3.sar(('x', 'y'), [(1,1)], {'spp_code': 'species',
         'count': 'count'})
@@ -388,7 +387,7 @@ f, scav, 0, 1, 4''')
         ear = self.pat3.sar(('x', 'y'), [(1,1), (2,2)], {'spp_code': 'species',
         'count': 'count'}, form='ear')
         self.assertTrue(np.array_equal(ear[1][1], np.array([0,1,0,0])))
-        
+
         # Test that returned areas are correct
         sar = self.pat1.sar(('x', 'y'), [(1,1)], {'spp_code': 'species',
                             'count': 'count'})
@@ -403,31 +402,32 @@ f, scav, 0, 1, 4''')
         vals = self.pat8.universal_sar(div_cols, [(1,1), (1,2), (2,2), (2,4),
                                             (4,4)], criteria)
         self.assertTrue(len(vals) == 3)
-        
+
         # If (1,1) is not passed in it should have a length of zero
         vals = self.pat8.universal_sar(div_cols, [(1,2), (2,2)], criteria)
         self.assertTrue(len(vals) == 0)
 
         # If (1,1) is not passed in but include_full == True should have len
-        # equal to 1       
-        vals = self.pat8.universal_sar(div_cols, [(1,2), (2,2), (2,4)], criteria,
+        # equal to 1
+        vals = self.pat8.universal_sar(div_cols, [(1,2), (2,2), (2,4)],
+                                       criteria,
                                                             include_full=True)
         self.assertTrue(len(vals) == 2)
 
         # Test that I get the correct z-value back
-        vals = self.pat8.universal_sar(div_cols, [(1,1), (1,2), (2,2)], 
+        vals = self.pat8.universal_sar(div_cols, [(1,1), (1,2), (2,2)],
                                                                     criteria)
         self.assertTrue(np.round(vals['z'][0], decimals=4) == 0.3390)
 
         # If I pass in something other than a halving I should still get
         # something back
-        vals = self.pat8.universal_sar(div_cols, [(1,1), (2,2), (2,4), (4,4)], 
+        vals = self.pat8.universal_sar(div_cols, [(1,1), (2,2), (2,4), (4,4)],
                                                                     criteria)
         self.assertTrue(len(vals) == 2)
 
     def test_comm_sep(self):
 
-        # Create result recarray 
+        # Create result recarray
         comm = self.pat9.comm_sep({'plot1': (0,0), 'plot2': (0,1),
                                    'plot3': (3,4)},
                                   {'spp_code': 'species', 'count': 'count'})
@@ -435,16 +435,16 @@ f, scav, 0, 1, 4''')
         # Create result recarray with dec degree locs
         comm_decdeg = self.pat9.comm_sep({'plot1': (9.1,79.0),
                                    'plot2': (9.2,79.5), 'plot3': (12.7,50)},
-                                  {'spp_code': 'species', 'count': 'count'}, 
+                                  {'spp_code': 'species', 'count': 'count'},
                                          loc_unit='decdeg')
 
         # Check distances
         dist_sort = np.sort(comm['dist'])
-        np.testing.assert_array_almost_equal(dist_sort, np.array((1,4.242,5)), 
+        np.testing.assert_array_almost_equal(dist_sort, np.array((1,4.242,5)),
                                              3)
 
         # Check distances dec degree
-        # TODO: Find exact third party comparison formula - formulas online use 
+        # TODO: Find exact third party comparison formula - formulas online use
         # different radii, etc. and give approx same answer
         dist_sort = np.sort(comm_decdeg['dist'])
         #np.testing.assert_array_almost_equal(dist_sort,
@@ -457,21 +457,60 @@ f, scav, 0, 1, 4''')
 
         # Check Sorensen - 2 zeros from empty plot1
         sor_sort = np.sort(comm['sorensen'])
-        np.testing.assert_array_almost_equal(sor_sort, 
+        np.testing.assert_array_almost_equal(sor_sort,
                                              np.array((0,0,0.571428571)), 5)
 
         # Check Jaccard - 2 zeros from empty plot1
         jac_sort = np.sort(comm['jaccard'])
         np.testing.assert_array_almost_equal(jac_sort, np.array((0,0,0.4)), 5)
 
+    def test_o_ring(self):
+
+        # Check standard case, no min max, no edge correction, no criteria
+        # Tests that distances and repeats for count col are correct
+        result_list = self.pat1.o_ring(('x','y'), [0,.11,.2],
+                                     {'spp_code': 'species', 'count': 'count'})
+
+        np.testing.assert_array_equal(result_list[0][2][0], np.array((8,4)))
+        np.testing.assert_array_equal(result_list[0][2][1], np.array((2,4)))
+
+        # Check standard case, no min max, no edge correction, with division
+        result_list = self.pat1.o_ring(('x','y'), [0,.11,.2],
+                                     {'spp_code': 'species', 'count': 'count',
+                                      'y': 2})
+
+        # - First half of y, both species
+        np.testing.assert_array_equal(result_list[0][2][0], np.array((6,0)))
+        np.testing.assert_array_equal(result_list[0][2][1], np.array((0,0)))
+
+        # - Second half of y, both species
+        np.testing.assert_array_equal(result_list[1][2][0], np.array((0,0)))
+        np.testing.assert_array_equal(result_list[1][2][1], np.array((2,0)))
+
+        # Check edge correction - check only first species
+        # Almost equal required due to float division
+        result_list = self.pat1.o_ring(('x','y'), [0,.05,.1],
+                                     {'spp_code': 'species', 'count': 'count'},
+                                          edge_correct=True)
+        np.testing.assert_array_almost_equal(result_list[0][2][0],
+                                             np.array((8,18)))
+
+        # Check density - check only second species
+        print 'here '
+        result_list = self.pat1.o_ring(('x','y'), [0,.05,.1],
+                                     {'spp_code': 'species', 'count': 'count'},
+                                          density=True)
+        np.testing.assert_array_almost_equal(result_list[0][2][1],
+                                             np.array((1358.12218105,0)))
+
     def test_ssad(self):
-        
+
         # Check that ssad does not lose any individuals
         ssad = self.pat2.ssad({'spp_code': 'species', 'count': 'count'})
         sad = self.pat2.sad({'spp_code': 'species', 'count': 'count'})
         sum_ssad = np.array([sum(val) for val in ssad[1].itervalues()])
         self.assertTrue(sum(sad[0][1]) == sum(sum_ssad))
-        
+
         ssad = self.pat6.ssad({'spp_code': 'species', 'count': 'count'})
         sad = self.pat6.sad({'spp_code': 'species', 'count': 'count'})
         sum_ssad = np.array([sum(val) for val in ssad[1].itervalues()])
@@ -491,21 +530,21 @@ f, scav, 0, 1, 4''')
         self.assertTrue(set(ssad[1]['b']) == {1, 4, 0, 1})
         self.assertTrue(set(ssad[1]['c']) == {0, 0, 3, 3})
         self.assertTrue(set(ssad[1]['d']) == {3, 1, 1, 1})
-    
+
     def test_ied(self):
-        
+
         # Test correct length of result
         eng = self.pat5.ied({'spp_code': 'species', 'count': 'count',
         'energy': 'energy'})
         self.assertTrue(len(eng[0][1]) == 6)
 
         # Test error if energy column is missing
-        self.assertRaises(ValueError, self.pat5.ied, 
+        self.assertRaises(ValueError, self.pat5.ied,
                                 {'spp_code': 'species', 'count': 'count'})
 
         # Test normalize is working
         eng = self.pat5.ied({'spp_code': 'species', 'count': 'count',
-                        'energy': 'energy', 'x': 2}) 
+                        'energy': 'energy', 'x': 2})
         self.assertTrue(np.array_equal(eng[1][1], np.array([1])))
         self.assertTrue(len(eng[0][1]) == 5)
 
@@ -515,7 +554,7 @@ f, scav, 0, 1, 4''')
         self.assertTrue(np.array_equal(eng[0][1], np.array([17,17,12,23,45,
                                     110])))
 
-        # Test that energy overrides mass 
+        # Test that energy overrides mass
         eng = self.pat5.ied({'spp_code': 'species', 'count': 'count',
                         'mass' : 'mass', 'energy' : 'energy'}, normalize=False)
         self.assertTrue(np.array_equal(eng[0][1], np.array([.5,.5,2,3,4,5])))
@@ -537,5 +576,3 @@ f, scav, 0, 1, 4''')
 
 if __name__ == "__main__":
     unittest.main()
-
-
