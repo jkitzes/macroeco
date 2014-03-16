@@ -13,6 +13,7 @@ Welcome to macroeco.
 
    empirical
    distributions2
+   compare
 
 
 Indices and tables
