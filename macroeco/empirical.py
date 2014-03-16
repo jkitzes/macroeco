@@ -9,9 +9,10 @@ patterns. At present, all distributions here are univariate.
 .. autosummary::
    :toctree: generated/
 
-   Patch
+   Patch.__init__
+   Patch.ased
+   Patch.sad
    z
-
 
 """
 
