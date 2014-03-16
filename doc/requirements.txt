@@ -2,4 +2,5 @@ scipy
 numpy
 matplotlib
 numpydoc
+shapely
 macroeco
