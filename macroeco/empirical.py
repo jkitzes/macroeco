@@ -1,33 +1,20 @@
-#!/usr/bin/python
+"""
+==============================================
+Empirical (:mod:`macroeco.empirical`)
+==============================================
 
-'''
-Calculating macroecological metrics for empirical or theoretical patch. Patch
-is interpreted broadly as any temporally and spatially defined census.
+This module contains distributions commonly used in analysis of ecological 
+patterns. At present, all distributions here are univariate.
 
-Classes
--------
-- `Patch` -- empirical metrics for census data
+.. autosummary::
+   :toctree: generated/
 
-Patch Methods
--------------
-- `sad` -- calculate species abundance distribution (grid or sample)
-- `sar` -- calculate species-area relationship (grid or sample)
-- `universal_sar` -- calculates the universal sar curve
-- `ear` -- calculate endemics-area relationship (grid or sample)
-- `comm` -- calculate commonality between sub-patches (grid)
-- `ssad` -- calculate species-level spatial abundance distrib (grid or sample)
-- `sed` -- calculate species energy distribution (grid or sample)
-- `ied` -- calculate the community (individual) energy distribution
-- `ased` -- calculate the average species energy distribution
-- `tsed` -- calculate the total species energy distribution
+   Patch.__init__
+   Patch.ased
+   Patch.sad
+   z
 
-- `get_sp_centers` --
-- 'get_div_areas' -- return list of areas made by div_list
-
-Misc functions
---------------
-- `distance` -- return Euclidean distance between two points
-'''
+"""
 
 from __future__ import division
 import numpy as np
