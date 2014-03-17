@@ -210,18 +210,74 @@ def get_lrt():
 def get_bayes_factor():
     pass
 
-def get_chi_squared():
-    pass
+def get_chi_squared(dists):
+    """
+    Chi-squared test to compare two or more distributions. 
 
-def bin_data():
-    pass
+    Parameters
+    ------------------
+    dists : list
+        List of distributions to compare.  Each distribution in list should be
+        the same length and the location of each value in a list should be
+        compareable.  This list will be made into a Chi-Squared contingency
+        table to analyze.
+
+    Returns
+    ------------
+    chi2 : float
+        The test statistic.
+    p : float
+        The p-value of the test
+    dof : int
+        Degrees of freedom
+    expected : ndarray, same shape as `observed`
+        The expected frequencies, based on the marginal sums of the table.
+
+    Notes
+    ---------
+    Assumption of the Chi-squared test is that the expected value of 80% of
+    the cells is > 5.  If this does not hold, the Normal approximation is not
+    valid and you should try an alternative approach.
+    """
+
+    assert len(dists) > 1, "Length of dists must be greater than 1"
+    test_len = len(dists[0])
+    assert np.all([len(dt) == test_len for dit in dists], "All dists must have"
+        + " equal length"
+
+    chi_table = np.array(dists, dtype=np.float)
+    chi2, p, dof, expected = stats.chi2_contingency(chi_table, correction=False)
+
+    return chi2, p, dof, expected
+
+def bin_data(data, max_num):
+    """
+    Bins the data on base 2. Bins such that the right boundary is exlusive and
+    the left boundary is inclusive.  Does not split density between bins.
+
+    Parameters
+    ------------------
+    data : array-like
+        Data to be binned 
+
+    max_num :  float
+        The maximum upper most boundary of the data
+
+    base : float
+        The base for log binning
+
+    Returns
+    ------------
+    tuple : (binned_data, bins_edges)
+    
+    """
+    log_ub = np.ceil(np.log2(max_num))
+    boundaries = 2**np.arange(0, log_ub + 1)
+
+    hist_data = np.histogram(data, bins=boundaries)
+    return hist_data
 
 
-
-
-
-
-        
 def _to_arrays(*args):
     '''
     Converts all args to np.arrays
