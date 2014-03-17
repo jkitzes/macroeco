@@ -56,32 +56,56 @@ class TestCompare(TestCase):
         expected = 51.146902
         assert_equal(np.round(aic1, decimals=6), expected)
 
-#    def test_aicc(self):
-#        
-#        # Test that passing either a pmf of nll gives the same result
-#        test_vals = stats.norm.pdf((1,2,3,4,5,6,7,8))
-#        aic1 = aicc([test_vals], 2, loglik=False)
-#        aic2 = aicc(nll([test_vals]), 2, 8, loglik=True)
-#
-#        self.assertTrue(aic1[0] == aic2[0])
-#
-#        # Test that aicc gives the correct values
-#        expected = 225.10302
-#        self.assertTrue(expected == np.round(aic1[0], decimals=5))
-#
-#        # Test Assertion error is thrown if no n param
-#        self.assertRaises(AssertionError, aicc, 56, 2)
-#
-#
-#    def test_aic_weights(self):
-#        
-#        vals = [1,1,1,2,3,4,7,23,78]
-#        aic_vals = aicc([stats.norm.pdf(vals, scale=100), stats.norm.pdf(vals,
-#                                                                    scale=99)],
-#                                                            [2,2],loglik=False)
-#        aicw, delta_aic = aic_weights(aic_vals)
-#        pred = np.array([ 0.47909787,  0.52090213])
-#        self.assertTrue(np.array_equal(np.round(aicw, decimals=8), pred))
+    def test_aicc(self):
+        
+        # Test values
+        test_vals = stats.norm.pdf((1,2,3,4,5,6,7,8))
+        aic1 = get_AICC(test_vals, (1,1))
+
+        # Test that aicc gives the correct values
+        expected = 225.10302
+        assert_equal(expected, np.round(aic1, decimals=5))
+
+    def test_aic_weights(self):
+        
+        # Test values
+        vals = [1,1,1,2,3,4,7,23,78]
+        values = [stats.norm.pdf(vals, scale=100), stats.norm.pdf(vals,
+                                                                    scale=99)]
+
+        aic_vals = [get_AICC(tval, 1) for tval in values]
+        aicw, delta_aic = get_AIC_weights(aic_vals)
+        pred = np.array([ 0.47909787,  0.52090213])
+        assert_array_almost_equal(aicw, pred)
+
+    def test_gen_loss_function(self):
+        
+        # Test absolute value loss function
+        loss_fxn = 'np.abs(obs - pred)'
+        loss = gen_loss_function(loss_fxn)
+
+        obs = np.random.randint(3, 59, 100)
+        pred = np.random.randint(3, 59, 100)
+        test_loss = np.sum(np.abs(obs - pred))
+
+        pred_loss = loss.total_loss(obs, pred)
+        assert_equal(pred_loss, test_loss)
+        
+        # Test sum of squares loss function
+        test_loss = np.sum((obs - pred)**2)
+        pred_loss = get_sum_of_squares(obs, pred)
+        assert_equal(test_loss, pred_loss)
+
+        # Test MSE loss function 
+        loss_fxn = 'np.abs(obs - pred) / len(obs)'
+        loss = gen_loss_function(loss_fxn)
+
+        test_loss = np.sum(np.abs(obs - pred) / len(obs))
+        pred_loss = loss.total_loss(obs, pred)
+        assert_equal(test_loss, pred_loss)
+        
+
+
 #         
 #
 #    def test_ks_two_sample(self):

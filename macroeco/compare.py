@@ -26,6 +26,7 @@ Comparison Functions
 from __future__ import division
 
 import numpy as np
+import scipy as sp
 import scipy.stats as stats
 import pandas as pd
 
@@ -35,10 +36,19 @@ from distributions import *
 # suggest dropping all of the get prefixes
 
 
+def get_nll(values):
+    """
+    Calculate negative log likelihood from an array of pdf/pmf values.
+    """
+
+    values = _to_arrays(values)[0]
+    return -np.sum(np.log(values))
+
 def get_AIC(values, params):
     """
     Calculate AIC given values of a pdf/pmf and a set of model parameters.
     """
+    values, params = _to_arrays(values, params)
     k = len(params)  # Num parameters
     L = get_nll(values)
     return 2*k + 2*L
@@ -59,7 +69,8 @@ def get_AICC(values, params):
         York City, USA: Springer.
 
     """
-
+    
+    values, params = _to_arrays(values, params)
     k = len(params)  # Num parameters
     n = len(values)  # Num observations
     return get_AIC(values, params) + (2*k * (k + 1)) / (n - k - 1)
@@ -93,11 +104,6 @@ def get_AIC_weights(aic_values):
 
     return weights, delta
 
-def get_nll(values):
-    """
-    Calculate negative log likelihood from an array of pdf/pmf values.
-    """
-    return -np.sum(np.log(values))
 
 def get_empirical_cdf(data):
     """
@@ -122,7 +128,7 @@ def get_empirical_cdf(data):
 
     return np.array(ecdf[0])
 
-class _gen_loss_function(object):
+class gen_loss_function(object):
     """
     Generic class for loss function between observed and predicted data
 
@@ -136,7 +142,12 @@ class _gen_loss_function(object):
             A Python string representing the loss function between observed
             (obs) and predicted (pred).
 
-        Ex. 'np.abs(obs - pred)' or (obs - pred)**2
+        Notes
+        -----
+
+        Ex. 'np.abs(obs - pred)' or '(obs - pred)**2'
+
+        
         """
         self.loss_fxn = loss_fxn_str
 
@@ -158,10 +169,62 @@ class _gen_loss_function(object):
         obs, pred = _to_arrays(obs, pred)
         return np.sum(eval(self.loss_fxn))
 
-get_sum_of_squares = _gen_loss_function('(obs - pred)**2').total_loss
+get_sum_of_squares = gen_loss_function('(obs - pred)**2').total_loss
+
+def get_r_squared(obs, pred):
+    """
+
+    Get's the R^2 value for a regression of observed data (X) and predicted (Y)
+
+    Parameters
+    ----------
+    obs, pred : array-like objects
+
+    Returns
+    -------
+    : float
+        The R**2 value for the regression of 
+
+    """
+
+    b0, b1, r, p_value, se = stats.linregress(obs, pred)
+    return r**2
+
+def get_ks_two_sample():
+    """
+    Two sample Kolmogorov Smirnov distribution.  Uses the cumulative
+    distribution functions to test whether two samples were drawn from the same
+    continuous distribution. Can be a decent approxmiation for discrete data
+    (CHECK THIS), but the chi-squared test may be more appropriate. 
+
+    """
+
+    pass
+
+def get_ks_one_sample():
+    pass
+
+def get_lrt():
+    pass
+
+def get_bayes_factor():
+    pass
+
+def get_chi_squared():
+    pass
+
+def bin_data():
+    pass
+
+
+
+
+
+
         
 def _to_arrays(*args):
     '''
     Converts all args to np.arrays
     '''
-    return tuple([np.array(ta) for ta in args])    
+    return tuple([np.array(ta) if np.iterable(ta) else np.array([ta]) for ta in
+                                            args])   
