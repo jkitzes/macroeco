@@ -19,7 +19,9 @@ Comparison Functions
    get_nll
    get_empirical_cdf
    get_sum_of_squares
-
+   get_r_squared
+   get_chi_squared
+   bin_data
 
 """
 
@@ -80,15 +82,15 @@ def get_AICC(values, params):
 
 def get_AIC_weights(aic_values):
     """
-    Calculates the aic_weights for a given set of models
+    Calculates the aic_weights for a given set of models.
 
     Parameters
-    ----------
+    -----------------
     aic_values : array-like object
         Array-like object containing AIC values from different models
 
     Returns
-    -------
+    -------------
     (weights, delta) : tuple
         First element contains the relative AIC weights, second element
         contains the delta AIC values.
@@ -280,7 +282,15 @@ def bin_data(data, max_num):
 
     Returns
     ------------
-    tuple : (binned_data, bins_edges)
+    tuple : (binned_data, bin_edges)
+
+    References
+    -----------------
+
+    .. [#]
+        Preston, F. (1962). The canonical distribution of commonness and rarity.
+        Ecology, 43, 185-215
+
     """
     log_ub = np.ceil(np.log2(max_num))
 
