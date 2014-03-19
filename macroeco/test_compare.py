@@ -12,9 +12,8 @@ from numpy.testing import (TestCase, assert_equal, assert_array_equal,
 from macroeco.compare import *
 import numpy as np
 import scipy.stats as stats
-import copy
-import macroeco.distributions as dist
 import numpy.testing as nt
+
 
 class TestCompare(TestCase):
     '''Test Methods in compare.py'''
@@ -23,7 +22,7 @@ class TestCompare(TestCase):
         
         # Test against R result: sum(dnorm(c(1,2,3,4,5), log=TRUE))
         R_res = 32.09469
-        test_vals = stats.norm.pdf((1,2,3,4,5))
+        test_vals = stats.norm.pdf((1, 2, 3, 4, 5))
         lglk = get_nll(test_vals)
         assert_equal(R_res, np.round(lglk, decimals=5))
 
@@ -32,35 +31,34 @@ class TestCompare(TestCase):
         #Test against R's ecdf function
 
         # Test Case 1
-        test_data = [1,1,1,1,2,3,4,5,6,6]
-        R_res = [.4,.4,.4,.4,.5,.6,.7,.8,1,1]
+        test_data = [1, 1, 1, 1, 2, 3, 4, 5, 6, 6]
+        R_res = [.4, .4, .4, .4, .5, .6, .7, .8, 1, 1]
         res = get_empirical_cdf(test_data)
         assert_array_equal(R_res, res)
         
         # Test Case 2
-        test_data = [3,3,3,3]
-        R_res = [1,1,1,1]
+        test_data = [3, 3, 3, 3]
+        R_res = [1, 1, 1, 1]
         res = get_empirical_cdf(test_data)
         assert_array_equal(R_res, res)
 
     def test_aic(self):
         
-        test_vals = stats.norm.pdf((1,2,3,4,5,6,7,8))
-        aic1 = get_AIC(test_vals, (1,1))
+        test_vals = stats.norm.pdf((1, 2, 3, 4, 5, 6, 7, 8))
+        aic1 = get_AIC(test_vals, (1, 1))
         expected = 222.703016531  # Calculated by hand
         assert_equal(np.round(aic1, decimals=9), expected)
 
-
-        test_vals = stats.gamma.pdf((1,1,1,4,5,7,12),2)
-        aic1 = get_AIC(test_vals, (1,1))
+        test_vals = stats.gamma.pdf((1, 1, 1, 4, 5, 7, 12), 2)
+        aic1 = get_AIC(test_vals, (1, 1))
         expected = 51.146902
         assert_equal(np.round(aic1, decimals=6), expected)
 
     def test_aicc(self):
         
         # Test values
-        test_vals = stats.norm.pdf((1,2,3,4,5,6,7,8))
-        aic1 = get_AICC(test_vals, (1,1))
+        test_vals = stats.norm.pdf((1, 2, 3, 4, 5, 6, 7, 8))
+        aic1 = get_AICC(test_vals, (1, 1))
 
         # Test that aicc gives the correct values
         expected = 225.10302
@@ -69,13 +67,13 @@ class TestCompare(TestCase):
     def test_aic_weights(self):
         
         # Test values
-        vals = [1,1,1,2,3,4,7,23,78]
+        vals = [1, 1, 1, 2, 3, 4, 7, 23, 78]
         values = [stats.norm.pdf(vals, scale=100), stats.norm.pdf(vals,
                                                                     scale=99)]
 
         aic_vals = [get_AICC(tval, 1) for tval in values]
         aicw, delta_aic = get_AIC_weights(aic_vals)
-        pred = np.array([ 0.47909787,  0.52090213])
+        pred = np.array([0.47909787, 0.52090213])
         assert_array_almost_equal(aicw, pred)
 
     def test_gen_loss_function(self):
@@ -92,18 +90,82 @@ class TestCompare(TestCase):
         assert_equal(pred_loss, test_loss)
         
         # Test sum of squares loss function
-        test_loss = np.sum((obs - pred)**2)
+        test_loss = np.sum((obs - pred) ** 2)
         pred_loss = get_sum_of_squares(obs, pred)
         assert_equal(test_loss, pred_loss)
 
-        # Test MSE loss function 
+        # Test MSE loss function
         loss_fxn = 'np.abs(obs - pred) / len(obs)'
         loss = gen_loss_function(loss_fxn)
 
         test_loss = np.sum(np.abs(obs - pred) / len(obs))
         pred_loss = loss.total_loss(obs, pred)
         assert_equal(test_loss, pred_loss)
-        
+
+    def test_r_squared(self):
+
+        # Already unittested in scipy. Checking for functionaliity
+        test_data = np.random.randint(5, 100, 100)
+        rsq = get_r_squared(test_data, test_data)
+        assert_equal(rsq, 1)
+
+    def test_chi_squared(self):
+
+        # Compare two distributions
+        # Chi squared function itself is already unittested in scipy
+
+        bin_max = 16
+        p = 0.99
+        dist1 = stats.logser(p=p).rvs(100)
+        dist2 = stats.logser(p=p).rvs(100)
+
+        bin1 = bin_data(dist1, np.max(bin_max))[0]
+        bin2 = bin_data(dist2, np.max(bin_max))[0]
+
+        res = get_chi_squared([bin1, bin2])
+
+        # Check three distributions
+        dist3 = stats.logser(p=p).rvs(100)
+        bin3 = bin_data(dist3, np.max(bin_max))[0]
+
+        res = get_chi_squared([bin1, bin2, bin3])
+
+        # Check error is thrown with only one dist
+        assert_raises(AssertionError, get_chi_squared, [bin1])
+
+        # Check error is thrown if bins are different lengths
+        assert_raises(AssertionError, get_chi_squared, [bin1, bin2[:-1]])
+
+    def test_bin_data(self):
+
+        # Test against R's vegan prestonfit: prestonfit(data, tiesplit=FALSE)
+        # Note that vegan drops the bins with 0 values
+
+        data = np.array([1, 1, 1, 1, 2, 2, 4, 4, 8, 16, 17.1, 89])
+        vegan = np.array([4, 2, 2, 1, 1, 1, 0, 1], dtype=np.float)
+        test_res = bin_data(data, max(data))[0]
+        assert_array_equal(test_res, vegan)
+
+        data = np.array([1, 1, 1, 1, 4, 5, 6, 7, 12, 34, 56])
+        vegan = np.array([4, 0, 1, 3, 1, 0, 2], dtype=np.float)
+        test_res = bin_data(data, max(data))[0]
+        assert_array_equal(test_res, vegan)
+
+        # Test boundary condition
+        data = np.array([1, 2])
+        vegan = np.array([1, 1], dtype=np.float)
+        test_res = bin_data(data, max(data))[0]
+        assert_array_equal(test_res, vegan)
+
+        data = np.array([1, 1, 1])
+        vegan = np.array([3], dtype=np.float)
+        test_res = bin_data(data, max(data))[0]
+        assert_array_equal(test_res, vegan)
+
+        data = np.array([1, 2, 3])
+        vegan = np.array([1, 1, 1], dtype=np.float)
+        test_res = bin_data(data, max(data))[0]
+        assert_array_equal(test_res, vegan)
 
 
 #         

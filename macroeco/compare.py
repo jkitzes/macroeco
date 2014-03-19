@@ -4,7 +4,7 @@ Compare (:mod:`macroeco.compare`)
 ===========================
 
 This module contains functions that compare the goodness of fit of a
-distribution/curve to data or the fit of two distributions/curves to each 
+distribution/curve to data or the fit of two distributions/curves to each
 other.
 
 Comparison Functions
@@ -44,6 +44,7 @@ def get_nll(values):
     values = _to_arrays(values)[0]
     return -np.sum(np.log(values))
 
+
 def get_AIC(values, params):
     """
     Calculate AIC given values of a pdf/pmf and a set of model parameters.
@@ -51,7 +52,8 @@ def get_AIC(values, params):
     values, params = _to_arrays(values, params)
     k = len(params)  # Num parameters
     L = get_nll(values)
-    return 2*k + 2*L
+    return 2 * k + 2 * L
+
 
 def get_AICC(values, params):
     """
@@ -69,11 +71,12 @@ def get_AICC(values, params):
         York City, USA: Springer.
 
     """
-    
+
     values, params = _to_arrays(values, params)
     k = len(params)  # Num parameters
     n = len(values)  # Num observations
-    return get_AIC(values, params) + (2*k * (k + 1)) / (n - k - 1)
+    return get_AIC(values, params) + (2 * k * (k + 1)) / (n - k - 1)
+
 
 def get_AIC_weights(aic_values):
     """
@@ -83,7 +86,7 @@ def get_AIC_weights(aic_values):
     ----------
     aic_values : array-like object
         Array-like object containing AIC values from different models
-    
+
     Returns
     -------
     (weights, delta) : tuple
@@ -97,7 +100,7 @@ def get_AIC_weights(aic_values):
     """
 
     aic_values = _to_arrays(aic_values)[0]
-    minimum = np.min(aic_values) 
+    minimum = np.min(aic_values)
     delta = aic_values - minimum
     values = np.exp(-delta / 2)
     weights = values / np.sum(values)
@@ -112,7 +115,7 @@ def get_empirical_cdf(data):
     Parameters
     ----------
     data : array-like object
-        Empirical data 
+        Empirical data
 
     Returns
     --------
@@ -127,6 +130,7 @@ def get_empirical_cdf(data):
     ecdf = ecdf.join(probs)
 
     return np.array(ecdf[0])
+
 
 class gen_loss_function(object):
     """
@@ -147,13 +151,12 @@ class gen_loss_function(object):
 
         Ex. 'np.abs(obs - pred)' or '(obs - pred)**2'
 
-        
         """
         self.loss_fxn = loss_fxn_str
 
     def total_loss(self, obs, pred):
         """
-        Total loss for observed and predicted 
+        Total loss for observed and predicted
 
         Parameters
         ----------
@@ -171,6 +174,7 @@ class gen_loss_function(object):
 
 get_sum_of_squares = gen_loss_function('(obs - pred)**2').total_loss
 
+
 def get_r_squared(obs, pred):
     """
 
@@ -183,36 +187,41 @@ def get_r_squared(obs, pred):
     Returns
     -------
     : float
-        The R**2 value for the regression of 
+        The R**2 value for the regression of observed on predicted
 
     """
 
     b0, b1, r, p_value, se = stats.linregress(obs, pred)
-    return r**2
+    return r ** 2
+
 
 def get_ks_two_sample():
     """
     Two sample Kolmogorov Smirnov distribution.  Uses the cumulative
     distribution functions to test whether two samples were drawn from the same
     continuous distribution. Can be a decent approxmiation for discrete data
-    (CHECK THIS), but the chi-squared test may be more appropriate. 
+    (CHECK THIS), but the chi-squared test may be more appropriate.
 
     """
 
     pass
+
 
 def get_ks_one_sample():
     pass
 
+
 def get_lrt():
     pass
+
 
 def get_bayes_factor():
     pass
 
+
 def get_chi_squared(dists):
     """
-    Chi-squared test to compare two or more distributions. 
+    Chi-squared test to compare two or more distributions.
 
     Parameters
     ------------------
@@ -238,41 +247,52 @@ def get_chi_squared(dists):
     Assumption of the Chi-squared test is that the expected value of 80% of
     the cells is > 5.  If this does not hold, the Normal approximation is not
     valid and you should try an alternative approach.
+
+    If all of the cells in a column contain zero and error will because teh
+    expected value of the cell is 0.
     """
 
     assert len(dists) > 1, "Length of dists must be greater than 1"
     test_len = len(dists[0])
-    assert np.all([len(dt) == test_len for dit in dists], "All dists must have"
-        + " equal length"
+    assert np.all([len(dt) == test_len for dt in dists]), \
+                "All dists must have equal length"
 
     chi_table = np.array(dists, dtype=np.float)
-    chi2, p, dof, expected = stats.chi2_contingency(chi_table, correction=False)
+    chi2, p, dof, expected = stats.chi2_contingency(chi_table,
+                        correction=False)
 
     return chi2, p, dof, expected
 
+
 def bin_data(data, max_num):
     """
-    Bins the data on base 2. Bins such that the right boundary is exlusive and
-    the left boundary is inclusive.  Does not split density between bins.
+    Bins the data on base 2.  Uses Preston's method of binning which has
+    exclusive lower boundaries and inclusive upper boundaries. Densities are
+    not split between bins.
 
     Parameters
     ------------------
     data : array-like
-        Data to be binned 
+        Data to be binned
 
     max_num :  float
         The maximum upper most boundary of the data
 
-    base : float
-        The base for log binning
-
     Returns
     ------------
     tuple : (binned_data, bins_edges)
-    
     """
     log_ub = np.ceil(np.log2(max_num))
-    boundaries = 2**np.arange(0, log_ub + 1)
+
+    # Make an exclusive lower bound in keeping with Preston
+    if log_ub == 0:
+        boundaries = np.array([0, 1])
+    elif log_ub == 1:
+        boundaries = np.arange(1, 4)
+    else:
+        boundaries = 2 ** np.arange(0, log_ub + 1)
+        boundaries = np.insert(boundaries, 2, 3)
+        boundaries[3:] = boundaries[3:] + 1
 
     hist_data = np.histogram(data, bins=boundaries)
     return hist_data
@@ -283,4 +303,4 @@ def _to_arrays(*args):
     Converts all args to np.arrays
     '''
     return tuple([np.array(ta) if np.iterable(ta) else np.array([ta]) for ta in
-                                            args])   
+                                            args])
