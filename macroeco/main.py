@@ -146,44 +146,53 @@ def _analyze_empirical(options):
     # TODO: (In empirical) Create result objects rather than strange lists of
     # nested tuples.
     
-    # If no data path is given or data path invalid, raise error
-    try:
-        data_path = os.path.normpath(os.path.join(options['param_dir'], 
-                                                  options['data']))
-    except Exception:
-        raise IOError, "Path to data file is invalid."
+    # If no metadata path is given or data path invalid, raise error
+    metadata_path = os.path.normpath(os.path.join(options['param_dir'], 
+                                                  options['metadata']))
+    if not os.path.isfile(metadata_path):
+        raise IOError, "Path to metadata file %s is invalid." % metadata_path
 
     # Create Patch object for this data
-    patch = Patch(data_path)
+    patch = Patch(metadata_path)
 
     # Get cols and splits variable (req by all metrics) and add to options
     options['cols'], options['splits'] = _get_cols_splits(options)
 
     # Get names of args and kwargs to method specified by metric option
     exec ("arg_and_kwd_names, _, _, kw_defaults = "
-          "inspect.getargspec(Patch.%s)" % options['metric'])
-    arg_names = arg_and_kwd_names[1:-len(kw_defaults)] # Ignore first arg self
+          "inspect.getargspec(%s)" % options['metric'])
+    if kw_defaults:
+        arg_names = arg_and_kwd_names[1:-len(kw_defaults)]  # Ignore patch
     kw_names = arg_and_kwd_names[-len(kw_defaults):]
+    else:
+        arg_names = arg_and_kwd_names[1:]
+        kw_names = []
 
     # Create list with vals for all args and dict with vals for all kwargs
     # All required args must be in options
-    args = []
+    args = []  # Patch is always first argument
     for arg_name in arg_names:
         try:
             exec 'args.append(eval("%s"))' % options[arg_name]
+        except SyntaxError: # eval failing because option is a string
+            exec 'args.append("%s")' % options[arg_name]
         except:
             raise ValueError, ("Value for required argument %s not provided"
                                % arg_name)
 
     kwargs = {}
     for kw_name in kw_names:
+        if kw_name in options.keys():
         try:
-            exec "kwargs[kw_name]=eval(%s)" % options[kw_name]
-        except Exception:
-            pass
+                exec 'kwargs[kw_name]=eval("%s")' % options[kw_name]
+            except SyntaxError:  # eval failing because option is a string
+                exec 'kwargs[kw_name]="%s"' % options[kw_name]
+            except:
+                raise ValueError, ("Value for optional argument %s is invalid" 
+                                   % kw_name)
 
     # Call Patch method with appropriate args and return result
-    return eval("patch.%s(*args, **kwargs)" % options['metric'])
+    return eval("%s(patch, *args, **kwargs)" % options['metric'])
 
 
 def _get_cols_splits(options):
@@ -199,7 +208,7 @@ def _get_cols_splits(options):
     if 'splits' in options.keys():
         splits = options['splits']
     else:
-        splits = {}
+        splits = None
 
     # Cols may be given as option or individual col options may be options
     if 'cols' in options.keys():
