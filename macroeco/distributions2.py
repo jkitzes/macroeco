@@ -103,8 +103,7 @@ _docdict_discrete_allmeth = docdict_discrete['allmethods'][17:]
 _docdict_allmeth = _docdict_allmeth.replace(', **kwds','')
 
 # Create docstring helpers
-docdict['before_notes'] = ''.join([_docdict_allmeth,                              
-                                   docdict['callparams']])
+docdict['before_notes'] = ''.join([_docdict_allmeth,docdict['callparams']])
 
 docdict_discrete['before_notes'] = ''.join([_docdict_discrete_allmeth,
                                             docdict['callparams']]) 
