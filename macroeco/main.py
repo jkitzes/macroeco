@@ -283,7 +283,7 @@ def _analyze_models_from_data(options, emp_results):
     for emp_result in emp_results:
         output_emp_result = {}
         for model in models:
-            data = emp_result[1]
+            data = emp_result[1]['y'].values
             fits = _get_fits(data, model)
             values = _get_values(data, model, fits)
             stat_names, stats = _get_comparison_statistic(values, fits)
@@ -440,7 +440,7 @@ def _data_pred_dist(cidx, models, options, emp_results, mod_results):
     Also make plots for all three
     """
 
-    emp_result = emp_results[cidx][1]
+    emp_result = emp_results[cidx][1]['y'].values
     n_vals = len(emp_result)
 
     # CDF
@@ -486,12 +486,13 @@ def _data_pred_dist(cidx, models, options, emp_results, mod_results):
 
 
 def _save_table_and_plot(cidx, models, options, mod_results, name, x, emp, 
-                         calc_func, plot_exec_str, x_plot_mult=1):
+                         calc_func, plot_exec_str):
 
     f_path = _get_file_path(cidx, options, '%s.csv' % name)
     p_path = _get_file_path(cidx, options, '%s.png' % name)
 
-    df = DataFrame({'x': x * x_plot_mult})
+
+    df = DataFrame({'x': x})
     df['empirical'] = emp
     for model in models:
         mod_result = mod_results[cidx][model]
