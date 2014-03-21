@@ -51,13 +51,13 @@ def main(param_path='parameters.txt'):
         Path to directory containing user-generated parameter file
 
     """
-  
+
     # Confirm file is present and extract dir name
     # TODO: Because of log catch in twiggy_setup, this doesn't print anything
     if not os.path.isfile(param_path):
         raise IOError, "Parameter file not found at %s" % param_path
     param_dir = os.path.dirname(param_path)
-    
+        
     # Get logger and announce start
     log = get_log(param_dir, clear=True)
     log.info('Starting analysis')
@@ -163,7 +163,7 @@ def _analyze_empirical(options):
           "inspect.getargspec(%s)" % options['metric'])
     if kw_defaults:
         arg_names = arg_and_kwd_names[1:-len(kw_defaults)]  # Ignore patch
-    kw_names = arg_and_kwd_names[-len(kw_defaults):]
+        kw_names = arg_and_kwd_names[-len(kw_defaults):]
     else:
         arg_names = arg_and_kwd_names[1:]
         kw_names = []
@@ -183,7 +183,7 @@ def _analyze_empirical(options):
     kwargs = {}
     for kw_name in kw_names:
         if kw_name in options.keys():
-        try:
+            try:
                 exec 'kwargs[kw_name]=eval("%s")' % options[kw_name]
             except SyntaxError:  # eval failing because option is a string
                 exec 'kwargs[kw_name]="%s"' % options[kw_name]
@@ -456,17 +456,16 @@ def _data_pred_dist(cidx, models, options, emp_results, mod_results):
                          x, emp_cdf, calc_func, plot_exec_str)
 
     # RAD
-    x = np.arange(n_vals)/float(n_vals) + 0.5/float(n_vals)
+    x = np.arange(n_vals) + 1
     emp_rad = np.sort(emp_result)[::-1]
 
     def calc_func(model, x, shapes):
-        return eval("%s.ppf(x, *shapes)" % model)[::-1]
+        return eval("%s.ppf((x-0.5)/len(x), *shapes)" % model)[::-1]
 
-    plot_exec_str = "ax.step(x * x_plot_mult, emp, color='k')"
+    plot_exec_str = "ax.scatter(x, emp, color='k')"
 
     _save_table_and_plot(cidx, models, options, mod_results, 'data_pred_rad', 
-                         x, emp_rad, calc_func, plot_exec_str, 
-                         x_plot_mult=n_vals)
+                         x, emp_rad, calc_func, plot_exec_str)
 
     # PDF/PMF
     hist_bins = 11
