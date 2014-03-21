@@ -143,34 +143,68 @@ def _analyze_empirical(options):
         elements are not used.
 
     """
-    # TODO: (In empirical) Create result objects rather than strange lists of
-    # nested tuples.
-    
+
     # If no metadata path is given or data path invalid, raise error
     metadata_path = os.path.normpath(os.path.join(options['param_dir'], 
                                                   options['metadata']))
     if not os.path.isfile(metadata_path):
         raise IOError, "Path to metadata file %s is invalid." % metadata_path
 
-    # Create Patch object for this data
+    # Get analysis arguments
     patch = Patch(metadata_path)
+    options['cols'], options['splits'] = _get_cols_splits(options, patch)
+    args, kwargs = _get_args_kwargs(options)
 
-    # Get cols and splits variable (req by all metrics) and add to options
-    options['cols'], options['splits'] = _get_cols_splits(options)
+    # Call metric function and return result
+    return eval("%s(patch, *args, **kwargs)" % options['metric'])
+
+def _get_cols_splits(options, patch):
+    """
+    Notes
+    -----
+    Always returns strings, even if dictionary or list is constructed here, to 
+    ensure consistency with provided options.
+
+    """
+
+    cols = {}
+    special_cols = ['spp_col', 'count_col', 'energy_col', 'mass_col']
+
+    # Cols may be given as option or individual col options may be options
+    if 'cols' in options.keys():
+        cols = eval(options['cols'])  # Must be string representing dict
+    else:
+        for col in special_cols:
+            cols[col] = options.get(col, None)
+    
+    # If col is still None, try to fall back to metadata
+    for col in special_cols:
+        if cols[col] is None:
+            cols[col] = patch.meta['Description'].get(col, None)
+
+    # Splits may be given as option, else is set to None
+    if 'splits' in options.keys():
+        splits = options['splits']
+    else:
+        splits = None
+
+    return str(cols), str(splits)
+
+
+def _get_args_kwargs(options):
 
     # Get names of args and kwargs to method specified by metric option
     exec ("arg_and_kwd_names, _, _, kw_defaults = "
           "inspect.getargspec(%s)" % options['metric'])
-    if kw_defaults:
+    if kw_defaults:  # If there are kwargs
         arg_names = arg_and_kwd_names[1:-len(kw_defaults)]  # Ignore patch
         kw_names = arg_and_kwd_names[-len(kw_defaults):]
-    else:
-        arg_names = arg_and_kwd_names[1:]
+    else:  # If no kwargs
+        arg_names = arg_and_kwd_names[1:]  # Ignore patch
         kw_names = []
 
-    # Create list with vals for all args and dict with vals for all kwargs
-    # All required args must be in options
-    args = []  # Patch is always first argument
+    # Create list with vals for all args - all args must be in options
+    args = []
     for arg_name in arg_names:
         try:
             exec 'args.append(eval("%s"))' % options[arg_name]
@@ -180,45 +214,17 @@ def _analyze_empirical(options):
             raise ValueError, ("Value for required argument %s not provided"
                                % arg_name)
 
+    # Create dict with vals for all kwargs - kwargs may be present or absent
     kwargs = {}
     for kw_name in kw_names:
-        if kw_name in options.keys():
+        if kw_name in options.keys():  # If a value is given for this kwarg
             try:
                 exec 'kwargs[kw_name]=eval("%s")' % options[kw_name]
-            except SyntaxError:  # eval failing because option is a string
+            except SyntaxError:  # eval failing because value is a string
                 exec 'kwargs[kw_name]="%s"' % options[kw_name]
             except:
                 raise ValueError, ("Value for optional argument %s is invalid" 
                                    % kw_name)
-
-    # Call Patch method with appropriate args and return result
-    return eval("%s(patch, *args, **kwargs)" % options['metric'])
-
-
-def _get_cols_splits(options):
-    """
-    Notes
-    -----
-    Always returns strings, even if dictionary or list is constructed here, to 
-    ensure consistency with provided options.
-
-    """
-
-    # Splits may be given as option, else is set to empty
-    if 'splits' in options.keys():
-        splits = options['splits']
-    else:
-        splits = None
-
-    # Cols may be given as option or individual col options may be options
-    if 'cols' in options.keys():
-        cols = options['cols']
-    else:
-        cols = {}
-        for col in ['spp_col', 'count_col', 'energy_col', 'mass_col']:
-            cols[col] = options.get(col, None)
-
-    return str(cols), str(splits)
 
 
 def _analyze_models(options, emp_results):
