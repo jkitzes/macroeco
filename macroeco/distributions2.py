@@ -479,7 +479,7 @@ class nbinom_gen(spdist.nbinom_gen):
         parameter k.
 
         """
-        assert len(data) > 20, "nbinom fit is not stable with <20 data points"
+        #assert len(data)>20, "nbinom fit is not stable with <20 data points"
         mu = np.mean(data)
         return mu, _nbinom_solve_k_from_mu(data, mu, k_range)
 
