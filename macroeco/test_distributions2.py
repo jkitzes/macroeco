@@ -52,6 +52,11 @@ class TestGeomUptrunc(TestCase):
         # Expected values are regular geom cdf divided by cdf at b
         vals = geom_uptrunc.cdf([0,1,2], 0.5, 2)
         assert_array_almost_equal(vals, np.array([0.5,0.75,0.875])/0.875)
+
+    def test_cdf_x_len_1(self):
+        # cdf should be not throw error even if x is len 1
+        vals = geom_uptrunc.cdf(0, 0.5, 2)
+        assert_almost_equal(vals, 0.5/0.875)
     
     def test_mean(self):
         mu1 = geom_uptrunc.mean(0.801, 32)
