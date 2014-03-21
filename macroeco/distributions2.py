@@ -348,8 +348,8 @@ class geom_uptrunc_gen(rv_discrete_meco):
     limit.
 
     This distribution is known as the Pi distribution in the MaxEnt Theory of 
-    Ecology [#]_, where the ``p`` parameter is known as ``exp(-lambda)``. The 
-    special case of a uniform pmf has been described as HEAP [#]_.
+    Ecology [#]_, where the ``p`` parameter is given by ``1 - exp(-lambda)``. 
+    The special case of a uniform pmf has been described as HEAP [#]_.
 
     References
     ----------
@@ -384,8 +384,8 @@ class geom_uptrunc_gen(rv_discrete_meco):
         return _geom_solve_p_from_mu_vect(mu, b), b
 
     def _argcheck(self, p, b):
-        # Unlike the traditional geometric, p can be > 0
-        return (p >= 0)
+        # Unlike the traditional geometric, p can be < 0
+        return (p <= 1)
 
     def _pmf(self, x, p, b):
         pmf = (1.0-p)**x * p / (1.0-(1.0-p)**(b+1))
@@ -413,11 +413,12 @@ def _geom_solve_p_from_mu(mu, b):
     Ref: Harte 2011, Oxford U Press. Eq. 7.50.
     """
 
-    def p_eq(p, mu, b):
-        p, mu, b = Decimal(p), Decimal(mu), Decimal(b)
-        return ( (p / (1 - p)) - ((b + 1) / (p**-b - 1)) - mu )
+    def p_eq(x, mu, b):
+        x, mu, b = Decimal(x), Decimal(mu), Decimal(b)
+        return ( (x / (1 - x)) - ((b + 1) / (x**-b - 1)) - mu )
 
-    return optim.brentq(p_eq, 1e-9, 20, args=(mu, b), disp=True)
+    # x here is the param raised to the k power, or 1 - p
+    return 1 - optim.brentq(p_eq, 1e-9, 20, args=(mu, b), disp=True)
 
 _geom_solve_p_from_mu_vect = np.vectorize(_geom_solve_p_from_mu)
 

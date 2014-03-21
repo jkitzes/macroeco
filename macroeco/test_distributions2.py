@@ -70,7 +70,7 @@ class TestGeomUptrunc(TestCase):
         # From Harte 2011, Oxford U Press, Tab 7.4, n0=16 row, Eq 7.50
         b = 16
         mu = np.array([2, 1])  # A0/8, A0/16
-        expected = np.array([0.669, 0.500])
+        expected = np.array([1-0.669, 1-0.500])
         ps, _ = geom_uptrunc.translate_args(mu, b)
         assert_almost_equal(ps, expected, decimal=3)
 
@@ -78,7 +78,7 @@ class TestGeomUptrunc(TestCase):
         # From Harte 2011, Oxford U Press, Tab 7.4, n0=32 row, Eq 7.50
         b = 32
         mu = np.array([4, 2])  # A0/8, A0/16
-        expected = np.array([0.801, 0.667])
+        expected = np.array([1-0.801, 1-0.667])
         ps, _ = geom_uptrunc.translate_args(mu, b)
         assert_almost_equal(ps, expected, decimal=3)
 
@@ -86,23 +86,25 @@ class TestGeomUptrunc(TestCase):
         # TODO: Confirm last 4 of tests, which more accurate
         b = np.array([60, 340, 34])
         mu = np.array([60*.1, 340*.6, 34*.9])
-        expected = np.array([.8572, 1.0036, 1.2937])
+        expected = np.array([1-.8572, 1-1.0036, 1-1.2937])
         ps, _ = geom_uptrunc.translate_args(mu, b)
         assert_almost_equal(ps, expected, decimal=3)
 
     def test_translate_args_with_sum_of_pmf(self):
         p1, b1 = geom_uptrunc.translate_args(341/4, 341)  # Issue 33
-        assert_array_almost_equal(1,np.sum(geom_uptrunc.pmf(range(101),p1,b1)))
+        assert_array_almost_equal(1,np.sum(geom_uptrunc.pmf(range(342),p1,b1)))
 
         p2, b2 = geom_uptrunc.translate_args(120, 200)  # Arbitrary
-        assert_array_almost_equal(1,np.sum(geom_uptrunc.pmf(range(101),p2,b2)))
+        print p2, b2
+        print (geom_uptrunc.pmf(range(201),p2,b2))
+        assert_array_almost_equal(1,np.sum(geom_uptrunc.pmf(range(201),p2,b2)))
 
     def test_fit2(self):
         p1, _ = geom_uptrunc.fit2([0,10], 10)
-        assert_almost_equal(p1, 1)
+        assert_almost_equal(p1, 0)
 
         p2, _ = geom_uptrunc.fit2([1,3], 16)
-        assert_almost_equal(p2, 0.669, decimal=3)
+        assert_almost_equal(p2, 1-0.669, decimal=2)
 
 
 class TestNbinom(TestCase):
