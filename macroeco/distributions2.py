@@ -396,7 +396,10 @@ class geom_uptrunc_gen(rv_discrete_meco):
     def _cdf(self, x, p, b):
         x = np.floor(x)
         cdf = (1.0-(1.0-p)**(x+1)) / (1.0-(1.0-p)**(b+1))
-        cdf[x > b] = 1
+        try:
+            cdf[x > b] = 1  # Only valid if len(x)>1
+        except:
+            pass
         return cdf
 
     def _stats(self, p, b):
