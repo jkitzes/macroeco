@@ -347,19 +347,6 @@ def ssad(patch, cols, splits=''):
 
     Notes
     -----
-    The parameter `splits` is used differently in the SSAD than in the other 
-    metrics. Here, `splits` should be used to define a set of cells over which 
-    the abundance of each species will be evaluated. The SSAD will then return 
-    a vector result for each species found in the patch, where the elements of 
-    the vector are the abundances of the species in each subplot defined by the 
-    `splits` parameter.
-
-    For example, when given the splits string "x:2, y:2", most metrics will 
-    return 4 results, one for each cell, in which a multi-species analysis has
-    been performed. The SSAD will instead return S results, where S is the 
-    number of species in patch, where each result is a vector of length 4 
-    giving the abundance of the species in each of the 4 subplots.
-
     {2}
     {3}
 
