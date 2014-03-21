@@ -51,6 +51,7 @@ def main(param_path='parameters.txt'):
     """
   
     # Confirm file is present and extract dir name
+    # TODO: Because of log catch in twiggy_setup, this doesn't print anything
     if not os.path.isfile(param_path):
         raise IOError, "Parameter file not found at %s" % param_path
     param_dir = os.path.dirname(param_path)
