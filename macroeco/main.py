@@ -559,3 +559,6 @@ def _get_file_path(cidx, options, file_name):
     return os.path.join(options['run_dir'],
                         '%i_%s' % (cidx+1, file_name))
 
+
+if __name__ == '__main__':
+    main(sys.argv[1])
