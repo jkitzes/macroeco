@@ -42,9 +42,8 @@ from decimal import Decimal
 import numpy as np
 import numpy.random as nprand
 
-#from scipy.misc.doccer import inherit_docstring_from
 from scipy.stats.distributions import (rv_discrete, rv_continuous, docdict, 
-                                       docdict_discrete, docheaders)
+                                       docdict_discrete)
 import scipy.stats.distributions as spdist
 import scipy.optimize as optim
 import scipy.special as special
@@ -58,40 +57,7 @@ def inherit_docstring_from(cls):
     If the decorated method has no docstring, it is simply given the
     docstring of `cls`s method.
 
-    Parameters
-    ----------
-    cls : Python class or instance
-        A class with a method with the same name as the decorated method.
-        The docstring of the method in this class replaces '%(super)s' in the
-        docstring of the decorated method.
-
-    Returns
-    -------
-    f : function
-        The decorator function that modifies the __doc__ attribute
-        of its argument.
-
-    Examples
-    --------
-    In the following, the docstring for Bar.func created using the
-    docstring of `Foo.func`.
-
-    >>> class Foo(object):
-    ...     def func(self):
-    ...         '''Do something useful.'''
-    ...         return
-    ...
-    >>> class Bar(Foo):
-    ...     @inherit_docstring_from(Foo)
-    ...     def func(self):
-    ...         '''%(super)s
-    ...         Do it fast.
-    ...         '''
-    ...         return
-    ...
-    >>> b = Bar()
-    >>> b.func.__doc__
-    'Do something useful.\n        Do it fast.\n        '
+    From scipy.misc.doccer
 
     """
     def _doc(func):
@@ -106,41 +72,42 @@ def inherit_docstring_from(cls):
     return _doc
 
 
-_doc_param_note = \
-"""There are many available methods of `%(name)s`, each of which require one or 
-more of the parameters listed below.
+_doc_default_callparams = \
+"""
+Parameters
+----------
+x : array_like
+    quantiles
+q : array_like
+    lower or upper tail probability
+%(shapes)s : array_like
+    shape parameters
+loc : array_like, optional
+    location parameter (default=0)
+scale : array_like, optional
+    scale parameter (default=1)
+size : int or tuple of ints, optional
+    shape of random variates (default computed from input arguments )
+moments : str, optional
+    composed of letters ['mvsk'] specifying which moments to compute where
+    'm' = mean, 'v' = variance, 's' = (Fisher's) skew and
+    'k' = (Fisher's) kurtosis. (default='mv')
 """
 
-_doc_custom_methods = \
-"""fit2(data, %(shapes)s)
-    MLE estimates of shapes given initial guesses (use instead of `fit`)."""
-
-_doc_discrete_custom_methods = \
-"""translate_args(uargs)
-    Get shape parameters from user-friendly args.
-fit2(data, %(shapes)s)
-    MLE estimates of shapes given initial guesses."""
 
 # Remove header from all methods
-_docdict_allmeth_sh = docdict['allmethods'][16:]
-_docdict_discrete_allmeth_sh = docdict_discrete['allmethods'][17:]
+_docdict_allmeth = docdict['allmethods'][16:]
+_docdict_discrete_allmeth = docdict_discrete['allmethods'][17:]
 
 # **kwds in expect string followed by no space was throwing warning
-_docdict_allmeth_sh = _docdict_allmeth_sh.replace(', **kwds','')
+_docdict_allmeth = _docdict_allmeth.replace(', **kwds','')
 
-docdict['before_notes'] = ''.join([_doc_param_note,
-                                   docheaders['methods'],
-                                   _doc_custom_methods,
-                                   _docdict_allmeth_sh,
+# Create docstring helpers
+docdict['before_notes'] = ''.join([_docdict_allmeth,                              
                                    docdict['callparams']])
 
-docdict_discrete['before_notes'] = ''.join([_doc_param_note, 
-                                            docheaders['methods'],
-                                            _doc_discrete_custom_methods,
-                                            _docdict_discrete_allmeth_sh,
-                                            docdict_discrete['callparams']])
-
-
+docdict_discrete['before_notes'] = ''.join([_docdict_discrete_allmeth,
+                                            docdict['callparams']]) 
 
 class rv_continuous_meco(rv_continuous):
     """
@@ -223,7 +190,7 @@ class rv_discrete_meco(rv_discrete):
     -------
     translate_args
         takes user-friendly params as input and returns shape params
-    fit
+    fit2
         estimates distribution params from data
 
     """
@@ -291,11 +258,23 @@ class geom_gen(rv_discrete_meco):
     .. math::
        \mathrm{pmf(x)} = (1-p)^{x} p
 
-    for ``x >= 0``. The location parameter ``loc`` is not used.
+    for ``x >= 0``. The ``loc`` parameter is not used.
+
+    There are many available methods of ``geom``, each of which require one or 
+    more of the parameters listed below.
+
+    Methods
+    -------
+    translate_args(mu)
+        Get shape parameter p from distribution mean
+    fit2(data)
+        ML estimate of p from data
 
     %(before_notes)s
-    uargs : float
+    mu : float
         distribution mean
+    data : array_like
+        values used to fit distribution
 
     """
 
@@ -342,12 +321,25 @@ class geom_uptrunc_gen(rv_discrete_meco):
     for ``x >= 0``.
     
     `geom_uptrunc` takes two shape parameters: ``p`` and ``b``, the upper 
-    limit. The location parameter ``loc`` is not used.
+    limit. The ``loc`` parameter is not used.
+
+    There are many available methods of `geom_uptrunc`, each of which require 
+    one or more of the parameters listed below.
+
+    Methods
+    -------
+    translate_args(mu, b)
+        Get shape parameter p from distribution mean and upper limit
+    fit2(data, b=sum(data))
+        ML estimate of p from data and upper limit (returns p, b)
 
     %(before_notes)s
-
-    uargs : float
-        distribution mean, upper limit
+    mu : float
+        distribution mean
+    b : float
+        distribution upper limit, defaults to sum of data
+    data : array_like
+        values used to fit distribution
 
     Notes
     -----
@@ -357,7 +349,8 @@ class geom_uptrunc_gen(rv_discrete_meco):
     limit.
 
     This distribution is known as the Pi distribution in the MaxEnt Theory of 
-    Ecology [#]_, where the ``p`` parameter is known as ``exp(-lambda)``.
+    Ecology [#]_, where the ``p`` parameter is known as ``exp(-lambda)``. The 
+    special case of a uniform pmf has been described as HEAP [#]_.
 
     References
     ----------
@@ -365,11 +358,10 @@ class geom_uptrunc_gen(rv_discrete_meco):
        Harte, J. (2011). Maximum Entropy and Ecology: A Theory of
        Abundance, Distribution, and Energetics (p. 264). Oxford, United
        Kingdom: Oxford University Press.
-
-    ..
-       DEV: There is a difficult implicit equation needed to determine the p 
-       parameter from the mu and b arguments. We've employed the brentq solver 
-       here but note that it fails regularly for certain shape combinations.
+    .. [#]
+       Harte, J., Conlisk, E., Ostling, A., Green, J. L., & Smith, A. B. 
+       (2005). A theory of spatial structure in ecological communities at 
+       multiple spatial scales. Ecological Monographs, 75(2), 179-197.
 
     """
 
@@ -441,12 +433,23 @@ class nbinom_gen(spdist.nbinom_gen):
        \left(\frac{\mu}{k+\mu}\right)^x
 
     for ``x >= 0``. In the traditional parameterization, ``n = k`` (the size 
-    parameter) and ``p = k / (k + mu)``. The location parameter ``loc`` is not 
-    used.
+    parameter) and ``p = k / (k + mu)``. The ``loc`` parameter is not used.
+
+    Methods
+    -------
+    translate_args(mu)
+        Get shape parameter p from distribution mean
+    fit2(data, k_range=(0.1,100,0.1))
+        ML estimate of mu and k from data, with k evaluated at (min, max, step) 
+        values given by k_range
 
     %(before_notes)s
-    uargs : float
-        distribution mean and k parameter
+    mu : float
+        distribution mean
+    k : float
+        clustering parameter
+    data : array_like
+        values used to fit distribution
 
     """
 
@@ -547,11 +550,21 @@ class expon_gen(rv_continuous_meco):
         
        \mathrm{pdf(x)} = \lambda e^{-\lambda x}
 
-    for ``x >= 0``.
+    for ``x >= 0``. The ``loc`` and ``scale`` parameters are not used.
+
+
+    Methods
+    -------
+    translate_args(mu)
+        Get shape parameter lam from distribution mean
+    fit2(data)
+        ML estimate of lam from data
 
     %(before_notes)s
-    uargs : float
+    mu : float
         distribution mean
+    data : array_like
+        values used to fit distribution
 
     """
 
@@ -590,11 +603,22 @@ class expon_uptrunc_gen(rv_continuous_meco):
         
        \mathrm{pdf(x)} = \frac{\lambda e^{-\lambda x}}{1 - e^{-\lambda x}}
 
-    for ``b >= x >= 0``.
+    for ``b >= x >= 0``. The ``loc`` and ``scale`` parameters are not used.
+
+    Methods
+    -------
+    translate_args(mu, b)
+        Get shape parameter lam from distribution mean and upper limit
+    fit2(data, b=sum(data))
+        ML estimate of lam from data (returns lam, b)
 
     %(before_notes)s
-    uargs : float
-        distribution mean and upper limit
+    mu : float
+        distribution mean
+    b : float
+        distribution upper limit, defaults to sum of data
+    data : array_like
+        values used to fit distribution
 
     """
 
