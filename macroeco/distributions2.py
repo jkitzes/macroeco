@@ -646,7 +646,7 @@ class expon_uptrunc_gen(rv_continuous_meco):
         if not b:
             b = np.sum(data)
         expon = expon_gen(a=0.0, b=b)
-        return expon.fit(data, floc=0)[2], b
+        return 1/expon.fit(data, floc=0)[2], b
 
     def _rvs(self, lam, b):
         expon = expon_gen(a=0.0, b=b)
