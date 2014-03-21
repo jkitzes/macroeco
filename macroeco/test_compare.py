@@ -167,6 +167,18 @@ class TestCompare(TestCase):
         test_res = bin_data(data, max(data))[0]
         assert_array_equal(test_res, vegan)
 
+    def test_get_lrt(self):
+        
+        # Test against what the lrtest() R function returns
+        model1 = 158.0494
+        model0 = 139.806
+        R_chisquare = 36.4868
+        R_p = 1.537e-09
+
+        pred_chi, pred_p = get_lrt(model1, model0, 1)
+
+        assert_almost_equal(pred_chi, R_chisquare)
+        assert_almost_equal(pred_p, R_p)
 
 #         
 #

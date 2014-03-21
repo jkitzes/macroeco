@@ -21,6 +21,7 @@ Comparison Functions
    get_sum_of_squares
    get_r_squared
    get_chi_squared
+   get_lrt
    bin_data
 
 """
@@ -206,16 +207,53 @@ def get_ks_two_sample():
 
     """
 
-    pass
+    
 
 
 def get_ks_one_sample():
     pass
 
 
-def get_lrt():
-    pass
+def get_lrt(nll_null, nll_alt, df):
+    """
+    This functions compares two nested models using the likelihood ratio
+    test.
 
+    Parameters
+    ----------
+    nll_null :  float
+        The negative log-likelihood of the null model
+    nll_alt : float
+        The negative log-likelihood of the alternative model
+    df_list : int
+        the degrees of freedom calculated as (number of free parameters in
+        alternative model) - (number of free parameters in null model).
+        Alternatively, the number of additional parameters in the alternative
+        model.
+    
+    Returns
+    -------
+    : tuple
+        (test_statistic, p-value)
+
+    Notes
+    -----
+
+    Interpretation: p-value < alpha suggests signficant evidence for your
+    alternative model
+
+    The LRT only applies to nested models. The variable test_stat is known as
+    the G^2 statistic.  The G-test uses the fact that -2log(Likelihood_null /
+    Likelihood_alt) is approximately chi-squared.  This assumption breaks down
+    for small samples sizes.
+
+    """
+    
+    # Calculate G^2 statistic
+    ll_null = nll_null * -1
+    ll_alt = nll_alt * -1
+    test_stat = -2 * (ll_null - ll_alt)
+    return (test_stat, stats.chisqprob(test_stat, df))
 
 def get_bayes_factor():
     pass
