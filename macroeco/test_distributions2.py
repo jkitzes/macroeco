@@ -45,8 +45,9 @@ class TestGeomUptrunc(TestCase):
 
     def test_pmf(self):
         # Expected values are regular geo cdf divided by cdf at b
-        vals = geom_uptrunc.pmf([0,1,2], 0.5, 2)
-        assert_array_almost_equal(vals, np.array([0.5,0.25,0.125])/0.875)
+        vals = geom_uptrunc.pmf([0,1,2], 0.25, 2)
+        assert_array_almost_equal(vals,
+                                  np.array([0.25,0.1875,0.140625])/0.578125)
 
     def test_cdf(self):
         # Expected values are regular geom cdf divided by cdf at b
@@ -95,8 +96,6 @@ class TestGeomUptrunc(TestCase):
         assert_array_almost_equal(1,np.sum(geom_uptrunc.pmf(range(342),p1,b1)))
 
         p2, b2 = geom_uptrunc.translate_args(120, 200)  # Arbitrary
-        print p2, b2
-        print (geom_uptrunc.pmf(range(201),p2,b2))
         assert_array_almost_equal(1,np.sum(geom_uptrunc.pmf(range(201),p2,b2)))
 
     def test_fit2(self):
@@ -145,7 +144,6 @@ class TestNbinom(TestCase):
         x = np.array([6,17,14,12,8,10,4,9,3,12,4,2,12,8,14,16,9,10,8,5,6])
         mu, k = nbinom.fit2(x, k_range=(0.01,10,0.01))
         assert_array_almost_equal([mu, k], [9, 8.54], decimal=2)
-
         
 
 class TestExpon(TestCase):
