@@ -1,6 +1,8 @@
 scipy
 numpy
 matplotlib
+pandas
 numpydoc
 shapely
+configparser
 macroeco
