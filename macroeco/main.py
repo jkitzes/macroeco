@@ -23,9 +23,11 @@ import configparser
 from pandas import DataFrame
 import matplotlib.pyplot as plt
 from matplotlib.mlab import rec2csv, rec_append_fields
+from mpltools import style
+style.use('ggplot')
 
 from twiggy_setup import get_log
-from empirical import Patch
+from empirical import *
 from distributions2 import *
 from compare import *
 
@@ -497,10 +499,29 @@ def _save_table_and_plot(cidx, models, options, mod_results, name, x, emp,
     width = x[1] - x[0]
     ax = df_plt.plot()
     exec plot_exec_str
+    ax = _pad_plot_frame(ax)
     fig = ax.get_figure()
     fig.savefig(p_path)
 
     plt.close('all')
+
+def _pad_plot_frame(ax, pad=0.01):
+    """
+    Provides padding on sides of frame equal to pad fraction of plot
+    """
+
+    ax.set_xlim(left=0)
+    ax.set_ylim(bottom=0)
+
+    xmin, xmax = ax.get_xlim()
+    ymin, ymax = ax.get_ylim()
+    xrange = xmax - xmin
+    yrange = ymax - ymin
+
+    ax.set_xlim(xmin - xrange*pad, xmax + xrange*pad)
+    ax.set_ylim(ymin - yrange*pad, ymax + yrange*pad)
+
+    return ax
 
 
 def _data_pred_curve(cidx, models, options, emp_results, mod_results):
