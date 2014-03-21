@@ -274,7 +274,7 @@ def _analyze_models_from_data(options, emp_results):
     """
 
     # Get list of model names
-    models = options['models'].replace(' ', '').split(',')
+    models = options['models'].replace(' ', '').split(';')
 
     # Fit theories to all emp_results
     # TODO: Make work for 2D results, i.e., curves, comm_sep, o_ring
