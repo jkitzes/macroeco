@@ -354,19 +354,19 @@ def _save_results(options, emp_results, mod_results):
     os.makedirs(options['run_dir'])
 
     # Write outputs depending on pres/abs of emp and mod and dist/curve metric
-    _write_combination_index_file(options, emp_results)
+    _write_split_index_file(options, emp_results)
     _write_output(options, emp_results, mod_results)
 
 
-def _write_combination_index_file(options, emp_results):
+def _write_split_index_file(options, emp_results):
     """
-    Write index of combinations table, giving number and combination
+    Write table giving index of splits, giving number and combination
     """
     
     if not emp_results:
         return None
 
-    f_path = os.path.join(options['run_dir'], '_combination_index.csv')
+    f_path = os.path.join(options['run_dir'], '_split_index.csv')
     with open(f_path, 'a') as f:
         for i,emp_result in enumerate(emp_results):
             f.write("%i,%s\n" % (i+1, str(emp_result[0])))
@@ -382,18 +382,18 @@ def _write_output(options, emp_results, mod_results):
 
     # Get combinations from either emp or mod - if both exist must be same
     try:
-        n_combs = len(emp_results)
+        n_splits = len(emp_results)
     except:
-        n_combs = len(mod_results)
+        n_splits = len(mod_results)
 
     # Get list of names of models
     try:
-        models = options['models'].replace(' ','').split(",")
+        models = options['models'].replace(' ','').split(';')
     except:
         models = None        
 
     # Loop through all combinations
-    for cidx in range(n_combs):
+    for cidx in range(n_splits):
         if mod_results:
             _write_fitted_params(cidx, models, options, mod_results)
         if emp_results:
