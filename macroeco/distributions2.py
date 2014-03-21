@@ -463,7 +463,7 @@ class nbinom_gen(spdist.nbinom_gen):
         return mu, k
 
     @inherit_docstring_from(rv_discrete_meco)
-    def fit2(self, x, k_range=(0.1,100,0.1)):
+    def fit2(self, data, k_range=(0.1,100,0.1)):
         """%(super)s
         Requires one argument containing data to fit. A keyword argument 
         k_range contains a tuple of the start, stop, and step values to search 
@@ -474,9 +474,9 @@ class nbinom_gen(spdist.nbinom_gen):
         parameter k.
 
         """
-        assert len(x) > 20, "nbinom fit is not stable with <20 data points"
-        mu = np.mean(x)
-        return mu, _nbinom_solve_k_from_mu(x, mu, k_range)
+        assert len(data) > 20, "nbinom fit is not stable with <20 data points"
+        mu = np.mean(data)
+        return mu, _nbinom_solve_k_from_mu(data, mu, k_range)
 
     def _get_p_from_mu(self, mu, k):
         return k / (k + mu)
@@ -522,7 +522,7 @@ class nbinom_gen(spdist.nbinom_gen):
 
 nbinom = nbinom_gen(name='nbinom', shapes='mu, k')
 
-def _nbinom_solve_k_from_mu(x, mu, k_range):
+def _nbinom_solve_k_from_mu(data, mu, k_range):
     """
     For the nbinom, given mu, return k from searching some k_range.
     """
@@ -530,14 +530,14 @@ def _nbinom_solve_k_from_mu(x, mu, k_range):
     # TODO: See if a root finder like fminbound would work with Decimal used in 
     # logpmf method (will this work with arrays?)
 
-    def nll(x, mu, k):
-        return -np.sum(nbinom._logpmf(x, mu, k))
+    def nll(data, mu, k):
+        return -np.sum(nbinom._logpmf(data, mu, k))
 
     k_array = np.arange(*k_range)
     nll_array = np.zeros(len(k_array))
 
     for i in range(len(k_array)):
-        nll_array[i] = nll(x, mu, k_array[i])
+        nll_array[i] = nll(data, mu, k_array[i])
 
     min_nll_idx = np.argmin(nll_array)
 
