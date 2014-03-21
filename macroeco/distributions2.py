@@ -380,6 +380,8 @@ class geom_uptrunc_gen(rv_discrete_meco):
         """
         # Take mean of data as MLE of distribution mean, then calculate p
         mu = np.mean(data)
+        if not b:
+            b = np.sum(data)
         return _geom_solve_p_from_mu_vect(mu, b), b
 
     def _argcheck(self, p, b):
@@ -632,7 +634,9 @@ class expon_uptrunc_gen(rv_continuous_meco):
         raise NotImplementedError, "Translation of mu to lam not implemented"
 
     @inherit_docstring_from(rv_continuous_meco)
-    def fit2(self, data, b=np.inf):
+    def fit2(self, data, b=None):
+        if not b:
+            b = np.sum(data)
         expon = expon_gen(a=0.0, b=b)
         return expon.fit(data, floc=0)[2], b
 
