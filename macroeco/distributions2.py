@@ -381,7 +381,12 @@ class geom_uptrunc_gen(rv_discrete_meco):
         mu = np.mean(data)
         if not b:
             b = np.sum(data)
-        return _geom_solve_p_from_mu_vect(mu, b), b
+        p = _geom_solve_p_from_mu_vect(mu, b)
+
+        if len(np.atleast_1d(p)) == 1:  # Just return float, not len 1 array
+            return float(p), b
+        else:
+            return p, b
 
     def _argcheck(self, p, b):
         # Unlike the traditional geometric, p can be < 0
