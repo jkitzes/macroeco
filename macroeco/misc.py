@@ -15,12 +15,12 @@ def get_log(log_dir, clear=False):
     """
 
     # Get path to log file and clear if requested
-    log_file = os.path.join(log_dir,'log.txt')
-    if clear and os.path.isfile(log_file):
-        os.remove(log_file)
+    log_path = os.path.join(log_dir,'log.txt')
+    if clear and os.path.isfile(log_path):
+        os.remove(log_path)
     
     # Get outputs and add emitters
-    file_output, std_output = _logger_outputs()
+    file_output, std_output = _logger_outputs(log_path)
     twiggy.addEmitters(('file', twiggy.levels.DEBUG, None, file_output), 
                        ('stdout', twiggy.levels.INFO, None, std_output))
 
@@ -41,7 +41,7 @@ def get_log(log_dir, clear=False):
     return log
 
 
-def _logger_outputs():
+def _logger_outputs(log_path):
 
     # To ensure that Macroeco Desktop captures stdout, we just print it
     class stdLineFormat(twiggy.formats.LineFormat):
@@ -55,7 +55,7 @@ def _logger_outputs():
     std_format = stdLineFormat(traceback_prefix='')
 
     # Set up outputs for file and stdout and create emitters
-    file_output = twiggy.outputs.FileOutput(log_file, format=file_format)
+    file_output = twiggy.outputs.FileOutput(log_path, format=file_format)
     std_output = twiggy.outputs.StreamOutput(format=std_format)
 
     return file_output, std_output
