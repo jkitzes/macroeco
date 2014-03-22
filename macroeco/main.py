@@ -26,7 +26,7 @@ from twiggy_setup import get_log
 import matplotlib.pyplot as plt
 from mpltools import style
 style.use('ggplot')
-import matplotlib as mpl  # Colorblind safe palette, colorbrewer 8 Paired
+import matplotlib as mpl  # Colorblind safe palette
 mpl.rcParams['axes.color_cycle'] = ['0072B2','D55E00','CC79A7','009E73', 
                                     'E69F00','F0E442','56B4E9']
 
@@ -455,63 +455,65 @@ def _data_pred_dist(cidx, models, options, emp_results, mod_results):
     Also make plots for all three
     """
 
-    emp_result = emp_results[cidx][1]['y'].values
+    emp_result = emp_results[cidx][1]
     n_vals = len(emp_result)
-
-    # CDF
-    # TODO: This goes up by integers to max value, can be too large
-    x, emp_cdf = get_empirical_cdf(emp_result)
-
-    def calc_func(model, x, shapes):
-        return eval("%s.cdf(x, *shapes)" % model)
-
-    plot_exec_str = "ax.step(x, emp, color='k', lw=3)"
-
-    _save_table_and_plot(cidx, models, options, mod_results, 'data_pred_cdf', 
-                         x, emp_cdf, calc_func, plot_exec_str)
 
     # RAD
     x = np.arange(n_vals) + 1
-    emp_rad = np.sort(emp_result)[::-1]
+    df = emp_result.sort(columns='y', ascending=False)
+    df.rename(columns={'y': 'empirical'}, inplace=True)
+    df.insert(0, 'x', x)
 
-    def calc_func(model, x, shapes):
-        return eval("%s.ppf((x-0.5)/len(x), *shapes)" % model)[::-1]
+    def calc_func(model, df, shapes):
+        return eval("%s.ppf((df['x']-0.5)/len(df), *shapes)" % model)[::-1]
 
-    plot_exec_str = "ax.scatter(x, emp, color='k'); ax.set_yscale('log')"
+    plot_exec_str="ax.scatter(df['x'], emp, color='k');ax.set_yscale('log')"
 
     _save_table_and_plot(cidx, models, options, mod_results, 'data_pred_rad', 
-                         x, emp_rad, calc_func, plot_exec_str)
+                         df, calc_func, plot_exec_str)
+
+    # CDF
+    # TODO: This goes up by integers to max value, can be too large
+    x, emp_cdf = get_empirical_cdf(emp_result['y'].values)
+    df = DataFrame({'x': x, 'empirical': emp_cdf})
+
+    def calc_func(model, df, shapes):
+        return eval("%s.cdf(df['x'], *shapes)" % model)
+
+    plot_exec_str = "ax.step(df['x'], emp, color='k', lw=3)"
+
+    _save_table_and_plot(cidx, models, options, mod_results, 'data_pred_cdf', 
+                         df, calc_func, plot_exec_str)
 
     # PDF/PMF
     hist_bins = 11
-    emp_hist, edges = np.histogram(emp_result, hist_bins, normed=True)
+    emp_hist, edges = np.histogram(emp_result['y'].values, hist_bins, 
+                                   normed=True)
     x = (np.array(edges[:-1]) + np.array(edges[1:])) / 2
+    df = DataFrame({'x': x, 'empirical': emp_hist})
 
-    def calc_func(model, x, shapes):
+    def calc_func(model, df, shapes):
         try:
-            return eval("%s.pmf(np.floor(x), *shapes)" % model)
+            return eval("%s.pmf(np.floor(df['x']), *shapes)" % model)
         except:
-            return eval("%s.pdf(x, *shapes)" % model)
+            return eval("%s.pdf(df['x'], *shapes)" % model)
 
-    plot_exec_str = "ax.bar(x-width/2, emp, width=width, color='gray')"
+    plot_exec_str = "ax.bar(df['x']-width/2, emp, width=width, color='gray')"
 
     _save_table_and_plot(cidx, models, options, mod_results, 'data_pred_pdf', 
-                         x, emp_hist, calc_func, plot_exec_str)
+                         df, calc_func, plot_exec_str)
 
 
-def _save_table_and_plot(cidx, models, options, mod_results, name, x, emp, 
+def _save_table_and_plot(cidx, models, options, mod_results, name, df, 
                          calc_func, plot_exec_str):
 
     f_path = _get_file_path(cidx, options, '%s.csv' % name)
     p_path = _get_file_path(cidx, options, '%s.pdf' % name)
 
-
-    df = DataFrame({'x': x})
-    df['empirical'] = emp
     for model in models:
         mod_result = mod_results[cidx][model]
         shapes = mod_result[0]
-        result = calc_func(model, x, shapes)
+        result = calc_func(model, df, shapes)
         df[model] = result
 
     df.to_csv(f_path, index=False, float_format='%.4f')  # Table
@@ -520,7 +522,7 @@ def _save_table_and_plot(cidx, models, options, mod_results, name, x, emp,
     emp = df_plt['empirical']
     df_plt = df_plt.drop('empirical',1)
 
-    width = x[1] - x[0]
+    width = df['x'].values[1] - df['x'].values[0]
     ax = df_plt.plot(lw=3)
     exec plot_exec_str
     ax = _pad_plot_frame(ax)
