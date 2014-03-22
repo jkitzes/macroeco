@@ -48,29 +48,7 @@ import scipy.stats.distributions as spdist
 import scipy.optimize as optim
 import scipy.special as special
 
-def inherit_docstring_from(cls):
-    """
-    This decorator modifies the decorated function's docstring by
-    replacing occurrences of '%(super)s' with the docstring of the
-    method of the same name from the class `cls`.
-
-    If the decorated method has no docstring, it is simply given the
-    docstring of `cls`s method.
-
-    From scipy.misc.doccer
-
-    """
-    def _doc(func):
-        cls_docstring = getattr(cls, func.__name__).__doc__
-        func_docstring = func.__doc__
-        if func_docstring is None:
-            func.__doc__ = cls_docstring
-        else:
-            new_docstring = func_docstring % dict(super=cls_docstring)
-            func.__doc__ = new_docstring
-        return func
-    return _doc
-
+from misc import inherit_docstring_from
 
 _doc_default_callparams = \
 """
