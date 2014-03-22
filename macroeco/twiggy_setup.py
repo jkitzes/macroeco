@@ -1,60 +1,69 @@
+"""
+Set up logging
+"""
+
 import twiggy
 import traceback
 import sys
 import os
 import threading as thread
 
-# Output format for log file - remove traceback prefix
-file_format = twiggy.formats.LineFormat(traceback_prefix='')
 
-# Output format for terminal logging - only text message part
-class stdLineFormat(twiggy.formats.LineFormat):
-    def __call__(self, msg):
-        text = self.format_text(msg)
-        print "{text}".format(**locals())
-        return ""
-std_format = stdLineFormat(traceback_prefix='')
+def get_log(log_dir, clear=False):
+    """
+    Set up and return logger object
+    """
 
-# Logger setup - returns logger object
-def get_log(log_dir='/Users/jkitzes/Desktop/', clear=False):
-
-    # Get path to log file - must be writable (ie, not inside pyinstaller app)
-    log_path = os.path.join(log_dir,'log.txt')
-
-    # Delete log file if requested
-    if clear:
-        try:
-            os.remove(log_path)
-        except OSError:
-            pass
-
-    # Set up outputs for file and stdout
-    file_output = twiggy.outputs.FileOutput(log_path, format=file_format)
-    std_output = twiggy.outputs.StreamOutput(format=std_format, 
-                                             stream=sys.stdout)
-
-    # Create emitters
+    # Get path to log file and clear if requested
+    log_file = os.path.join(log_dir,'log.txt')
+    if clear and os.path.isfile(log_file):
+        os.remove(log_file)
+    
+    # Get outputs and add emitters
+    file_output, std_output = _logger_outputs()
     twiggy.addEmitters(('file', twiggy.levels.DEBUG, None, file_output), 
                        ('stdout', twiggy.levels.INFO, None, std_output))
 
-    # Declare logger for macroeco
-    # TODO: Once modules are in subdirs, change to __name__ to log module also
+    # Get logger
+    # TODO: Once modules are in subdirs, change to __name__
     log = twiggy.log.name('meco')
+
+    # Log uncaught exceptions (must occur after log declared)
+    def log_uncaught(type1, value1, traceback1):
+        tb_list = traceback.format_exception(type1, value1, traceback1)
+        tb_str = ''.join(tb_list)
+        log.options(suppress_newlines=False).critical('\n'+tb_str)
+    sys.excepthook = log_uncaught
+
+    # Make threads use sys.excepthook from parent process
+    _installThreadExcepthook()
 
     return log
 
-# Log uncaught exceptions
-log = twiggy.log.name('meco')  # If below called before log def elsewhere
-def log_uncaught(type1, value1, traceback1):
-    tb_list = traceback.format_exception(type1, value1, traceback1)
-    tb_str = ''.join(tb_list)
-    log.options(suppress_newlines=False).critical('\n'+tb_str)
-sys.excepthook = log_uncaught
 
-# Use proper excepthook for threads also
-def installThreadExcepthook():
+def _logger_outputs():
+
+    # To ensure that Macroeco Desktop captures stdout, we just print it
+    class stdLineFormat(twiggy.formats.LineFormat):
+        def __call__(self, msg):
+            text = self.format_text(msg)
+            print "{text}".format(**locals())
+            return ""
+   
+    # Choose formats for file and stdout
+    file_format = twiggy.formats.LineFormat(traceback_prefix='')
+    std_format = stdLineFormat(traceback_prefix='')
+
+    # Set up outputs for file and stdout and create emitters
+    file_output = twiggy.outputs.FileOutput(log_file, format=file_format)
+    std_output = twiggy.outputs.StreamOutput(format=std_format)
+
+    return file_output, std_output
+
+
+def _installThreadExcepthook():
     """
-    Workaround for sys.excepthook thread bug
+    Make threads use sys.excepthook from parent process
     http://bugs.python.org/issue1230540
     """
     init_old = thread.Thread.__init__
@@ -70,6 +79,3 @@ def installThreadExcepthook():
                 sys.excepthook(*sys.exc_info())
         self.run = run_with_except_hook
     thread.Thread.__init__ = init
-installThreadExcepthook()
-
-
