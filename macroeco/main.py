@@ -471,7 +471,7 @@ def _data_pred_dist(cidx, models, options, emp_results, mod_results):
     def calc_func(model, x, shapes):
         return eval("%s.ppf((x-0.5)/len(x), *shapes)" % model)[::-1]
 
-    plot_exec_str = "ax.scatter(x, emp, color='k')"
+    plot_exec_str = "ax.scatter(x, emp, color='k'); ax.set_yscale('log')"
 
     _save_table_and_plot(cidx, models, options, mod_results, 'data_pred_rad', 
                          x, emp_rad, calc_func, plot_exec_str)
