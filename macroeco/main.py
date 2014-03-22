@@ -191,6 +191,10 @@ def _get_cols_splits(options, patch):
     else:
         splits = None
 
+    # Every metric requires a spp_col
+    if 'spp_col' not in cols.keys():
+        raise ValueError, 'spp_col not specified'
+
     return str(cols), str(splits)
 
 
