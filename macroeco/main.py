@@ -503,7 +503,7 @@ def _save_table_and_plot(cidx, models, options, mod_results, name, x, emp,
                          calc_func, plot_exec_str):
 
     f_path = _get_file_path(cidx, options, '%s.csv' % name)
-    p_path = _get_file_path(cidx, options, '%s.png' % name)
+    p_path = _get_file_path(cidx, options, '%s.pdf' % name)
 
 
     df = DataFrame({'x': x})
