@@ -21,12 +21,15 @@ import inspect
 import configparser
 
 from pandas import DataFrame
+from twiggy_setup import get_log
+
 import matplotlib.pyplot as plt
-from matplotlib.mlab import rec2csv, rec_append_fields
 from mpltools import style
 style.use('ggplot')
+import matplotlib as mpl  # Colorblind safe palette, colorbrewer 8 Paired
+mpl.rcParams['axes.color_cycle'] = ['0072B2','D55E00','CC79A7','009E73', 
+                                    'E69F00','F0E442','56B4E9']
 
-from twiggy_setup import get_log
 from empirical import *
 from distributions2 import *
 from compare import *
@@ -456,7 +459,7 @@ def _data_pred_dist(cidx, models, options, emp_results, mod_results):
     def calc_func(model, x, shapes):
         return eval("%s.cdf(x, *shapes)" % model)
 
-    plot_exec_str = "ax.step(x, emp, color='k')"
+    plot_exec_str = "ax.step(x, emp, color='k', lw=3)"
 
     _save_table_and_plot(cidx, models, options, mod_results, 'data_pred_cdf', 
                          x, emp_cdf, calc_func, plot_exec_str)
@@ -512,7 +515,7 @@ def _save_table_and_plot(cidx, models, options, mod_results, name, x, emp,
     df_plt = df_plt.drop('empirical',1)
 
     width = x[1] - x[0]
-    ax = df_plt.plot()
+    ax = df_plt.plot(lw=3)
     exec plot_exec_str
     ax = _pad_plot_frame(ax)
     fig = ax.get_figure()
