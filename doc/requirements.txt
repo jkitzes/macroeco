@@ -2,7 +2,8 @@ scipy
 numpy
 matplotlib
 pandas
-numpydoc
 shapely
 configparser
+twiggy
+numpydoc
 macroeco
