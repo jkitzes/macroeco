@@ -1214,8 +1214,8 @@ def _parse_splits(patch, splits):
             level_list = [col + '==' + str(x) + ';'
                           for x in np.unique(patch.table[col])]
         else:
-            col_min = np.min(patch.table[col])
-            col_max = np.max(patch.table[col])
+            col_min = eval(patch.meta[col]['min'])
+            col_max = eval(patch.meta[col]['max'])
             step = (col_max - col_min) / eval(val)
             starts = np.arange(col_min, col_max, step)
             ends = starts + step
