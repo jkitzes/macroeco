@@ -21,7 +21,7 @@ import inspect
 import configparser
 
 from pandas import DataFrame
-from twiggy_setup import get_log
+from misc import get_log
 
 import matplotlib.pyplot as plt
 from mpltools import style
