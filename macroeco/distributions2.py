@@ -669,7 +669,3 @@ class expon_uptrunc_gen(rv_continuous_meco):
         return expon.stats(lam)
 
 expon_uptrunc = expon_uptrunc_gen(a=0.0, name='expon_uptrunc', shapes='lam, b')
-
-
-
-
