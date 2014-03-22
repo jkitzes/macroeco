@@ -233,6 +233,8 @@ def _get_args_kwargs(options):
                 raise ValueError, ("Value for optional argument %s is invalid" 
                                    % kw_name)
 
+    return args, kwargs
+
 
 def _analyze_models(options, emp_results):
     """
