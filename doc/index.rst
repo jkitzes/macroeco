@@ -12,7 +12,7 @@ Welcome to macroeco.
    :maxdepth: 2
 
    empirical
-   distributions2
+   models
    compare
 
 
