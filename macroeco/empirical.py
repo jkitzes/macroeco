@@ -197,6 +197,7 @@ class Patch(object):
             The database query as a recarray
             
         """
+        # TODO: This is probably broken
 
         # Load table
         if type == 'sql':
@@ -1236,4 +1237,3 @@ def _product(*args, **kwds):
     for pool in pools:
         result = [x+[y] for x in result for y in pool]
     return result
-
