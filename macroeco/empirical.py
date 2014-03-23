@@ -1,7 +1,7 @@
 """
-==============================================
+=====================================
 Empirical (:mod:`macroeco.empirical`)
-==============================================
+=====================================
 
 This module contains functions used in the empirical analysis of 
 macroecological patterns.

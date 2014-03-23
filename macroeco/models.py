@@ -1,7 +1,7 @@
 """
-==============================================
+===============================
 Models (:mod:`macroeco.models`)
-==============================================
+===============================
 
 This module contains distributions commonly used in analysis of ecological 
 patterns. At present, all distributions here are univariate.
