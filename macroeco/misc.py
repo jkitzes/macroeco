@@ -6,6 +6,7 @@ import twiggy
 import traceback
 import sys
 import os
+import time
 import threading as thread
 
 
@@ -43,22 +44,35 @@ def get_log(log_dir, clear=False):
 
 def _logger_outputs(log_path):
 
-    # To ensure that Macroeco Desktop captures stdout, we just print it
+    # std_format - to ensure Macroeco Desktop shows logging, we just print
     class stdLineFormat(twiggy.formats.LineFormat):
         def __call__(self, msg):
             text = self.format_text(msg)
             print "{text}".format(**locals())
             return ""
-   
-    # Choose formats for file and stdout
-    file_format = twiggy.formats.LineFormat(traceback_prefix='')
     std_format = stdLineFormat(traceback_prefix='')
+   
+    # file_format - customized to show local time, etc
+    conversion = twiggy.lib.converter.ConversionTable()
+    conversion.add("time", _logger_better_time, "[{1}]".format)
+    conversion.add("name", str, "{{{1}}}".format)
+    conversion.add("level", str, "{1}".format)
+    conversion.aggregate = ' '.join
+    conversion.genericValue = str
+    conversion.genericItem = "{0}={1}".format
+
+    file_format = twiggy.formats.LineFormat(traceback_prefix='', separator=' ',
+                                            conversion=conversion)
 
     # Set up outputs for file and stdout and create emitters
     file_output = twiggy.outputs.FileOutput(log_path, format=file_format)
     std_output = twiggy.outputs.StreamOutput(format=std_format)
 
     return file_output, std_output
+
+
+def _logger_better_time(gmtime=None):
+    return time.strftime("%Y/%m/%d %H:%M:%S %p", time.localtime())
 
 
 def _installThreadExcepthook():
@@ -74,6 +88,7 @@ def _installThreadExcepthook():
             try:
                 run_old(*args, **kw)
             except (KeyboardInterrupt, SystemExit):
+
                 raise
             except:
                 sys.excepthook(*sys.exc_info())
