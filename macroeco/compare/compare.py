@@ -6,11 +6,7 @@ import scipy.stats as stats
 import pandas as pd
 
 
-# NOTE: get_* functions usually refer to a method within a class.  I would
-# suggest dropping all of the get prefixes
-
-
-def get_nll(values):
+def nll(values):
     """
     Calculate negative log likelihood from an array of pdf/pmf values.
     """
@@ -19,17 +15,17 @@ def get_nll(values):
     return -np.sum(np.log(values))
 
 
-def get_AIC(values, params):
+def AIC(values, params):
     """
     Calculate AIC given values of a pdf/pmf and a set of model parameters.
     """
     values, params = _to_arrays(values, params)
     k = len(params)  # Num parameters
-    L = get_nll(values)
+    L = nll(values)
     return 2 * k + 2 * L
 
 
-def get_AICC(values, params):
+def AICC(values, params):
     """
     Calculate AICC given values of a pdf/pmf and a set of model parameters.
 
@@ -49,10 +45,10 @@ def get_AICC(values, params):
     values, params = _to_arrays(values, params)
     k = len(params)  # Num parameters
     n = len(values)  # Num observations
-    return get_AIC(values, params) + (2 * k * (k + 1)) / (n - k - 1)
+    return AIC(values, params) + (2 * k * (k + 1)) / (n - k - 1)
 
 
-def get_AIC_weights(aic_values):
+def AIC_weights(aic_values):
     """
     Calculates the aic_weights for a given set of models.
 
@@ -82,7 +78,7 @@ def get_AIC_weights(aic_values):
     return weights, delta
 
 
-def get_empirical_cdf(data):
+def empirical_cdf(data):
     """
     Generates an empirical cdf from empirical data
 
@@ -146,10 +142,10 @@ class gen_loss_function(object):
         obs, pred = _to_arrays(obs, pred)
         return np.sum(eval(self.loss_fxn))
 
-get_sum_of_squares = gen_loss_function('(obs - pred)**2').total_loss
+sum_of_squares = gen_loss_function('(obs - pred)**2').total_loss
 
 
-def get_r_squared(obs, pred):
+def r_squared(obs, pred):
     """
 
     Get's the R^2 value for a regression of observed data (X) and predicted (Y)
@@ -169,7 +165,7 @@ def get_r_squared(obs, pred):
     return r ** 2
 
 
-def get_ks_two_sample():
+def ks_two_sample():
     """
     Two sample Kolmogorov Smirnov distribution.  Uses the cumulative
     distribution functions to test whether two samples were drawn from the same
@@ -181,11 +177,11 @@ def get_ks_two_sample():
     pass
 
 
-def get_ks_one_sample():
+def ks_one_sample():
     pass
 
 
-def get_lrt(nll_null, nll_alt, df):
+def lrt(nll_null, nll_alt, df):
     """
     This functions compares two nested models using the likelihood ratio
     test.
@@ -226,11 +222,11 @@ def get_lrt(nll_null, nll_alt, df):
     test_stat = -2 * (ll_null - ll_alt)
     return (test_stat, stats.chisqprob(test_stat, df))
 
-def get_bayes_factor():
+def bayes_factor():
     pass
 
 
-def get_chi_squared(dists):
+def chi_squared(dists):
     """
     Chi-squared test to compare two or more distributions.
 

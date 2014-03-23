@@ -23,7 +23,7 @@ class TestCompare(TestCase):
         # Test against R result: sum(dnorm(c(1,2,3,4,5), log=TRUE))
         R_res = 32.09469
         test_vals = stats.norm.pdf((1, 2, 3, 4, 5))
-        lglk = get_nll(test_vals)
+        lglk = nll(test_vals)
         assert_equal(R_res, np.round(lglk, decimals=5))
 
     def test_empirical_cdf(self):
@@ -33,24 +33,24 @@ class TestCompare(TestCase):
         # Test Case 1
         test_data = [1, 1, 1, 1, 2, 3, 4, 5, 6, 6]
         R_res = [.4, .4, .4, .4, .5, .6, .7, .8, 1, 1]
-        res = get_empirical_cdf(test_data)
+        res = empirical_cdf(test_data)
         assert_array_equal(R_res, res)
         
         # Test Case 2
         test_data = [3, 3, 3, 3]
         R_res = [1, 1, 1, 1]
-        res = get_empirical_cdf(test_data)
+        res = empirical_cdf(test_data)
         assert_array_equal(R_res, res)
 
     def test_aic(self):
         
         test_vals = stats.norm.pdf((1, 2, 3, 4, 5, 6, 7, 8))
-        aic1 = get_AIC(test_vals, (1, 1))
+        aic1 = AIC(test_vals, (1, 1))
         expected = 222.703016531  # Calculated by hand
         assert_equal(np.round(aic1, decimals=9), expected)
 
         test_vals = stats.gamma.pdf((1, 1, 1, 4, 5, 7, 12), 2)
-        aic1 = get_AIC(test_vals, (1, 1))
+        aic1 = AIC(test_vals, (1, 1))
         expected = 51.146902
         assert_equal(np.round(aic1, decimals=6), expected)
 
@@ -58,7 +58,7 @@ class TestCompare(TestCase):
         
         # Test values
         test_vals = stats.norm.pdf((1, 2, 3, 4, 5, 6, 7, 8))
-        aic1 = get_AICC(test_vals, (1, 1))
+        aic1 = AICC(test_vals, (1, 1))
 
         # Test that aicc gives the correct values
         expected = 225.10302
@@ -71,8 +71,8 @@ class TestCompare(TestCase):
         values = [stats.norm.pdf(vals, scale=100), stats.norm.pdf(vals,
                                                                     scale=99)]
 
-        aic_vals = [get_AICC(tval, 1) for tval in values]
-        aicw, delta_aic = get_AIC_weights(aic_vals)
+        aic_vals = [AICC(tval, 1) for tval in values]
+        aicw, delta_aic = AIC_weights(aic_vals)
         pred = np.array([0.47909787, 0.52090213])
         assert_array_almost_equal(aicw, pred)
 
@@ -91,7 +91,7 @@ class TestCompare(TestCase):
         
         # Test sum of squares loss function
         test_loss = np.sum((obs - pred) ** 2)
-        pred_loss = get_sum_of_squares(obs, pred)
+        pred_loss = sum_of_squares(obs, pred)
         assert_equal(test_loss, pred_loss)
 
         # Test MSE loss function
@@ -106,7 +106,7 @@ class TestCompare(TestCase):
 
         # Already unittested in scipy. Checking for functionaliity
         test_data = np.random.randint(5, 100, 100)
-        rsq = get_r_squared(test_data, test_data)
+        rsq = r_squared(test_data, test_data)
         assert_equal(rsq, 1)
 
     def test_chi_squared(self):
@@ -122,19 +122,19 @@ class TestCompare(TestCase):
         bin1 = bin_data(dist1, np.max(bin_max))[0]
         bin2 = bin_data(dist2, np.max(bin_max))[0]
 
-        res = get_chi_squared([bin1, bin2])
+        res = chi_squared([bin1, bin2])
 
         # Check three distributions
         dist3 = stats.logser(p=p).rvs(100)
         bin3 = bin_data(dist3, np.max(bin_max))[0]
 
-        res = get_chi_squared([bin1, bin2, bin3])
+        res = chi_squared([bin1, bin2, bin3])
 
         # Check error is thrown with only one dist
-        assert_raises(AssertionError, get_chi_squared, [bin1])
+        assert_raises(AssertionError, chi_squared, [bin1])
 
         # Check error is thrown if bins are different lengths
-        assert_raises(AssertionError, get_chi_squared, [bin1, bin2[:-1]])
+        assert_raises(AssertionError, chi_squared, [bin1, bin2[:-1]])
 
     def test_bin_data(self):
 
@@ -167,7 +167,7 @@ class TestCompare(TestCase):
         test_res = bin_data(data, max(data))[0]
         assert_array_equal(test_res, vegan)
 
-    def test_get_lrt(self):
+    def test_lrt(self):
         
         # Test against what the lrtest() R function returns
         model1 = 158.0494
@@ -175,7 +175,7 @@ class TestCompare(TestCase):
         R_chisquare = 36.4868
         R_p = 1.537e-09
 
-        pred_chi, pred_p = get_lrt(model1, model0, 1)
+        pred_chi, pred_p = lrt(model1, model0, 1)
 
         assert_almost_equal(pred_chi, R_chisquare)
         assert_almost_equal(pred_p, R_p)
