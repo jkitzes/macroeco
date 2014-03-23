@@ -244,7 +244,8 @@ class DistributionOutput(object):
                         dt_rare['<=' + str(mins)] = dt['tot_min'][mins][i]
                     dt_vars = {}
                     for key in dt['vars'].iterkeys():
-                        dt_vars[key] = dt['vars'][key][i]
+                        if len(dt['vars'][key]) != 0:
+                            dt_vars[key] = dt['vars'][key][i]
 
                     fout.write('PREDICTED DISTRIBUTION : ' + kw + '\n' + 
                     self.urns + ' = ' + str(dt['urns'][i]) + '\n' + 
