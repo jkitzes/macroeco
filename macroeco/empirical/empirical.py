@@ -1,32 +1,3 @@
-"""
-=====================================
-Empirical (:mod:`macroeco.empirical`)
-=====================================
-
-This module contains functions used in the empirical analysis of 
-macroecological patterns.
-
-Patch
-=====
-
-Patch is a class.
-
-.. autosummary::
-   :toctree: generated/
-
-   Patch
-
-Metrics
-=======
-
-.. autosummary::
-   :toctree: generated/
-
-   sad
-   ssad
-
-"""
-
 from __future__ import division
 import os
 import numpy as np
@@ -41,7 +12,7 @@ import scipy.spatial.distance as dist
 import shapely.geometry as geo
 # TODO: Make shapely import work with pyinstaller
 
-from misc import doc_sub
+from ..misc import doc_sub
 
 metric_params = \
     """patch : Patch obj
