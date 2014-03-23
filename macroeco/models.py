@@ -1,6 +1,6 @@
 """
 ==============================================
-Distributions (:mod:`macroeco.distributions2`)
+Models (:mod:`macroeco.models`)
 ==============================================
 
 This module contains distributions commonly used in analysis of ecological 

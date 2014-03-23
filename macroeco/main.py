@@ -33,7 +33,7 @@ mpl.rcParams['axes.color_cycle'] = ['0072B2','D55E00','CC79A7','009E73',
 
 from misc import get_log
 import empirical as emp
-import distributions2 as mod
+import models as mod
 import compare as comp
 
 
