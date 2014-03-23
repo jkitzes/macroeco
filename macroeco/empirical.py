@@ -38,7 +38,8 @@ from math import radians, cos, sin, asin, sqrt
 import itertools
 from copy import deepcopy
 import scipy.spatial.distance as dist
-#import shapely.geometry as geo
+import shapely.geometry as geo
+# TODO: Make shapely import work with pyinstaller
 
 from misc import doc_sub
 
