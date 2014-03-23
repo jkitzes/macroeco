@@ -298,32 +298,33 @@ def sad(patch, cols, splits='', clean=True):
 
     """
 
-    # Get required variables
-    spp_col, count_col = (
-        [cols.get(x, None) for x in ['spp_col', 'count_col']] )
-    full_spp_list = (
-        np.unique(patch.table[spp_col]) )
+    full_spp_list = np.unique(patch.table[spp_col])
 
-    # Run analysis
+    # Loop through each split
     result_list = []
     for substring, subtable in _yield_subtables(patch, splits):
 
+        # Get abundance for each species
         sad_list = []
         for spp in full_spp_list:
-            this_spp = (subtable[spp_col] == spp)
+            this_spp = (subtable[cols['spp_col']] == spp)
             if count_col:
-                count = np.sum(subtable[count_col][this_spp])
+                count = np.sum(subtable[cols['count_col']][this_spp])
             else:
                 count = np.sum(this_spp)
             sad_list.append(count)
 
+        # Create dataframe of spp names and abundances
         subdf = pd.DataFrame({'spp': full_spp_list, 'y': sad_list})
 
+        # Remove zero abundance rows if requested
         if clean:
             subdf = subdf[subdf['y'] > 0]
 
+        # Append split result
         result_list.append((substring, subdf))
 
+    # Return all results
     return result_list
 
 
@@ -349,24 +350,28 @@ def ssad(patch, cols, splits=''):
 
     """
 
+    # Get and check SAD
     sad_results = sad(patch, cols, splits, clean=False)
 
     if len(sad_results) == 1:
         raise ValueError, ("SSAD requires patch to be split into more than "
                            "one subplot")
 
+    # Create dataframe with col for spp name and numbered col for each split
     for i, sad_result in enumerate(sad_results):
         if i == 0:  # For first result, create dataframe
             fulldf = sad_result[1]
             fulldf.columns = ['spp', '0']  # Renames y col to 0
-        else:  # For other results, append col to dataframe
+        else:  # For other results, append col to dataframe, named by num
             fulldf[str(i)] = sad_result[1]['y']
 
+    # Get each spp SSAD (row of fulldf) and append as tuple in result_list
     result_list = []
-    for row in fulldf.iterrows():  # Grab result for each species by row
-        row_values_array = np.array(row[1][1:], dtype=float)
-        result_list.append((row[1][0], pd.DataFrame({'y': row_values_array})))
+    for _, row in fulldf.iterrows():
+        row_values_array = np.array(row[1:], dtype=float)
+        result_list.append((row[0], pd.DataFrame({'y': row_values_array})))
 
+    # Return all results
     return result_list
 
 
