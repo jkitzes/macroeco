@@ -40,12 +40,7 @@ from copy import deepcopy
 import scipy.spatial.distance as dist
 #import shapely.geometry as geo
 
-
-def doc_sub(*sub):
-    def dec(obj):
-        obj.__doc__ = obj.__doc__.format(*sub)
-        return obj
-    return dec
+from misc import doc_sub
 
 metric_params = \
     """patch : Patch obj

@@ -103,3 +103,21 @@ def inherit_docstring_from(cls):
             func.__doc__ = new_docstring
         return func
     return _doc
+
+
+def doc_sub(*sub):
+    """
+    Decorator for performing substitutions in docstrings.
+    
+    Using @doc_sub(some_note, other_note) on a function with {0} and {1} in the 
+    docstring will substitute the contents of some_note and other_note for {0} 
+    and {1}, respectively.
+
+    Decorator appears to work properly both with IPython help (tab completion 
+    and ?) and with Sphinx.
+
+    """
+    def dec(obj):
+        obj.__doc__ = obj.__doc__.format(*sub)
+        return obj
+    return dec
