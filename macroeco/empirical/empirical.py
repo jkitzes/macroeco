@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 
 from configparser import ConfigParser
+from twiggy import log
+log = log.name('emp ')
 
 from math import radians, cos, sin, asin, sqrt
 import itertools
@@ -12,7 +14,7 @@ import scipy.spatial.distance as dist
 import shapely.geometry as geo
 # TODO: Make shapely import work with pyinstaller
 
-from ..misc import doc_sub
+from ..misc import doc_sub, log_start_end
 
 metric_params = \
     """patch : Patch obj
@@ -241,7 +243,7 @@ def _subset_table(full_table, subset):
 
     return full_table[valid]
 
-
+@log_start_end
 @doc_sub(metric_params, metric_return, cols_note, splits_note)
 def sad(patch, cols, splits='', clean=True):
     """
@@ -300,6 +302,7 @@ def sad(patch, cols, splits='', clean=True):
     return result_list
 
 
+@log_start_end
 @doc_sub(metric_params, metric_return, cols_note, splits_note)
 def ssad(patch, cols, splits=''):
     """
@@ -1131,7 +1134,7 @@ def _get_cols(special_cols_names, cols, patch):
         if col_value is None:
             col_value = patch.meta['Description'].get(col, None)
         special_cols_values.append(col_value)
-
+    
     return tuple(special_cols_values)
 
 
@@ -1161,6 +1164,7 @@ def _yield_subtables(patch, splits):
     if splits:
         subset_list = _parse_splits(patch, splits)
         for subset in subset_list:
+            log.info('Analyzing split: %s' % subset)
             yield subset, _subset_table(patch.table, subset)
     else:
         yield '', patch.table

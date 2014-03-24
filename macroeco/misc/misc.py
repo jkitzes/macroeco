@@ -2,15 +2,18 @@
 Set up logging
 """
 
-import twiggy
-import traceback
 import sys
 import os
-import time
+import traceback
 import threading as thread
 
+import twiggy
+from twiggy import log
+log = log.name('meco')
+import decorator
+import time
 
-def get_log(log_dir, clear=False):
+def setup_log(log_dir, clear=False):
     """
     Set up and return logger object
     """
@@ -26,7 +29,6 @@ def get_log(log_dir, clear=False):
                        ('stdout', twiggy.levels.INFO, None, std_output))
 
     # Get logger
-    # TODO: Once modules are in subdirs, change to __name__
     log = twiggy.log.name('meco')
 
     # Log uncaught exceptions (must occur after log declared)
@@ -136,3 +138,18 @@ def doc_sub(*sub):
         obj.__doc__ = obj.__doc__.format(*sub)
         return obj
     return dec
+
+def log_start_end(f):
+    """
+    Decorator to log start and end of function
+
+    Use of decorator module here ensures that argspec will inspect wrapped 
+    function, not the decorator itself.
+    http://micheles.googlecode.com/hg/decorator/documentation.html
+    """
+    def inner(f, *args, **kwargs):
+        log.info('Starting %s' % f.__name__)
+        res = f(*args)
+        log.info('Finished %s' % f.__name__)
+        return res
+    return decorator.decorator(inner, f)

@@ -20,6 +20,8 @@ import os
 import shutil
 import inspect
 import configparser
+from twiggy import log
+log = log.name('meco')
 
 import numpy as np
 import pandas as pd
@@ -31,7 +33,7 @@ import matplotlib as mpl  # Colorblind safe palette
 mpl.rcParams['axes.color_cycle'] = ['0072B2','D55E00','CC79A7','009E73', 
                                     'E69F00','F0E442','56B4E9']
 
-from ..misc import get_log
+from ..misc import setup_log
 from .. import empirical as emp
 from .. import models as mod
 from .. import compare as comp
@@ -54,7 +56,7 @@ def main(param_path='parameters.txt'):
     param_dir = os.path.dirname(param_path)
         
     # Get logger and announce start
-    log = get_log(param_dir, clear=True)
+    log = setup_log(param_dir, clear=True)
     log.info('Starting analysis')
 
     # Read parameter file into params object
@@ -72,6 +74,7 @@ def main(param_path='parameters.txt'):
         options['param_dir'] = os.path.abspath(param_dir)
         options['run_dir'] = os.path.join(param_dir, run_name)
         _do_analysis(options)
+        log.info('Finished run %s' % run_name)
     log.info('Finished analysis successfully')
 
 
@@ -338,6 +341,8 @@ def _save_results(options, module, core_results, fit_results):
         Results of comparing emp analysis to models, None if not applicable
 
     """
+
+    log.info("Saving all results")
 
     # Ensure that output dir for this run exists and is empty
     shutil.rmtree(options['run_dir'], ignore_errors=True)
