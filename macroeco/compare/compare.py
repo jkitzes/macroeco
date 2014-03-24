@@ -93,6 +93,9 @@ def empirical_cdf(data):
         The empirical cdf corresponding to the inputted data
 
     """
+    # TODO: This should return sorted data also, otherwise trying to match the 
+    # input data to output does not correspond (result is sorted, data is not
+    # necessarily).
 
     vals = pd.Series(data).value_counts()
     ecdf = pd.DataFrame(data).set_index(keys=0)
