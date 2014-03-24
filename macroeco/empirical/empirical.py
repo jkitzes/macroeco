@@ -269,6 +269,8 @@ def sad(patch, cols, splits='', clean=True):
 
     """
 
+    spp_col, count_col = (
+        [cols.get(x, None) for x in ['spp_col', 'count_col']] )
     full_spp_list = np.unique(patch.table[spp_col])
 
     # Loop through each split
@@ -278,9 +280,9 @@ def sad(patch, cols, splits='', clean=True):
         # Get abundance for each species
         sad_list = []
         for spp in full_spp_list:
-            this_spp = (subtable[cols['spp_col']] == spp)
+            this_spp = (subtable[spp_col] == spp)
             if count_col:
-                count = np.sum(subtable[cols['count_col']][this_spp])
+                count = np.sum(subtable[count_col][this_spp])
             else:
                 count = np.sum(this_spp)
             sad_list.append(count)
