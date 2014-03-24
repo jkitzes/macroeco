@@ -1211,13 +1211,13 @@ def _parse_splits(patch, splits):
             step = (col_max - col_min) / eval(val)
             starts = np.arange(col_min, col_max, step)
             ends = starts + step
-            level_list = [col + '>=' + str(x) + '; ' + col + '<' + str(y)+';'
+            level_list = [col + '>=' + str(x) + '; ' + col + '<' + str(y)+'; '
                           for x, y in zip(starts, ends)]
 
         subset_list.append(level_list)
 
     # Get product of all string levels as list, conv to string, drop final ;
-    return [''.join(x)[:-1] for x in _product(*subset_list)]
+    return [''.join(x)[:-2] for x in _product(*subset_list)]
 
 
 def _product(*args, **kwds):
