@@ -2,7 +2,6 @@ scipy
 numpy
 matplotlib
 pandas
-shapely
 configparser
 twiggy
 numpydoc
