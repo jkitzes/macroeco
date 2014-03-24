@@ -19,9 +19,7 @@ def setup_log(log_dir, clear=False):
     """
 
     # Get path to log file and clear if requested
-    log_path = os.path.join(log_dir,'log.txt')
-    if clear and os.path.isfile(log_path):
-        os.remove(log_path)
+    log_path = os.path.join(log_dir,'_log.txt')
     
     # Get outputs and add emitters
     file_output, std_output = _logger_outputs(log_path)

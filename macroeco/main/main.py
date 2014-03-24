@@ -50,13 +50,19 @@ def main(param_path='parameters.txt'):
 
     """
 
-    # Confirm file is present and extract dir
+    # Confirm parameters file is present and extract dir
     if not os.path.isfile(param_path):
         raise IOError, "Parameter file not found at %s" % param_path
-    param_dir = os.path.dirname(param_path)
-        
+    param_dir = os.path.abspath(os.path.dirname(param_path))
+
+    # Setup results_dir
+    results_dir = os.path.join(param_dir, 'results')
+    if os.path.isdir(results_dir):
+        shutil.rmtree(results_dir)
+    os.makedirs(results_dir)
+
     # Get logger and announce start
-    log = setup_log(param_dir, clear=True)
+    log = setup_log(results_dir, clear=True)
     log.info('Starting analysis')
 
     # Read parameter file into params object
