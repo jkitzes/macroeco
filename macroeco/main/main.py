@@ -31,10 +31,10 @@ import matplotlib as mpl  # Colorblind safe palette
 mpl.rcParams['axes.color_cycle'] = ['0072B2','D55E00','CC79A7','009E73', 
                                     'E69F00','F0E442','56B4E9']
 
-from misc import get_log
-import empirical as emp
-import models as mod
-import compare as comp
+from ..misc import get_log
+from .. import empirical as emp
+from .. import models as mod
+from .. import compare as comp
 
 
 def main(param_path='parameters.txt'):
@@ -319,7 +319,7 @@ def _get_values(data, model, fits):
     return values
 
 def _get_comparison_statistic(data, fits):
-    return ['AIC'], [comp.get_AIC(data, fits)]
+    return ['AIC'], [comp.AIC(data, fits)]
 
 
 def _save_results(options, module, core_results, fit_results):
@@ -466,8 +466,8 @@ def _write_comparison_plots_tables(spid, models, options, core_results,
                          df, calc_func, plot_exec_str)
 
     # CDF
-    # TODO: This goes up by integers to max value, can be too large
-    x, emp_cdf = comp.get_empirical_cdf(core_result['y'].values)
+    x = core_result['y'].values
+    emp_cdf = comp.empirical_cdf(x)
     df = pd.DataFrame({'x': x, 'empirical': emp_cdf})
 
     def calc_func(model, df, shapes):
@@ -543,6 +543,7 @@ def _pad_plot_frame(ax, pad=0.01):
 
     return ax
 
-
 if __name__ == '__main__':
+    # To execute, run `python -m macroeco.main.main path/to/parameters.txt from 
+    # the root macroeco directory.
     main(sys.argv[1])
