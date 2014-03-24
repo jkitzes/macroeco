@@ -553,8 +553,3 @@ def _pad_plot_frame(ax, pad=0.01):
     ax.set_ylim(ymin - yrange*pad, ymax + yrange*pad)
 
     return ax
-
-if __name__ == '__main__':
-    # To execute, run `python -m macroeco.main.main path/to/parameters.txt from
-    # the root macroeco directory.
-    main(sys.argv[1])

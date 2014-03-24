@@ -134,7 +134,12 @@ class MainWindow(wx.Frame):
                 self.run_button.Enable(True)  # Turn the run button on
 
 if __name__ == '__main__':
-    # To execute, run `pythonw -m macroeco.desktop from root macroeco dir.
-    app = wx.App(False)
-    frame = MainWindow(None, 'Macroeco Desktop')
-    app.MainLoop()
+    # To execute, run `pythonw -m macroeco.desktop path/to/parameters.txt`.
+    # With arg, execute main.main(arg), without arg open GUI window
+    if len(sys.argv) > 1:
+        param_path = sys.argv[1]
+        main.main(param_path)
+    else:
+        app = wx.App(False)
+        frame = MainWindow(None, 'Macroeco Desktop')
+        app.MainLoop()
