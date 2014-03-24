@@ -3,6 +3,7 @@ numpy
 matplotlib
 pandas
 configparser
+decorator
 twiggy
 numpydoc
 macroeco
