@@ -3,8 +3,8 @@
 Main (:mod:`macroeco.main`)
 ===========================
 
-This module contains functions that execute macroecological analyses specified 
-by user-generated `parameters.txt` configuration files. Instructions for 
+This module contains functions that execute macroecological analyses specified
+by user-generated `parameters.txt` configuration files. Instructions for
 creating parameter files can be found here.
 
 .. autosummary::
@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 from mpltools import style
 style.use('ggplot')
 import matplotlib as mpl  # Colorblind safe palette
-mpl.rcParams['axes.color_cycle'] = ['0072B2','D55E00','CC79A7','009E73', 
+mpl.rcParams['axes.color_cycle'] = ['0072B2','D55E00','CC79A7','009E73',
                                     'E69F00','F0E442','56B4E9']
 
 from ..misc import setup_log
@@ -71,8 +71,8 @@ def main(param_path='parameters.txt'):
     for run_name in run_names:
         log.info('Starting run %s' % run_name)
         options = dict(params[run_name])
-        options['param_dir'] = os.path.abspath(param_dir)
-        options['run_dir'] = os.path.join(param_dir, run_name)
+        options['param_dir'] = param_dir
+        options['run_dir'] = os.path.join(results_dir, run_name)
         _do_analysis(options)
         log.info('Finished run %s' % run_name)
     log.info('Finished analysis successfully')
@@ -110,7 +110,7 @@ def _function_location(options):
     elif func_name in mod_funcs:
         module = 'mod'
     else:
-        raise ValueError, ("No analysis of type '%s' is available" % 
+        raise ValueError, ("No analysis of type '%s' is available" %
                            options['analysis'])
     return module
 
@@ -127,10 +127,10 @@ def _call_analysis_function(options, module):
     Returns
     -------
     tuple or list of tuples
-        First element of the tuple gives a string describing the result and the 
-        second element giving the result of the analysis as a dataframe. 
-        Functions in the empirical module return a list of tuples, where each 
-        tuple corresponds to a split. All other functions return a single 
+        First element of the tuple gives a string describing the result and the
+        second element giving the result of the analysis as a dataframe.
+        Functions in the empirical module return a list of tuples, where each
+        tuple corresponds to a split. All other functions return a single
         tuple.
 
     """
@@ -151,7 +151,7 @@ def _get_args_kwargs(options, module):
     # Create list of values for arg_names
     args = []
     for arg_name in arg_names:
-        
+
         if arg_name == 'patch':  # For patch arg, append actual patch obj
             args.append(options['patch'])
             continue
@@ -159,7 +159,7 @@ def _get_args_kwargs(options, module):
             continue
         if arg_name == 'k':  # scipy dists use k and x, we always use x
             arg_name = 'x'
-        
+
         try:
             exec 'args.append(eval("%s"))' % options[arg_name]
         except SyntaxError: # eval failing because option is a string
@@ -177,7 +177,7 @@ def _get_args_kwargs(options, module):
             except SyntaxError:  # eval failing because value is a string
                 kwargs[kw_name] = options[kw_name]
             except:
-                raise ValueError, ("Value for optional argument %s is invalid" 
+                raise ValueError, ("Value for optional argument %s is invalid"
                                    % kw_name)
 
     return args, kwargs
@@ -188,10 +188,10 @@ def _emp_extra_options(options):
     Get special options patch, cols, and splits if analysis in emp module
     """
 
-    metadata_path = os.path.normpath(os.path.join(options['param_dir'], 
+    metadata_path = os.path.normpath(os.path.join(options['param_dir'],
                                                   options['metadata']))
     if not os.path.isfile(metadata_path):
-        raise IOError, ("Path to metadata file %s is invalid." % 
+        raise IOError, ("Path to metadata file %s is invalid." %
                         metadata_path)
 
     options['patch'] = emp.Patch(metadata_path)
@@ -204,7 +204,7 @@ def _get_cols_splits(options):
     """
     Notes
     -----
-    Always returns strings, even if dictionary or list is constructed here, to 
+    Always returns strings, even if dictionary or list is constructed here, to
     ensure consistency with provided options.
 
     """
@@ -218,7 +218,7 @@ def _get_cols_splits(options):
     else:
         for col in special_cols:
             cols[col] = options.get(col, None)
-    
+
     # If col is still None, try to fall back to metadata
     for col in special_cols:
         if cols[col] is None:
@@ -275,15 +275,15 @@ def _fit_models(options, core_results):
     Returns
     -------
     list of dicts
-        Each element in list corresponds to a split. The dict has a key for 
-        each model given in options, and the value is a list of fitted 
-        parameters (tuple), values (array), comparison statistic names (list), 
+        Each element in list corresponds to a split. The dict has a key for
+        each model given in options, and the value is a list of fitted
+        parameters (tuple), values (array), comparison statistic names (list),
         and comparison statistic values (list).
 
     Notes
     -----
-    To determine if the empirical result refers to a curve or a distribution, 
-    the result dataframe is inspected for a column 'x', which indicates a 
+    To determine if the empirical result refers to a curve or a distribution,
+    the result dataframe is inspected for a column 'x', which indicates a
     curve.
 
     """
@@ -318,7 +318,7 @@ def _get_values(data, model, fits):
         values = eval("mod.%s.pmf(data, *fits)" % model)
     except:
         pass
-    
+
     return values
 
 def _get_comparison_statistic(data, fits):
@@ -379,12 +379,12 @@ def _write_core_tables(options, module, core_results):
     """
     Notes
     -----
-    Depending on function that was called for analysis, core_results may be a 
+    Depending on function that was called for analysis, core_results may be a
     list of tuples (empirical), a dataframe, an array, or a single value.
 
-    For the list of tuples from empirical, the second element of each tuple is 
-    the raw result, and we write them all with the appropriate prefix. For 
-    dataframes, we write them. For arrays or single values, we convert to data 
+    For the list of tuples from empirical, the second element of each tuple is
+    the raw result, and we write them all with the appropriate prefix. For
+    dataframes, we write them. For arrays or single values, we convert to data
     frames and write them.
 
     """
@@ -440,12 +440,12 @@ def _write_test_statistics(spid, models, options, fit_results):
     f.close()
 
 
-def _write_comparison_plots_tables(spid, models, options, core_results, 
+def _write_comparison_plots_tables(spid, models, options, core_results,
                                    fit_results):
     """
     Notes
     -----
-    Only applies to analysis using functions from empirical in which models are 
+    Only applies to analysis using functions from empirical in which models are
     also given.
 
     - pdf/pmf vs histogram
@@ -467,7 +467,7 @@ def _write_comparison_plots_tables(spid, models, options, core_results,
 
     plot_exec_str="ax.scatter(df['x'], emp, color='k');ax.set_yscale('log')"
 
-    _save_table_and_plot(spid, models, options, fit_results, 'data_pred_rad', 
+    _save_table_and_plot(spid, models, options, fit_results, 'data_pred_rad',
                          df, calc_func, plot_exec_str)
 
     # CDF
@@ -480,12 +480,12 @@ def _write_comparison_plots_tables(spid, models, options, core_results,
 
     plot_exec_str = "ax.step(df['x'], emp, color='k', lw=3);ax.set_ylim(top=1)"
 
-    _save_table_and_plot(spid, models, options, fit_results, 'data_pred_cdf', 
+    _save_table_and_plot(spid, models, options, fit_results, 'data_pred_cdf',
                          df, calc_func, plot_exec_str)
 
     # PDF/PMF
     hist_bins = 11
-    emp_hist, edges = np.histogram(core_result['y'].values, hist_bins, 
+    emp_hist, edges = np.histogram(core_result['y'].values, hist_bins,
                                    normed=True)
     x = (np.array(edges[:-1]) + np.array(edges[1:])) / 2
     df = pd.DataFrame({'x': x, 'empirical': emp_hist})
@@ -494,15 +494,15 @@ def _write_comparison_plots_tables(spid, models, options, core_results,
         try:
             return eval("mod.%s.pmf(np.floor(df['x']), *shapes)" % model)
         except:
-            return eval("%s.pdf(df['x'], *shapes)" % model)
+            return eval("mod.%s.pdf(df['x'], *shapes)" % model)
 
     plot_exec_str = "ax.bar(df['x']-width/2, emp, width=width, color='gray')"
 
-    _save_table_and_plot(spid, models, options, fit_results, 'data_pred_pdf', 
+    _save_table_and_plot(spid, models, options, fit_results, 'data_pred_pdf',
                          df, calc_func, plot_exec_str)
 
 
-def _save_table_and_plot(spid, models, options, fit_results, name, df, 
+def _save_table_and_plot(spid, models, options, fit_results, name, df,
                          calc_func, plot_exec_str):
 
     f_path = _get_file_path(spid, options, '%s.csv' % name)
@@ -549,6 +549,6 @@ def _pad_plot_frame(ax, pad=0.01):
     return ax
 
 if __name__ == '__main__':
-    # To execute, run `python -m macroeco.main.main path/to/parameters.txt from 
+    # To execute, run `python -m macroeco.main.main path/to/parameters.txt from
     # the root macroeco directory.
     main(sys.argv[1])

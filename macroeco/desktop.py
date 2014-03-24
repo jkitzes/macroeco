@@ -21,7 +21,7 @@ from misc import get_log
 class RedirectText(object):
     def __init__(self,aWxTextCtrl):
         self.out=aWxTextCtrl
- 
+
     def write(self,string):
         wx.CallAfter(self.out.WriteText, string)
 
@@ -56,7 +56,7 @@ class MainWindow(wx.Frame):
 
         choose_button = wx.Button(self, label='Open')
         self.Bind(wx.EVT_BUTTON, self.OnOpen, choose_button)
-        
+
         # Make attribute so easily modified by other methods
         self.choose_msg = wx.StaticText(self,
                                    label='')
