@@ -11,7 +11,10 @@ from math import radians, cos, sin, asin, sqrt
 import itertools
 from copy import deepcopy
 import scipy.spatial.distance as dist
-import shapely.geometry as geo
+try:
+    import shapely.geometry as geo
+except:
+    pass
 # TODO: Make shapely import work with pyinstaller
 
 from ..misc import doc_sub, log_start_end
@@ -20,21 +23,21 @@ metric_params = \
     """patch : Patch obj
         Patch object containing data for analysis
     cols : dict
-        Indicates which column names in patch data table are associated with 
+        Indicates which column names in patch data table are associated with
         species identifiers, counts, energy, and mass. See Notes.
     splits : str
-        If multiple analyses for subsets of patch data table are desired, 
+        If multiple analyses for subsets of patch data table are desired,
         specifies how columns should be split. See Notes."""
 
 metric_return = \
     """list
-        List of tuples containing results, where the first element of each 
-        tuple is a string indicating the split values used for that result and 
+        List of tuples containing results, where the first element of each
+        tuple is a string indicating the split values used for that result and
         second element is a dataframe giving the result."""
 
 cols_note = \
     """The parameter `cols` is a dictionary with keys for four special
-    columns and values giving the column name in the patch data table 
+    columns and values giving the column name in the patch data table
     associated with each special column.
 
     - spp_col - Unique species identifiers
@@ -42,11 +45,11 @@ cols_note = \
     - energy_col - Energy of individuals
     - mass_cal - Mass of individuals
 
-    Only spp_col is always mandatory. Note that the value of spp_col may be   
-    set to a columm in the data table giving the genus, family, functional 
-    group, etc., which allows for analysis of this metric by those groups. 
+    Only spp_col is always mandatory. Note that the value of spp_col may be
+    set to a columm in the data table giving the genus, family, functional
+    group, etc., which allows for analysis of this metric by those groups.
     count_col is used when multiple individuals of a species may be found at
-    a single recorded location, as is the case in gridded censuses where all 
+    a single recorded location, as is the case in gridded censuses where all
     individuals in a quadrat are "assigned" to a single point. energy_col
     and mass_col are used for energy-based metrics.
     """
@@ -54,14 +57,14 @@ cols_note = \
 splits_note = \
     """The parameter `splits` is a semicolon-separated string in the form of
     "column: value", where column is a name of a column in the patch data
-    table and value is either (a) an integer giving the number of 
+    table and value is either (a) an integer giving the number of
     equally-spaced divisions of a column, or (b) the special keyword
     'split', which evaluates all unique levels of a column.
 
-    For example, presume a data table has columns for x and y spatial 
-    coordinates and a column for year, of which there are three. The string 
-    "x:2; y:2; year:split" will perform the analysis separately for each of 
-    four subplots of the patch (created by dividing the x and y coordinates 
+    For example, presume a data table has columns for x and y spatial
+    coordinates and a column for year, of which there are three. The string
+    "x:2; y:2; year:split" will perform the analysis separately for each of
+    four subplots of the patch (created by dividing the x and y coordinates
     each into two equally sized divisions) within each of the three years,
     for a total of 12 separate analyses."""
 
@@ -82,28 +85,28 @@ class Patch(object):
     table : dataframe
         Table of census data recorded in patch
     meta : ConfigParser obj
-        Object similar to dict describing data table, loaded from metadata file 
+        Object similar to dict describing data table, loaded from metadata file
         at metadata_path
     subset : str
         Subset string passed as parameter
 
     Notes
     -----
-    The table file described by the metadata must contain column names 
-    consisting only of letters and numbers, with no spaces or other special 
+    The table file described by the metadata must contain column names
+    consisting only of letters and numbers, with no spaces or other special
     characters.
 
-    The parameter subset takes different forms depending on whether the data 
+    The parameter subset takes different forms depending on whether the data
     file described by the metadata is a csv or a sql/db file.
-    
-    For csv data files, subset is a semicolon-separated string describing 
-    subset operations. For example, the string "year==2005; x>20; x<40; 
-    spp=='cabr'" loads a data table containing only records for which the year 
-    is 2005, x values are between 20 and 40, and species 'cabr'. Note that for 
-    categorical columns, the value of the column must be enclosed in single 
+
+    For csv data files, subset is a semicolon-separated string describing
+    subset operations. For example, the string "year==2005; x>20; x<40;
+    spp=='cabr'" loads a data table containing only records for which the year
+    is 2005, x values are between 20 and 40, and species 'cabr'. Note that for
+    categorical columns, the value of the column must be enclosed in single
     quotes.
 
-    For sql/db files, subset is a SQL query string that selects the data from 
+    For sql/db files, subset is a SQL query string that selects the data from
     the data file.
 
     """
@@ -113,8 +116,8 @@ class Patch(object):
         self.meta = ConfigParser()
         self.meta.read(metadata_path)
         self.subset = subset
-        self.table = self._load_table(metadata_path, 
-                                      self.meta['Description']['datapath'], 
+        self.table = self._load_table(metadata_path,
+                                      self.meta['Description']['datapath'],
                                       subset)
 
 
@@ -139,7 +142,7 @@ class Patch(object):
         """
 
         metadata_dir = os.path.dirname(metadata_path)
-        data_path = os.path.normpath(os.path.join(metadata_dir, 
+        data_path = os.path.normpath(os.path.join(metadata_dir,
                                                   relative_data_path))
         type = data_path.split('.')[-1]
 
@@ -156,19 +159,19 @@ class Patch(object):
     def _get_db_table(self, data_path, type):
         """
         Query a database and return query result as a recarray
-    
+
         Parameters
         ----------
         data_path : str
             Path to the database file
         type : str
             Type of database, either sql or db
-    
+
         Returns
         -------
         table : recarray
             The database query as a recarray
-            
+
         """
         # TODO: This is probably broken
 
@@ -182,12 +185,12 @@ class Patch(object):
                 sql = f.read()
 
             cur.executescript(sql)
-    
+
         else:
             con = lite.connect(data_path)
             con.row_factory = lite.Row
             cur = con.cursor()
-    
+
         cur.execute(self.subset)
 
         # Check that table is not empty
@@ -195,12 +198,12 @@ class Patch(object):
         try:
             col_names = db_info[0].keys()
         except IndexError:
-            raise lite.OperationalError("Query %s to database %s is empty" % 
+            raise lite.OperationalError("Query %s to database %s is empty" %
                                         (query_str, data_path))
 
         # Convert objects to tuples
         converted_info = [tuple(x) for x in db_info]
-            
+
         # NOTE: Using default value for Unicode: Seems better than checking
         # lengths.  Should we keep the type as unicode?
         dtypes=[type(x) if type(x) != unicode else 'S150' for x in db_info[0]]
@@ -208,7 +211,7 @@ class Patch(object):
         table = np.array(converted_info, dtype=zip(col_names, dtypes))
         con.commit()
         con.close()
-        
+
         # Return a recarray for consistency
         # TODO: This should now be a pd.dataframe
         return table.view(np.recarray)
@@ -233,7 +236,7 @@ def _subset_table(full_table, subset):
     """
     if not subset:
         return full_table
-    
+
     conditions = subset.split(';')
 
     valid = np.ones(len(full_table), dtype=bool)
@@ -253,8 +256,8 @@ def sad(patch, cols, splits='', clean=True):
     ----------
     {0}
     clean : bool
-        If True, all species with zero abundance are removed from SAD results 
-        (relevant if splits is used and some splits are missing species). 
+        If True, all species with zero abundance are removed from SAD results
+        (relevant if splits is used and some splits are missing species).
         Default False.
 
     Returns
@@ -1008,23 +1011,23 @@ def ased(self, criteria, normalize=True, exponent=0.75):
 def tsed(self, criteria, normalize=True, exponent=0.75):
     '''
     Calculates the total species energy distribution for each given
-    species in a subset. 
-    
+    species in a subset.
+
     Parameters
     ----------
     criteria : dict
         Dictionary must have contain a key with the value 'energy' or
         'mass'.  See sad method for further requirements.
-    
+
     Returns
     -------
-    result : list 
+    result : list
         List of tuples containing results, where the first element is a
-        dictionary of criteria for this calculation and second element is a 
-        1D ndarray of length species containing the average energy for each 
-        species. The third element is 1D array listing identifiers for 
-        species in the same order as they appear in the second element of 
-        result.         
+        dictionary of criteria for this calculation and second element is a
+        1D ndarray of length species containing the average energy for each
+        species. The third element is 1D array listing identifiers for
+        species in the same order as they appear in the second element of
+        result.
 
     '''
 
@@ -1040,7 +1043,7 @@ def tsed(self, criteria, normalize=True, exponent=0.75):
                                                 len(this_sed[1][spp]) != 0]
         # Truncated spp_list if necessary
         spp_list = [spp for spp in spp_list if len(this_sed[1][spp]) != 0]
-        
+
         result.append((this_sed[0], np.array(omega), np.array(spp_list)))
 
     return result
@@ -1134,7 +1137,7 @@ def _get_cols(special_cols_names, cols, patch):
         if col_value is None:
             col_value = patch.meta['Description'].get(col, None)
         special_cols_values.append(col_value)
-    
+
     return tuple(special_cols_values)
 
 
@@ -1194,7 +1197,7 @@ def _parse_splits(patch, splits):
     """
 
     split_list = splits.split(';')  # Split commands for each col separate
-    subset_list = []  # List of all subset strings 
+    subset_list = []  # List of all subset strings
 
     for split in split_list:
         col, val = split.split(':')
