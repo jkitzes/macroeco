@@ -237,7 +237,7 @@ def _subset_table(full_table, subset):
     if not subset:
         return full_table
 
-    conditions = subset.split(';')
+    conditions = subset.replace(' ','').split(';')
 
     valid = np.ones(len(full_table), dtype=bool)
     for condition in conditions:
@@ -1196,7 +1196,7 @@ def _parse_splits(patch, splits):
 
     """
 
-    split_list = splits.split(';')  # Split commands for each col separate
+    split_list = splits.replace(' ','').split(';')
     subset_list = []  # List of all subset strings
 
     for split in split_list:
