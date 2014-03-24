@@ -16,7 +16,6 @@ import os, sys
 import threading as thread
 
 import main
-from misc import get_log
 
 class RedirectText(object):
     def __init__(self,aWxTextCtrl):
