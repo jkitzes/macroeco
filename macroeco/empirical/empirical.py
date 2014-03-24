@@ -269,8 +269,7 @@ def sad(patch, cols, splits='', clean=True):
 
     """
 
-    spp_col, count_col = (
-        [cols.get(x, None) for x in ['spp_col', 'count_col']] )
+    spp_col, count_col = _get_cols(['spp_col', 'count_col'], cols, patch)
     full_spp_list = np.unique(patch.table[spp_col])
 
     # Loop through each split
@@ -1122,7 +1121,18 @@ def z(doubleS, halfS):
 
 
 
+def _get_cols(special_cols_names, cols, patch):
+    """
+    Retrieve values of special_cols from cols dict or Patch metadata
+    """
+    special_cols_values = []
+    for col in special_cols_names:
+        col_value = cols.get(col, None)
+        if col_value is None:
+            col_value = patch.meta['Description'].get(col, None)
+        special_cols_values.append(col_value)
 
+    return tuple(special_cols_values)
 
 
 @doc_sub(splits_note)
