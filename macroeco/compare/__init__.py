@@ -13,15 +13,15 @@ Comparison Functions
 .. autosummary::
    :toctree: generated/
 
-   get_AIC
-   get_AICC
-   get_AIC_weights
-   get_nll
-   get_empirical_cdf
-   get_sum_of_squares
-   get_r_squared
-   get_chi_squared
-   get_lrt
+   AIC
+   AICC
+   AIC_weights
+   nll
+   empirical_cdf
+   sum_of_squares
+   r_squared
+   chi_squared
+   lrt
    bin_data
 
 """
