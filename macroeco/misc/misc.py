@@ -13,17 +13,19 @@ log = log.name('meco')
 import decorator
 import time
 
-def setup_log(log_dir, clear=False):
+def setup_log(log_dir, file_name='_log.txt', clear=False):
     """
     Set up and return logger object
     """
 
     # Get path to log file and clear if requested
-    log_path = os.path.join(log_dir,'_log.txt')
-    
+    log_path = os.path.join(log_dir, file_name)
+    if clear and os.path.isfile(log_path):
+        os.remove(log_path)
+
     # Get outputs and add emitters
     file_output, std_output = _logger_outputs(log_path)
-    twiggy.addEmitters(('file', twiggy.levels.DEBUG, None, file_output), 
+    twiggy.addEmitters(('file', twiggy.levels.DEBUG, None, file_output),
                        ('stdout', twiggy.levels.INFO, None, std_output))
 
     # Get logger
@@ -51,7 +53,7 @@ def _logger_outputs(log_path):
             print "{text}".format(**locals())
             return ""
     std_format = stdLineFormat(traceback_prefix='')
-   
+
     # file_format - customized to show local time, etc
     conversion = twiggy.lib.converter.ConversionTable()
     conversion.add("time", _logger_better_time, "[{1}]".format)
@@ -123,12 +125,12 @@ def inherit_docstring_from(cls):
 def doc_sub(*sub):
     """
     Decorator for performing substitutions in docstrings.
-    
-    Using @doc_sub(some_note, other_note) on a function with {0} and {1} in the 
-    docstring will substitute the contents of some_note and other_note for {0} 
+
+    Using @doc_sub(some_note, other_note) on a function with {0} and {1} in the
+    docstring will substitute the contents of some_note and other_note for {0}
     and {1}, respectively.
 
-    Decorator appears to work properly both with IPython help (tab completion 
+    Decorator appears to work properly both with IPython help (tab completion
     and ?) and with Sphinx.
 
     """
@@ -141,7 +143,7 @@ def log_start_end(f):
     """
     Decorator to log start and end of function
 
-    Use of decorator module here ensures that argspec will inspect wrapped 
+    Use of decorator module here ensures that argspec will inspect wrapped
     function, not the decorator itself.
     http://micheles.googlecode.com/hg/decorator/documentation.html
     """
