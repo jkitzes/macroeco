@@ -94,6 +94,11 @@ class Patch(object):
     consisting only of letters and numbers, with no spaces or other special
     characters.
 
+    The meta attribute of this object is processed to reflect the value of
+    subset. If columns with a min and a max are included in the subset string,
+    the min and max values for that column in meta will be updated to reflect
+    the specified limits.
+
     The parameter subset takes different forms depending on whether the data
     file described by the metadata is a csv or a sql/db file.
 
@@ -242,6 +247,52 @@ def _subset_table(full_table, subset):
         valid = np.logical_and(valid, this_valid)
 
     return full_table[valid]
+
+def _subset_meta(full_meta, subset):
+    """
+    Return subtable matching all conditions in subset.
+
+    Parameters
+    ----------
+    full_meta : ConfigParser obj
+        Metadata object
+    subset : str
+        String describing subset of data to use for analysis
+
+    Returns
+    -------
+    ConfigParser obj
+        Updated version of full_meta accounting for subset string
+
+    """
+    if not subset:
+        return full_meta
+
+    conditions = subset.replace(' ','').split(';')
+
+    for condition in conditions:
+        condition_list = re.split('[<>=]', condition)
+        col = condition_list[0]
+        val = condition_list[-1]
+        col_step = full_meta[col]['step']
+        operator = re.sub('[^<>=]', '', condition)
+
+        if operator == '==':
+            full_meta[col]['min'] = val
+            full_meta[col]['max'] = val
+        elif operator == '>=':
+            full_meta[col]['min'] = val
+        elif operator == '>':
+            full_meta[col]['min'] = str(eval(val) + eval(col_step))
+        elif operator == '<=':
+            full_meta[col]['max'] = val
+        elif operator == '<':
+            full_meta[col]['max'] = str(eval(val) - eval(col_step))
+        else:
+            raise ValueError, "Subset %s not valid" % condition
+
+    return full_meta
+
 
 @log_start_end
 @doc_sub(metric_params, metric_return, cols_note, splits_note)
@@ -1198,10 +1249,11 @@ def _parse_splits(patch, splits):
             level_list = [col + '==' + str(x) + ';'
                           for x in np.unique(patch.table[col])]
         else:
+            col_step = eval(patch.meta[col]['step']) # eval converts to float
             col_min = eval(patch.meta[col]['min'])
             col_max = eval(patch.meta[col]['max'])
-            step = (col_max - col_min) / eval(val)
-            starts = np.arange(col_min, col_max, step)
+            step = (col_max - col_min + col_step) / eval(val)
+            starts = np.arange(col_min, col_max + col_step, step)
             ends = starts + step
             level_list = [col + '>=' + str(x) + '; ' + col + '<' + str(y)+'; '
                           for x, y in zip(starts, ends)]
