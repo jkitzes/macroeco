@@ -24,7 +24,7 @@ import numpy as np
 import scipy.stats as stats
 import matplotlib.pyplot as plt
 
-# TODO: Need to add fit functions to tests with new fit functions. 
+# TODO: Need to add fit functions to tests with new fit functions.
 
 # TODO: Do we need to test rad's? Against what?
 
@@ -43,10 +43,10 @@ class TestDistributions(unittest.TestCase):
         15.87, 24.32, 101.25, 155])
         self.sad = np.arange(1, 156)
 
-    
+
     def test_logser(self):
         # Test error raising
-        self.assertRaises(AssertionError, logser(n_samp=234, tot_obs=67).pmf, 
+        self.assertRaises(AssertionError, logser(n_samp=234, tot_obs=67).pmf,
                                                                              1)
         self.assertRaises(AssertionError, logser(n_samp=34, tot_obs=0).pmf, 1)
 
@@ -59,7 +59,7 @@ class TestDistributions(unittest.TestCase):
         self.assertTrue(np.round(lgser.var['p'][0], decimals=4) == 0.9974)
 
         # Test cdf reaches 1
-        cdf = np.round(logser(n_samp=45, tot_obs=1200).cdf(1200)[0][0], 
+        cdf = np.round(logser(n_samp=45, tot_obs=1200).cdf(1200)[0][0],
                                                                     decimals=1)
         self.assertTrue(cdf == 1)
 
@@ -92,13 +92,13 @@ class TestDistributions(unittest.TestCase):
         pmf  = lg.pmf(1)
         self.assertTrue(np.round(-np.log(lg.var['x'][0]), decimals=6) == 0.000413)
         lg = logser_ut(n_samp=64, tot_obs=2**12 * 64)
-        pmf  = lg.pmf(1) 
+        pmf  = lg.pmf(1)
         self.assertTrue(np.round(-np.log(lg.var['x'][0]), decimals=7) == 0.0000228)
-        
+
         # Check that they don't fail
         logser_ut(n_samp=64, tot_obs=1000).rad()
         logser_ut(n_samp=64, tot_obs=1000).cdf((1,1,2,4,5,7,12))
-        
+
         # Test correct answer when n_samp == tot_obs
         lg = logser_ut(n_samp=31, tot_obs=31)
         pmf  = lg.pmf([1,2,3,4,5])
@@ -108,9 +108,9 @@ class TestDistributions(unittest.TestCase):
 
     def test_logser_ut_appx(self):
         # Test error raising
-        self.assertRaises(AssertionError, logser_ut_appx(n_samp=234, 
+        self.assertRaises(AssertionError, logser_ut_appx(n_samp=234,
                                                             tot_obs=67).pmf, 1)
-        self.assertRaises(AssertionError, logser_ut_appx(n_samp=34, 
+        self.assertRaises(AssertionError, logser_ut_appx(n_samp=34,
                                                              tot_obs=0).pmf, 1)
 
         # Test that values equal values from John's book (Harte 2011)
@@ -140,8 +140,8 @@ class TestDistributions(unittest.TestCase):
         # Test that they don't fail
         logser_ut_appx(n_samp=64, tot_obs=1000).rad()
         logser_ut_appx(n_samp=64, tot_obs=1000).cdf((1,1,2,4,5,7,12))
-        
-     
+
+
     def test_plognorm(self):
         # TODO: Should test against Ethans psolver
 
@@ -160,7 +160,7 @@ class TestDistributions(unittest.TestCase):
 
         # Test pmf is zero when mu or sigma negative
         self.assertTrue(sum(np.round(plognorm(mu=-3,sigma=3).\
-                                     pmf([1,2,3,4,5])[0], decimals=3)) == 0) 
+                                     pmf([1,2,3,4,5])[0], decimals=3)) == 0)
         self.assertTrue(sum(np.round(plognorm(mu=3,sigma=-3).\
                                      pmf([1,2,3,4,5])[0], decimals=3)) == 0)
 
@@ -178,13 +178,13 @@ class TestDistributions(unittest.TestCase):
         plognorm().fit([self.abund_list[0]])
         plognorm(mu=2, sigma=2).cdf(5)
 
-    
+
     def test_plognorm_lt(self):
 
         #Test our pmf against R's poilog
         R_zero_trun = [0.11620, 0.07216, 0.05201, 0.04049, 0.02783, 0.02398,
                        0.00686]
-        pred_plog = plognorm_lt(mu=2, sigma=3).pmf([1,2,3,4,6,7,23])[0] 
+        pred_plog = plognorm_lt(mu=2, sigma=3).pmf([1,2,3,4,6,7,23])[0]
         self.assertTrue(np.array_equal(R_zero_trun, np.round(pred_plog,
                                                                   decimals=5)))
 
@@ -211,8 +211,8 @@ class TestDistributions(unittest.TestCase):
         plognorm_lt(mu=2, sigma=2).pmf([2,3,4,5,23])
         plognorm_lt().fit([self.abund_list[0]])
         plognorm_lt(mu=10, sigma=1).cdf(45)
-        
-    
+
+
     def test_lognorm(self):
 
         # Test pmf against R output
@@ -227,15 +227,15 @@ class TestDistributions(unittest.TestCase):
         diff = r_output - lnorm
         self.assertTrue(np.all(diff == 0))
 
-        lnorm = np.round(lognorm(tot_obs = np.exp(1.5 + (1.2**2 / 2)) * 50, 
+        lnorm = np.round(lognorm(tot_obs = np.exp(1.5 + (1.2**2 / 2)) * 50,
                          n_samp=50,sigma=1.2).pmf([1,2,3,4,5,6,7,12,45])[0],
                          decimals=4)
         diff = r_output2 - lnorm
         self.assertTrue(np.all(diff == 0))
 
         # Test cdf against R cdf
-        rcdf = np.array([0.3319, 0.3319, 0.4869, 0.5127, 0.6124])        
-        pycdf = np.round(lognorm(tot_obs=np.exp(1.5 + (3.45**2 / 2)), n_samp=1, 
+        rcdf = np.array([0.3319, 0.3319, 0.4869, 0.5127, 0.6124])
+        pycdf = np.round(lognorm(tot_obs=np.exp(1.5 + (3.45**2 / 2)), n_samp=1,
                             sigma=3.45).cdf([1,1,4,5,12])[0], decimals=4)
         diff = rcdf - pycdf
         self.assertTrue(np.all(diff == 0))
@@ -263,7 +263,7 @@ class TestDistributions(unittest.TestCase):
         pyfit2 = lognorm().fit([fit_array2]).params['sigma'][0]
         diff = r_lognorm_fits - np.round([pyfit1, pyfit2], decimals=5)
         self.assertTrue(np.all(diff == 0))
-        
+
         # Test that these don't fail
         lognorm().fit([self.abund_list[0]])
         tot_obs=sum(self.abund_list[0])
@@ -274,9 +274,9 @@ class TestDistributions(unittest.TestCase):
         dist = lognorm().fit(self.abund_list)
         dist.pmf(3)
         dist.pmf([[3],[4],[5],[6]])
-        self.assertTrue(len(dist.params['tot_obs']) == 4) 
+        self.assertTrue(len(dist.params['tot_obs']) == 4)
 
-      
+
     def test_geo_ser(self):
         # TODO: Test pmf.
         # Visually, the CDF should be a straight line on a log(abundance) vs.
@@ -305,7 +305,7 @@ class TestDistributions(unittest.TestCase):
         dist = geo_ser().fit(self.abund_list)
         self.assertTrue(len(dist.params['k']) == 4)
 
-    
+
     def test_broken_stick(self):
         # Test that n_except throws approriate error if length n_samp and tot_obs are not
         # the same as length pmf
@@ -326,7 +326,7 @@ class TestDistributions(unittest.TestCase):
         diff = np.array(expt) - bs
         self.assertTrue(np.all(diff == 0))
 
-        # Test that these don't fail 
+        # Test that these don't fail
         broken_stick(n_samp=23, tot_obs=500).cdf([1,2,500])
         broken_stick(n_samp=23, tot_obs=500).rad()
 
@@ -338,14 +338,14 @@ class TestDistributions(unittest.TestCase):
                         ab in self.abund_list])))
 
     def test_dgamma(self):
-        
+
         # Don't have any good published graphs to test it against. Test
         # everything is working
 
         obs_sad = [103,115,13,2,67,36,51,8,6,61,10,21,7,65,4,49,92,37,16,6,23,\
                    9,2,6,5,4,1,3,1,9,2]
         dg = dgamma().fit([obs_sad])
-        
+
         # Check that the parameters are in vars
         self.assertTrue('alpha' in dg.var)
         self.assertTrue('theta' in dg.var)
@@ -372,10 +372,10 @@ class TestDistributions(unittest.TestCase):
         self.assertRaises(NotImplementedError, sugihara().cdf, 34)
         self.assertRaises(NotImplementedError, sugihara().pdf, 23)
 
-     
+
     def test_binm(self):
         # Using scipy.binom which is already unit tested.
-        
+
         # Check that pdf and cdf give correct answers
         dist = binm(tot_obs=8123, n_samp=10)
         self.assertTrue(dist.cdf(8123)[0][0] == 1)
@@ -388,7 +388,7 @@ class TestDistributions(unittest.TestCase):
 
         # Check that fit works
         dist = binm().fit(self.abund_list)
-     
+
     def test_pois(self):
         # Using scipy.poisson which is already unit tested
 
@@ -421,7 +421,7 @@ class TestDistributions(unittest.TestCase):
         geo_data = np.random.geometric(p, size=10000)
         dist = nbd().fit([geo_data])
         self.assertTrue(np.round(dist.params['k'][0], decimals=1) == 1)
-    
+
     def test_nbd_lt(self):
         # TODO: test pmf
 
@@ -464,7 +464,7 @@ class TestDistributions(unittest.TestCase):
 
         # Test that no error is thrown if a zero is passed
         fnbd().fit([[0,1,2,3,4,5,6]])
-        
+
         # TypeError if k is not given
         dist = fnbd(tot_obs=2300, n_samp=20)
         self.assertRaises(TypeError, dist.pmf, 45)
@@ -521,7 +521,7 @@ class TestDistributions(unittest.TestCase):
             plt.clf()
 
         # Based on Zillio and He 2010, Calculating a few pmf values by hand.
-        # Going to test the fnbd against these values. 
+        # Going to test the fnbd against these values.
 
     def test_geo(self):
         # This is just a wrapper function for nbd. Already tested. Will just
@@ -531,7 +531,7 @@ class TestDistributions(unittest.TestCase):
         test = geo().fit([[0,0,0,1,4,67], [1,1,3,5,23]])
         self.assertTrue(np.all(test.params['tot_obs'] == np.array([72, 33])))
         self.assertTrue(np.all(test.params['n_samp'] == np.array([6,5])))
-        
+
         # Test that tot_obs is broadcast
         test  = geo(tot_obs=456, n_samp = [34,56,12])
         test.pmf(0)
@@ -551,12 +551,12 @@ class TestDistributions(unittest.TestCase):
             self.assertTrue(np.array_equal(test_geo[i], test_nbd[i]))
 
     def test_fgeo(self):
-        
+
         # Test fit work and returns expected results
         test = fgeo().fit([[0,0,0,1,4,67], [1,1,3,5,23]])
         self.assertTrue(np.all(test.params['tot_obs'] == np.array([72, 33])))
         self.assertTrue(np.all(test.params['n_samp'] == np.array([6,5])))
-        
+
         # Test that tot_obs is broadcast
         test  = fgeo(tot_obs=456, n_samp = [34,56,12])
         test.pmf(0)
@@ -604,25 +604,25 @@ class TestDistributions(unittest.TestCase):
         # Test tgeo cdf is one
         dist = tgeo(n_samp=10, tot_obs=2345)
         self.assertTrue(np.round(dist.cdf(2345)[0][0], decimals=1) == 1.0)
-        
+
         # When n_samp < 2 weird things happen
         # Testing Lagrange multiplier against values generated by hand
         # [(n=60, a=.1), (n=340, a=.6), (n=34, a=.9), (n=12, a=.9), (n=2, .9),
         # (n=1, a=.1),(n=1, a=0.0001),
         x_vals = np.array([.8572, 1.0036, 1.2937, 1.8298, 5.6056, 0.1111])
-        tg = tgeo(tot_obs=[60,340,34,12, 2, 1], 
+        tg = tgeo(tot_obs=[60,340,34,12, 2, 1],
                          n_samp=(1./.1, 1/.6, 1/.9, 1/.9, 1/.9, 1/.1))
         tg.pmf(0)
         pred_vals = np.round(tg.var['x'], decimals=4)
         self.assertTrue(np.array_equal(x_vals, pred_vals))
-        
+
         x_vals = np.array([1.0e-4, 1.0e-5])
         tg = tgeo(tot_obs=[1,1], n_samp=[1/.0001, 1/.00001])
         tg.pmf(0)
         pred_vals = np.round(tg.var['x'], decimals=6)
         self.assertTrue(np.array_equal(x_vals, pred_vals))
-        
-        # Optimizer is starting to round. Tried brentq, bisect and fsolve 
+
+        # Optimizer is starting to round. Tried brentq, bisect and fsolve
         x_vals = np.array([9, 11])
         tg = tgeo(tot_obs=[1,10], n_samp=[1/.9, 1/.99])
         tg.pmf(0)
@@ -640,17 +640,17 @@ class TestDistributions(unittest.TestCase):
         # Test that pdf and cdf give correct values
         check = dist.pmf([1,1,2,3,4,5,12,34,65])
         self.assertTrue(dist.cdf(0)[0][0] == dist.pmf(0)[0][0])
-        self.assertTrue(dist.cdf(23)[0][0] == 
+        self.assertTrue(dist.cdf(23)[0][0] ==
                     np.sum(dist.pmf(np.arange(0,24))[0]))
 
         # Test that fit provides the correct number of tot_obs. Already have
         # tested generic fit method.
         dist = tgeo().fit(self.abund_list)
         self.assertTrue(len(dist.params['tot_obs']) == 4)
-    
-    
+
+
     def test_mete_sar_iter(self):
-        
+
         # Check mete sar against EW values
         EWsar_down = np.array([8.79, 12.37, 16.71, 21.81, 27.59, 34])
         #S = 23, N=3400, anchor_area=123, target_area=2000)
@@ -675,21 +675,21 @@ class TestDistributions(unittest.TestCase):
                                                                 , downscale=6)
         self.assertTrue(len(sar) == 11)
 
-        # Check that only halving or doubling results are returned when 
+        # Check that only halving or doubling results are returned when
         # non_iter=True
         sar = mete_sar_iter(n_samp=34, tot_obs=1000).iter_vals([1,2,.5,.25,5,.4],
                                                                  non_iter=True)
-        self.assertTrue(len(sar) == 4) 
+        self.assertTrue(len(sar) == 4)
 
         # Check errors are thrown
         sar = mete_sar_iter(n_samp=34, tot_obs=1000)
 
-        # Check that fit method fits correctly with two arguments passed 
+        # Check that fit method fits correctly with two arguments passed
         sar = mete_sar_iter().fit(self.sad, self.sar)
         self.assertTrue(sar.params['n_samp'] == 155)
         self.assertTrue(sar.params['tot_obs'] == sum(np.arange(1, 156)))
 
-        # Check that fit method fits correctly with one argument passed 
+        # Check that fit method fits correctly with one argument passed
         sar = mete_sar_iter().fit(self.sad)
         self.assertTrue(sar.params['n_samp'] == 155)
         self.assertTrue(sar.params['tot_obs'] == sum(np.arange(1, 156)))
@@ -726,7 +726,7 @@ class TestDistributions(unittest.TestCase):
         sar = powerlaw().fit(self.sad, self.sar)
         g = sar.vals([1])
         self.assertTrue(np.round(g['items'][0], decimals=0) == 200)
-        
+
         # Check that c and z exist and check values of other parameters.
         sar.params['c']; sar.params['z']
         self.assertTrue(sar.params['n_samp'] == 155)
@@ -745,10 +745,10 @@ class TestDistributions(unittest.TestCase):
         self.assertTrue(not(np.array_equal(res1['x_over_y'],
                                                             res2['x_over_y'])))
         self.assertTrue((np.array_equal(res1['z'], res2['z'])))
-        
+
     def test_gen_sar(self):
         '''Testing that this actually works'''
-        
+
         # Testing that gen_sar actually runs.  Not sure what values to test it
         # against.
 
@@ -768,7 +768,7 @@ class TestDistributions(unittest.TestCase):
         base2 = gnsar.iter_vals([1,2,.8,.2,.3], base=2)
         base3 = gnsar.iter_vals([1,2,.8,.2,.3], base=3)
         self.assertTrue(not(np.array_equal(base2['area'], base3['area'])))
-        
+
 
         # Test that non_iter=False, returns only areas that match a_list
         a_list1 = [1,2,.5,.25,.1]
@@ -787,7 +787,7 @@ class TestDistributions(unittest.TestCase):
         # Non_iter should be overridden
         sar_arr = gnsar.iter_vals(downscale=1, upscale=1, non_iter=True)
         self.assertTrue(len(sar_arr) == 3)
-        
+
 
         # Test vals and fit performs properly.  Test that fit ignores all args
         # but the first one too.
@@ -860,7 +860,7 @@ class TestDistributions(unittest.TestCase):
         ps.rad()
 
     def test_nu(self):
-        
+
         # Test error is raised when pdf called
         self.assertRaises(NotImplementedError, nu(n_samp=30, tot_obs=400,
                             E=5000).pdf, 0)
@@ -875,7 +875,7 @@ class TestDistributions(unittest.TestCase):
         # Value with no support should equal 0
         self.assertTrue(nudist.pmf(1)[0][0] == 0)
         self.assertTrue(nudist.cdf(1)[0][0] == 0)
-        
+
         #Check that the last value in cdf is 1
         self.assertTrue(np.round(nudist.cdf(E)[0][0], decimals=1) == 1)
 
@@ -894,12 +894,11 @@ class TestDistributions(unittest.TestCase):
         self.assertTrue(g.params['tot_obs'][0] == 28)
         self.assertTrue(g.params['n_samp'][0] == 7)
         self.assertTrue(g.params['E'][0] == 28)
-        
+
 if __name__ == '__main__':
     unittest.main()
 
 
-        
 
 
 
@@ -907,4 +906,5 @@ if __name__ == '__main__':
 
 
 
-  
+
+

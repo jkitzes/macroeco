@@ -5,7 +5,7 @@ Tests for distributions2 module
 
 from __future__ import division
 
-from numpy.testing import (TestCase, assert_equal, assert_array_equal, 
+from numpy.testing import (TestCase, assert_equal, assert_array_equal,
                            assert_almost_equal, assert_array_almost_equal,
                            assert_allclose, assert_, assert_raises)
 
@@ -31,13 +31,13 @@ class TestGeom(TestCase):
     def test_cdf(self):
         vals = geom.cdf([0,1,2], 0.5)
         assert_array_almost_equal(vals, [0.5,0.75,0.875])
-    
+
     def test_translate_args(self):
         ps = geom.translate_args([10, 20])
         assert_array_almost_equal(ps, [1/11, 1/21])
 
-    def test_fit2(self):
-        p = geom.fit2([1,2,4,5])
+    def test_fit_mle(self):
+        p = geom.fit_mle([1,2,4,5])
         assert_almost_equal(p, 0.25)
 
 
@@ -58,14 +58,14 @@ class TestGeomUptrunc(TestCase):
         # cdf should be not throw error even if x is len 1
         vals = geom_uptrunc.cdf(0, 0.5, 2)
         assert_almost_equal(vals, 0.5/0.875)
-    
+
     def test_mean(self):
         mu1 = geom_uptrunc.mean(0.801, 32)
         assert_almost_equal(mu1, 4, decimal=2)
 
     def test_translate_args_harte_16(self):
         # TODO: The Harte figures appear to be inaccurate, generate better
-        # canonical test case for next two tests and for test_fit2 and
+        # canonical test case for next two tests and for test_fit_mle and
         # test_mean
 
         # From Harte 2011, Oxford U Press, Tab 7.4, n0=16 row, Eq 7.50
@@ -98,11 +98,11 @@ class TestGeomUptrunc(TestCase):
         p2, b2 = geom_uptrunc.translate_args(120, 200)  # Arbitrary
         assert_array_almost_equal(1,np.sum(geom_uptrunc.pmf(range(201),p2,b2)))
 
-    def test_fit2(self):
-        p1, _ = geom_uptrunc.fit2([0,10], 10)
+    def test_fit_mle(self):
+        p1, _ = geom_uptrunc.fit_mle([0,10], 10)
         assert_almost_equal(p1, 0)
 
-        p2, _ = geom_uptrunc.fit2([1,3], 16)
+        p2, _ = geom_uptrunc.fit_mle([1,3], 16)
         assert_almost_equal(p2, 1-0.669, decimal=2)
 
 
@@ -127,24 +127,24 @@ class TestNbinom(TestCase):
     def test_get_p_from_mu(self):
         assert_almost_equal(nbinom._get_p_from_mu(10, 2), 2/12)
 
-    def test_fit2_with_rvs(self):
+    def test_fit_mle_with_rvs(self):
         np.random.seed(8)
         x = nbinom.rvs(20, 10, size=100)
-        mu, k = nbinom.fit2(x)
+        mu, k = nbinom.fit_mle(x)
         assert_array_almost_equal([mu, k], [20, 10], decimal=0)
 
-    def test_fit2_with_R(self):
+    def test_fit_mle_with_R(self):
         #> library(MASS)
         #> fitdistr(seq(49), "negative binomial")
         x = np.array(range(1,50))
-        mu, k = nbinom.fit2(x)
+        mu, k = nbinom.fit_mle(x)
         assert_array_almost_equal([mu, k], [25, 2.4337345], decimal=1)
 
-    def test_fit2_with_manual_calc(self):
+    def test_fit_mle_with_manual_calc(self):
         x = np.array([6,17,14,12,8,10,4,9,3,12,4,2,12,8,14,16,9,10,8,5,6])
-        mu, k = nbinom.fit2(x, k_range=(0.01,10,0.01))
+        mu, k = nbinom.fit_mle(x, k_range=(0.01,10,0.01))
         assert_array_almost_equal([mu, k], [9, 8.54], decimal=2)
-        
+
 
 class TestExpon(TestCase):
     pass
