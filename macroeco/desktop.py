@@ -30,8 +30,8 @@ class MainWindow(wx.Frame):
     def __init__(self, parent, title):
         wx.Frame.__init__(self, parent, title=title)
         self.t = None
-        self.dirname = '.'
-        self.parampath = 'parameters.txt'
+        self.dirname = ''
+        self.parampath = ''
         self.InitUI()
         self.Show(True)
 
@@ -77,19 +77,18 @@ class MainWindow(wx.Frame):
         sizer2.Add(self.run_button, 0, wx.EXPAND)
 
         # Updating process
-        self.process = None
         self.Bind(wx.EVT_BUTTON, self.OnRun, self.run_button)
 
         # Output window
         sizerlogbox = wx.BoxSizer(wx.HORIZONTAL)
-        self.logbox = wx.TextCtrl(self, wx.ID_ANY, size=(400,400),
+        self.logbox = wx.TextCtrl(self, wx.ID_ANY, size=(500,400),
                            style = wx.TE_MULTILINE|wx.TE_READONLY|wx.HSCROLL)
         sizerlogbox.Add(self.logbox, 1, wx.EXPAND)
 
-        # redirect text here
-        redir=RedirectText(self.logbox)
-        sys.stdout=redir
-        sys.stderr=redir
+        # Redirect text here
+        redir = RedirectText(self.logbox)
+        sys.stdout = redir
+        sys.stderr = redir
 
         # Restore run button
         self.Bind(wx.EVT_IDLE, self.OnIdle)
