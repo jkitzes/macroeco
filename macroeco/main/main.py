@@ -243,10 +243,10 @@ def _arg_kwarg_lists(options, module):
         kw_names = []
 
     # Inspection for rv classes doesn't work since it uses args internally
-    # Unless method is translate_args or fit2, appends shapes to args
+    # Unless method is translate_args or fit_mle, appends shapes to args
     try:
         obj_meth = options['analysis'].split('.')
-        if obj_meth[1] not in ['fit2', 'translate_args']:
+        if obj_meth[1] not in ['fit_mle', 'translate_args']:
             arg_names += eval(module+'.'+obj_meth[0]+'.'+"shapes.split(',')")
     except:
         pass
@@ -301,7 +301,7 @@ def _fit_models(options, core_results):
 
 
 def _get_fits(data, model):
-    return eval("mod.%s.fit2(data)" % model)
+    return eval("mod.%s.fit_mle(data)" % model)
 
 
 def _get_values(data, model, fits):
