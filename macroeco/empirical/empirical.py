@@ -1,15 +1,14 @@
 from __future__ import division
 import os
-import numpy as np
-import pandas as pd
-
+import re
 from configparser import ConfigParser
+import itertools
+from copy import deepcopy
 from twiggy import log
 log = log.name('emp ')
 
-from math import radians, cos, sin, asin, sqrt
-import itertools
-from copy import deepcopy
+import numpy as np
+import pandas as pd
 import scipy.spatial.distance as dist
 try:
     import shapely.geometry as geo
@@ -36,7 +35,7 @@ metric_return = \
         second element is a dataframe giving the result."""
 
 cols_note = \
-    """The parameter `cols` is a dictionary with keys for four special
+    """The parameter ``cols`` is a dictionary with keys for four special
     columns and values giving the column name in the patch data table
     associated with each special column.
 
@@ -51,11 +50,10 @@ cols_note = \
     count_col is used when multiple individuals of a species may be found at
     a single recorded location, as is the case in gridded censuses where all
     individuals in a quadrat are "assigned" to a single point. energy_col
-    and mass_col are used for energy-based metrics.
-    """
+    and mass_col are used for energy-based metrics."""
 
 splits_note = \
-    """The parameter `splits` is a semicolon-separated string in the form of
+    """The parameter ``splits`` is a semicolon-separated string in the form of
     "column: value", where column is a name of a column in the patch data
     table and value is either (a) an integer giving the number of
     equally-spaced divisions of a column, or (b) the special keyword
@@ -86,7 +84,7 @@ class Patch(object):
         Table of census data recorded in patch
     meta : ConfigParser obj
         Object similar to dict describing data table, loaded from metadata file
-        at metadata_path
+        at metadata_path and processed by subset
     subset : str
         Subset string passed as parameter
 
@@ -102,8 +100,8 @@ class Patch(object):
     For csv data files, subset is a semicolon-separated string describing
     subset operations. For example, the string "year==2005; x>20; x<40;
     spp=='cabr'" loads a data table containing only records for which the year
-    is 2005, x values are between 20 and 40, and species 'cabr'. Note that for
-    categorical columns, the value of the column must be enclosed in single
+    is 2005, x values are between 20 and 40, and species is 'cabr'. Note that
+    for categorical columns, the value of the column must be enclosed in single
     quotes.
 
     For sql/db files, subset is a SQL query string that selects the data from
@@ -117,11 +115,10 @@ class Patch(object):
         self.meta.read(metadata_path)
         self.subset = subset
         self.table = self._load_table(metadata_path,
-                                      self.meta['Description']['datapath'],
-                                      subset)
+                                      self.meta['Description']['datapath'])
 
 
-    def _load_table(self, metadata_path, relative_data_path, subset):
+    def _load_table(self, metadata_path, data_path):
         """
         Load data table, taking subset if needed
 
@@ -129,10 +126,8 @@ class Patch(object):
         ----------
         metadata_path : str
             Path to metadata file
-        relative_data_path : str
-            Path to data file from location of metadata file
-        subset : str
-            String describing subset of data to use for analysis
+        data_path : str
+            Path to data file, absolute or relative to metadata file
 
         Returns
         -------
@@ -142,21 +137,22 @@ class Patch(object):
         """
 
         metadata_dir = os.path.dirname(metadata_path)
-        data_path = os.path.normpath(os.path.join(metadata_dir,
-                                                  relative_data_path))
-        type = data_path.split('.')[-1]
+        data_path = os.path.normpath(os.path.join(metadata_dir, data_path))
 
-        if type == 'csv':
+        extension = data_path.split('.')[-1]
+
+        if extension == 'csv':
             full_table = pd.read_csv(data_path)
-            table = _subset_table(full_table, subset)
-        elif type in ['db', 'sql']:
-            table = self._get_db_table(data_path, type, subset)
+            table = _subset_table(full_table, self.subset)
+            self.meta = _subset_meta(self.meta, self.subset)
+        elif extension in ['db', 'sql']:
+            table = self._get_db_table(data_path, extension)
         else:
-            raise TypeError('Cannot process file of type %s' % type)
+            raise TypeError('Cannot process file of type %s' % extension)
 
         return table
 
-    def _get_db_table(self, data_path, type):
+    def _get_db_table(self, data_path, extension):
         """
         Query a database and return query result as a recarray
 
@@ -164,7 +160,7 @@ class Patch(object):
         ----------
         data_path : str
             Path to the database file
-        type : str
+        extension : str
             Type of database, either sql or db
 
         Returns
@@ -176,7 +172,7 @@ class Patch(object):
         # TODO: This is probably broken
 
         # Load table
-        if type == 'sql':
+        if extension == 'sql':
             con = lite.connect(':memory:')
             con.row_factory = lite.Row
             cur = con.cursor()
@@ -237,6 +233,7 @@ def _subset_table(full_table, subset):
     if not subset:
         return full_table
 
+    # TODO: Figure out in syntax for logical or
     conditions = subset.replace(' ','').split(';')
 
     valid = np.ones(len(full_table), dtype=bool)
@@ -262,14 +259,13 @@ def sad(patch, cols, splits='', clean=True):
 
     Returns
     -------
-    {1}
-        Result has two columns: spp (species identifier) and y
-        (individuals of that species).
-
+    {1} Result has two columns: spp (species identifier) and y (individuals of
+    that species).
 
     Notes
     -----
     {2}
+
     {3}
 
     """
@@ -298,7 +294,7 @@ def sad(patch, cols, splits='', clean=True):
         if clean:
             subdf = subdf[subdf['y'] > 0]
 
-        # Append split result
+        # Append subset result
         result_list.append((substring, subdf))
 
     # Return all results
@@ -317,23 +313,19 @@ def ssad(patch, cols, splits=''):
 
     Returns
     -------
-    {1}
-        Result has one column: y (individuals of species in each subplot).
-
+    {1} Result has one column giving the individuals of species in each
+    subplot.
 
     Notes
     -----
     {2}
+
     {3}
 
     """
 
     # Get and check SAD
     sad_results = sad(patch, cols, splits, clean=False)
-
-    if len(sad_results) == 1:
-        raise ValueError, ("SSAD requires patch to be split into more than "
-                           "one subplot")
 
     # Create dataframe with col for spp name and numbered col for each split
     for i, sad_result in enumerate(sad_results):
@@ -1080,13 +1072,13 @@ def decdeg_distance(pt1, pt2):
     lat2, lon2 = pt2
 
     # Convert decimal degrees to radians
-    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+    lon1, lat1, lon2, lat2 = map(np.radians, [lon1, lat1, lon2, lat2])
 
     # haversine formula
     dlon = lon2 - lon1
     dlat = lat2 - lat1
-    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-    c = 2 * asin(sqrt(a))
+    a = np.sin(dlat/2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon/2)**2
+    c = 2 * np.asin(np.sqrt(a))
     km = 6367 * c
 
     return km
@@ -1167,7 +1159,7 @@ def _yield_subtables(patch, splits):
     if splits:
         subset_list = _parse_splits(patch, splits)
         for subset in subset_list:
-            log.info('Analyzing split: %s' % subset)
+            log.info('Analyzing subset: %s' % subset)
             yield subset, _subset_table(patch.table, subset)
     else:
         yield '', patch.table
