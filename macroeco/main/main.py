@@ -187,7 +187,9 @@ def _emp_extra_options(options):
         raise IOError, ("Path to metadata file %s is invalid." %
                         metadata_path)
 
-    options['patch'] = emp.Patch(metadata_path)
+    subset = options.get('subset', '')
+
+    options['patch'] = emp.Patch(metadata_path, subset)
     options['cols'], options['splits'] = _get_cols_splits(options)
 
     return options
