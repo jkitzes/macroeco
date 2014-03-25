@@ -29,8 +29,8 @@ def main(param_path='parameters.txt'):
 
     Parameters
     ----------
-    param_dir : str
-        Path to directory containing user-generated parameter file
+    param_path : str
+        Path to user-generated parameter file
 
     """
 
@@ -39,14 +39,14 @@ def main(param_path='parameters.txt'):
         raise IOError, "Parameter file not found at %s" % param_path
     param_dir = os.path.abspath(os.path.dirname(param_path))
 
-    # Setup results_dir
+    # Setup results_dir, remove if present
     results_dir = os.path.join(param_dir, 'results')
     if os.path.isdir(results_dir):
         shutil.rmtree(results_dir)
     os.makedirs(results_dir)
 
     # Get logger and announce start
-    log = setup_log(results_dir, clear=True)
+    log = setup_log(results_dir)
     log.info('Starting analysis')
 
     # Read parameter file into params object
@@ -91,13 +91,15 @@ def _do_analysis(options):
 
 
 def _function_location(options):
-    # TODO: Add check for spec module
+    # TODO: Add spec and misc modules
+    # This relies on the assumption that there are no duplicate member names
+    # in the different modules.
     func_name = options['analysis'].split('.')[0]  # Ignore method if present
-    emp_funcs = [x[0] for x in inspect.getmembers(emp)]
-    mod_funcs = [x[0] for x in inspect.getmembers(mod)]
-    if func_name in emp_funcs:
+    emp_members = [x[0] for x in inspect.getmembers(emp)]
+    mod_members = [x[0] for x in inspect.getmembers(mod)]
+    if func_name in emp_members:
         module = 'emp'
-    elif func_name in mod_funcs:
+    elif func_name in mod_members:
         module = 'mod'
     else:
         raise ValueError, ("No analysis of type '%s' is available" %
@@ -107,21 +109,22 @@ def _function_location(options):
 
 def _call_analysis_function(options, module):
     """
-    Call function and get return, using inputs from options
+    Call function from module and get result, using inputs from options
 
     Parameters
     ----------
     options : dict
         Option names and values for analysis
+    module : str
+        Short name of module within macroeco containing analysis function
 
     Returns
     -------
-    tuple or list of tuples
-        First element of the tuple gives a string describing the result and the
+    dataframe, array, value, list of tuples
+        Functions from emp module return a list of tuples in which first
+        element of the tuple gives a string describing the result and the
         second element giving the result of the analysis as a dataframe.
-        Functions in the empirical module return a list of tuples, where each
-        tuple corresponds to a split. All other functions return a single
-        tuple.
+        Functions in other modules return dataframe, array, or value.
 
     """
 
@@ -131,7 +134,7 @@ def _call_analysis_function(options, module):
 
 def _get_args_kwargs(options, module):
     """
-    Given an analysis, options, and a module, extract args and kwargs
+    Given an options (including analysis), and module, extract args and kwargs
     """
 
     if module == 'emp':
@@ -240,7 +243,7 @@ def _arg_kwarg_lists(options, module):
         kw_names = []
 
     # Inspection for rv classes doesn't work since it uses args internally
-    # Unless method is translate_args or fit2, appens shapes to args
+    # Unless method is translate_args or fit2, appends shapes to args
     try:
         obj_meth = options['analysis'].split('.')
         if obj_meth[1] not in ['fit2', 'translate_args']:
@@ -282,18 +285,19 @@ def _fit_models(options, core_results):
 
     # TODO: Make work for 2D results, i.e., curves, comm_sep, o_ring
     # TODO: Make work for curves in general (check if 'x' present in core_res)
-    extra_results = []
+    fit_results = []
     for core_result in core_results:  # Each split
-        extra_result = {}
+        fit_result = {}
         for model in models:
             data = core_result[1]['y'].values
             fits = _get_fits(data, model)
+            # TODO: values is probably better moved to output part
             values = _get_values(data, model, fits)
             stat_names, stats = _get_comparison_statistic(values, fits)
-            extra_result[model] = [fits, values, stat_names, stats]
-        extra_results.append(extra_result)
+            fit_result[model] = [fits, values, stat_names, stats]
+        fit_results.append(fit_result)
 
-    return extra_results
+    return fit_results
 
 
 def _get_fits(data, model):
@@ -325,17 +329,16 @@ def _save_results(options, module, core_results, fit_results):
         Option names and values for analysis
     module : str
         Module that contained function used to generate core_results
-    core_results : list, dataframe, or array
+    core_results : dataframe, array, value, list of tuples
         Results of main analysis
-    fit_results : list
+    fit_results : list or None
         Results of comparing emp analysis to models, None if not applicable
 
     """
 
     log.info("Saving all results")
 
-    # Ensure that output dir for this run exists and is empty
-    shutil.rmtree(options['run_dir'], ignore_errors=True)
+    # Make run directory
     os.makedirs(options['run_dir'])
 
     # Write core results
@@ -352,17 +355,6 @@ def _save_results(options, module, core_results, fit_results):
             _write_test_statistics(i, models, options, fit_results)
             _write_comparison_plots_tables(i, models, options,
                                            core_results, fit_results)
-
-
-def _write_split_index_file(options, core_results):
-    """
-    Write table giving index of splits, giving number and combination
-    """
-
-    f_path = os.path.join(options['run_dir'], '_split_index.csv')
-    with open(f_path, 'a') as f:
-        for i, core_result in enumerate(core_results):
-            f.write("%i,%s\n" % (i+1, str(core_result[0])))
 
 
 def _write_core_tables(options, module, core_results):
@@ -400,8 +392,21 @@ def _get_file_path(spid, options, file_name):
                         '%i_%s' % (spid+1, file_name))
 
 
-def _write_fitted_params(spid, models, options, fit_results):
+def _write_split_index_file(options, core_results):
+    """
+    Write table giving index of splits, giving number and combination
+    """
 
+    f_path = os.path.join(options['run_dir'], '_split_index.csv')
+    split_strs = zip(*core_results)[0]
+    index = np.arange(len(split_strs)) + 1
+    df = pd.DataFrame({'splits': split_strs}, index=index)
+    df.to_csv(f_path)
+
+
+def _write_fitted_params(spid, models, options, fit_results):
+    # TODO: Consider converting to pandas, need to deal with variable length
+    # TODO: Possibility - empty data frame max length, max width = nparams
     f = open(_get_file_path(spid, options, 'fitted_params.csv'), 'w')
     f.write("Model, Fit Parameters\n")
 
@@ -414,14 +419,14 @@ def _write_fitted_params(spid, models, options, fit_results):
 
 def _write_test_statistics(spid, models, options, fit_results):
     # TODO: Add delta test statistics columns
-
+    # TODO: Make dataframe?
     f = open(_get_file_path(spid, options, 'test_statistics.csv'), 'w')
 
     # Gets stat name list from any element of result dict - same for all
     stat_names_list = next(fit_results[spid].itervalues())[2]
     stat_names_str = str(stat_names_list)[1:-1].strip("'")
 
-    f.write("Theory, %s\n" % stat_names_str)
+    f.write("Model, %s\n" % stat_names_str)
 
     for model in models:
         fit_result = fit_results[spid][model]
@@ -442,6 +447,7 @@ def _write_comparison_plots_tables(spid, models, options, core_results,
     - cdf vs emp cdf
     - rad vs rad
     """
+    # TODO: More general function for RAD that deals with -0.5/len issue
 
     core_result = core_results[spid][1]
     n_vals = len(core_result)
@@ -506,6 +512,8 @@ def _save_table_and_plot(spid, models, options, fit_results, name, df,
 
     df.to_csv(f_path, index=False, float_format='%.4f')  # Table
 
+    # TODO: We only want x and models here, not any other cols that might be
+    # returned in the empirical calculation.
     df_plt = df.set_index('x')  # Figure
     emp = df_plt['empirical']
     df_plt = df_plt.drop('empirical',1)
