@@ -149,7 +149,7 @@ def log_start_end(f):
     """
     def inner(f, *args, **kwargs):
         log.info('Starting %s' % f.__name__)
-        res = f(*args)
+        res = f(*args, **kwargs)
         log.info('Finished %s' % f.__name__)
         return res
     return decorator.decorator(inner, f)
