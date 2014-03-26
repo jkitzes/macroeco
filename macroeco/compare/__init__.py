@@ -26,4 +26,6 @@ Comparison Functions
 
 """
 
-from .compare import *
+from .compare import (AIC, AICC, AIC_weights, nll, lrt,
+                      sum_of_squares, r_squared, chi_squared,
+                      empirical_cdf, bin_data)

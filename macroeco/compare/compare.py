@@ -6,16 +6,68 @@ import scipy.stats as stats
 import pandas as pd
 
 
-def nll(values):
+def nll(data, model):
     """
-    Calculate negative log likelihood from an array of pdf/pmf values.
+    Calculate negative log likelihood from a set of pdf/pmf values
+
+    Parameters
+    ----------
+    x : iterable
+        pmf/pdf values
+
+    Returns
+    -------
+    array
+        Negative log likelihood
     """
 
-    values = _to_arrays(values)[0]
-    return -np.sum(np.log(values))
+    x = _to_arrays(x)[0]
+    return -np.sum(np.log(x))
 
 
-def AIC(values, params):
+def lrt(data, model_null, model_alt):
+    """
+    This functions compares two nested models using the likelihood ratio
+    test.
+
+    Parameters
+    ----------
+    nll_null :  float
+        The negative log-likelihood of the null model
+    nll_alt : float
+        The negative log-likelihood of the alternative model
+    df_list : int
+        the degrees of freedom calculated as (number of free parameters in
+        alternative model) - (number of free parameters in null model).
+        Alternatively, the number of additional parameters in the alternative
+        model.
+
+    Returns
+    -------
+    : tuple
+        (test_statistic, p-value)
+
+    Notes
+    -----
+
+    Interpretation: p-value < alpha suggests signficant evidence for your
+    alternative model
+
+    The LRT only applies to nested models. The variable test_stat is known as
+    the G^2 statistic.  The G-test uses the fact that -2log(Likelihood_null /
+    Likelihood_alt) is approximately chi-squared.  This assumption breaks down
+    for small samples sizes.
+
+    """
+
+    # Calculate G^2 statistic
+    ll_null = nll_null * -1
+    ll_alt = nll_alt * -1
+    test_stat = -2 * (ll_null - ll_alt)
+    return (test_stat, stats.chisqprob(test_stat, df))
+
+
+def AIC(data, model, params=None, corrected=True):
     """
     Calculate AIC given values of a pdf/pmf and a set of model parameters.
     """
@@ -25,7 +77,6 @@ def AIC(values, params):
     return 2 * k + 2 * L
 
 
-def AICC(values, params):
     """
     Calculate AICC given values of a pdf/pmf and a set of model parameters.
 
@@ -48,7 +99,7 @@ def AICC(values, params):
     return AIC(values, params) + (2 * k * (k + 1)) / (n - k - 1)
 
 
-def AIC_weights(aic_values):
+def AIC_weights(aic_list):
     """
     Calculates the aic_weights for a given set of models.
 
@@ -78,79 +129,16 @@ def AIC_weights(aic_values):
     return weights, delta
 
 
-def empirical_cdf(data):
+def bayes_factor():
+    pass
+
+
+def sum_of_squares(obs, pred):
+    return np.sum((np.array(obs) - np.array(pred))**2)
+
+
+def r_squared(obs, pred, one_to_one=False):
     """
-    Generates an empirical cdf from empirical data
-
-    Parameters
-    ----------
-    data : array-like object
-        Empirical data
-
-    Returns
-    --------
-    : array
-        The empirical cdf corresponding to the inputted data
-
-    """
-    # TODO: This should return sorted data also, otherwise trying to match the 
-    # input data to output does not correspond (result is sorted, data is not
-    # necessarily).
-
-    vals = pd.Series(data).value_counts()
-    ecdf = pd.DataFrame(data).set_index(keys=0)
-    probs = pd.DataFrame(vals.sort_index().cumsum() / np.float(len(data)))
-    ecdf = ecdf.join(probs)
-
-    return np.array(ecdf[0])
-
-
-class gen_loss_function(object):
-    """
-    Generic class for loss function between observed and predicted data
-
-    """
-
-    def __init__(self, loss_fxn_str):
-        """
-        Parameters
-        ----------
-        loss_fxn_str : string
-            A Python string representing the loss function between observed
-            (obs) and predicted (pred).
-
-        Notes
-        -----
-
-        Ex. 'np.abs(obs - pred)' or '(obs - pred)**2'
-
-        """
-        self.loss_fxn = loss_fxn_str
-
-    def total_loss(self, obs, pred):
-        """
-        Total loss for observed and predicted
-
-        Parameters
-        ----------
-        obs, pred : array-like objects
-            observed and predicted data
-
-        Returns
-        -------
-        : float
-            The sum of the loss function
-        """
-
-        obs, pred = _to_arrays(obs, pred)
-        return np.sum(eval(self.loss_fxn))
-
-sum_of_squares = gen_loss_function('(obs - pred)**2').total_loss
-
-
-def r_squared(obs, pred):
-    """
-
     Get's the R^2 value for a regression of observed data (X) and predicted (Y)
 
     Parameters
@@ -163,73 +151,12 @@ def r_squared(obs, pred):
         The R**2 value for the regression of observed on predicted
 
     """
-
+    # TODO: Add one_to_one
     b0, b1, r, p_value, se = stats.linregress(obs, pred)
     return r ** 2
 
 
-def ks_two_sample():
-    """
-    Two sample Kolmogorov Smirnov distribution.  Uses the cumulative
-    distribution functions to test whether two samples were drawn from the same
-    continuous distribution. Can be a decent approxmiation for discrete data
-    (CHECK THIS), but the chi-squared test may be more appropriate.
-
-    """
-
-    pass
-
-
-def ks_one_sample():
-    pass
-
-
-def lrt(nll_null, nll_alt, df):
-    """
-    This functions compares two nested models using the likelihood ratio
-    test.
-
-    Parameters
-    ----------
-    nll_null :  float
-        The negative log-likelihood of the null model
-    nll_alt : float
-        The negative log-likelihood of the alternative model
-    df_list : int
-        the degrees of freedom calculated as (number of free parameters in
-        alternative model) - (number of free parameters in null model).
-        Alternatively, the number of additional parameters in the alternative
-        model.
-    
-    Returns
-    -------
-    : tuple
-        (test_statistic, p-value)
-
-    Notes
-    -----
-
-    Interpretation: p-value < alpha suggests signficant evidence for your
-    alternative model
-
-    The LRT only applies to nested models. The variable test_stat is known as
-    the G^2 statistic.  The G-test uses the fact that -2log(Likelihood_null /
-    Likelihood_alt) is approximately chi-squared.  This assumption breaks down
-    for small samples sizes.
-
-    """
-    
-    # Calculate G^2 statistic
-    ll_null = nll_null * -1
-    ll_alt = nll_alt * -1
-    test_stat = -2 * (ll_null - ll_alt)
-    return (test_stat, stats.chisqprob(test_stat, df))
-
-def bayes_factor():
-    pass
-
-
-def chi_squared(dists):
+def chi_squared(x1, x2, bin_type='linear'):
     """
     Chi-squared test to compare two or more distributions.
 
