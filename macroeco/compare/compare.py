@@ -5,47 +5,71 @@ import scipy as sp
 import scipy.stats as stats
 import pandas as pd
 
+from ..misc import doc_sub
 
+_data_doc = """data : array-like
+    data from which to caculate the the likelihood"""
+
+_model_doc = """model : scipy distribution object
+    A frozen scipy model object.  Needs to have the attribute *.shape"""
+
+_obs_pred_doc = """obs, pred : array-like objects
+    Observed and predicted data"""
+
+
+@doc_sub(_data_doc, _model_doc)
 def nll(data, model):
     """
-    Calculate negative log likelihood from a set of pdf/pmf values
+    Calculate the neagtive log likelihood given data and a model
 
     Parameters
     ----------
-    x : iterable
-        pmf/pdf values
+    {0}
+
+    {1}
 
     Returns
     -------
-    array
+    float
         Negative log likelihood
+
     """
 
-    x = _to_arrays(x)[0]
-    return -np.sum(np.log(x))
+    try:
+        log_lik_vals = model.logpmf(data)
+    except:
+        log_lik_vals = model.logpdf(data)
+    return -np.sum(log_lik_vals)
 
 
-def lrt(data, model_null, model_alt):
+@doc_sub(_data_doc)
+def lrt(data, model_null, model_alt, df=None):
     """
     This functions compares two nested models using the likelihood ratio
     test.
 
     Parameters
     ----------
-    nll_null :  float
-        The negative log-likelihood of the null model
-    nll_alt : float
-        The negative log-likelihood of the alternative model
-    df_list : int
-        the degrees of freedom calculated as (number of free parameters in
-        alternative model) - (number of free parameters in null model).
-        Alternatively, the number of additional parameters in the alternative
-        model.
+    {0}
+
+    model_null : scipy distribution object
+        The null model as a frozen scipy distribution object. Parameters of
+        distribution must be given as keyword arguments.
+        Ex. ``norm = stats.norm(loc=0, scale=1)``
+
+    model_alt : scipy distribution object
+        The alternative model as a a frozen scipy distribution object.
+
+    df : int
+        Optional. Specify the degrees of freedom for the lrt.  Calculated
+        as the number of parameters in model_alt - number of parameters in
+        model_null.  If None, the df is calculated from the model
+        objects.
 
     Returns
     -------
-    : tuple
-        (test_statistic, p-value)
+    tuple
+        (G^2 statistic, p-value)
 
     Notes
     -----
@@ -61,28 +85,44 @@ def lrt(data, model_null, model_alt):
     """
 
     # Calculate G^2 statistic
-    ll_null = nll_null * -1
-    ll_alt = nll_alt * -1
+    ll_null = nll(data, model_null) * -1
+    ll_alt = nll(data, model_alt) * -1
     test_stat = -2 * (ll_null - ll_alt)
+
+    # Set df if necessary
+    if not df:
+        df = len(model_alt.kwds) - len(model_null.kwds)
+
     return (test_stat, stats.chisqprob(test_stat, df))
 
 
+@doc_sub(_data_doc, _model_doc)
 def AIC(data, model, params=None, corrected=True):
     """
-    Calculate AIC given values of a pdf/pmf and a set of model parameters.
-    """
-    values, params = _to_arrays(values, params)
-    k = len(params)  # Num parameters
-    L = nll(values)
-    return 2 * k + 2 * L
+    Calculate AIC given values of a model given data and model parameters
 
+    Parameters
+    ----------
+    {0}
 
-    """
-    Calculate AICC given values of a pdf/pmf and a set of model parameters.
+    {1}
+
+    params : int
+        The number of parameters in the model. If None, calculates the number
+        of parameters from the distribution object
+
+    corrected : bool
+        If True, calculates the corrected AICC, if False calculates the
+        uncorrected AIC.
+
+    Returns
+    -------
+    float
+        AIC(C) value
 
     Notes
     -----
-    Should be used when the number of observations is < 40.
+    AICC should be used when the number of observations is < 40.
 
     References
     ----------
@@ -92,25 +132,34 @@ def AIC(data, model, params=None, corrected=True):
         York City, USA: Springer.
 
     """
+    n = len(data)  # Number of observations
+    L = nll(data, model)
 
-    values, params = _to_arrays(values, params)
-    k = len(params)  # Num parameters
-    n = len(values)  # Num observations
-    return AIC(values, params) + (2 * k * (k + 1)) / (n - k - 1)
+    if not params:
+        k = len(model.kwds)
+    else:
+        k = params
+
+    if corrected:
+        aic_value = 2 * k + 2 * L + (2 * k * (k + 1)) / (n - k - 1)
+    else:
+        aic_value = 2 * k + 2 * L
+
+    return aic_value
 
 
 def AIC_weights(aic_list):
     """
-    Calculates the aic_weights for a given set of models.
+    Calculates the AIC weights for a given set of models.
 
     Parameters
     -----------------
-    aic_values : array-like object
+    aic_list : array-like object
         Array-like object containing AIC values from different models
 
     Returns
     -------------
-    (weights, delta) : tuple
+    tuple
         First element contains the relative AIC weights, second element
         contains the delta AIC values.
 
@@ -120,7 +169,7 @@ def AIC_weights(aic_list):
     best model in comparison to the other models
     """
 
-    aic_values = _to_arrays(aic_values)[0]
+    aic_values = np.array(aic_list)
     minimum = np.min(aic_values)
     delta = aic_values - minimum
     values = np.exp(-delta / 2)
@@ -129,76 +178,79 @@ def AIC_weights(aic_list):
     return weights, delta
 
 
-def bayes_factor():
-    pass
-
-
+@doc_sub(_obs_pred_doc)
 def sum_of_squares(obs, pred):
-    return np.sum((np.array(obs) - np.array(pred))**2)
-
-
-def r_squared(obs, pred, one_to_one=False):
     """
-    Get's the R^2 value for a regression of observed data (X) and predicted (Y)
+    Calculates the sum of squares between observed (X) and predicted (Y) data.
+    Attempts to braodcast arrays if lengths don't match.
 
     Parameters
     ----------
-    obs, pred : array-like objects
+    {0}
 
     Returns
     -------
-    : float
-        The R**2 value for the regression of observed on predicted
-
+    float
+        Sum of squares
     """
-    # TODO: Add one_to_one
-    b0, b1, r, p_value, se = stats.linregress(obs, pred)
-    return r ** 2
+    obs, pred = tuple(np.broadcast_arrays(obs, pred))
+    return np.sum((np.array(obs) - np.array(pred)) ** 2)
 
 
-def chi_squared(x1, x2, bin_type='linear'):
+@doc_sub(_obs_pred_doc)
+def r_squared(obs, pred, one_to_one=False, log_trans=True):
     """
-    Chi-squared test to compare two or more distributions.
+    Get's the R^2 value for a regression of observed (X) and predicted (Y)
+    data
 
     Parameters
-    ------------------
-    dists : list
-        List of distributions to compare.  Each distribution in list should be
-        the same length and the location of each value in a list should be
-        compareable.  This list will be made into a Chi-Squared contingency
-        table to analyze.
+    ----------
+    {0}
+
+    one_to_one : bool
+        If True, calculates the R^2 based on the one-to-one line as done in
+        [#]_.  If False, calculates the standard R^2 from a regression fit.
+
+    log_trans : bool
+        If True, log transforms obs and pred.
 
     Returns
-    ------------
-    chi2 : float
-        The test statistic.
-    p : float
-        The p-value of the test
-    dof : int
-        Degrees of freedom
-    expected : ndarray, same shape as `observed`
-        The expected frequencies, based on the marginal sums of the table.
+    -------
+    float
+        R^2 value
 
     Notes
-    ---------
-    Assumption of the Chi-squared test is that the expected value of 80% of
-    the cells is > 5.  If this does not hold, the Normal approximation is not
-    valid and you should try an alternative approach.
+    -----
+    Using just R^2 to compare the fit of observed and predicted values can be
+    misleading because the relationship may not be one-to-one but the R^2
+    value may be quite high. The one-to-one option alleviates this problem.
 
-    If all of the cells in a column contain zero and error will because teh
-    expected value of the cell is 0.
+    References
+    ----------
+    .. [#]
+        White, E., Thibault, K., & Xiao, X. (2012). Characterizing the species
+        abundance distributions across taxa and ecosystems using a simple
+        maximum entropy model. Ecology, 93(8), 1772-8
+
     """
 
-    assert len(dists) > 1, "Length of dists must be greater than 1"
-    test_len = len(dists[0])
-    assert np.all([len(dt) == test_len for dt in dists]), \
-                "All dists must have equal length"
+    # Sort obs and pred
+    obs = np.sort(obs)
+    pred = np.sort(pred)
 
-    chi_table = np.array(dists, dtype=np.float)
-    chi2, p, dof, expected = stats.chi2_contingency(chi_table,
-                        correction=False)
+    if log_trans:
+        obs = np.log(obs)
+        pred = np.log(pred)
 
-    return chi2, p, dof, expected
+    if one_to_one:
+        # Equation from White et al 2012
+        r_sq = 1 - sum_of_squares(obs, pred) / \
+                        sum_of_squares(obs, np.mean(obs))
+    else:
+        b0, b1, r, p_value, se = stats.linregress(obs, pred)
+        r_sq = r ** 2
+
+    return r_sq
 
 
 def bin_data(data, max_num):
@@ -208,7 +260,7 @@ def bin_data(data, max_num):
     not split between bins.
 
     Parameters
-    ------------------
+    ----------
     data : array-like
         Data to be binned
 
@@ -216,12 +268,12 @@ def bin_data(data, max_num):
         The maximum upper most boundary of the data
 
     Returns
-    ------------
-    tuple : (binned_data, bin_edges)
+    -------
+    tuple
+        (binned_data, bin_edges)
 
     References
-    -----------------
-
+    ----------
     .. [#]
         Preston, F. (1962). The canonical distribution of commonness and rarity.
         Ecology, 43, 185-215
