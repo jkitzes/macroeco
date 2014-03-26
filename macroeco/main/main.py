@@ -23,7 +23,7 @@ from .. import models as mod
 from .. import compare as comp
 
 
-def main(param_path='parameters.txt'):
+def main(param_path='parameters.txt', flat_output=False):
     """
     Entry point function for analysis based on parameter files.
 
@@ -31,23 +31,39 @@ def main(param_path='parameters.txt'):
     ----------
     param_path : str
         Path to user-generated parameter file
+    flat_output : bool
+        Place all output in parameter directory instead of results
+        subdir. Default False. Only allowed if single run in parameters file.
 
     """
 
-    # Confirm parameters file is present and extract dir
+    # Confirm parameters file is present
     if not os.path.isfile(param_path):
         raise IOError, "Parameter file not found at %s" % param_path
-    param_dir = os.path.abspath(os.path.dirname(param_path))
 
-    # Setup results_dir, remove if present
-    results_dir = os.path.join(param_dir, 'results')
-    if os.path.isdir(results_dir):
-        shutil.rmtree(results_dir)
-    os.makedirs(results_dir)
+    # Get raw params and base options (non-run-dependent options)
+    params, base_options = _get_params_base_options(param_path, flat_output)
 
-    # Get logger and announce start
-    log = setup_log(results_dir)
+    # Confirm that flat_output is allowed
+    if flat_output and len(base_options['run_names']) > 1:
+        raise ValueError, "flat_output option only possible with a single run"
+
+    # Start logging
+    log = setup_log(base_options['results_dir'])
     log.info('Starting analysis')
+
+    # Do analysis for each run
+    for run_name in base_options['run_names']:
+        log.info('Starting run %s' % run_name)
+        options = dict(params[run_name])  # All parameters from this run
+        options.update(base_options)  # Add base parameters
+        options['run_dir'] = os.path.join(base_options['results_dir'],run_name)
+        _do_analysis(options)
+        log.info('Finished run %s' % run_name)
+    log.info('Finished analysis successfully')
+
+
+def _get_params_base_options(param_path, flat_output):
 
     # Read parameter file into params object
     params = configparser.ConfigParser()
@@ -56,16 +72,25 @@ def main(param_path='parameters.txt'):
     except:
         raise ValueError, "Parameter file is invalid"
 
-    # Do analysis for each run with options dict (params + addl options)
-    run_names = params.sections()
-    for run_name in run_names:
-        log.info('Starting run %s' % run_name)
-        options = dict(params[run_name])
-        options['param_dir'] = param_dir
-        options['run_dir'] = os.path.join(results_dir, run_name)
-        _do_analysis(options)
-        log.info('Finished run %s' % run_name)
-    log.info('Finished analysis successfully')
+    # Setup param_dir and results_dir, get run_names
+    param_dir = os.path.abspath(os.path.dirname(param_path))
+    if flat_output:
+        results_dir = param_dir
+        run_names = ['']
+    else:
+        results_dir = os.path.join(param_dir, 'results')
+        if os.path.isdir(results_dir):
+            shutil.rmtree(results_dir)
+        os.makedirs(results_dir)
+        run_names = params.sections()
+
+    # Create options dict
+    base_options = {}
+    base_options['param_dir'] = param_dir
+    base_options['results_dir'] = results_dir
+    base_options['run_names'] = run_names
+
+    return params, base_options
 
 
 def _do_analysis(options):
