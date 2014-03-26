@@ -7,14 +7,20 @@ import pandas as pd
 
 from ..misc import doc_sub
 
-_data_doc = """data : array-like
-    data from which to caculate the the likelihood"""
+_data_doc = \
+    """data : array-like
+        data from which to caculate the the likelihood
+    """
 
-_model_doc = """model : scipy distribution object
-    A frozen scipy model object.  Needs to have the attribute *.shape"""
+_model_doc = \
+    """model : scipy distribution object
+        A frozen scipy model object.  Needs to have the attribute *.shape
+    """
 
-_obs_pred_doc = """obs, pred : array-like objects
-    Observed and predicted data"""
+_obs_pred_doc = \
+    """obs, pred : array-like objects
+        Observed and predicted data
+    """
 
 
 @doc_sub(_data_doc, _model_doc)
@@ -25,7 +31,6 @@ def nll(data, model):
     Parameters
     ----------
     {0}
-
     {1}
 
     Returns
@@ -51,7 +56,6 @@ def lrt(data, model_null, model_alt, df=None):
     Parameters
     ----------
     {0}
-
     model_null : scipy distribution object
         The null model as a frozen scipy distribution object. Parameters of
         distribution must be given as keyword arguments.
@@ -104,9 +108,7 @@ def AIC(data, model, params=None, corrected=True):
     Parameters
     ----------
     {0}
-
     {1}
-
     params : int
         The number of parameters in the model. If None, calculates the number
         of parameters from the distribution object
@@ -187,7 +189,6 @@ def sum_of_squares(obs, pred):
     Parameters
     ----------
     {0}
-
     Returns
     -------
     float
@@ -206,7 +207,6 @@ def r_squared(obs, pred, one_to_one=False, log_trans=True):
     Parameters
     ----------
     {0}
-
     one_to_one : bool
         If True, calculates the R^2 based on the one-to-one line as done in
         [#]_.  If False, calculates the standard R^2 from a regression fit.
@@ -293,11 +293,3 @@ def bin_data(data, max_num):
 
     hist_data = np.histogram(data, bins=boundaries)
     return hist_data
-
-
-def _to_arrays(*args):
-    '''
-    Converts all args to np.arrays
-    '''
-    return tuple([np.array(ta) if np.iterable(ta) else np.array([ta]) for ta in
-                                            args])
