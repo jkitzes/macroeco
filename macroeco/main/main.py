@@ -470,7 +470,7 @@ def _write_comparison_plots_tables(spid, models, options, core_results,
 
     # CDF
     x = core_result['y'].values
-    emp_cdf = comp.empirical_cdf(x)
+    emp_cdf = emp.empirical_cdf(x)
     df = pd.DataFrame({'x': x, 'empirical': emp_cdf})
 
     def calc_func(model, df, shapes):
