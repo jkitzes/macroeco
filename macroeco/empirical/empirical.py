@@ -311,7 +311,7 @@ def sad(patch, cols, splits='', clean=True):
     Returns
     -------
     {1} Result has two columns: spp (species identifier) and y (individuals of
-    that species).
+        that species).
 
     Notes
     -----
@@ -365,7 +365,7 @@ def ssad(patch, cols, splits=''):
     Returns
     -------
     {1} Result has one column giving the individuals of species in each
-    subplot.
+        subplot.
 
     Notes
     -----
