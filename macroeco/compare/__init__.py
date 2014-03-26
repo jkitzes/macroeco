@@ -13,19 +13,16 @@ Comparison Functions
 .. autosummary::
    :toctree: generated/
 
-   AIC
-   AICC
-   AIC_weights
    nll
-   empirical_cdf
+   lrt
+   AIC
+   AIC_weights
    sum_of_squares
    r_squared
-   chi_squared
-   lrt
    bin_data
 
 """
 
-from .compare import (AIC, AICC, AIC_weights, nll, lrt,
-                      sum_of_squares, r_squared, chi_squared,
-                      empirical_cdf, bin_data)
+from .compare import (nll, lrt, AIC, AIC_weights,
+                      sum_of_squares, r_squared,
+                      bin_data)
