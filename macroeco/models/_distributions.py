@@ -363,9 +363,8 @@ class nbinom_gen(spdist.nbinom_gen):
 
     .. math::
 
-       p(x) = \frac{\gamma (k_agg + x)}{\gamma(k_agg) x!}
-       \left(\frac{k_agg}{k_agg+\mu}\right)^k_agg
-       \left(\frac{\mu}{k_agg+\mu}\right)^x
+       p(x) = \frac{\gamma (k + x)}{\gamma(k) x!}
+       \left(\frac{k}{k+\mu}\right)^k \left(\frac{\mu}{k+\mu}\right)^x
 
     for ``x >= 0``. in the traditional parameterization, ``n = k_agg`` (the
     size parameter) and ``p = k_agg / (k_agg + mu)``. the ``loc`` parameter is
@@ -391,7 +390,7 @@ class nbinom_gen(spdist.nbinom_gen):
         return mu, k_agg
 
     @inherit_docstring_from(rv_discrete_meco)
-    def fit_mle(self, data, k_range=(0.1,100,0.1)):
+    def fit_mle(self, data, k_range=(0.1, 100, 0.1)):
         """%(super)s
 
         In addition to data, gives an optional keyword argument k_range
@@ -458,12 +457,44 @@ def nbinom_nll(data, k_agg, mu):
 
 class cnbinom_gen(rv_discrete_meco):
     r"""
-    The conditional (finite) negative binomial distribution described by
-    Zillio and He (2010) and Conlisk et al. (2007)
+    The conditional negative binomial random variable
 
-    MORE
+    This distribution was described by  Zillio and He (2010) [#]_ and Conlisk
+    et al. (2007) [#]_
+
+    .. math::
+
+       p(x) = \frac{\binom{x + k - 1}{x}  \binom{b - x + k/a - k -1}{b
+                -x}}{\binom{b + k/a - 1}{b}}
+
+    for ``x >= 0``. In this parameterization ``a = E[p(x)] / b`` where ``b`` is
+    the upper limit of the distribution.
+
+    Methods
+    -------
+    translate_args(mu, k_agg)
+        not used, returns mu, k_agg, and b.
+    fit_mle(data, k_range=(0.1,100,0.1))
+        ml estimate of shape parameters mu and k_agg given data, with k_agg
+        evaluated at (min, max, step) values given by k_range.
+    %(before_notes)s
+    mu : float
+        distribution mean
+    k_agg : float
+        clustering parameter (refered to as ``k`` above)
+    b : float
+        Upper bound of distribution
+
+    References
+    ----------
+    .. [#]
+        Zillio, T. & He, F. (2010). Modeling spatial aggregation of finite
+        populations. Ecology, 91(12), 3698-3706
+    .. [#]
+        Conlisk, E., Bloxham, M., Conlisk, J, Enquist, E., and Harte, J.
+        (2007). A new class of models of spatial distribution. Ecological
+        Monographs, 77(2), 269-284
     """
-    # TODO: Set b (upper bound). Is this the same as an upper truncated NBD?
 
     @inherit_docstring_from(rv_discrete_meco)
     def translate_args(self, mu, k_agg, b):
@@ -476,30 +507,39 @@ class cnbinom_gen(rv_discrete_meco):
         if not b:
             b = np.sum(data)
 
-        return mu, _solve_k_from_mu(data, k_range, cnbinom_nll, mu, b)
+        return mu, _solve_k_from_mu(data, k_range, _cnbinom_nll, mu, b)
 
     def _pmf(self, x, mu, k_agg, b):
         return np.exp(self._logpmf(x, mu, k_agg, b))
 
     def _logpmf(self, x, mu, k_agg, b):
-        ln_l = lambda n_i, n, a, k_agg: _ln_choose(n_i + k_agg - 1, n_i) + \
-            _ln_choose(n - n_i + (k_agg / a) - k_agg - 1, n - n_i) -\
-            _ln_choose(n + (k_agg / a) - 1, n)
         a = mu / b
-        return ln_l(x, b, a, k_agg)
+        logpmf = _cnbinom_logpmf(x, b, a, k_agg)
+        logpmf[x > b] = -np.inf
+        return logpmf
 
     def _stats(self, mu, k_agg, b):
-        pass
+        mu = mu
+        var = ((1 - mu / b) * mu * (k_agg + mu)) / (k_agg + (mu / b))
+        return mu, var, None, None
 
 cnbinom = cnbinom_gen(name="cnbinom", shapes="mu, k_agg, b")
 
 
-def cnbinom_nll(data, k_agg, mu, b):
+def _cnbinom_logpmf(n_i, n, a, k_agg):
+    # Logpmf for cnbinom
+    return _ln_choose(n_i + k_agg - 1, n_i) + \
+        _ln_choose(n - n_i + (k_agg / a) - k_agg - 1, n - n_i) -\
+        _ln_choose(n + (k_agg / a) - 1, n)
+
+
+def _cnbinom_nll(data, k_agg, mu, b):
+    # Negative log likelihood for cnbinom
     return -np.sum(cnbinom._logpmf(data, mu, k_agg, b))
+
 
 def _ln_choose(n, k_agg):
     '''
-
     log binomial coefficient with extended gamma factorials. n and k_agg may be
     int or array - if both array, must be the same length.
 
