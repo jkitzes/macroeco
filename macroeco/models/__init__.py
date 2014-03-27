@@ -30,13 +30,14 @@ Discrete distributions
    geom
    geom_uptrunc
    nbinom
+   cnbinom
 
 .. DV:
    Our public-facing distributions do not use location and scale parameters, as
    they are not common in quantitative ecology.
 """
 
-from ._distributions import (geom, geom_uptrunc, nbinom,
+from _distributions import (geom, geom_uptrunc, nbinom, cnbinom,
                             expon, expon_uptrunc)
 
 from ._curves import (power_law, mete_sar)

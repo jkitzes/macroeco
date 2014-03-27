@@ -83,8 +83,7 @@ class Patch(object):
     table : dataframe
         Table of census data recorded in patch
     meta : ConfigParser obj
-        Object similar to dict describing data table, loaded from metadata file
-        at metadata_path and processed by subset
+        Object similar to dict describing data table, loaded from metadata file at metadata_path and processed by subset
     subset : str
         Subset string passed as parameter
 

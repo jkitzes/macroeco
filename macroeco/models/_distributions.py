@@ -351,11 +351,10 @@ def _geom_solve_p_from_mu(mu, b):
         x, mu, b = Decimal(x), Decimal(mu), Decimal(b)
         return ( (x / (1 - x)) - ((b + 1) / (x**-b - 1)) - mu )
 
-    # x here is the param raised to the k power, or 1 - p
+    # x here is the param raised to the k_agg power, or 1 - p
     return 1 - optim.brentq(p_eq, 1e-9, 20, args=(mu, b), disp=True)
 
 _geom_solve_p_from_mu_vect = np.vectorize(_geom_solve_p_from_mu)
-
 
 class nbinom_gen(spdist.nbinom_gen):
     r"""
@@ -367,108 +366,188 @@ class nbinom_gen(spdist.nbinom_gen):
 
     .. math::
 
-       P(x) =
-       \frac{\Gamma (k + x)}{\Gamma(k) x!} \left(\frac{k}{k+\mu}\right)^k
-       \left(\frac{\mu}{k+\mu}\right)^x
+       p(x) = \frac{\gamma (k + x)}{\gamma(k) x!}
+       \left(\frac{k}{k+\mu}\right)^k \left(\frac{\mu}{k+\mu}\right)^x
 
-    for ``x >= 0``. In the traditional parameterization, ``n = k`` (the size
-    parameter) and ``p = k / (k + mu)``. The ``loc`` parameter is not used.
+    for ``x >= 0``. in the traditional parameterization, ``n = k_agg`` (the
+    size parameter) and ``p = k_agg / (k_agg + mu)``. the ``loc`` parameter is
+    not used.
 
     Methods
     -------
-    translate_args(mu, k)
-        Not used, returns mu and k.
+    translate_args(mu, k_agg)
+        not used, returns mu and k_agg.
     fit_mle(data, k_range=(0.1,100,0.1))
-        ML estimate of shape parameters mu and k given data, with k evaluated
-        at (min, max, step) values given by k_range.
+        ml estimate of shape parameters mu and k_agg given data, with k_agg evaluated at (min, max, step) values given by k_range.
     %(before_notes)s
     mu : float
         distribution mean
-    k : float
+    k_agg : float
         clustering parameter
 
     """
 
     @inherit_docstring_from(rv_discrete_meco)
-    def translate_args(self, mu, k):
-        return mu, k
+    def translate_args(self, mu, k_agg):
+        return mu, k_agg
 
     @inherit_docstring_from(rv_discrete_meco)
-    def fit_mle(self, data, k_range=(0.1,100,0.1)):
+    def fit_mle(self, data, k_range=(0.1, 100, 0.1)):
         """%(super)s
-        In addition to data, gives an optional keyword argument
-        k_range contains a tuple of the start, stop, and step values to search
-        for k. Default is ``k_range=(0.1,100,0.1)``. A brute force search is
-        then used to find the parameter k.
+
+        In addition to data, gives an optional keyword argument k_range
+        contains a tuple of the start, stop, and step values to search for
+        k_agg. default is ``k_range=(0.1,100,0.1)``. a brute force search is
+        then used to find the parameter k_agg.
 
         """
-        # TODO: Check and mention in docstring biases of MLE for k
+        # todo: check and mention in docstring biases of mle for k_agg
         mu = np.mean(data)
-        return mu, _nbinom_solve_k_from_mu(data, mu, k_range)
+        return mu, _solve_k_from_mu(data, k_range, nbinom_nll, mu)
 
-    def _get_p_from_mu(self, mu, k):
-        return k / (k + mu)
+    def _get_p_from_mu(self, mu, k_agg):
+        return k_agg / (k_agg + mu)
 
-    def _rvs(self, mu, k):
-        p = self._get_p_from_mu(mu, k)
-        return nprand.negative_binomial(k, p, self._size)
+    def _rvs(self, mu, k_agg):
+        p = self._get_p_from_mu(mu, k_agg)
+        return nprand.negative_binomial(k_agg, p, self._size)
 
-    def _argcheck(self, mu, k):
-        p = self._get_p_from_mu(mu, k)
-        return (k >= 0) & (p >= 0) & (p <= 1)
+    def _argcheck(self, mu, k_agg):
+        p = self._get_p_from_mu(mu, k_agg)
+        return (k_agg >= 0) & (p >= 0) & (p <= 1)
 
-    def _pmf(self, x, mu, k):
-        p = self._get_p_from_mu(mu, k)
-        return np.exp(self._logpmf(x, mu, k))
+    def _pmf(self, x, mu, k_agg):
+        p = self._get_p_from_mu(mu, k_agg)
+        return np.exp(self._logpmf(x, mu, k_agg))
 
-    def _logpmf(self, x, mu, k):
-        p = self._get_p_from_mu(mu, k)
-        coeff = special.gammaln(k+x)-special.gammaln(x+1)-special.gammaln(k)
-        return coeff + k*np.log(p) + x*np.log(1-p)
+    def _logpmf(self, x, mu, k_agg):
+        p = self._get_p_from_mu(mu, k_agg)
 
-    def _cdf(self, x, mu, k):
-        p = self._get_p_from_mu(mu, k)
+        coeff =\
+           special.gammaln(k_agg+x)-special.gammaln(x+1)-special.gammaln(k_agg)
+
+        return coeff + k_agg*np.log(p) + x*np.log(1-p)
+
+    def _cdf(self, x, mu, k_agg):
+        p = self._get_p_from_mu(mu, k_agg)
         x = np.floor(x)
-        return special.betainc(k, x+1, p)
+        return special.betainc(k_agg, x+1, p)
 
-    def _ppf(self, q, mu, k):
-        p = self._get_p_from_mu(mu, k)
-        vals = np.ceil(special.nbdtrik(q, k, p))
+    def _ppf(self, q, mu, k_agg):
+        p = self._get_p_from_mu(mu, k_agg)
+        vals = np.ceil(special.nbdtrik(q, k_agg, p))
         vals1 = (vals-1).clip(0.0, np.inf)
-        temp = self._cdf(vals1, k, p)
+        temp = self._cdf(vals1, k_agg, p)
         return np.where(temp >= q, vals1, vals)
 
-    def _stats(self, mu, k):
-        p = self._get_p_from_mu(mu, k)
+    def _stats(self, mu, k_agg):
+        p = self._get_p_from_mu(mu, k_agg)
         Q = 1.0 / p
-        P = Q - 1.0
-        mu = k*P
-        var = k*P*Q
-        g1 = (Q+P)/np.sqrt(k*P*Q)
-        g2 = (1.0 + 6*P*Q) / (k*P*Q)
+        p = q - 1.0
+        mu = k_agg*p
+        var = k_agg*p*q
+        g1 = (q+p)/np.sqrt(k_agg*p*q)
+        g2 = (1.0 + 6*p*q) / (k_agg*p*q)
         return mu, var, g1, g2
 
-nbinom = nbinom_gen(name='nbinom', shapes='mu, k')
+nbinom = nbinom_gen(name='nbinom', shapes='mu, k_agg')
 
-def _nbinom_solve_k_from_mu(data, mu, k_range):
+
+def nbinom_nll(data, k_agg, mu):
+    return -np.sum(nbinom._logpmf(data, mu, k_agg))
+
+
+class cnbinom_gen(rv_discrete_meco):
+    r"""
+    The conditional negative binomial random variable
+
+    This distribution was described by  Zillio and He (2010) [#]_ and Conlisk
+    et al. (2007) [#]_
+
+    .. math::
+
+       p(x) = \frac{\binom{x + k - 1}{x}  \binom{b - x + k/a - k -1}{b
+                -x}}{\binom{b + k/a - 1}{b}}
+
+    for ``x >= 0``. In this parameterization ``a = E[p(x)] / b`` where ``b`` is
+    the upper limit of the distribution.
+
+    Methods
+    -------
+    translate_args(mu, k_agg)
+        not used, returns mu, k_agg, and b.
+    fit_mle(data, k_range=(0.1,100,0.1))
+        ml estimate of shape parameters mu and k_agg given data, with k_agg evaluated at (min, max, step) values given by k_range.
+    %(before_notes)s
+    mu : float
+        distribution mean
+    k_agg : float
+        clustering parameter (refered to as ``k`` above)
+    b : float
+        Upper bound of distribution
+
+    References
+    ----------
+    .. [#]
+        Zillio, T. & He, F. (2010). Modeling spatial aggregation of finite
+        populations. Ecology, 91(12), 3698-3706
+    .. [#]
+        Conlisk, E., Bloxham, M., Conlisk, J, Enquist, E., and Harte, J.
+        (2007). A new class of models of spatial distribution. Ecological
+        Monographs, 77(2), 269-284
     """
-    For the nbinom, given mu, return k from searching some k_range.
-    """
-    # TODO: See if a root finder like fminbound would work with Decimal used in
-    # logpmf method (will this work with arrays?)
 
-    def nll(data, mu, k):
-        return -np.sum(nbinom._logpmf(data, mu, k))
+    @inherit_docstring_from(rv_discrete_meco)
+    def translate_args(self, mu, k_agg, b):
+        return mu, k_agg, b
 
-    k_array = np.arange(*k_range)
-    nll_array = np.zeros(len(k_array))
+    @inherit_docstring_from(rv_discrete_meco)
+    def fit_mle(self, data, b=None, k_range=(0.1, 100, 0.1)):
+        mu = np.mean(data)
 
-    for i in range(len(k_array)):
-        nll_array[i] = nll(data, mu, k_array[i])
+        if not b:
+            b = np.sum(data)
 
-    min_nll_idx = np.argmin(nll_array)
+        return mu, _solve_k_from_mu(data, k_range, _cnbinom_nll, mu, b)
 
-    return k_array[min_nll_idx]
+    def _pmf(self, x, mu, k_agg, b):
+        return np.exp(self._logpmf(x, mu, k_agg, b))
+
+    def _logpmf(self, x, mu, k_agg, b):
+        a = mu / b
+        logpmf = _cnbinom_logpmf(x, b, a, k_agg)
+        logpmf[x > b] = -np.inf
+        return logpmf
+
+    def _stats(self, mu, k_agg, b):
+        mu = mu
+        var = ((1 - mu / b) * mu * (k_agg + mu)) / (k_agg + (mu / b))
+        return mu, var, None, None
+
+cnbinom = cnbinom_gen(name="cnbinom", shapes="mu, k_agg, b")
+
+
+def _cnbinom_logpmf(n_i, n, a, k_agg):
+    # Logpmf for cnbinom
+    return _ln_choose(n_i + k_agg - 1, n_i) + \
+        _ln_choose(n - n_i + (k_agg / a) - k_agg - 1, n - n_i) -\
+        _ln_choose(n + (k_agg / a) - 1, n)
+
+
+def _cnbinom_nll(data, k_agg, mu, b):
+    # Negative log likelihood for cnbinom
+    return -np.sum(cnbinom._logpmf(data, mu, k_agg, b))
+
+
+def _ln_choose(n, k_agg):
+    '''
+    log binomial coefficient with extended gamma factorials. n and k_agg may be
+    int or array - if both array, must be the same length.
+
+    '''
+    gammaln = special.gammaln
+    return gammaln(n + 1) - (gammaln(k_agg + 1) + gammaln(n - k_agg + 1))
+
 
 #
 # Continuous
@@ -588,3 +667,35 @@ class expon_uptrunc_gen(rv_continuous_meco):
         return expon.stats(lam)
 
 expon_uptrunc = expon_uptrunc_gen(a=0.0, name='expon_uptrunc', shapes='lam, b')
+
+
+def _solve_k_from_mu(data, k_range, nll, *args):
+    """
+    For given args, return k_agg from searching some k_range.
+
+    Parameters
+    ----------
+    data : array
+    k_range : array
+    nll : function
+
+    args :
+
+    Returns
+    --------
+    :float
+        Minimum k_agg
+
+    """
+    # TODO: See if a root finder like fminbound would work with Decimal used in
+    # logpmf method (will this work with arrays?)
+
+    k_array = np.arange(*k_range)
+    nll_array = np.zeros(len(k_array))
+
+    for i in range(len(k_array)):
+        nll_array[i] = nll(data, k_array[i], *args)
+
+    min_nll_idx = np.argmin(nll_array)
+
+    return k_array[min_nll_idx]
