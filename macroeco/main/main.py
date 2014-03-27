@@ -544,7 +544,10 @@ def _save_table_and_plot(spid, models, options, fit_results, name, df,
     emp = df_plt['empirical']
     df_plt = df_plt.drop('empirical',1)
 
-    width = df['x'].values[1] - df['x'].values[0]
+    try:
+        width = df['x'].values[1] - df['x'].values[0]
+    except:
+        width = 1
     ax = df_plt.plot(lw=3)
     exec plot_exec_str
     ax = _pad_plot_frame(ax)
