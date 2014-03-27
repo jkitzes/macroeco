@@ -348,11 +348,10 @@ def _geom_solve_p_from_mu(mu, b):
         x, mu, b = Decimal(x), Decimal(mu), Decimal(b)
         return ( (x / (1 - x)) - ((b + 1) / (x**-b - 1)) - mu )
 
-    # x here is the param raised to the k power, or 1 - p
+    # x here is the param raised to the k_agg power, or 1 - p
     return 1 - optim.brentq(p_eq, 1e-9, 20, args=(mu, b), disp=True)
 
 _geom_solve_p_from_mu_vect = np.vectorize(_geom_solve_p_from_mu)
-
 
 class nbinom_gen(spdist.nbinom_gen):
     r"""
@@ -364,98 +363,103 @@ class nbinom_gen(spdist.nbinom_gen):
 
     .. math::
 
-       P(x) =
-       \frac{\Gamma (k + x)}{\Gamma(k) x!} \left(\frac{k}{k+\mu}\right)^k
-       \left(\frac{\mu}{k+\mu}\right)^x
+       p(x) = \frac{\gamma (k_agg + x)}{\gamma(k_agg) x!}
+       \left(\frac{k_agg}{k_agg+\mu}\right)^k_agg
+       \left(\frac{\mu}{k_agg+\mu}\right)^x
 
-    for ``x >= 0``. In the traditional parameterization, ``n = k`` (the size
-    parameter) and ``p = k / (k + mu)``. The ``loc`` parameter is not used.
+    for ``x >= 0``. in the traditional parameterization, ``n = k_agg`` (the
+    size parameter) and ``p = k_agg / (k_agg + mu)``. the ``loc`` parameter is
+    not used.
 
     Methods
     -------
-    translate_args(mu, k)
-        Not used, returns mu and k.
+    translate_args(mu, k_agg)
+        not used, returns mu and k_agg.
     fit_mle(data, k_range=(0.1,100,0.1))
-        ML estimate of shape parameters mu and k given data, with k evaluated
-        at (min, max, step) values given by k_range.
+        ml estimate of shape parameters mu and k_agg given data, with k_agg
+        evaluated at (min, max, step) values given by k_range.
     %(before_notes)s
     mu : float
         distribution mean
-    k : float
+    k_agg : float
         clustering parameter
 
     """
 
     @inherit_docstring_from(rv_discrete_meco)
-    def translate_args(self, mu, k):
-        return mu, k
+    def translate_args(self, mu, k_agg):
+        return mu, k_agg
 
     @inherit_docstring_from(rv_discrete_meco)
     def fit_mle(self, data, k_range=(0.1,100,0.1)):
         """%(super)s
-        In addition to data, gives an optional keyword argument
-        k_range contains a tuple of the start, stop, and step values to search
-        for k. Default is ``k_range=(0.1,100,0.1)``. A brute force search is
-        then used to find the parameter k.
+
+        In addition to data, gives an optional keyword argument k_range
+        contains a tuple of the start, stop, and step values to search for
+        k_agg. default is ``k_range=(0.1,100,0.1)``. a brute force search is
+        then used to find the parameter k_agg.
 
         """
-        # TODO: Check and mention in docstring biases of MLE for k
+        # todo: check and mention in docstring biases of mle for k_agg
         mu = np.mean(data)
         return mu, _nbinom_solve_k_from_mu(data, mu, k_range)
 
-    def _get_p_from_mu(self, mu, k):
-        return k / (k + mu)
+    def _get_p_from_mu(self, mu, k_agg):
+        return k_agg / (k_agg + mu)
 
-    def _rvs(self, mu, k):
-        p = self._get_p_from_mu(mu, k)
-        return nprand.negative_binomial(k, p, self._size)
+    def _rvs(self, mu, k_agg):
+        p = self._get_p_from_mu(mu, k_agg)
+        return nprand.negative_binomial(k_agg, p, self._size)
 
-    def _argcheck(self, mu, k):
-        p = self._get_p_from_mu(mu, k)
-        return (k >= 0) & (p >= 0) & (p <= 1)
+    def _argcheck(self, mu, k_agg):
+        p = self._get_p_from_mu(mu, k_agg)
+        return (k_agg >= 0) & (p >= 0) & (p <= 1)
 
-    def _pmf(self, x, mu, k):
-        p = self._get_p_from_mu(mu, k)
-        return np.exp(self._logpmf(x, mu, k))
+    def _pmf(self, x, mu, k_agg):
+        p = self._get_p_from_mu(mu, k_agg)
+        return np.exp(self._logpmf(x, mu, k_agg))
 
-    def _logpmf(self, x, mu, k):
-        p = self._get_p_from_mu(mu, k)
-        coeff = special.gammaln(k+x)-special.gammaln(x+1)-special.gammaln(k)
-        return coeff + k*np.log(p) + x*np.log(1-p)
+    def _logpmf(self, x, mu, k_agg):
+        p = self._get_p_from_mu(mu, k_agg)
 
-    def _cdf(self, x, mu, k):
-        p = self._get_p_from_mu(mu, k)
+        coeff =\
+           special.gammaln(k_agg+x)-special.gammaln(x+1)-special.gammaln(k_agg)
+
+        return coeff + k_agg*np.log(p) + x*np.log(1-p)
+
+    def _cdf(self, x, mu, k_agg):
+        p = self._get_p_from_mu(mu, k_agg)
         x = np.floor(x)
-        return special.betainc(k, x+1, p)
+        return special.betainc(k_agg, x+1, p)
 
-    def _ppf(self, q, mu, k):
-        p = self._get_p_from_mu(mu, k)
-        vals = np.ceil(special.nbdtrik(q, k, p))
+    def _ppf(self, q, mu, k_agg):
+        p = self._get_p_from_mu(mu, k_agg)
+        vals = np.ceil(special.nbdtrik(q, k_agg, p))
         vals1 = (vals-1).clip(0.0, np.inf)
-        temp = self._cdf(vals1, k, p)
+        temp = self._cdf(vals1, k_agg, p)
         return np.where(temp >= q, vals1, vals)
 
-    def _stats(self, mu, k):
-        p = self._get_p_from_mu(mu, k)
+    def _stats(self, mu, k_agg):
+        p = self._get_p_from_mu(mu, k_agg)
         Q = 1.0 / p
-        P = Q - 1.0
-        mu = k*P
-        var = k*P*Q
-        g1 = (Q+P)/np.sqrt(k*P*Q)
-        g2 = (1.0 + 6*P*Q) / (k*P*Q)
+        p = q - 1.0
+        mu = k_agg*p
+        var = k_agg*p*q
+        g1 = (q+p)/np.sqrt(k_agg*p*q)
+        g2 = (1.0 + 6*p*q) / (k_agg*p*q)
         return mu, var, g1, g2
 
-nbinom = nbinom_gen(name='nbinom', shapes='mu, k')
+nbinom = nbinom_gen(name='nbinom', shapes='mu, k_agg')
 
 def _nbinom_solve_k_from_mu(data, mu, k_range):
     """
-    For the nbinom, given mu, return k from searching some k_range.
+    For the nbinom, given mu, return k_agg from searching some k_range.
     """
     # TODO: See if a root finder like fminbound would work with Decimal used in
     # logpmf method (will this work with arrays?)
 
-    def nll(data, mu, k):
-        return -np.sum(nbinom._logpmf(data, mu, k))
+    def nll(data, mu, k_agg):
+        return -np.sum(nbinom._logpmf(data, mu, k_agg))
 
     k_array = np.arange(*k_range)
     nll_array = np.zeros(len(k_array))
