@@ -3,7 +3,7 @@
 Empirical (:mod:`macroeco.empirical`)
 =====================================
 
-This module contains functions used in the empirical analysis of 
+This module contains functions used in the empirical analysis of
 macroecological patterns.
 
 Patch
@@ -28,4 +28,5 @@ Metrics
 """
 
 from .empirical import (Patch,
-                        sad, ssad)
+                        sad, ssad,
+                        empirical_cdf)
