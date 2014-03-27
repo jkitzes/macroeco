@@ -508,7 +508,7 @@ class cnbinom_gen(rv_discrete_meco):
         if not b:
             b = np.sum(data)
 
-        return mu, _solve_k_from_mu(data, k_range, _cnbinom_nll, mu, b)
+        return mu, _solve_k_from_mu(data, k_range, _cnbinom_nll, mu, b), b
 
     def _pmf(self, x, mu, k_agg, b):
         return np.exp(self._logpmf(x, mu, k_agg, b))
