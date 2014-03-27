@@ -30,6 +30,7 @@ Discrete distributions
    geom
    geom_uptrunc
    nbinom
+   cnbinom
 
 .. DV:
    Our public-facing distributions do not use location and scale parameters, as
