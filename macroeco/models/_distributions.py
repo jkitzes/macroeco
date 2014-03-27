@@ -375,8 +375,7 @@ class nbinom_gen(spdist.nbinom_gen):
     translate_args(mu, k_agg)
         not used, returns mu and k_agg.
     fit_mle(data, k_range=(0.1,100,0.1))
-        ml estimate of shape parameters mu and k_agg given data, with k_agg
-        evaluated at (min, max, step) values given by k_range.
+        ml estimate of shape parameters mu and k_agg given data, with k_agg evaluated at (min, max, step) values given by k_range.
     %(before_notes)s
     mu : float
         distribution mean
@@ -475,8 +474,7 @@ class cnbinom_gen(rv_discrete_meco):
     translate_args(mu, k_agg)
         not used, returns mu, k_agg, and b.
     fit_mle(data, k_range=(0.1,100,0.1))
-        ml estimate of shape parameters mu and k_agg given data, with k_agg
-        evaluated at (min, max, step) values given by k_range.
+        ml estimate of shape parameters mu and k_agg given data, with k_agg evaluated at (min, max, step) values given by k_range.
     %(before_notes)s
     mu : float
         distribution mean
