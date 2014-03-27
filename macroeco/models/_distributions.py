@@ -443,11 +443,11 @@ class nbinom_gen(spdist.nbinom_gen):
     def _stats(self, mu, k_agg):
         p = self._get_p_from_mu(mu, k_agg)
         Q = 1.0 / p
-        p = q - 1.0
+        p = Q - 1.0
         mu = k_agg*p
-        var = k_agg*p*q
-        g1 = (q+p)/np.sqrt(k_agg*p*q)
-        g2 = (1.0 + 6*p*q) / (k_agg*p*q)
+        var = k_agg*p*Q
+        g1 = (Q+p)/np.sqrt(k_agg*p*Q)
+        g2 = (1.0 + 6*p*Q) / (k_agg*p*Q)
         return mu, var, g1, g2
 
 nbinom = nbinom_gen(name='nbinom', shapes='mu, k_agg')
