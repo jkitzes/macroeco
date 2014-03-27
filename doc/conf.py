@@ -26,13 +26,13 @@ sys.path.insert(0, os.path.abspath('..'))
 
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.mathjax', 
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.mathjax',
               'sphinx.ext.autosummary', 'numpydoc', 'sphinx.ext.intersphinx']
 
 autosummary_generate = True
 #autodoc_default_flags = ['inherited-members']
 
-intersphinx_mapping = {'scipy': ('http://docs.scipy.org/doc/scipy/reference/', 
+intersphinx_mapping = {'scipy': ('http://docs.scipy.org/doc/scipy/reference/',
                                  None)}
 
 # Add any paths that contain templates here, relative to this directory.
@@ -115,7 +115,7 @@ class Mock(object):
         else:
             return Mock()
 
-MOCK_MODULES = ['mpltools', 'shapely', 'shapely.geometry']
+MOCK_MODULES = ['shapely', 'shapely.geometry']
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = Mock()
 

@@ -11,16 +11,15 @@ import numpy as np
 import pandas as pd
 
 import matplotlib.pyplot as plt
-from mpltools import style
-style.use('ggplot')
-import matplotlib as mpl  # Colorblind safe palette
-mpl.rcParams['axes.color_cycle'] = ['0072B2','D55E00','CC79A7','009E73',
-                                    'E69F00','F0E442','56B4E9']
+import matplotlib as mpl
 
 from ..misc import setup_log
 from .. import empirical as emp
 from .. import models as mod
 from .. import compare as comp
+
+from ..misc.rcparams import ggplot_rc
+mpl.rcParams.update(ggplot_rc)
 
 
 def main(param_path='parameters.txt', flat_output=False):
