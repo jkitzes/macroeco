@@ -6,4 +6,3 @@ configparser
 decorator
 twiggy
 numpydoc
-macroeco

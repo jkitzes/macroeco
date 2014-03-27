@@ -9,6 +9,6 @@ setup(
     description = 'Analysis of ecological patterns in Python',
     author = 'Justin Kitzes, Mark Wilber, Chloe Lewis',
     url = 'https://github.com/jkitzes/macroeco',
-    packages = ['macroeco', 'macroeco.utils'],
+    packages = ['macroeco'],
     license = 'BSD',
 )
