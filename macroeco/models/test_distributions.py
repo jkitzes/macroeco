@@ -11,9 +11,9 @@ from numpy.testing import (TestCase, assert_equal, assert_array_equal,
 
 import numpy as np
 from decimal import Decimal
-import macroeco.distributions2 as dist2
-from macroeco.distributions2 import *
+from macroeco.models import *
 import matplotlib.pyplot as plt
+import scipy.stats as stats
 
 class TestGeom(TestCase):
 
@@ -144,6 +144,44 @@ class TestNbinom(TestCase):
         x = np.array([6,17,14,12,8,10,4,9,3,12,4,2,12,8,14,16,9,10,8,5,6])
         mu, k = nbinom.fit_mle(x, k_range=(0.01,10,0.01))
         assert_array_almost_equal([mu, k], [9, 8.54], decimal=2)
+
+class TestCnbinom(TestCase):
+    pass
+
+    # def test_zillio_plots(self):
+    #     """ Test the cnbinom function replicated the Zillio and He plots """
+
+    #     # Define Preliminary
+    #     a = np.array([0.1, .3, .8])
+    #     k = np.array([.1, 1, 10])
+    #     fnbd_vec = []
+    #     nbd_vec = []
+    #     binm_vec = []
+    #     descrip = []
+
+    #     # Get data
+    #     for ta in a:
+    #         for tk in k:
+    #             fnbd_vec.append(cnbinom.pmf(np.arange(1,101), ta*100, tk, 100))
+    #             nbd_vec.append(nbinom.pmf(np.arange(1,101), ta*100, tk))
+    #             binm_vec.append(stats.binom.pmf(np.arange(1,101), 100, ta))
+
+    #             descrip.append("a=%s, k=%s" % (ta, tk))
+
+    #     # Loop through the data and plot it.
+    #     for i in xrange(len(fnbd_vec)):
+    #         plt.clf()
+    #         plt.plot(np.arange(1,101), fnbd_vec[i])
+    #         plt.plot(np.arange(1,101), nbd_vec[i], '--')
+    #         plt.plot(np.arange(1,101), binm_vec[i], '.-')
+    #         plt.legend(('fnbd', 'nbd', 'binm'), loc='best')
+    #         plt.xlabel('abundance')
+    #         plt.ylabel('P(x)')
+    #         plt.ylim((0, .12))
+    #         plt.text(plt.xlim()[1] * 0.6, plt.ylim()[1] * 0.8, descrip[i])
+    #         plt.show()
+    #         plt.clf()
+
 
 
 class TestExpon(TestCase):
