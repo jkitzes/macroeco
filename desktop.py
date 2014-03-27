@@ -15,7 +15,7 @@ import wx
 import os, sys
 import threading as thread
 
-import main
+from macroeco.main import main
 
 class RedirectText(object):
     def __init__(self,aWxTextCtrl):
@@ -123,7 +123,7 @@ class MainWindow(wx.Frame):
 
     def RunMain(self):
         self.run_button.Enable(False)  # Turn the run button off
-        self.t = thread.Thread(target=main.main, args=(self.parampath,))
+        self.t = thread.Thread(target=main, args=(self.parampath,))
         self.t.daemon = True  # Kills thread if app exits
         self.t.start()
 
@@ -133,11 +133,11 @@ class MainWindow(wx.Frame):
                 self.run_button.Enable(True)  # Turn the run button on
 
 if __name__ == '__main__':
-    # To execute, run `pythonw -m macroeco.desktop path/to/parameters.txt`.
-    # With arg, execute main.main(arg), without arg open GUI window
+    # To execute, run `pythonw -m desktop path/to/parameters.txt`
+    # With arg, execute main(arg), without arg open GUI window
     if len(sys.argv) > 1:
         param_path = sys.argv[1]
-        main.main(param_path)
+        main(param_path)
     else:
         app = wx.App(False)
         frame = MainWindow(None, 'Macroeco Desktop')

@@ -1,6 +1,6 @@
 # -*- mode: python -*-
 a = Analysis(['desktop.py'],
-             pathex=['/Users/jkitzes/Projects/macroeco/macroeco'],
+             pathex=['/Users/jkitzes/Projects/macroeco'],
              hiddenimports=['scipy.special._ufuncs_cxx'],
              hookspath=None,
              runtime_hooks=None)
