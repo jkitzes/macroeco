@@ -13,16 +13,15 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
-from ..misc import setup_log
 from .. import empirical as emp
 from .. import models as mod
 from .. import compare as comp
+from .. import misc
 
-from ..misc.rcparams import ggplot_rc
-mpl.rcParams.update(ggplot_rc)
+mpl.rcParams.update(misc.rcparams.ggplot_rc)
 
 
-def main(param_path='parameters.txt', flat_output=False):
+def main(param_path='parameters.txt'):
     """
     Entry point function for analysis based on parameter files.
 
@@ -30,9 +29,6 @@ def main(param_path='parameters.txt', flat_output=False):
     ----------
     param_path : str
         Path to user-generated parameter file
-    flat_output : bool
-        Place all output in parameter directory instead of results
-        subdir. Default False. Only allowed if single run in parameters file.
 
     """
 
@@ -41,14 +37,10 @@ def main(param_path='parameters.txt', flat_output=False):
         raise IOError, "Parameter file not found at %s" % param_path
 
     # Get raw params and base options (non-run-dependent options)
-    params, base_options = _get_params_base_options(param_path, flat_output)
-
-    # Confirm that flat_output is allowed
-    if flat_output and len(base_options['run_names']) > 1:
-        raise ValueError, "flat_output option only possible with a single run"
+    params, base_options = _get_params_base_options(param_path)
 
     # Start logging
-    log = setup_log(base_options['results_dir'])
+    log = misc.setup_log(base_options['results_dir'])
     log.info('Starting analysis')
 
     # Do analysis for each run
@@ -57,12 +49,15 @@ def main(param_path='parameters.txt', flat_output=False):
         options = dict(params[run_name])  # All parameters from this run
         options.update(base_options)  # Add base parameters
         options['run_dir'] = os.path.join(base_options['results_dir'],run_name)
-        _do_analysis(options)
+        if 'format' in options['analysis']:
+            _do_format(options)
+        else:
+            _do_analysis(options)
         log.info('Finished run %s' % run_name)
     log.info('Finished analysis successfully')
 
 
-def _get_params_base_options(param_path, flat_output):
+def _get_params_base_options(param_path):
 
     # Read parameter file into params object
     params = configparser.ConfigParser()
@@ -73,15 +68,13 @@ def _get_params_base_options(param_path, flat_output):
 
     # Setup param_dir and results_dir, get run_names
     param_dir = os.path.abspath(os.path.dirname(param_path))
-    if flat_output:
-        results_dir = param_dir
-        run_names = ['']
-    else:
-        results_dir = os.path.join(param_dir, 'results')
-        if os.path.isdir(results_dir):
-            shutil.rmtree(results_dir)
-        os.makedirs(results_dir)
-        run_names = params.sections()
+    results_dir = os.path.join(param_dir, 'results')
+
+    if os.path.isdir(results_dir):
+        shutil.rmtree(results_dir)
+    os.makedirs(results_dir)
+
+    run_names = params.sections()
 
     # Create options dict
     base_options = {}
@@ -90,6 +83,29 @@ def _get_params_base_options(param_path, flat_output):
     base_options['run_names'] = run_names
 
     return params, base_options
+
+
+def _do_format(options):
+    """
+    Notes
+    -----
+    All format functions take the same parameters: original csv path, output
+    csv path, and keyword arguments.
+
+    """
+
+    analysis_name = options['analysis']
+
+    if analysis_name == 'format_dense':
+        misc.format_dense()
+    elif analysis_name == 'format_columnar':
+        misc.format_columnar()
+    elif analysis_name == 'format_grid':
+        misc.format_grid()
+    elif analysis_name == 'format_transect':
+        misc.format_transect()
+    else:
+        raise NameError, "Cannot format data using analysis %s" % analysis_name
 
 
 def _do_analysis(options):
