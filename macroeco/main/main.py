@@ -294,7 +294,7 @@ def _fit_models(options, core_results):
     Returns
     -------
     list of dicts
-        Each element in list corresponds to a split. The dict has a key for
+        Each element in list corresponds to a subset. The dict has a key for
         each model given in options, and the value is a list of fitted
         parameters (tuple), values (array), comparison statistic names (list),
         and comparison statistic values (list).
@@ -312,7 +312,7 @@ def _fit_models(options, core_results):
     # TODO: Make work for 2D results, i.e., curves, comm_sep, o_ring
     # TODO: Make work for curves in general (check if 'x' present in core_res)
     fit_results = []
-    for core_result in core_results:  # Each split
+    for core_result in core_results:  # Each subset
         fit_result = {}
         for model in models:
             data = core_result[1]['y'].values
@@ -342,7 +342,7 @@ def _get_values(data, model, fits):
     return values
 
 def _get_comparison_statistic(data, fits):
-    return ['AIC'], [comp.AIC(data, fits)]
+    return ['AIC'], [0]
 
 
 def _save_results(options, module, core_results, fit_results):
@@ -372,7 +372,7 @@ def _save_results(options, module, core_results, fit_results):
 
     # Write additional results if analysis from emp
     if module == 'emp':
-        _write_split_index_file(options, core_results)
+        _write_subset_index_file(options, core_results)
 
     if fit_results:  # If models given
         for i, core_result in enumerate(core_results):
@@ -418,15 +418,15 @@ def _get_file_path(spid, options, file_name):
                         '%i_%s' % (spid+1, file_name))
 
 
-def _write_split_index_file(options, core_results):
+def _write_subset_index_file(options, core_results):
     """
-    Write table giving index of splits, giving number and combination
+    Write table giving index of subsets, giving number and subset string
     """
 
-    f_path = os.path.join(options['run_dir'], '_split_index.csv')
-    split_strs = zip(*core_results)[0]
-    index = np.arange(len(split_strs)) + 1
-    df = pd.DataFrame({'splits': split_strs}, index=index)
+    f_path = os.path.join(options['run_dir'], '_subset_index.csv')
+    subset_strs = zip(*core_results)[0]
+    index = np.arange(len(subset_strs)) + 1
+    df = pd.DataFrame({'subsets': subset_strs}, index=index)
     df.to_csv(f_path)
 
 
