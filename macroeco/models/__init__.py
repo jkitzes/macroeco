@@ -36,5 +36,5 @@ Discrete distributions
    they are not common in quantitative ecology.
 """
 
-from _distributions import (geom, geom_uptrunc, nbinom,
+from _distributions import (geom, geom_uptrunc, nbinom, cnbinom,
                             expon, expon_uptrunc)
