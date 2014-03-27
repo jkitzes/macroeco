@@ -402,7 +402,7 @@ class nbinom_gen(spdist.nbinom_gen):
         """
         # todo: check and mention in docstring biases of mle for k_agg
         mu = np.mean(data)
-        return mu, _nbinom_solve_k_from_mu(data, mu, k_range)
+        return mu, _solve_k_from_mu(data, k_range, nbinom_nll, mu)
 
     def _get_p_from_mu(self, mu, k_agg):
         return k_agg / (k_agg + mu)
@@ -451,25 +451,10 @@ class nbinom_gen(spdist.nbinom_gen):
 
 nbinom = nbinom_gen(name='nbinom', shapes='mu, k_agg')
 
-def _nbinom_solve_k_from_mu(data, mu, k_range):
-    """
-    For the nbinom, given mu, return k_agg from searching some k_range.
-    """
-    # TODO: See if a root finder like fminbound would work with Decimal used in
-    # logpmf method (will this work with arrays?)
 
-    def nll(data, mu, k_agg):
-        return -np.sum(nbinom._logpmf(data, mu, k_agg))
+def nbinom_nll(data, k_agg, mu):
+    return -np.sum(nbinom._logpmf(data, mu, k_agg))
 
-    k_array = np.arange(*k_range)
-    nll_array = np.zeros(len(k_array))
-
-    for i in range(len(k_array)):
-        nll_array[i] = nll(data, mu, k_array[i])
-
-    min_nll_idx = np.argmin(nll_array)
-
-    return k_array[min_nll_idx]
 
 class cnbinom_gen(rv_discrete_meco):
     r"""
@@ -486,13 +471,12 @@ class cnbinom_gen(rv_discrete_meco):
 
     @inherit_docstring_from(rv_discrete_meco)
     def fit_mle(self, data, b=None, k_range=(0.1, 100, 0.1)):
-        pass
-        # mu = np.mean(data)
+        mu = np.mean(data)
 
-        # if not b:
-        #     b = np.sum(data)
+        if not b:
+            b = np.sum(data)
 
-        # return mu, _solve_k_from_mu(data, cnbinom, k_range, mu=mu, b=b)
+        return mu, _solve_k_from_mu(data, k_range, cnbinom_nll, mu, b)
 
     def _pmf(self, x, mu, k_agg, b):
         return np.exp(self._logpmf(x, mu, k_agg, b))
@@ -510,10 +494,15 @@ class cnbinom_gen(rv_discrete_meco):
 cnbinom = cnbinom_gen(name="cnbinom", shapes="mu, k_agg, b")
 
 
+def cnbinom_nll(data, k_agg, mu, b):
+    return -np.sum(cnbinom._logpmf(data, mu, k_agg, b))
+
 def _ln_choose(n, k_agg):
     '''
-    log binomial coefficient with extended gamma factorials. n and k_agg may be int
-    or array - if both array, must be the same length.
+
+    log binomial coefficient with extended gamma factorials. n and k_agg may be
+    int or array - if both array, must be the same length.
+
     '''
     gammaln = special.gammaln
     return gammaln(n + 1) - (gammaln(k_agg + 1) + gammaln(n - k_agg + 1))
@@ -637,3 +626,35 @@ class expon_uptrunc_gen(rv_continuous_meco):
         return expon.stats(lam)
 
 expon_uptrunc = expon_uptrunc_gen(a=0.0, name='expon_uptrunc', shapes='lam, b')
+
+
+def _solve_k_from_mu(data, k_range, nll, *args):
+    """
+    For given args, return k_agg from searching some k_range.
+
+    Parameters
+    ----------
+    data : array
+    k_range : array
+    nll : function
+
+    args :
+
+    Returns
+    --------
+    :float
+        Minimum k_agg
+
+    """
+    # TODO: See if a root finder like fminbound would work with Decimal used in
+    # logpmf method (will this work with arrays?)
+
+    k_array = np.arange(*k_range)
+    nll_array = np.zeros(len(k_array))
+
+    for i in range(len(k_array)):
+        nll_array[i] = nll(data, k_array[i], *args)
+
+    min_nll_idx = np.argmin(nll_array)
+
+    return k_array[min_nll_idx]
