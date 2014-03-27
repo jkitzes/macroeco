@@ -1297,7 +1297,7 @@ def _product(*args, **kwds):
 
 def empirical_cdf(data):
     """
-    Generates an empirical cdf from empirical data
+    Generates an empirical cdf from data.
 
     Parameters
     ----------
@@ -1306,17 +1306,17 @@ def empirical_cdf(data):
 
     Returns
     --------
-    : array
-        The empirical cdf corresponding to the inputted data
+    : DataFrame
+        Columns 'data' and 'ecdf'.  'data' contains ordered data and 'ecdf'
+        contains the corresponding ecdf values for the data.
 
     """
-    # TODO: This should return sorted data also, otherwise trying to match the
-    # input data to output does not correspond (result is sorted, data is not
-    # necessarily).
 
     vals = pd.Series(data).value_counts()
     ecdf = pd.DataFrame(data).set_index(keys=0)
     probs = pd.DataFrame(vals.sort_index().cumsum() / np.float(len(data)))
-    ecdf = ecdf.join(probs)
+    ecdf = ecdf.join(probs, how="right")
+    ecdf = ecdf.reset_index()
+    ecdf.columns = ['data', 'ecdf']
 
-    return np.array(ecdf[0])
+    return ecdf
