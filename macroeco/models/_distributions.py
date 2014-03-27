@@ -320,7 +320,10 @@ class geom_uptrunc_gen(rv_discrete_meco):
 
     def _pmf(self, x, p, b):
         pmf = (1.0-p)**x * p / (1.0-(1.0-p)**(b+1))
-        pmf[x > b] = 0
+        if len(np.atleast_1d(x)) > 1:
+            pmf[x > b] = 0
+        elif x > b:
+            pmf = 0
         return pmf
 
     def _cdf(self, x, p, b):
