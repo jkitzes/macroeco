@@ -288,7 +288,8 @@ def _fit_models(options, core_results):
             fits = _get_fits(data, model)
             # TODO: values is probably better moved to output part
             values = _get_values(data, model, fits)
-            stat_names, stats = _get_comparison_statistic(values, fits)
+
+            stat_names, stats = _get_comparison_statistic(data, model, fits)
             fit_result[model] = [fits, values, stat_names, stats]
         fit_results.append(fit_result)
 
@@ -310,8 +311,12 @@ def _get_values(data, model, fits):
 
     return values
 
-def _get_comparison_statistic(data, fits):
-    return ['AIC'], [0]
+
+def _get_comparison_statistic(data, model, fits):
+    # Just calculating AIC in this function
+
+    aic = comp.AIC(data, eval("mod.%s" % model + "(*fits)"))
+    return ['AIC'], aic
 
 
 def _save_results(options, module, core_results, fit_results):
