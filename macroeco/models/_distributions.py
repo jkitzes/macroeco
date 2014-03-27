@@ -467,6 +467,54 @@ def _nbinom_solve_k_from_mu(data, mu, k_range):
 
     return k_array[min_nll_idx]
 
+class cnbinom_gen(rv_discrete_meco):
+    r"""
+    The conditional (finite) negative binomial distribution described by
+    Zillio and He (2010) and Conlisk et al. (2007)
+
+    MORE
+    """
+    # TODO: Set b (upper bound). Is this the same as an upper truncated NBD?
+
+    @inherit_docstring_from(rv_discrete_meco)
+    def translate_args(self, mu, k_agg, b):
+        return mu, k_agg, b
+
+    @inherit_docstring_from(rv_discrete_meco)
+    def fit_mle(self, data, b=None, k_range=(0.1, 100, 0.1)):
+        pass
+        # mu = np.mean(data)
+
+        # if not b:
+        #     b = np.sum(data)
+
+        # return mu, _solve_k_from_mu(data, cnbinom, k_range, mu=mu, b=b)
+
+    def _pmf(self, x, mu, k_agg, b):
+        return np.exp(self._logpmf(x, mu, k_agg, b))
+
+    def _logpmf(self, x, mu, k_agg, b):
+        ln_l = lambda n_i, n, a, k_agg: _ln_choose(n_i + k_agg - 1, n_i) + \
+            _ln_choose(n - n_i + (k_agg / a) - k_agg - 1, n - n_i) -\
+            _ln_choose(n + (k_agg / a) - 1, n)
+        a = mu / b
+        return ln_l(x, b, a, k_agg)
+
+    def _stats(self, mu, k_agg, b):
+        pass
+
+cnbinom = cnbinom_gen(name="cnbinom", shapes="mu, k_agg, b")
+
+
+def _ln_choose(n, k_agg):
+    '''
+    log binomial coefficient with extended gamma factorials. n and k_agg may be int
+    or array - if both array, must be the same length.
+    '''
+    gammaln = special.gammaln
+    return gammaln(n + 1) - (gammaln(k_agg + 1) + gammaln(n - k_agg + 1))
+
+
 #
 # Continuous
 #
