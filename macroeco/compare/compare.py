@@ -13,8 +13,9 @@ _data_doc = \
     """
 
 _model_doc = \
-    """model : scipy distribution object
-        A frozen scipy model object.  Needs to have the attribute *.shape
+    """model : frozen distribution object A frozen scipy model object. When
+        freezing, keyword args ``loc`` and ``scale`` should only be included if
+        they represent a distribution parameter.
     """
 
 _obs_pred_doc = \
@@ -73,7 +74,7 @@ def lrt(data, model_null, model_alt, df=None):
     Returns
     -------
     tuple
-        (G^2 statistic, p-value)
+        G^2 statistic, p-value
 
     Notes
     -----
@@ -95,9 +96,10 @@ def lrt(data, model_null, model_alt, df=None):
 
     # Set df if necessary
     if not df:
-        df = len(model_alt.kwds) - len(model_null.kwds)
+        df =  ( len(model_alt.args) + len(model_alt.kwds)
+              - len(model_null.args) - len(model_null.kwds) )
 
-    return (test_stat, stats.chisqprob(test_stat, df))
+    return test_stat, stats.chisqprob(test_stat, df)
 
 
 @doc_sub(_data_doc, _model_doc)
@@ -138,7 +140,7 @@ def AIC(data, model, params=None, corrected=True):
     L = nll(data, model)
 
     if not params:
-        k = len(model.kwds)
+        k = len(model.kwds) + len(model.args)
     else:
         k = params
 
