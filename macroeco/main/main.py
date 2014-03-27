@@ -205,55 +205,24 @@ def _emp_extra_options(options):
     Get special options patch, cols, and splits if analysis in emp module
     """
 
+    # Check that metadata is valid
     metadata_path = os.path.normpath(os.path.join(options['param_dir'],
                                                   options['metadata']))
     if not os.path.isfile(metadata_path):
         raise IOError, ("Path to metadata file %s is invalid." %
                         metadata_path)
 
+    # Using subset if given, create and store patch
     subset = options.get('subset', '')
-
     options['patch'] = emp.Patch(metadata_path, subset)
-    options['cols'], options['splits'] = _get_cols_splits(options)
+
+    # If cols or splits not given in options, make empty strings
+    if 'cols' not in options.keys():
+        options['cols'] = ''
+    if 'splits' not in options.keys():
+        options['splits'] = ''
 
     return options
-
-
-def _get_cols_splits(options):
-    """
-    Notes
-    -----
-    Always returns strings, even if dictionary or list is constructed here, to
-    ensure consistency with provided options.
-
-    """
-
-    cols = {}
-    special_cols = ['spp_col', 'count_col', 'energy_col', 'mass_col']
-
-    # Cols may be given as option or individual col options may be options
-    if 'cols' in options.keys():
-        cols = eval(options['cols'])  # Must be string representing dict
-    else:
-        for col in special_cols:
-            cols[col] = options.get(col, None)
-
-    # If col is still None, try to fall back to metadata
-    for col in special_cols:
-        if cols[col] is None:
-            cols[col] = options['patch'].meta['Description'].get(col, None)
-
-    # Splits may be given as option, else is set to None
-    if 'splits' in options.keys():
-        splits = options['splits']
-    else:
-        splits = None
-
-    # Every metric requires a spp_col
-    if 'spp_col' not in cols.keys():
-        raise ValueError, 'spp_col not specified'
-
-    return str(cols), str(splits)
 
 
 def _arg_kwarg_lists(options, module):

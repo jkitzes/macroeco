@@ -1170,18 +1170,34 @@ def z(doubleS, halfS):
 
 
 
-def _get_cols(special_cols_names, cols, patch):
+def _get_cols(special_col_names, cols, patch):
     """
-    Retrieve values of special_cols from cols dict or Patch metadata
+    Retrieve values of special_cols from cols string or patch metadata
     """
-    special_cols_values = []
-    for col in special_cols_names:
-        col_value = cols.get(col, None)
-        if col_value is None:
-            col_value = patch.meta['Description'].get(col, None)
-        special_cols_values.append(col_value)
 
-    return tuple(special_cols_values)
+    # If cols not given, try to fall back on cols from metadata
+    if not cols:
+        if 'cols' in patch.meta['Description'].keys():
+            cols = patch.meta['Description']['cols']
+        else:
+            raise NameError, ("cols argument not given, spp_col at a minimum "
+                              "must be specified")
+
+    # Parse cols string into dict
+    cols = cols.replace(' ', '')
+    col_list = cols.split(';')
+    col_dict = {x.split(':')[0]: x.split(':')[1] for x in col_list}
+
+    # Check for spp_col
+    if 'spp_col' not in col_dict.keys():
+        raise NameError, ("spp_col not specified")
+
+    # Get special_col_names from dict
+    result = []
+    for special_col_name in special_col_names:
+        result.append(col_dict.get(special_col_name, None))
+
+    return tuple(result)
 
 
 @doc_sub(splits_note)
