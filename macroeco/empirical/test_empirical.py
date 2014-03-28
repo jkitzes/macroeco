@@ -14,23 +14,26 @@ import scipy.stats as stats
 import numpy.testing as nt
 
 class TestEmpiricalCDF(TestCase):
-    """ Unittests for Empirical cdf """
 
-    def test_empirical_cdf(self):
-
-        #Test against R's ecdf function
-
-        # Test Case 1
+    def test_sorted_data(self):
         test_data = [1, 1, 1, 1, 2, 3, 4, 5, 6, 6]
-        R_res = [.4, .4, .4, .4, .5, .6, .7, .8, 1, 1]
+        ans = [.4, .4, .4, .4, .5, .6, .7, .8, 1, 1]
         res = empirical_cdf(test_data)
-        assert_array_equal(R_res, res)
+        assert_array_equal(ans, res['ecdf'])
 
-        # Test Case 2
-        test_data = [3, 3, 3, 3]
-        R_res = [1, 1, 1, 1]
+    def test_unsorted_data(self):
+        test_data = [6, 6, 1, 1, 5, 1, 1, 2, 3, 4]
+        ans = [.4, .4, .4, .4, .5, .6, .7, .8, 1, 1]
         res = empirical_cdf(test_data)
-        assert_array_equal(R_res, res)
+        assert_array_equal(ans, res['ecdf'])  # Result sorted
+        assert_array_equal(np.sort(test_data), res['data'])  # Data sorted
+
+    def test_all_data_same(self):
+        test_data = [3, 3, 3, 3]
+        ans = [1, 1, 1, 1]
+        res = empirical_cdf(test_data)
+        assert_array_equal(ans, res['ecdf'])
+
 # class TestPatch(unittest.TestCase):
 
 #     def setUp(self):
