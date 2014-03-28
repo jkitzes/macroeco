@@ -14,6 +14,7 @@ Welcome to macroeco.
    empirical
    models
    compare
+   misc
    main
 
 

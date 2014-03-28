@@ -105,9 +105,9 @@ def inherit_docstring_from(cls):
     method of the same name from the class `cls`.
 
     If the decorated method has no docstring, it is simply given the
-    docstring of `cls`s method.
+    docstring of cls method.
 
-    From scipy.misc.doccer
+    Extracted from scipy.misc.doccer.
 
     """
     def _doc(func):
