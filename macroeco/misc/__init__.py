@@ -16,5 +16,8 @@ other modules of macroeco.
 
 """
 
-from .misc import setup_log, inherit_docstring_from, doc_sub, log_start_end
+from .misc import (setup_log, _thread_excepthook, log_start_end,
+                   inherit_docstring_from, doc_sub)
 from .rcparams import ggplot_rc
+
+_thread_excepthook()  # Make desktop app catch and log sys except from thread
