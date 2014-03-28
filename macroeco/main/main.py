@@ -5,7 +5,9 @@ import shutil
 import inspect
 import configparser
 from twiggy import log
+import copy
 log = log.name('meco')
+
 
 import numpy as np
 import pandas as pd
@@ -95,9 +97,17 @@ def _do_format(options):
     """
 
     analysis_name = options['analysis']
+    datapath = os.path.normpath(os.path.join(options['param_dir'],
+                                                  options['data']))
+    temp_options = copy.deepcopy(options)
 
     if analysis_name == 'format_dense':
-        misc.format_dense()
+
+        nlc = [nm.strip() for nm in temp_options['non_label_cols'].split(",")]
+        temp_options.pop('non_label_cols', None)
+        fdata = misc.format_dense(datapath, nlc,
+                        evaluate=True, **temp_options)
+
     elif analysis_name == 'format_columnar':
         misc.format_columnar()
     elif analysis_name == 'format_grid':
@@ -105,7 +115,10 @@ def _do_format(options):
     elif analysis_name == 'format_transect':
         misc.format_transect()
     else:
-        raise NameError, "Cannot format data using analysis %s" % analysis_name
+        raise NameError("Cannot format data using analysis %s" % analysis_name)
+
+    # Output formatted data
+    fdata.to_csv(os.path.splitext(datapath)[0] + "_formatted.csv", index=False)
 
 
 def _do_analysis(options):
