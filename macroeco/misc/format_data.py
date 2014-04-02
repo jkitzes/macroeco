@@ -78,16 +78,10 @@ def format_dense(base_data, non_label_cols, **kwargs):
 
     Parameters
     ----------
-    data_path : str
-        A path to the dense data
+    data: DataFrame
+        The dense data
     non_label_cols : list
         A list of columns in the data that are not label columns
-    evaluate : bool
-        If True, eval values in kwargs
-    delimiter : str
-        The delimiter for the dense data. Default, ","
-    na_values : int, float, str
-        Value to be labeled as NA. Default, ""
     item_col : str
         Name of the item column in the formatted data. Default, "label"
     count_col : str
@@ -103,10 +97,6 @@ def format_dense(base_data, non_label_cols, **kwargs):
 
 
     """
-    kwargs = set_defaults_and_eval(kwargs, evaluate)
-
-    base_data = pd.read_csv(data_path, sep=kwargs['delimiter'],
-                    na_values=kwargs['na_values'])
 
     # Stack data in columnar form.
     indexed_data = base_data.set_index(keys=non_label_cols)
@@ -130,9 +120,22 @@ def format_dense(base_data, non_label_cols, **kwargs):
     return columnar_data
 
 
-def set_defaults_and_eval(kwargs, evaluate):
+def _set_dense_defaults_and_eval(kwargs):
     """
-    Sets default values in kwargs if kwargs are not already given
+    Sets default values in kwargs if kwargs are not already given.
+
+    Evaluates all results incase some arguments are given as string
+
+    Parameters
+    -----------
+    kwargs : dict
+        Dictionary of dense specific keyword args
+
+    Returns
+    -------
+    : dict
+        Default, evaluated dictionary
+
     """
 
     kwargs['delimiter'] = kwargs.get('delimiter', ',')
