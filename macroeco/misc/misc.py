@@ -38,9 +38,6 @@ def setup_log(log_dir, file_name='_log.txt', clear=False):
         log.options(suppress_newlines=False).critical('\n'+tb_str)
     sys.excepthook = log_uncaught
 
-    # Make threads use sys.excepthook from parent process
-    _installThreadExcepthook()
-
     return log
 
 
@@ -77,7 +74,7 @@ def _logger_better_time(gmtime=None):
     return time.strftime("%Y/%m/%d %H:%M:%S %p", time.localtime())
 
 
-def _installThreadExcepthook():
+def _thread_excepthook():
     """
     Make threads use sys.excepthook from parent process
     http://bugs.python.org/issue1230540
@@ -105,9 +102,9 @@ def inherit_docstring_from(cls):
     method of the same name from the class `cls`.
 
     If the decorated method has no docstring, it is simply given the
-    docstring of `cls`s method.
+    docstring of cls method.
 
-    From scipy.misc.doccer
+    Extracted from scipy.misc.doccer.
 
     """
     def _doc(func):

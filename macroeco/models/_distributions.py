@@ -228,7 +228,7 @@ class geom_gen(rv_discrete_meco):
         return (1-p)**x * p
 
     def _logpmf(self, x, p):
-        return x*np.log(1-p) + log(p)
+        return x*np.log(1-p) + np.log(p)
 
     def _cdf(self, x, p):
         x = np.floor(x)

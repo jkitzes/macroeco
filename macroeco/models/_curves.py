@@ -142,29 +142,56 @@ class power_law_gen(curve):
 power_law = power_law_gen(name='power_law', parameters='c,z')
 power_law.__doc__ = power_law.__doc__.format(_doc_methods, _doc_parameters)
 
-class mete_sar_gen(curve):
+
+class gen_sar_gen(curve):
     """
-    The SAR predicted by the Maximum Entropy Theory of Ecology
+    INCOMPLETE NEEDS CONTINUED WORK
+
+    A generic SAR based on a combination of an SAD and SSAD
 
     .. math::
 
        y = c x^z
 
-    or equivalently
+    The generic SAR may be used either for downscaling, when values of A are
+    less than A0, or upscaling, when values of A are greater than A0.
+    Downscaling creates the traditional SAR known to ecologists, while
+    wpscaling is particularly useful for estimating large-scale species
+    richness from small-scale plot data.
 
-    .. math::
+    A keyword argument iterative is available for the generic SAR (default is
+    False). If True, the SAR is calculated at successive A values, with the
+    result at each value of A used as the base values of S0 and N0 for the
+    subsequent calculation. The iterative SAR form is a generalization of the
+    universal SAR proposed by Harte et al [#]_.
 
-       \log(y) = \log(c) + z \log(x)
+    Methods
+    -------
+    vals(S0, N0, A, SAD_model, SSAD_model)
+        Calculate SAR given starting values and two models. See notes.
 
-    {0}
-
-    {1}
-    S0, N0
-        Parameters: Initial species richness and community abundance at largest
-        scale
+    Parameters
+    ----------
+    S0 : float
+        Species richness at A0
+    N0 : float
+        Community abundance at A0
+    A : iterable
+        Areas at which to calculate SAR (first element is A0)
+    SAD_model : object
+        Frozen distribution from macroeco.models
+    SSAD_model : object
+        Frozen distribution from macroeco.models
     iterative : bool
         If true, SAR calculation for subplots are based on variables for next
         larger area instead of initial plot variables. Default False.
+
+    References
+    ----------
+    .. [#]
+       Harte, J., Smith, A. B., & Storch, D. (2009). Biodiversity scales from
+       plots to biomes with a universal species-area curve. Ecology Letters,
+       12(8), 789-797.
 
     """
 
@@ -188,15 +215,15 @@ class mete_sar_gen(curve):
             S1 = S0
             N1 = N0
         elif a < 1:  # "Normal" downscale
-            pass
+            S1 = S0
+            N1 = N0
         else:  # Upscale solver
-            pass
+            S1 = S0
+            N1 = N0
 
         return S1, N1
 
-mete_sar = mete_sar_gen(name='mete_sar', parameters='S0,N0')
-mete_sar.__doc__ = mete_sar.__doc__.format(_doc_methods, _doc_parameters)
-
+gen_sar = gen_sar_gen(name='gen_sar', parameters='S0,N0')
 
 
 
