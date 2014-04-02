@@ -1,6 +1,7 @@
 from __future__ import division
 import os
 import re
+import copy
 from configparser import ConfigParser
 import itertools
 from copy import deepcopy
@@ -249,7 +250,7 @@ def _subset_table(full_table, subset):
 
 def _subset_meta(full_meta, subset):
     """
-    Return subtable matching all conditions in subset.
+    Return subset of metadata matching all conditions in subset.
 
     Parameters
     ----------
@@ -269,6 +270,7 @@ def _subset_meta(full_meta, subset):
 
     conditions = subset.replace(' ','').split(';')
 
+    # TODO: This works for numeric, modify to do nothing for categorical cols
     for condition in conditions:
         condition_list = re.split('[<>=]', condition)
         col = condition_list[0]
@@ -310,7 +312,7 @@ def sad(patch, cols, splits='', clean=True):
     Returns
     -------
     {1} Result has two columns: spp (species identifier) and y (individuals of
-        that species).
+    that species).
 
     Notes
     -----
@@ -321,20 +323,19 @@ def sad(patch, cols, splits='', clean=True):
     """
 
     spp_col, count_col = _get_cols(['spp_col', 'count_col'], cols, patch)
+    count_col, patch = _fallback_count_col(count_col, patch)
+
     full_spp_list = np.unique(patch.table[spp_col])
 
     # Loop through each split
     result_list = []
-    for substring, subtable in _yield_subtables(patch, splits):
+    for substring, subpatch in _yield_subpatches(patch, splits):
 
         # Get abundance for each species
         sad_list = []
         for spp in full_spp_list:
-            this_spp = (subtable[spp_col] == spp)
-            if count_col:
-                count = np.sum(subtable[count_col][this_spp])
-            else:
-                count = np.sum(this_spp)
+            this_spp = (subpatch.table[spp_col] == spp)
+            count = np.sum(subpatch.table[count_col][this_spp])
             sad_list.append(count)
 
         # Create dataframe of spp names and abundances
@@ -350,6 +351,18 @@ def sad(patch, cols, splits='', clean=True):
     # Return all results
     return result_list
 
+def _fallback_count_col(count_col, patch):
+    """
+    Determine if count_col is None (not included in cols string). If None, add
+    a column named count_col to the patch table so it can be used in further
+    analysis.
+    """
+    if count_col:
+        return count_col, patch
+    else:
+        count_col = 'count_col'
+        patch.table['count_col'] = np.ones(len(patch.table))
+        return count_col, patch
 
 @log_start_end
 @doc_sub(metric_params, metric_return, cols_note, splits_note)
@@ -364,7 +377,7 @@ def ssad(patch, cols, splits=''):
     Returns
     -------
     {1} Result has one column giving the individuals of species in each
-        subplot.
+    subplot.
 
     Notes
     -----
@@ -1200,7 +1213,7 @@ def _get_cols(special_col_names, cols, patch):
 
 
 @doc_sub(splits_note)
-def _yield_subtables(patch, splits):
+def _yield_subpatches(patch, splits):
     """
     Iterator for subtables defined by a splits string
 
@@ -1226,9 +1239,12 @@ def _yield_subtables(patch, splits):
         subset_list = _parse_splits(patch, splits)
         for subset in subset_list:
             log.info('Analyzing subset: %s' % subset)
-            yield subset, _subset_table(patch.table, subset)
+            subpatch = copy.copy(patch)
+            subpatch.table = _subset_table(patch.table, subset)
+            subpatch.meta = _subset_meta(patch.meta, subset)
+            yield subset, subpatch
     else:
-        yield '', patch.table
+        yield '', patch
 
 
 @doc_sub(splits_note)
