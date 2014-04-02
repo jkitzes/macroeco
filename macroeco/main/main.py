@@ -81,6 +81,10 @@ def _get_params_base_options(param_path):
 
     run_names = params.sections()
 
+    # Check there's at least one run
+    if not run_names:
+        raise NameError, "Parameters file must contain at least one run"
+
     # Create options dict
     base_options = {}
     base_options['param_dir'] = param_dir
