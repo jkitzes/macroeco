@@ -79,12 +79,11 @@ def set_defaults_and_eval(kwargs, evaluate):
     kwargs['label_col'] = kwargs.get('label_col', 'label')
     kwargs['count_col'] = kwargs.get('count_col', 'count')
 
-    if evaluate:
-        for key, val in kwargs.iteritems():
-            try:
-                kwargs[key] = eval(val)
-            except:
-                kwargs[key] = val
+    for key, val in kwargs.iteritems():
+        try:
+            kwargs[key] = eval(val)
+        except:
+            kwargs[key] = val
 
     return kwargs
 
