@@ -104,14 +104,12 @@ def _do_format(options):
     analysis_name = options['analysis']
     datapath = os.path.normpath(os.path.join(options['param_dir'],
                                                   options['data']))
-    temp_options = copy.deepcopy(options)
+
+    out_path = os.path.splitext(datapath)[0] + "_formatted.csv"
 
     if analysis_name == 'format_dense':
 
-        nlc = [nm.strip() for nm in temp_options['non_label_cols'].split(",")]
-        temp_options.pop('non_label_cols', None)
-        fdata = misc.format_dense(datapath, nlc,
-                        evaluate=True, **temp_options)
+        misc.data_read_write(datapath, out_path, "dense", **options)
 
     elif analysis_name == 'format_columnar':
         misc.format_columnar()
@@ -121,10 +119,6 @@ def _do_format(options):
         misc.format_transect()
     else:
         raise NameError("Cannot format data using analysis %s" % analysis_name)
-
-    # Output formatted data
-    fdata.to_csv(os.path.splitext(datapath)[0] + "_formatted.csv", index=False)
-
 
 def _do_analysis(options):
     """
