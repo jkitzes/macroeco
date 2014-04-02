@@ -468,7 +468,9 @@ def _write_comparison_plots_tables(spid, models, options, core_results,
     - cdf vs emp cdf
     - rad vs rad
     """
-    # TODO: More general function for RAD that deals with -0.5/len issue
+    # TODO: Implement more general function for RAD (model.rank)
+    # TODO: Write only RAD, remove rest
+    # TODO: Add second plot to RAD showing residual
 
     core_result = core_results[spid][1]
     n_vals = len(core_result)
