@@ -1,13 +1,76 @@
 import numpy as np
 import pandas as pd
 
+# TODO: docstring inheritance
+
+
+def data_read_write(data_path_in, data_path_out, format_type, **kwargs):
+    """
+    General function to read, format, and write data.
+
+    Parameters
+    ----------
+    data_path_in : str
+        Path to the file that will be read
+    data_path_out : str
+        Path of the file that will be output
+    format_type : str
+        Either 'dense', 'grid', 'columnar', or 'transect'
+    kwargs
+        Specific keyword args for given data types. See Notes
+
+
+    Notes
+    -----
+
+    'Dense Parameters'
+
+    non_label_cols : str
+        Comma separated list of non label columns. ex. "lat, long, tree"
+    sep : str
+        The delimiter for the dense data. Default, ","
+    na_values : int, float, str
+        Value to be labeled as NA. Default, ""
+
+    See misc.format_dense() for additional keyword parameters
+    """
+
+    if format_type == "dense":
+
+        # Set dense defaults
+        kwargs = _set_dense_defaults_and_eval(kwargs)
+
+        # Try to parse non label columns appropriately
+        try:
+            nlc = [nm.strip() for nm in kwargs['non_label_cols'].split(",")]
+            kwargs.pop('non_label_cols', None)
+        except KeyError:
+            raise KeyError("'non_label_cols' is a required keyword dense data")
+
+        # Read data with dense specific keywords
+        arch_data = pd.read_csv(data_path_in, sep=kwargs['delimiter'],
+                                na_values=kwargs['na_values'])
+
+        form_data = format_dense(arch_data, nlc, **kwargs)
+
+    elif format_type == "grid":
+        pass
+    elif format_type == "columnar":
+        pass
+    elif format_type == "transect":
+        pass
+    else:
+        raise NameError("%s is not a supported data format" % format_type)
+
+    form_data.to_csv(data_path_out, index=False)
+
 def format_columnar():
     """
     """
     pass
 
 
-def format_dense(data_path, non_label_cols, evaluate=False, **kwargs):
+def format_dense(base_data, non_label_cols, **kwargs):
     """
     Formats dense data type to columnar data type.
 
