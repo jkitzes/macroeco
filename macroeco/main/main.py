@@ -11,8 +11,9 @@ log = log.name('meco')
 import numpy as np
 import pandas as pd
 
-import matplotlib.pyplot as plt
 import matplotlib as mpl
+mpl.use('Agg')
+import matplotlib.pyplot as plt
 
 from .. __init__ import __version__
 from .. import empirical as emp
@@ -373,13 +374,17 @@ def _save_results(options, module, core_results, fit_results):
     if module == 'emp':
         _write_subset_index_file(options, core_results)
 
-    if fit_results:  # If models given
-        for i, core_result in enumerate(core_results):
-            models = options['models'].replace(' ','').split(';')
-            _write_fitted_params(i, models, options, fit_results)
-            _write_test_statistics(i, models, options, fit_results)
-            _write_comparison_plots_tables(i, models, options,
-                                           core_results, fit_results)
+    # Write model/data comparison if models were given
+    if fit_results:
+        models = options['models'].replace(' ','').split(';')
+        if 'x' in core_results[0][1]:  # If df has an x col, curve
+            pass
+        else: # distribution
+            for i, core_result in enumerate(core_results):
+                _write_fitted_params(i, models, options, fit_results)
+                _write_test_statistics(i, models, options, fit_results)
+                _write_distribution_plot_table(i, models, options,
+                                               core_results, fit_results)
 
 
 def _write_core_tables(options, module, core_results):
@@ -460,7 +465,7 @@ def _write_test_statistics(spid, models, options, fit_results):
     f.close()
 
 
-def _write_comparison_plots_tables(spid, models, options, core_results,
+def _write_distribution_plot_table(spid, models, options, core_results,
                                    fit_results):
     """
     Notes
@@ -468,94 +473,75 @@ def _write_comparison_plots_tables(spid, models, options, core_results,
     Only applies to analysis using functions from empirical in which models are
     also given.
 
-    - rad vs rad
     """
 
     core_result = core_results[spid][1]
     n_vals = len(core_result)
 
-    # RAD
+    # Set x (rank) and y in df
     x = np.arange(n_vals) + 1
     df = core_result.sort(columns='y', ascending=False)
     df.rename(columns={'y': 'empirical'}, inplace=True)
     df.insert(0, 'x', x)
 
-    def calc_func(model, df, shapes):
-        return eval("mod.%s.rank(len(df['x']), *shapes)" % model)[::-1]
-
-    plot_exec_str = "ax.scatter(df['x'], emp, color='k');ax.set_yscale('log')"\
-                    + ";ax.set_xlabel('rank');ax.set_ylabel('abundance')"
-
-    plot_exec_str_resid = \
-        "ax.hlines(0, 1, np.max(df['x']));" + \
-            "ax.set_ylim((-1 * np.max(emp), np.max(emp)));" + \
-            "ax.set_xlabel('rank');ax.set_ylabel('residual')"
-
-    _save_table_and_plot(spid, models, options, fit_results, 'data_pred_rad',
-                         df, calc_func, [plot_exec_str, plot_exec_str_resid])
-
-
-
-def _save_table_and_plot(spid, models, options, fit_results, name, df,
-                         calc_func, plot_exec_str):
-    """
-    Saves plot and tables of core result and residuals
-
-    plot_exec_str : list
-        List of strings to be executed when plotting. 1st string should be
-        core result plotting and second string should be residual plotting
-
-    """
-    f_path = _get_file_path(spid, options, '%s.csv' % name)
-    p_path = _get_file_path(spid, options, '%s.pdf' % name)
-
+    # Add residual column for each model
     for model in models:
         fit_result = fit_results[spid][model]
         shapes = fit_result[0]
-        result = calc_func(model, df, shapes)
+        result = eval("mod.%s.rank(len(df['x']), *shapes)" % model)[::-1]
         df[model] = result
-        df[model + "_residual"] = np.sort(df['empirical'])[::-1] - result
+        df[model + "_residual"] = result - df['empirical']
 
+    # Set up file paths
+    f_path = _get_file_path(spid, options, 'rank_data_model.csv')
+    p_path = _get_file_path(spid, options, 'rank_data_model.pdf')
+
+    # Save table
     df.to_csv(f_path, index=False, float_format='%.4f')  # Table
 
-    # TODO: We only want x and models here, not any other cols that might be
-    # returned in the empirical calculation.
-    df_plt = df.set_index('x')  # Figure
-    emp = df_plt['empirical']
+    # Save plot
+    fig, (ax1, ax2) = plt.subplots(1, 2)
 
-    # Make axes
-    fig, axes = plt.subplots(1, len(plot_exec_str), figsize=(12, 5))
-    axes = axes.flatten()
+    ax1.plot(df['x'], df[models])
+    ax1.scatter(df['x'], df['empirical'], color='k')
+    ax1.legend(models + ['empirical'])
+    ax1.set_xlabel('rank')
+    ax1.set_ylabel('value')
+    ax1.set_xlim(left=0)
 
-    names = [models, [mod + "_residual" for mod in models]]
-    for i, ax in enumerate(axes):
+    ax2.plot(df['x'], df[[x + '_residual' for x in models]])
+    ax2.hlines(0, 1, np.max(df['x']))
+    ax2.legend(models + ['empirical'])
+    ax2.set_ylim((-1 * np.max(df['empirical']), np.max(df['empirical'])))
+    ax2.set_xlabel('rank')
+    ax2.set_ylabel('residual')
 
-        ax.plot(df['x'], df_plt[names[i]])
-        exec plot_exec_str[i]
-        ax.legend(names[i] + ['empirical'])
-        ax = _pad_plot_frame(ax, left=ax.get_xlim()[0],
-                                        bottom=ax.get_ylim()[0])
+    if options.get('log_rank', None):
+        ax1.set_yscale('log')
+    else:
+        ax1.set_ylim(bottom=0)
 
+    ax1 = _pad_plot_frame(ax1)
+    ax2 = _pad_plot_frame(ax2)
+
+    fig.tight_layout()
     fig.savefig(p_path)
 
     plt.close('all')
 
 
-def _pad_plot_frame(ax, pad=0.01, left=0, bottom=0):
+def _pad_plot_frame(ax, pad=0.01):
     """
     Provides padding on sides of frame equal to pad fraction of plot
     """
 
-    ax.set_xlim(left=left)
-    ax.set_ylim(bottom=bottom)
-
     xmin, xmax = ax.get_xlim()
     ymin, ymax = ax.get_ylim()
-    xrange = xmax - xmin
-    yrange = ymax - ymin
+    xr = xmax - xmin
+    yr = ymax - ymin
 
-    ax.set_xlim(xmin - xrange*pad, xmax + xrange*pad)
-    ax.set_ylim(ymin - yrange*pad, ymax + yrange*pad)
+    ax.set_xlim(xmin - xr*pad, xmax + xr*pad)
+    ax.set_ylim(ymin - yr*pad, ymax + yr*pad)
 
     return ax
 
