@@ -468,13 +468,8 @@ def _write_comparison_plots_tables(spid, models, options, core_results,
     Only applies to analysis using functions from empirical in which models are
     also given.
 
-    - pdf/pmf vs histogram
-    - cdf vs emp cdf
     - rad vs rad
     """
-    # TODO: Implement more general function for RAD (model.rank)
-    # TODO: Write only RAD, remove rest
-    # TODO: Add second plot to RAD showing residual
 
     core_result = core_results[spid][1]
     n_vals = len(core_result)
@@ -519,6 +514,7 @@ def _save_table_and_plot(spid, models, options, fit_results, name, df,
         shapes = fit_result[0]
         result = calc_func(model, df, shapes)
         df[model] = result
+        df[model + "_residual"] = np.sort(df['empirical'])[::-1] - result
 
     df.to_csv(f_path, index=False, float_format='%.4f')  # Table
 
