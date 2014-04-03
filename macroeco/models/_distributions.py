@@ -405,6 +405,11 @@ class nbinom_gen(spdist.nbinom_gen):
         mu = np.mean(data)
         return mu, _solve_k_from_mu(data, k_range, nbinom_nll, mu)
 
+    @inherit_docstring_from(rv_discrete_meco)
+    def rank(self, n, *args):
+        """{0}"""
+        return self.ppf((np.arange(1, n+1) - 0.5) / n, *args)
+
     def _get_p_from_mu(self, mu, k_agg):
         return k_agg / (k_agg + mu)
 
