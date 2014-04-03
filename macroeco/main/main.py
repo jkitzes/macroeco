@@ -575,3 +575,41 @@ def _pad_plot_frame(ax, pad=0.01):
     ax.set_ylim(ymin - yrange*pad, ymax + yrange*pad)
 
     return ax
+
+
+def _output_cdf_plot(core_result, spid, models, options, fit_results):
+    """Function for plotting cdf"""
+
+    # CDF
+    x = core_result['y'].values
+    df = emp.empirical_cdf(x)
+    df.columns = ['x', 'empirical']
+
+    def calc_func(model, df, shapes):
+        return eval("mod.%s.cdf(df['x'], *shapes)" % model)
+
+    plot_exec_str = "ax.step(df['x'], emp, color='k', lw=3);ax.set_ylim(top=1)"
+
+    _save_table_and_plot(spid, models, options, fit_results, 'data_pred_cdf',
+                         df, calc_func, plot_exec_str)
+
+
+def output_pdf_plot(core_result, spid, models, options, fit_results):
+    """ Function for plotting pdf/pmf """
+    # PDF/PMF
+    hist_bins = 11
+    emp_hist, edges = np.histogram(core_result['y'].values, hist_bins,
+                                   normed=True)
+    x = (np.array(edges[:-1]) + np.array(edges[1:])) / 2
+    df = pd.DataFrame({'x': x, 'empirical': emp_hist})
+
+    def calc_func(model, df, shapes):
+        try:
+            return eval("mod.%s.pmf(np.floor(df['x']), *shapes)" % model)
+        except:
+            return eval("mod.%s.pdf(df['x'], *shapes)" % model)
+
+    plot_exec_str = "ax.bar(df['x']-width/2, emp, width=width, color='gray')"
+
+    _save_table_and_plot(spid, models, options, fit_results, 'data_pred_pdf',
+                         df, calc_func, plot_exec_str)
