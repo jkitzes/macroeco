@@ -503,6 +503,8 @@ class cnbinom_gen(rv_discrete_meco):
 
     @inherit_docstring_from(rv_discrete_meco)
     def fit_mle(self, data, b=None, k_range=(0.1, 100, 0.1)):
+
+        data = np.array(data)
         mu = np.mean(data)
 
         if not b:
