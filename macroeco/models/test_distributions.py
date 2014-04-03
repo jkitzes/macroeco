@@ -146,43 +146,68 @@ class TestNbinom(TestCase):
         assert_array_almost_equal([mu, k], [9, 8.54], decimal=2)
 
 class TestCnbinom(TestCase):
-    pass
 
-    # def test_zillio_plots(self):
-    #     """ Test the cnbinom function replicated the Zillio and He plots """
+    def test_pmf(self):
+        # Test pmf sums to one
+        pmf = cnbinom.pmf(np.arange(0, 101), 20, 1, 100)
+        assert_almost_equal(np.sum(pmf), 1)
 
-    #     # Define Preliminary
-    #     a = np.array([0.1, .3, .8])
-    #     k = np.array([.1, 1, 10])
-    #     fnbd_vec = []
-    #     nbd_vec = []
-    #     binm_vec = []
-    #     descrip = []
+    def test_cdf(self):
+        # Test cdf is one at appropriate value
+        cdf = cnbinom.cdf(100, 20, 1, 100)
+        assert_almost_equal(cdf, 1)
 
-    #     # Get data
-    #     for ta in a:
-    #         for tk in k:
-    #             fnbd_vec.append(cnbinom.pmf(np.arange(1,101), ta*100, tk, 100))
-    #             nbd_vec.append(nbinom.pmf(np.arange(1,101), ta*100, tk))
-    #             binm_vec.append(stats.binom.pmf(np.arange(1,101), 100, ta))
+    def test_fit_of_vector(self):
+        # Test fit of vector from Issue #3 (github.com/jkitzes/macroeco)
+        data = np.array([3,2,1,0,0,0,0,0,0,0,0,0,0,0,0])
+        k_fit = cnbinom.fit_mle(data)[0]
+        assert_equal(False, k_fit == -0.26)
 
-    #             descrip.append("a=%s, k=%s" % (ta, tk))
+    def test_zillio_plots(self):
+        """ Test the cnbinom function replicated the Zillio and He plots
 
-    #     # Loop through the data and plot it.
-    #     for i in xrange(len(fnbd_vec)):
-    #         plt.clf()
-    #         plt.plot(np.arange(1,101), fnbd_vec[i])
-    #         plt.plot(np.arange(1,101), nbd_vec[i], '--')
-    #         plt.plot(np.arange(1,101), binm_vec[i], '.-')
-    #         plt.legend(('fnbd', 'nbd', 'binm'), loc='best')
-    #         plt.xlabel('abundance')
-    #         plt.ylabel('P(x)')
-    #         plt.ylim((0, .12))
-    #         plt.text(plt.xlim()[1] * 0.6, plt.ylim()[1] * 0.8, descrip[i])
-    #         plt.show()
-    #         plt.clf()
+        References
+        ----------
+        Zillio, T and He, F. 2010. Modeling spatial aggregation of finite
+        populations. Ecology, 91, 3698-3706
 
+        """
 
+        # Define Preliminary a and k to test
+        a = np.array([0.1, .3, .8])
+        k = np.array([.1, 1, 10])
+        fnbd_vec = []
+        nbd_vec = []
+        binm_vec = []
+        descrip = []
+
+        # Get data
+        for ta in a:
+            for tk in k:
+
+                fnbd_vec.append(cnbinom.pmf(np.arange(1, 101),
+                                                ta * 100, tk, 100))
+                nbd_vec.append(nbinom.pmf(np.arange(1, 101), ta * 100, tk))
+                binm_vec.append(stats.binom.pmf(np.arange(1, 101), 100, ta))
+
+                descrip.append("a=%s, k=%s" % (ta, tk))
+
+        # Loop through the data and plot it
+        fig, axes = plt.subplots(3, 3, sharex=True)
+        axes = axes.flatten()
+
+        for i, ax in enumerate(axes):
+            ax.plot(np.arange(1, 101), fnbd_vec[i])
+            ax.plot(np.arange(1, 101), nbd_vec[i], '--')
+            ax.plot(np.arange(1, 101), binm_vec[i], '.-')
+            ax.legend(('fnbd', 'nbd', 'binm'), loc='best')
+            ax.set_xlabel('abundance')
+            ax.set_ylabel('P(x)')
+            ax.text(0.6, 0.3, descrip[i], transform=ax.transAxes)
+
+        plt.tight_layout()
+        # Uncomment to see save figure
+        #fig.savefig("test_cbinom")
 
 class TestExpon(TestCase):
     pass
