@@ -526,28 +526,32 @@ def _save_table_and_plot(spid, models, options, fit_results, name, df,
     # returned in the empirical calculation.
     df_plt = df.set_index('x')  # Figure
     emp = df_plt['empirical']
-    df_plt = df_plt.drop('empirical',1)
 
-    try:
-        width = df['x'].values[1] - df['x'].values[0]
-    except:
-        width = 1
-    ax = df_plt.plot(lw=3)
-    exec plot_exec_str
-    ax = _pad_plot_frame(ax)
-    fig = ax.get_figure()
+    # Make axes
+    fig, axes = plt.subplots(1, len(plot_exec_str), figsize=(12, 5))
+    axes = axes.flatten()
+
+    names = [models, [mod + "_residual" for mod in models]]
+    for i, ax in enumerate(axes):
+
+        ax.plot(df['x'], df_plt[names[i]])
+        exec plot_exec_str[i]
+        ax.legend(names[i] + ['empirical'])
+        ax = _pad_plot_frame(ax, left=ax.get_xlim()[0],
+                                        bottom=ax.get_ylim()[0])
+
     fig.savefig(p_path)
 
     plt.close('all')
 
 
-def _pad_plot_frame(ax, pad=0.01):
+def _pad_plot_frame(ax, pad=0.01, left=0, bottom=0):
     """
     Provides padding on sides of frame equal to pad fraction of plot
     """
 
-    ax.set_xlim(left=0)
-    ax.set_ylim(bottom=0)
+    ax.set_xlim(left=left)
+    ax.set_ylim(bottom=bottom)
 
     xmin, xmax = ax.get_xlim()
     ymin, ymax = ax.get_ylim()
