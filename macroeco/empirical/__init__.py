@@ -24,9 +24,12 @@ Metrics
 
    sad
    ssad
+   sar
+   ear
+   comm_grid
 
 """
 
 from .empirical import (Patch,
-                        sad, ssad,
+                        sad, ssad, sar, ear, comm_grid,
                         empirical_cdf)

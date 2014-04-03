@@ -67,6 +67,14 @@ splits_note = \
     each into two equally sized divisions) within each of the three years,
     for a total of 12 separate analyses."""
 
+division_note = \
+    """The parameter divisions describes how to successively divide the patch
+    along the x_col and y_col dimensions. For
+    example, the string '1,2; 2,2; 2,4' will produce an output table with three
+    rows, giving the result across two subplots when the patch is split
+    along y_col, across four subplots when the patch is split into a 2x2 grid,
+    and across eight subplots when the patch is split into 2 parts along x_col
+    and 4 parts along y_col."""
 
 class Patch(object):
     """
@@ -297,7 +305,7 @@ def _subset_meta(full_meta, subset):
 
 @log_start_end
 @doc_sub(metric_params, metric_return, cols_note, splits_note)
-def sad(patch, cols, splits='', clean=True):
+def sad(patch, cols, splits, clean=True):
     """
     Calculates an empirical species abundance distribution
 
@@ -322,8 +330,8 @@ def sad(patch, cols, splits='', clean=True):
 
     """
 
-    spp_col, count_col = _get_cols(['spp_col', 'count_col'], cols, patch)
-    count_col, patch = _fallback_count_col(count_col, patch)
+    (spp_col, count_col), patch = \
+        _get_cols(['spp_col', 'count_col'], cols, patch)
 
     full_spp_list = np.unique(patch.table[spp_col])
 
@@ -351,22 +359,10 @@ def sad(patch, cols, splits='', clean=True):
     # Return all results
     return result_list
 
-def _fallback_count_col(count_col, patch):
-    """
-    Determine if count_col is None (not included in cols string). If None, add
-    a column named count_col to the patch table so it can be used in further
-    analysis.
-    """
-    if count_col:
-        return count_col, patch
-    else:
-        count_col = 'count_col'
-        patch.table['count_col'] = np.ones(len(patch.table))
-        return count_col, patch
 
 @log_start_end
 @doc_sub(metric_params, metric_return, cols_note, splits_note)
-def ssad(patch, cols, splits=''):
+def ssad(patch, cols, splits):
     """
     Calculates an empirical intra-specific spatial abundance distribution
 
@@ -408,176 +404,260 @@ def ssad(patch, cols, splits=''):
     return result_list
 
 
-def sar(self, div_cols, div_list, criteria, form='sar', output_N=False):
-    '''
-    Calculate an empirical species-area relationship given criteria.
+@log_start_end
+@doc_sub(metric_params, metric_return, cols_note, splits_note, division_note)
+def sar(patch, cols, splits, divs):
+    """
+    Calculates an empirical species area relationship
 
     Parameters
     ----------
-    div_cols : tuple
-        Column names to divide, eg, ('x', 'y'). Must be metric.
-    div_list : list of tuples
-        List of division pairs in same order as div_cols, eg, [(2,2),
-        (2,4), (4,4)]. Values are number of divisions of div_col.
-    criteria : dict
-        See docstring for EPatch.sad. Here, criteria SHOULD NOT include
-        items referring to div_cols (if there are any, they are ignored).
-    form : string
-        'sar' or 'ear' for species or endemics area relationship. EAR is
-        relative to the subtable selected after criteria is applied.
-    output_N : bool
-        Adds the column N to the output rec array which contains the
-        average N for a given area.
+    {0}
+    divs : str
+        Description of how to divide x_col and y_col. See notes.
+    full_output : bool
+        If True, tuples in result contain a third element with a row for each
+        area (as in the main result) and columns containing richness for all
+        suplots at that division.
 
     Returns
     -------
-    rec_sar: structured array
-        Returns a structured array with fields 'items' and 'area' that
-        contains the average items/species for each given area specified by
-        critieria.
-    full_result : list of ndarrays
-        List of same length as areas containing arrays with element for
-        count of species or endemics in each subpatch at corresponding
-        area.
-    '''
-
-    # If any element in div_cols in criteria, remove from criteria
-    criteria = {k: v for k, v in criteria.items() if k not in div_cols}
-
-    # Loop through div combinations (ie, areas), calc sad, and summarize
-    areas = []
-    mean_result = []
-    full_result = []
-    N_result = []
-
-    for div in div_list:
-
-        # Add divs to criteria dict
-        this_criteria = deepcopy(criteria)
-        for i, col in enumerate(div_cols):
-            this_criteria[col] = div[i]
-
-        # Get flattened sad for all criteria and this div
-        sad_return = self.sad(this_criteria)
-
-        if output_N:
-            N_result.append(np.mean([sum(sad[1]) for sad in sad_return]))
-
-        flat_sad = flatten_sad(sad_return)[1]
-
-        # Store results
-        if form == 'sar':
-            this_full = np.sum((flat_sad > 0), axis=0)
-            this_mean = np.mean(this_full)
-        elif form == 'ear':
-            totcnt = np.sum(flat_sad, axis=1)
-            totcnt_arr = \
-                np.array([list(totcnt),]*np.shape(flat_sad)[1]).transpose()
-
-            this_full = np.sum(np.equal(flat_sad, totcnt_arr), axis=0)
-            this_mean = np.mean(this_full)
-        else:
-            raise NotImplementedError('No SAR of form %s available' % form)
-
-        full_result.append(this_full)
-        mean_result.append(this_mean)
-
-        # Store area
-        area = 1
-        for i, col in enumerate(div_cols):
-            dmin = self.data_table.meta[(col, 'minimum')]
-            dmax = self.data_table.meta[(col, 'maximum')]
-            dprec = self.data_table.meta[(col, 'precision')]
-            length = (dmax + dprec - dmin)
-
-            area *= length / div[i]
-
-        areas.append(area)
-
-    # Return
-    if not output_N:
-        rec_sar = np.array(zip(mean_result, areas), dtype=[('items',
-                                            np.float), ('area', np.float)])
-    else:
-        rec_sar = np.array(zip(mean_result, N_result, areas),
-          dtype=[('items', np.float), ('N', np.float), ('area', np.float)])
-
-    return rec_sar, full_result
-
-
-def universal_sar(self, div_cols, div_list, criteria, include_full=False):
-    '''
-    Calculates the empirical universal sar given criteria. The universal
-    sar calculates the slope of the SAR and the ratio of N / S at all
-    the areas in div_cols (where N is the total number of species and S is
-    the total number of species).
-
-    This function assumes that the div_list contains halvings.  If they are
-    not, the function will still work but the results will be meaningless.
-    An example a of div_list with halvings is:
-
-    [(1,1), (1,2), (2,2), (2,4), (4,4)]
-
-    Parameters
-    ----------
-    div_cols : tuple
-        Column names to divide, eg, ('x', 'y'). Must be metric.
-    div_list : list of tuples
-        List of division pairs in same order as div_cols, eg, [(2,2),
-        (2,4), (4,4)]. Values are number of divisions of div_col.
-    criteria : dict
-        See docstring for EPatch.sad. Here, criteria SHOULD NOT include
-        items referring to div_cols (if there are any, they are ignored).
-    include_full : bool
-        If include_full = True, the division (1,1) will be included if it
-        was now already included. Else it will not be included.  (1,1) is
-        equivalent to the full plot
-
-
-    Returns
-    -------
-    z_array : a structured array
-        Has the columns names:
-        'z' : slope of the SAR at the given area
-        'S' : Number of species at the given division
-        'N' : Number of individuals at the given division
-        'N/S' : The ratio of N/S at the given division
-
+    {1} Result has three columns, div, x, and y, that give the ID for the
+    division given as an argument, fractional area, and the mean species
+    richness at that division.
 
     Notes
     -----
-    If you give it n divisions in div_list you will get a structured array
-    back that has length n - 2.  Therefore, if you only have one
-    '''
+    {2}
 
-    # If (1,1) is not included, include it
-    if include_full:
-        try:
-            div_list.index((1,1))
-        except ValueError:
-            div_list.insert(0, (1,1))
+    For the SAR, cols must also contain x_col and y_col, giving the x and y
+    dimensions along which to grid the patch.
 
-    # Run sar with the div_cols
-    sar = self.sar(div_cols, div_list, criteria, output_N=True)[0]
+    {3}
 
-    # sort by area
-    sar = np.sort(sar, order=['area'])[::-1]
+    {4}
 
-    # Calculate z's
-    if len(sar) >= 3: # Check the length of sar
-        z_list = [z(sar['items'][i - 1], sar['items'][i + 1]) for i in
-             np.arange(1, len(sar)) if sar['items'][i] != sar['items'][-1]]
-    else:
-        return np.empty(0, dtype=[('z', np.float), ('S', np.float), ('N',
-                                             np.float), ('N/S', np.float)])
+    """
 
-    N_over_S = sar['N'][1:len(sar) - 1] / sar['items'][1:len(sar) - 1]
+    (spp_col, x_col, y_col), patch = \
+        _get_cols(['spp_col', 'x_col', 'y_col'], cols, patch)
 
-    z_array = np.array(zip(z_list, sar['items'][1:len(sar) - 1],
-        sar['N'][1:len(sar) - 1], N_over_S), dtype=[('z', np.float), ('S',
-        np.float), ('N', np.float), ('N/S', np.float)])
+    # Loop through each split
+    result_list = []
+    for substring, subpatch in _yield_subpatches(patch, splits):
 
-    return z_array
+        # Loop through all divisions within this split
+        subresultx = []
+        subresulty = []
+        subdivlist = divs.split(';')
+        for divs in subdivlist:
+            spatial_table = _yield_spatial_table(subpatch, divs, spp_col,
+                                                 x_col, y_col)
+            subresulty.append(np.mean(spatial_table['spp_count']))   # n spp
+            subresultx.append(1 / eval(divs.replace(',', '*')))  # a frac
+
+        # Append subset result
+        subresult = pd.DataFrame({'div': subdivlist, 'x': subresultx,
+                                  'y': subresulty})
+        result_list.append((substring, subresult))
+
+    # Return all results
+    return result_list
+
+
+@log_start_end
+@doc_sub(metric_params, metric_return, cols_note, splits_note, division_note)
+def ear(patch, cols, splits, divisions):
+    """
+    Calculates an empirical endemics area relationship
+
+    Parameters
+    ----------
+    {0}
+    divisions : str
+        Description of how to divide x_col and y_col. See notes.
+
+    Returns
+    -------
+    {1} Result has three columns, div, x, and y, that give the ID for the
+    division given as an argument, fractional area, and the mean number of
+    endemics per cell at that division.
+
+    Notes
+    -----
+    {2}
+
+    For the EAR, cols must also contain x_col and y_col, giving the x and y
+    dimensions along which to grid the patch.
+
+    {3}
+
+    {4}
+
+    """
+
+    (spp_col, x_col, y_col), patch = \
+        _get_cols(['spp_col', 'x_col', 'y_col'], cols, patch)
+
+    # Loop through each split
+    result_list = []
+    for substring, subpatch in _yield_subpatches(patch, splits):
+
+        all_spp = np.unique(subpatch.table[spp_col])
+
+        # Loop through all divisions within this split
+        subresultx = []
+        subresulty = []
+        subdivlist = divs.split(';')
+        for divs in subdivlist:
+            spatial_table = _yield_spatial_table(subpatch, divs, spp_col,
+                                                 x_col, y_col)
+
+            endemic_counter = 0
+            for spp in all_spp:
+                spp_in_cell = [spp in x for x in spatial_table['spp_set']]
+                spp_n_cells = np.sum(spp_in_cell)
+                if spp_n_cells == 1:  # If a spp is in only 1 cell, endemic
+                    endemic_counter += 1
+
+            n_cells = len(spatial_table)
+            subresulty.append(endemic_counter / n_cells) # mean endemics / cell
+            subresultx.append(1 / eval(divs.replace(',', '*')))  # a frac
+
+        # Append subset result
+        subresult = pd.DataFrame({'div': subdivlist, 'x': subresultx,
+                                  'y': subresulty})
+        result_list.append((substring, subresult))
+
+    # Return all results
+    return result_list
+
+@log_start_end
+@doc_sub(metric_params, metric_return, cols_note, splits_note)
+def comm_grid(patch, cols, splits, divs, metric='Sorensen'):
+    """
+    Calculates commonality as a function of distance for a gridded patch
+
+    Parameters
+    ----------
+    {0}
+    divs : str
+        Description of how to divide x_col and y_col. Unlike SAR and EAR, only
+        one division can be given at a time. See notes.
+    metric : str
+        One of Sorensen or Jaccard, giving the metric to use for commonality
+        calculation
+
+    Returns
+    -------
+    {1} Result has three columns, pair, x, and y, that give the locations of
+    the pair of patches for which commonality is calculated, the distance
+    between those cells, and the Sorensen or Jaccard result.
+
+    Notes
+    -----
+    {2}
+
+    For gridded commonality, cols must also contain x_col and y_col, giving the
+    x and y dimensions along which to grid the patch.
+
+    {3}
+
+    """
+
+    (spp_col, x_col, y_col), patch = \
+        _get_cols(['spp_col', 'x_col', 'y_col'], cols, patch)
+
+    # Loop through each split
+    result_list = []
+    for substring, subpatch in _yield_subpatches(patch, splits):
+
+        # Get spatial table and break out columns
+        spatial_table = _yield_spatial_table(subpatch, divs, spp_col,
+                                             x_col, y_col)
+        spp_set = spatial_table['spp_set']
+        cell_loc = spatial_table['cell_loc']
+        spp_count = spatial_table['spp_count']
+
+        # Get all possible pairwise combinations of cells
+        pair_list = []
+        dist_list = []
+        comm_list = []
+        for i in range(len(spatial_table)):
+            for j in range(i+1, len(spatial_table)):
+
+                pair_list.append(str(cell_loc[i]) + '-' + str(cell_loc[j]))
+
+                dist_list.append(_distance(cell_loc[i], cell_loc[j]))
+
+                ij_intersect = spp_set[i] & spp_set[j]
+                if metric.lower() == 'sorensen':
+                    comm = 2*len(ij_intersect) / (spp_count[i]+spp_count[j])
+                elif metric.lower() == 'jaccard':
+                    comm = len(ij_intersect) / len(spp_set[i] | spp_set[j])
+                else:
+                    raise ValueError, ("Only Sorensen and Jaccard metrics are "
+                                      "available for gridded commonality")
+                comm_list.append(comm)
+
+        # Append subset result
+        subresult = pd.DataFrame({'pair': pair_list, 'x': dist_list,
+                                  'y': comm_list})
+        result_list.append((substring, subresult))
+
+    # Return all results
+    return result_list
+
+
+def _yield_spatial_table(patch, div, spp_col, x_col, y_col):
+    """
+    Calculates an empirical spatial table
+
+    Yields
+    -------
+    DataFrame
+        Spatial table for each division. See Notes.
+
+    Notes
+    -----
+    The spatial table is the precursor to the SAR, EAR, and grid-based
+    commonality metrics. Each row in the table corresponds to a cell created by
+    a given division. Columns are cell_loc (within the grid defined by the
+    division), spp_count, and spp_set.
+
+    """
+
+    div_split_list = div.replace(';','').split(',')
+    div_split = (x_col + ':' + div_split_list[0] + ';' +
+                 y_col + ':' + div_split_list[1])
+
+    # Get cell_locs
+    # Requires _parse_splits and _product functions to go through x then y
+    x_starts, x_ends = _col_starts_ends(patch, x_col, div_split_list[0])
+    x_offset = (x_ends[0] - x_starts[0]) / 2
+    x_locs = x_starts + x_offset
+
+    y_starts, y_ends = _col_starts_ends(patch, y_col, div_split_list[1])
+    y_offset = (y_ends[0] - y_starts[0]) / 2
+    y_locs = y_starts + y_offset
+
+    cell_locs = _product(x_locs, y_locs)
+
+    # Get spp set and count for all cells
+    spp_count_list = [] # Number of species in cell
+    spp_set_list = []   # Set object giving unique species IDs in cell
+    for cellstring, cellpatch in _yield_subpatches(patch, div_split):
+        spp_set = set(np.unique(cellpatch.table[spp_col]))
+        spp_set_list.append(spp_set)
+        spp_count_list.append(len(spp_set))
+
+    # Create and return dataframe
+    df = pd.DataFrame({'cell_loc': cell_locs, 'spp_count': spp_count_list,
+                       'spp_set': spp_set_list})
+    return df
+
+
+
 
 def comm_sep(self, plot_locs, criteria, loc_unit=None):
     '''
@@ -1104,24 +1184,8 @@ def tsed(self, criteria, normalize=True, exponent=0.75):
     return result
 
 
-def flatten_sad(sad):
-    '''
-    Takes a list of tuples, like sad output, ignores keys, and converts values
-    into a 2D array with each value as a column (ie, species in rows, samples
-    in columns.
-    '''
-
-    combs = [cmb[0] for cmb in sad]
-    result = np.zeros((len(sad[0][1]), len(sad)))
-
-    for i, tup in enumerate(sad):
-        result[:,i] = tup[1]
-
-    return combs, result
-
-
-def distance(pt1, pt2):
-    ''' Calculate Euclidean distance between two points '''
+def _distance(pt1, pt2):
+    """Euclidean distance between two points"""
     return np.sqrt((pt1[0] - pt2[0]) ** 2 + (pt1[1] - pt2[1]) ** 2)
 
 
@@ -1145,41 +1209,6 @@ def decdeg_distance(pt1, pt2):
     km = 6367 * c
 
     return km
-
-def divisible(dividend, precision, divisor, tol = 1e-9):
-    '''
-    Check if dividend (here width or height of patch) is evenly divisible by
-    divisor (here a number of patch divs) while accounting for floating point
-    rounding issues.
-    '''
-    if divisor == 0:
-        return False
-    if divisor > round(dividend / precision):
-        return False
-
-    quot_raw = (dividend / precision) / divisor
-    quot_round = round(quot_raw)
-    diff = abs(quot_raw - quot_round)
-
-    if diff < tol:
-        return True
-    else:
-        return False
-
-
-def rnd(num):
-    '''
-    Round num to number of decimal places in precision. Used to avoid issues
-    with floating points in the patch and subpatch width and height that make
-    subpatches not lie exactly on even divisions of patch.
-    '''
-    return round(num, 6)
-
-def z(doubleS, halfS):
-    '''Calculates the z for a double S value and a half S value'''
-
-    return np.log(doubleS / halfS) / (2 * np.log(2))
-
 
 
 def _get_cols(special_col_names, cols, patch):
@@ -1207,10 +1236,16 @@ def _get_cols(special_col_names, cols, patch):
     # Get special_col_names from dict
     result = []
     for special_col_name in special_col_names:
-        result.append(col_dict.get(special_col_name, None))
+        col_name = col_dict.get(special_col_name, None)
 
-    return tuple(result)
+        # Create a count col if its requested and doesn't exist
+        if special_col_name is 'count_col' and col_name is None:
+            col_name = 'count'
+            patch.table['count'] = np.ones(len(patch.table))
 
+        result.append(col_name)
+
+    return tuple(result), patch
 
 @doc_sub(splits_note)
 def _yield_subpatches(patch, splits):
@@ -1280,12 +1315,7 @@ def _parse_splits(patch, splits):
             level_list = [col + '==' + str(x) + ';'
                           for x in np.unique(patch.table[col])]
         else:
-            col_step = eval(patch.meta[col]['step']) # eval converts to float
-            col_min = eval(patch.meta[col]['min'])
-            col_max = eval(patch.meta[col]['max'])
-            step = (col_max - col_min + col_step) / eval(val)
-            starts = np.arange(col_min, col_max + col_step, step)
-            ends = starts + step
+            starts, ends = _col_starts_ends(patch, col, val)
             level_list = [col + '>=' + str(x) + '; ' + col + '<' + str(y)+'; '
                           for x, y in zip(starts, ends)]
 
@@ -1293,6 +1323,18 @@ def _parse_splits(patch, splits):
 
     # Get product of all string levels as list, conv to string, drop final ;
     return [''.join(x)[:-2] for x in _product(*subset_list)]
+
+
+def _col_starts_ends(patch, col, slices):
+
+    col_step = eval(patch.meta[col]['step']) # eval converts to float
+    col_min = eval(patch.meta[col]['min'])
+    col_max = eval(patch.meta[col]['max'])
+    step = (col_max - col_min + col_step) / eval(slices)
+    starts = np.arange(col_min, col_max + col_step, step)
+    ends = starts + step
+
+    return starts, ends
 
 
 def _product(*args, **kwds):
@@ -1307,8 +1349,6 @@ def _product(*args, **kwds):
     for pool in pools:
         result = [x+[y] for x in result for y in pool]
     return result
-
-
 
 
 def empirical_cdf(data):
