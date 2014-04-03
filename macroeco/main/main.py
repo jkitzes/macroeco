@@ -486,48 +486,31 @@ def _write_comparison_plots_tables(spid, models, options, core_results,
     df.insert(0, 'x', x)
 
     def calc_func(model, df, shapes):
-        return eval("mod.%s.ppf((df['x']-0.5)/len(df), *shapes)" % model)[::-1]
+        return eval("mod.%s.rank(len(df['x']), *shapes)" % model)[::-1]
 
-    plot_exec_str="ax.scatter(df['x'], emp, color='k');ax.set_yscale('log')"
+    plot_exec_str = "ax.scatter(df['x'], emp, color='k');ax.set_yscale('log')"\
+                    + ";ax.set_xlabel('rank');ax.set_ylabel('abundance')"
+
+    plot_exec_str_resid = \
+        "ax.hlines(0, 1, np.max(df['x']));" + \
+            "ax.set_ylim((-1 * np.max(emp), np.max(emp)));" + \
+            "ax.set_xlabel('rank');ax.set_ylabel('residual')"
 
     _save_table_and_plot(spid, models, options, fit_results, 'data_pred_rad',
-                         df, calc_func, plot_exec_str)
+                         df, calc_func, [plot_exec_str, plot_exec_str_resid])
 
-    # CDF
-    x = core_result['y'].values
-    df = emp.empirical_cdf(x)
-    df.columns = ['x', 'empirical']
-
-    def calc_func(model, df, shapes):
-        return eval("mod.%s.cdf(df['x'], *shapes)" % model)
-
-    plot_exec_str = "ax.step(df['x'], emp, color='k', lw=3);ax.set_ylim(top=1)"
-
-    _save_table_and_plot(spid, models, options, fit_results, 'data_pred_cdf',
-                         df, calc_func, plot_exec_str)
-
-    # PDF/PMF
-    hist_bins = 11
-    emp_hist, edges = np.histogram(core_result['y'].values, hist_bins,
-                                   normed=True)
-    x = (np.array(edges[:-1]) + np.array(edges[1:])) / 2
-    df = pd.DataFrame({'x': x, 'empirical': emp_hist})
-
-    def calc_func(model, df, shapes):
-        try:
-            return eval("mod.%s.pmf(np.floor(df['x']), *shapes)" % model)
-        except:
-            return eval("mod.%s.pdf(df['x'], *shapes)" % model)
-
-    plot_exec_str = "ax.bar(df['x']-width/2, emp, width=width, color='gray')"
-
-    _save_table_and_plot(spid, models, options, fit_results, 'data_pred_pdf',
-                         df, calc_func, plot_exec_str)
 
 
 def _save_table_and_plot(spid, models, options, fit_results, name, df,
                          calc_func, plot_exec_str):
+    """
+    Saves plot and tables of core result and residuals
 
+    plot_exec_str : list
+        List of strings to be executed when plotting. 1st string should be
+        core result plotting and second string should be residual plotting
+
+    """
     f_path = _get_file_path(spid, options, '%s.csv' % name)
     p_path = _get_file_path(spid, options, '%s.pdf' % name)
 
