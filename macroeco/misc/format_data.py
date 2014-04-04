@@ -1,9 +1,6 @@
 import numpy as np
 import pandas as pd
 
-# TODO: docstring inheritance
-
-
 def data_read_write(data_path_in, data_path_out, format_type, **kwargs):
     """
     General function to read, format, and write data.
@@ -18,7 +15,6 @@ def data_read_write(data_path_in, data_path_out, format_type, **kwargs):
         Either 'dense', 'grid', 'columnar', or 'transect'
     kwargs
         Specific keyword args for given data types. See Notes
-
 
     Notes
     -----
@@ -55,7 +51,7 @@ def data_read_write(data_path_in, data_path_out, format_type, **kwargs):
 
     elif format_type == "grid":
         pass
-    elif format_type == "columnar":
+    elif format_type == "stacked":
         pass
     elif format_type == "transect":
         pass
@@ -64,21 +60,17 @@ def data_read_write(data_path_in, data_path_out, format_type, **kwargs):
 
     form_data.to_csv(data_path_out, index=False)
 
-def format_columnar():
-    """
-    """
-    pass
 
 
 def format_dense(base_data, non_label_cols, **kwargs):
     """
-    Formats dense data type to columnar data type.
+    Formats dense data type to stacked data type.
 
     Takes in a dense data type and converts into a stacked data type.
 
     Parameters
     ----------
-    data: DataFrame
+    data : DataFrame
         The dense data
     non_label_cols : list
         A list of columns in the data that are not label columns
@@ -91,12 +83,44 @@ def format_dense(base_data, non_label_cols, **kwargs):
     drop_na : bool
         Drop all columns with nan in the dataset. Default, False
 
+    Returns
+    -------
+    : DataFrame
+        A formatted DataFrame in the stacked format
+
+
     Notes
     -----
-    Examples of Dense Data conversion...TODO
+    Example of Dense Data conversion
 
+    >>> import pandas as pd
+    >>> dense_data = pd.DataFrame({'row' : [1,2,1,2], 'column' : [1,1,2,2],
+        'labelA': [1,0,3,4], 'labelB' : [3,2,1,4]})
 
+    >>> dense_data
+           column  labelA  labelB  row
+    0       1       1       3       1
+    1       1       0       2       2
+    2       2       3       1       1
+    3       2       4       4       2
+
+    [4 rows x 4 columns]
+    >>> stacked_data = format_dense(dense_data, ['row', 'column'])
+    >>> stacked_data
+       row  column   label  count
+    0    1       1  labelA      1
+    1    1       1  labelB      3
+    2    2       1  labelA      0
+    3    2       1  labelB      2
+    4    1       2  labelA      3
+    5    1       2  labelB      1
+    6    2       2  labelA      4
+    7    2       2  labelB      4
+
+    [8 rows x 4 columns]
     """
+
+    kwargs = _set_dense_defaults_and_eval(kwargs)
 
     # Stack data in columnar form.
     indexed_data = base_data.set_index(keys=non_label_cols)
@@ -124,7 +148,7 @@ def _set_dense_defaults_and_eval(kwargs):
     """
     Sets default values in kwargs if kwargs are not already given.
 
-    Evaluates all results incase some arguments are given as string
+    Evaluates all values using eval
 
     Parameters
     -----------
@@ -152,6 +176,11 @@ def _set_dense_defaults_and_eval(kwargs):
             kwargs[key] = val
 
     return kwargs
+
+def format_stacked():
+    """
+    """
+    pass
 
 def format_transect():
     """
