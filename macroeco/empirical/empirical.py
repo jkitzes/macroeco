@@ -455,7 +455,7 @@ def sar(patch, cols, splits, divs):
         # Loop through all divisions within this split
         subresultx = []
         subresulty = []
-        subdivlist = divs.split(';')
+        subdivlist = _split_divs(divs)
         for divs in subdivlist:
             spatial_table = _yield_spatial_table(subpatch, divs, spp_col,
                                                  x_col, y_col)
@@ -514,7 +514,7 @@ def ear(patch, cols, splits, divisions):
         # Loop through all divisions within this split
         subresultx = []
         subresulty = []
-        subdivlist = divs.split(';')
+        subdivlist = _split_divs(divs)
         for divs in subdivlist:
             spatial_table = _yield_spatial_table(subpatch, divs, spp_col,
                                                  x_col, y_col)
@@ -537,6 +537,15 @@ def ear(patch, cols, splits, divisions):
 
     # Return all results
     return result_list
+
+
+def _split_divs(divs):
+    if type(divs) == type((1,1)):  # Tuple (occurs when main evals single div)
+        subdivlist = [str(divs)[1:-1]]
+    else: # String
+        subdivlist = divs.split(';')
+    return subdivlist
+
 
 @log_start_end
 @doc_sub(metric_params, metric_return, cols_note, splits_note)
