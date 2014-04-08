@@ -1,4 +1,5 @@
 from __future__ import division
+import sys
 
 from decimal import Decimal
 import numpy as np
@@ -6,7 +7,7 @@ import numpy.random as nprand
 
 from scipy.stats.distributions import (rv_discrete, rv_continuous, docdict,
                                        docdict_discrete)
-import scipy.stats.distributions as spdist
+import scipy.stats as stats
 import scipy.optimize as optim
 import scipy.special as special
 
@@ -461,7 +462,7 @@ class cnbinom_gen(rv_discrete_meco):
     r"""
     The conditional negative binomial random variable
 
-    This distribution was described by  Zillio and He (2010) [#]_ and Conlisk
+    This distribution was described by Zillio and He (2010) [#]_ and Conlisk
     et al. (2007) [#]_
 
     .. math::
@@ -474,7 +475,7 @@ class cnbinom_gen(rv_discrete_meco):
 
     Methods
     -------
-    translate_args(mu, k_agg)
+    translate_args(mu, k_agg, b)
         not used, returns mu, k_agg, and b.
     fit_mle(data, k_range=(0.1,100,0.1))
         ml estimate of shape parameters mu and k_agg given data, with k_agg evaluated at (min, max, step) values given by k_range.
@@ -550,6 +551,145 @@ def _ln_choose(n, k_agg):
     gammaln = special.gammaln
     return gammaln(n + 1) - (gammaln(k_agg + 1) + gammaln(n - k_agg + 1))
 
+
+class logser_uptrunc_gen(rv_discrete_meco):
+    r"""
+    Upper truncated logseries random variable
+
+    This distribuiton was described by Harte (2011) [#]_
+
+    .. math::
+
+        p(x) = \frac{1}{Z} \frac{p^n}{n}
+
+    where ``Z`` is the normalizing factor
+
+    Methods
+    -------
+    translate_args(mu, b)
+        Translates the mean and the upper bound into p and b.
+    fit_mle(data)
+        ml estimate of shape parameter p
+    %(before_notes)s
+    p : float
+        p parameter of the logseries distribution
+    b : float
+        Upper bound of the distribution
+
+
+    Notes
+    -----
+    Code adapted from Ethan White's macroecology_tools and version 0.1 of
+    macroeco
+
+    References
+    -----------
+    .. [#]
+        Harte, J. (2011). Maximum Entropy and Ecology: A Theory of
+        Abundance, Distribution, and Energetics. Oxford, United
+        Kingdom: Oxford University Press.
+
+
+    """
+
+    @inherit_docstring_from(rv_discrete_meco)
+    def translate_args(self, mu, b):
+        return _trunc_logser_solver((1 / mu) * b, b), b
+
+    @inherit_docstring_from(rv_discrete_meco)
+    def fit_mle(self, data, b=None):
+
+        data = np.array(data)
+        length = len(data)
+
+        if not b:
+            b = np.sum(data)
+
+        return _trunc_logser_solver(length, b), b
+
+    def _pmf(self, x, p, b):
+        x = np.array(x)
+
+        if p[0] > 0:
+            pmf = stats.logser.pmf(x, p) / stats.logser.cdf(b, p)
+        else:
+            ivals = np.arange(1, b[0] + 1)
+            normalization = sum(p[0] ** ivals / ivals)
+            pmf = (p[0] ** x / x) / normalization
+
+        return pmf
+
+    def _cdf(self, x, p, b):
+        x = np.array(x)
+        if p[0] < 1:
+            return stats.logser.cdf(x, p) / stats.logser.cdf(b, p)
+        else:
+            cdf_list = [sum(self.pmf(range(1, int(x_i) + 1), p[0], b[0])) for
+                                                x_i in x]
+            return np.array(cdf_list)
+
+    def _rvs(self, p, b):
+        # Code from weecology/macroecotools
+
+        out = []
+        if p < 1:
+            for i in range(self._size):
+                rand_logser = stats.logser.rvs(p)
+                while rand_logser > b:
+                    rand_logser = stats.logser.rvs(p)
+                out.append(rand_logser)
+        else:
+            rand_list = stats.uniform.rvs(size = self._size)
+            for rand_num in rand_list:
+                y = lambda x: self.cdf(x, p, b) - rand_num
+                if y(1) > 0: out.append(1)
+                else: out.append(int(round(bisect(y, 1, b))))
+        return np.array(out)
+
+    def _stats(self, p, b):
+        vals = np.arange(1, b + 1)
+        mu = np.sum(vals * self.pmf(vals, p, b))
+        var = np.sum(vals ** 2 * self.pmf(vals, p, b)) - mu ** 2
+        return mu, var, None, None
+
+
+logser_uptrunc = logser_uptrunc_gen(name="logser_uptrunc", shapes="p, b")
+
+
+def _trunc_logser_solver(bins, b):
+    """
+    Given bins (S) and b (N) solve for MLE of truncated logseries
+    parameter p
+
+    Parameters
+    -----------
+    bins : float
+        Number of bins. Considered S in an ecological context
+    b : float
+        Upper truncation of distribution
+
+    Returns
+    -------
+    : float
+        MLE estimate of p
+
+    Notes
+    ------
+    Adapted from Ethan White's macroecology_tools
+    """
+
+    if bins == b:
+        p = 0
+
+    else:
+        BOUNDS = [0, 1]
+        DIST_FROM_BOUND = 10 ** -15
+        m = np.array(np.arange(1, np.int(b) + 1))
+        y = lambda x: np.sum(x ** m / b * bins) - np.sum((x ** m) / m)
+        p = optim.bisect(y, BOUNDS[0] + DIST_FROM_BOUND,
+                   min((sys.float_info[0] / bins) ** (1 / b), 2),
+                   xtol=1.490116e-08)
+    return p
 
 #
 # Continuous
