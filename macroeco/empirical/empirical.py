@@ -477,7 +477,7 @@ def sar(patch, cols, splits, divs):
 
 @log_start_end
 @doc_sub(metric_params, metric_return, cols_note, splits_note, division_note)
-def ear(patch, cols, splits, divisions):
+def ear(patch, cols, splits, divs):
     """
     Calculates an empirical endemics area relationship
 
