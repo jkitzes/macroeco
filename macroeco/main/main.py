@@ -2,6 +2,7 @@ from __future__ import division
 import sys
 import os
 import shutil
+import warnings
 import inspect
 import configparser
 import threading as thread
@@ -12,7 +13,6 @@ import numpy as np
 import pandas as pd
 
 import matplotlib as mpl
-mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 from .. __init__ import __version__
@@ -524,7 +524,9 @@ def _write_distribution_plot_table(spid, models, options, core_results,
     ax1 = _pad_plot_frame(ax1)
     ax2 = _pad_plot_frame(ax2)
 
-    fig.tight_layout()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        fig.tight_layout()
     fig.savefig(p_path)
 
     plt.close('all')
