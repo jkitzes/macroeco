@@ -206,9 +206,9 @@ class TestCnbinom(TestCase):
             ax.set_ylabel('P(x)')
             ax.text(0.6, 0.3, descrip[i], transform=ax.transAxes)
 
-        plt.tight_layout()
+        # plt.tight_layout()
         # Uncomment to see save figure
-        #fig.savefig("test_cbinom")
+        # fig.savefig("test_cbinom")
 
 
 class TestLogserUptrunc(TestCase):
