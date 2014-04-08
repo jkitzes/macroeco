@@ -196,12 +196,12 @@ def sum_of_squares(obs, pred):
     float
         Sum of squares
     """
-    obs, pred = tuple(np.broadcast_arrays(obs, pred))
+    #obs, pred = tuple(np.broadcast_arrays(obs, pred))
     return np.sum((np.array(obs) - np.array(pred)) ** 2)
 
 
 @doc_sub(_obs_pred_doc)
-def r_squared(obs, pred, one_to_one=False, log_trans=True):
+def r_squared(obs, pred, one_to_one=False, log_trans=False):
     """
     Get's the R^2 value for a regression of observed (X) and predicted (Y)
     data
