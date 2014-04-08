@@ -31,6 +31,7 @@ Discrete distributions
    geom_uptrunc
    nbinom
    cnbinom
+   logser_uptrunc
 
 .. DV:
    Our public-facing distributions do not use location and scale parameters, as
@@ -38,6 +39,6 @@ Discrete distributions
 """
 
 from _distributions import (geom, geom_uptrunc, nbinom, cnbinom,
-                            expon, expon_uptrunc)
+                                 logser_uptrunc, expon, expon_uptrunc)
 
 from ._curves import (power_law)
