@@ -310,39 +310,57 @@ def _fit_models(options, core_results):
     for core_result in core_results:  # Each subset
         fit_result = {}
         for model in models:
-            data = core_result[1]['y'].values
-            fits = _get_fits(data, model)
-            # TODO: values is probably better moved to output part
-            values = _get_values(data, model, fits)
-
-            stat_names, stats = _get_comparison_statistic(data, model, fits)
+            fits = _get_fits(core_result, model)
+            values = _get_values(core_result, model, fits)
+            stat_names, stats = _get_comparison_stat(core_result, values,
+                                                     model, fits)
             fit_result[model] = [fits, values, stat_names, stats]
         fit_results.append(fit_result)
 
     return fit_results
 
 
-def _get_fits(data, model):
-    return eval("mod.%s.fit_mle(data)" % model)
+def _get_fits(core_result, model):
+
+    y = core_result[1]['y'].values
+    try:
+        result = eval("mod.%s.fit_mle(y)" % model)
+    except:
+        x = core_result[1]['x'].values
+        result = eval("mod.%s.fit_lsq(x, y)" % model)
+    return result
 
 
-def _get_values(data, model, fits):
+def _get_values(core_result, model, fits):
 
     try:
-        values = eval("mod.%s.pdf(data, *fits)" % model)
-    except AttributeError:
-        values = eval("mod.%s.pmf(data, *fits)" % model)
+        x = core_result[1]['x'].values  # Calc model at x values
+        values = eval("mod.%s.vals(x, *fits)" % model)
     except:
-        pass
+        x = core_result[1]['y'].values  # Calc model at data values
+        try:
+            values = eval("mod.%s.pdf(x, *fits)" % model)
+        except AttributeError:
+            values = eval("mod.%s.pmf(x, *fits)" % model)
 
     return values
 
 
-def _get_comparison_statistic(data, model, fits):
-    # Just calculating AIC in this function
+def _get_comparison_stat(core_result, values, model, fits):
+    # Uses AIC for distributions, R2 one-to-one for curves
 
-    aic = comp.AIC(data, eval("mod.%s" % model + "(*fits)"))
-    return ['AIC'], aic
+    try:  # Only curves have vals
+        eval("mod.%s" % model + ".vals.__doc__")
+        obs = core_result[1]['y'].values
+        pred = values['y'].values
+        name = ['R2']
+        stat = comp.r_squared(obs, pred, one_to_one=True)
+    except AttributeError:
+        obs = core_result[1]['y'].values
+        name = ['AIC']
+        stat = comp.AIC(obs, eval("mod.%s" % model + "(*fits)"))
+
+    return name, stat
 
 
 def _save_results(options, module, core_results, fit_results):
@@ -377,15 +395,11 @@ def _save_results(options, module, core_results, fit_results):
     # Write model/data comparison if models were given
     if fit_results:
         models = options['models'].replace(' ','').split(';')
-        if 'x' in core_results[0][1]:  # If df has an x col, curve
-            pass
-        else: # distribution
-            for i, core_result in enumerate(core_results):
-                _write_fitted_params(i, models, options, fit_results)
-                _write_test_statistics(i, models, options, fit_results)
-                _write_distribution_plot_table(i, models, options,
-                                               core_results, fit_results)
-
+        for i, core_result in enumerate(core_results):
+            _write_fitted_params(i, models, options, fit_results)
+            _write_test_statistics(i, models, options, fit_results)
+            _write_comparison_plot_table(i, models, options,
+                                         core_results, fit_results)
 
 def _write_core_tables(options, module, core_results):
     """
@@ -465,8 +479,8 @@ def _write_test_statistics(spid, models, options, fit_results):
     f.close()
 
 
-def _write_distribution_plot_table(spid, models, options, core_results,
-                                   fit_results):
+def _write_comparison_plot_table(spid, models, options, core_results,
+                                 fit_results):
     """
     Notes
     -----
@@ -475,26 +489,34 @@ def _write_distribution_plot_table(spid, models, options, core_results,
 
     """
 
+    is_curve = 'x' in core_results[0][1]
     core_result = core_results[spid][1]
     n_vals = len(core_result)
 
-    # Set x (rank) and y in df
-    x = np.arange(n_vals) + 1
-    df = core_result.sort(columns='y', ascending=False)
+    # Set x (given or rank) and y in df
+    if is_curve:
+        df = core_result.sort(columns='x')
+    else:
+        x = np.arange(n_vals) + 1
+        df = core_result.sort(columns='y', ascending=False)
+        df.insert(0, 'x', x)
     df.rename(columns={'y': 'empirical'}, inplace=True)
-    df.insert(0, 'x', x)
 
     # Add residual column for each model
     for model in models:
         fit_result = fit_results[spid][model]
         shapes = fit_result[0]
-        result = eval("mod.%s.rank(len(df['x']), *shapes)" % model)[::-1]
+        if is_curve:
+            result = eval("mod.%s.vals(df['x'].values, *shapes)"
+                          % model)['y'].values
+        else:
+            result = eval("mod.%s.rank(len(df['x']), *shapes)" % model)[::-1]
         df[model] = result
         df[model + "_residual"] = result - df['empirical']
 
     # Set up file paths
-    f_path = _get_file_path(spid, options, 'rank_data_model.csv')
-    p_path = _get_file_path(spid, options, 'rank_data_model.pdf')
+    f_path = _get_file_path(spid, options, 'data_models.csv')
+    p_path = _get_file_path(spid, options, 'data_models.pdf')
 
     # Save table
     df.to_csv(f_path, index=False, float_format='%.4f')  # Table
@@ -504,24 +526,27 @@ def _write_distribution_plot_table(spid, models, options, core_results,
 
     ax1.plot(df['x'], df[models])
     ax1.scatter(df['x'], df['empirical'], color='k')
-    ax1.legend(models + ['empirical'])
-    ax1.set_xlabel('rank')
+    ax1.legend(models + ['empirical'], loc='best')
+    ax1.set_xlabel('x')
     ax1.set_ylabel('value')
-    ax1.set_xlim(left=0)
 
     ax2.plot(df['x'], df[[x + '_residual' for x in models]])
-    ax2.hlines(0, 1, np.max(df['x']))
-    ax2.legend(models + ['empirical'])
-    ax2.set_ylim((-1 * np.max(df['empirical']), np.max(df['empirical'])))
-    ax2.set_xlabel('rank')
+    ax2.hlines(0, np.min(df['x']), np.max(df['x']))
+    ax2.legend(models + ['empirical'], loc='best')
+    #ax2.set_ylim((-1 * np.max(df['empirical']), np.max(df['empirical'])))
+    ax2.set_xlabel('x')
     ax2.set_ylabel('residual')
 
-    if options.get('log_rank', None):
+    if options.get('log_y', None):
         ax1.set_yscale('log')
-    else:
-        ax1.set_ylim(bottom=0)
+    if options.get('log_x', None):
+        ax1.set_xscale('log')
 
-    ax1 = _pad_plot_frame(ax1)
+    if not options.get('log_x', None) and not options.get('log_y', None):
+        ax1.set_ylim(bottom=0)
+        ax1.set_xlim(left=0)
+        ax1 = _pad_plot_frame(ax1)
+
     ax2 = _pad_plot_frame(ax2)
 
     with warnings.catch_warnings():
