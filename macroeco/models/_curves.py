@@ -87,12 +87,12 @@ class curve(object):
         x = np.array(x)
         y_obs = np.array(y_obs)
         if not params_start:
-            params_start = np.ones(len(self.parameters))
+            params_start = np.ones(self.n_parameters)
 
         # Error checking
-        if len(x) != len(y):
+        if len(x) != len(y_obs):
             raise ValueError, "x and y_obs must be the same length"
-        if len(params) != self.n_parameters:
+        if len(params_start) != self.n_parameters:
             raise ValueError, "Incorrect number of values in params_start"
 
         # Calculate fit
@@ -108,7 +108,7 @@ class curve(object):
             raise ValueError, ("Least squares fit did not converge with "
                                "message %s" % msg)
 
-        return params_fit
+        return tuple(params_fit)
 
 
 class power_law_gen(curve):
