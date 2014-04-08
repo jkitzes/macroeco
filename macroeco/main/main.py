@@ -7,7 +7,9 @@ import inspect
 import configparser
 import threading as thread
 from twiggy import log
+import copy
 log = log.name('meco')
+
 
 import numpy as np
 import pandas as pd
@@ -105,9 +107,15 @@ def _do_format(options):
     """
 
     analysis_name = options['analysis']
+    datapath = os.path.normpath(os.path.join(options['param_dir'],
+                                                  options['data']))
+
+    out_path = os.path.splitext(datapath)[0] + "_formatted.csv"
 
     if analysis_name == 'format_dense':
-        misc.format_dense()
+
+        misc.data_read_write(datapath, out_path, "dense", **options)
+
     elif analysis_name == 'format_columnar':
         misc.format_columnar()
     elif analysis_name == 'format_grid':
@@ -115,8 +123,7 @@ def _do_format(options):
     elif analysis_name == 'format_transect':
         misc.format_transect()
     else:
-        raise NameError, "Cannot format data using analysis %s" % analysis_name
-
+        raise NameError("Cannot format data using analysis %s" % analysis_name)
 
 def _do_analysis(options):
     """
