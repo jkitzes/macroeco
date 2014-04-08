@@ -12,6 +12,7 @@ from numpy.testing import (TestCase, assert_equal, assert_array_equal,
 import numpy as np
 from decimal import Decimal
 from macroeco.models import *
+from macroeco.models._distributions import _trunc_logser_solver
 import matplotlib.pyplot as plt
 import scipy.stats as stats
 
@@ -208,6 +209,80 @@ class TestCnbinom(TestCase):
         plt.tight_layout()
         # Uncomment to see save figure
         #fig.savefig("test_cbinom")
+
+
+class TestLogserUptrunc(TestCase):
+
+    def test_pmf(self):
+        # import macroeco_distributions as mac
+        # mac.trunc_logser(.8, 100).pmf(4)
+        test_val = logser_uptrunc(.8, 100).pmf(4)
+        assert_almost_equal(test_val, 0.063624697299)
+
+        # import macroeco_distributions as mac
+        # mac.trunc_logser(.45, 3).pmf(3)
+        test_val = logser_uptrunc(.45, 3).pmf(3)
+        assert_almost_equal(test_val, 0.052224371373307543)
+
+    def test_cdf(self):
+        # import macroeco_distributions as mac
+        # mac.trunc_logser(.8, 100).cdf(4)
+        test_val = logser_uptrunc(.8, 100).cdf(4)
+        assert_almost_equal(test_val, 0.86556098617469057)
+
+        # import macroeco_distributions as mac
+        # mac.trunc_logser(.45, 3).cdf(2)
+        test_val = logser_uptrunc(.45, 3).cdf(2)
+        assert_array_almost_equal(test_val, 0.9477756286266924)
+
+    def test_mean(self):
+        # Expected mean is N / S
+
+        N = 500
+        S = 30.
+        p = logser_uptrunc.translate_args(N / S, N)[0]
+        mean = logser_uptrunc.stats(p, N)[0]
+        assert_almost_equal(mean, N / S, decimal=5)
+
+    def test_fit_mle(self):
+        # Should return same result as translate args
+        data = np.arange(1, 40)
+        N = np.sum(data)
+        S = len(data)
+
+        fits = logser_uptrunc.fit_mle(data)
+        assert_array_almost_equal(fits,
+                            logser_uptrunc.translate_args(N / S, N),
+                            decimal=5)
+
+    def test_translate_args(self):
+        # Test that values equal values from John's book (Harte 2011)
+
+        lg = logser_uptrunc.translate_args(4 * 4 / 4, 4 * 4)[0]
+        assert_almost_equal(-np.log(lg), 0.0459, decimal=4)
+
+        lg = logser_uptrunc.translate_args(2 ** 4 * 4 / 4, 2 ** 4 * 4)[0]
+        assert_almost_equal(-np.log(lg), -0.00884, decimal=5)
+
+        lg = logser_uptrunc.translate_args(2 ** 8 * 4 / 4, 2 ** 8 * 4)[0]
+        assert_almost_equal(-np.log(lg), -0.00161, decimal=5)
+
+        lg = logser_uptrunc.translate_args(2 ** 8 * 16 / 16, 2 ** 8 * 16)[0]
+        assert_almost_equal(-np.log(lg), 0.000413, decimal=6)
+
+        lg = logser_uptrunc.translate_args(2 ** 12 * 64 / 64, 2 ** 12 * 64)[0]
+        assert_almost_equal(-np.log(lg), 0.0000228, decimal=7)
+
+        lg = logser_uptrunc.translate_args(20 / 20, 20)[0]
+        assert_equal(0, 0)
+
+
+    def test_n_close_to_s(self):
+        # Test the solver doesn't fail when N is very close to S
+
+        _trunc_logser_solver(2, 3)
+        _trunc_logser_solver(3, 4)
+        _trunc_logser_solver(100, 101)
 
 class TestExpon(TestCase):
     pass
