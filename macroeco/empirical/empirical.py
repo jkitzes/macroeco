@@ -282,6 +282,10 @@ def _subset_meta(full_meta, subset):
     if not subset:
         return full_meta
 
+    meta = {}  # Make deepcopy of entire meta (all section dicts in meta dict)
+    for key, val in full_meta.iteritems():
+        meta[key] = copy.deepcopy(dict(val))
+
     conditions = subset.replace(' ','').split(';')
 
     # TODO: This works for numeric, modify to do nothing for categorical cols
@@ -289,24 +293,24 @@ def _subset_meta(full_meta, subset):
         condition_list = re.split('[<>=]', condition)
         col = condition_list[0]
         val = condition_list[-1]
-        col_step = full_meta[col]['step']
+        col_step = meta[col]['step']
         operator = re.sub('[^<>=]', '', condition)
 
         if operator == '==':
-            full_meta[col]['min'] = val
-            full_meta[col]['max'] = val
+            meta[col]['min'] = val
+            meta[col]['max'] = val
         elif operator == '>=':
-            full_meta[col]['min'] = val
+            meta[col]['min'] = val
         elif operator == '>':
-            full_meta[col]['min'] = str(eval(val) + eval(col_step))
+            meta[col]['min'] = str(eval(val) + eval(col_step))
         elif operator == '<=':
-            full_meta[col]['max'] = val
+            meta[col]['max'] = val
         elif operator == '<':
-            full_meta[col]['max'] = str(eval(val) - eval(col_step))
+            meta[col]['max'] = str(eval(val) - eval(col_step))
         else:
             raise ValueError, "Subset %s not valid" % condition
 
-    return full_meta
+    return meta
 
 
 @log_start_end
