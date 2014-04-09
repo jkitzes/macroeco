@@ -22,7 +22,7 @@ from ..misc import doc_sub, log_start_end
 metric_params = \
     """patch : Patch obj
         Patch object containing data for analysis
-    cols : dict
+    cols : str
         Indicates which column names in patch data table are associated with
         species identifiers, counts, energy, and mass. See Notes.
     splits : str
@@ -416,19 +416,17 @@ def ssad(patch, cols, splits):
 
 @log_start_end
 @doc_sub(metric_params, metric_return, cols_note, splits_note, division_note)
-def sar(patch, cols, splits, divs):
+def sar(patch, cols, splits, divs, ear=False):
     """
-    Calculates an empirical species area relationship
+    Calculates an empirical species area or endemics area relationship
 
     Parameters
     ----------
     {0}
     divs : str
         Description of how to divide x_col and y_col. See notes.
-    full_output : bool
-        If True, tuples in result contain a third element with a row for each
-        area (as in the main result) and columns containing richness for all
-        suplots at that division.
+    ear : bool
+        If True, calculates an endemics area relationship
 
     Returns
     -------
@@ -440,8 +438,8 @@ def sar(patch, cols, splits, divs):
     -----
     {2}
 
-    For the SAR, cols must also contain x_col and y_col, giving the x and y
-    dimensions along which to grid the patch.
+    For the SAR and EAR, cols must also contain x_col and y_col, giving the x
+    and y dimensions along which to grid the patch.
 
     {3}
 
@@ -449,97 +447,61 @@ def sar(patch, cols, splits, divs):
 
     """
 
-    (spp_col, x_col, y_col), patch = \
-        _get_cols(['spp_col', 'x_col', 'y_col'], cols, patch)
+    def sar_y_func(spatial_table, all_spp):
+        return np.mean(spatial_table['n_spp'])
+
+    def ear_y_func(spatial_table, all_spp):
+        endemic_counter = 0
+        for spp in all_spp:
+            spp_in_cell = [spp in x for x in spatial_table['spp_set']]
+            spp_n_cells = np.sum(spp_in_cell)
+            if spp_n_cells == 1:  # If a spp is in only 1 cell, endemic
+                endemic_counter += 1
+        n_cells = len(spatial_table)
+        return endemic_counter / n_cells # mean endemics / cell
+
+    if ear:
+        y_func = ear_y_func
+    else:
+        y_func = sar_y_func
+
+    return _sar_ear_inner(patch, cols, splits, divs, y_func)
+
+
+def _sar_ear_inner(patch, cols, splits, divs, y_func):
+    """
+    y_func is function calculating the mean number of species or endemics,
+    respectively, for the SAR or EAR
+    """
+
+    (spp_col, count_col, x_col, y_col), patch = \
+        _get_cols(['spp_col', 'count_col', 'x_col', 'y_col'], cols, patch)
 
     # Loop through each split
     result_list = []
     for substring, subpatch in _yield_subpatches(patch, splits):
 
         # Loop through all divisions within this split
-        subresultx = []
-        subresulty = []
-        subdivlist = _split_divs(divs)
-        for divs in subdivlist:
-            spatial_table = _yield_spatial_table(subpatch, divs, spp_col,
-                                                 x_col, y_col)
-            subresulty.append(np.mean(spatial_table['spp_count']))   # n spp
-            subresultx.append(1 / eval(divs.replace(',', '*')))  # a frac
-
-        # Append subset result
-        subresult = pd.DataFrame({'div': subdivlist, 'x': subresultx,
-                                  'y': subresulty})
-        result_list.append((substring, subresult))
-
-    # Return all results
-    return result_list
-
-
-@log_start_end
-@doc_sub(metric_params, metric_return, cols_note, splits_note, division_note)
-def ear(patch, cols, splits, divs):
-    """
-    Calculates an empirical endemics area relationship
-
-    Parameters
-    ----------
-    {0}
-    divisions : str
-        Description of how to divide x_col and y_col. See notes.
-
-    Returns
-    -------
-    {1} Result has three columns, div, x, and y, that give the ID for the
-    division given as an argument, fractional area, and the mean number of
-    endemics per cell at that division.
-
-    Notes
-    -----
-    {2}
-
-    For the EAR, cols must also contain x_col and y_col, giving the x and y
-    dimensions along which to grid the patch.
-
-    {3}
-
-    {4}
-
-    """
-
-    (spp_col, x_col, y_col), patch = \
-        _get_cols(['spp_col', 'x_col', 'y_col'], cols, patch)
-
-    # Loop through each split
-    result_list = []
-    for substring, subpatch in _yield_subpatches(patch, splits):
-
         all_spp = np.unique(subpatch.table[spp_col])
-
-        # Loop through all divisions within this split
         subresultx = []
         subresulty = []
+        subresultnspp = []
+        subresultnindivids = []
         subdivlist = _split_divs(divs)
-        for divs in subdivlist:
-            spatial_table = _yield_spatial_table(subpatch, divs, spp_col,
-                                                 x_col, y_col)
-
-            endemic_counter = 0
-            for spp in all_spp:
-                spp_in_cell = [spp in x for x in spatial_table['spp_set']]
-                spp_n_cells = np.sum(spp_in_cell)
-                if spp_n_cells == 1:  # If a spp is in only 1 cell, endemic
-                    endemic_counter += 1
-
-            n_cells = len(spatial_table)
-            subresulty.append(endemic_counter / n_cells) # mean endemics / cell
-            subresultx.append(1 / eval(divs.replace(',', '*')))  # a frac
+        for subdiv in subdivlist:
+            spatial_table = _yield_spatial_table(subpatch, subdiv, spp_col,
+                                                 count_col, x_col, y_col)
+            subresulty.append(y_func(spatial_table, all_spp))
+            subresultx.append(1 / eval(subdiv.replace(',', '*')))  # a frac
+            subresultnspp.append(np.mean(spatial_table['n_spp']))
+            subresultnindivids.append(np.mean(spatial_table['n_individs']))
 
         # Append subset result
         subresult = pd.DataFrame({'div': subdivlist, 'x': subresultx,
-                                  'y': subresulty})
+                                  'y': subresulty, 'n_spp': subresultnspp,
+                                  'n_individs': subresultnindivids})
         result_list.append((substring, subresult))
 
-    # Return all results
     return result_list
 
 
@@ -584,8 +546,8 @@ def comm_grid(patch, cols, splits, divs, metric='Sorensen'):
 
     """
 
-    (spp_col, x_col, y_col), patch = \
-        _get_cols(['spp_col', 'x_col', 'y_col'], cols, patch)
+    (spp_col, count_col, x_col, y_col), patch = \
+        _get_cols(['spp_col', 'count_col', 'x_col', 'y_col'], cols, patch)
 
     # Loop through each split
     result_list = []
@@ -593,10 +555,10 @@ def comm_grid(patch, cols, splits, divs, metric='Sorensen'):
 
         # Get spatial table and break out columns
         spatial_table = _yield_spatial_table(subpatch, divs, spp_col,
-                                             x_col, y_col)
+                                             count_col, x_col, y_col)
         spp_set = spatial_table['spp_set']
         cell_loc = spatial_table['cell_loc']
-        spp_count = spatial_table['spp_count']
+        n_spp = spatial_table['n_spp']
 
         # Get all possible pairwise combinations of cells
         pair_list = []
@@ -611,7 +573,7 @@ def comm_grid(patch, cols, splits, divs, metric='Sorensen'):
 
                 ij_intersect = spp_set[i] & spp_set[j]
                 if metric.lower() == 'sorensen':
-                    comm = 2*len(ij_intersect) / (spp_count[i]+spp_count[j])
+                    comm = 2*len(ij_intersect) / (n_spp[i] + n_spp[j])
                 elif metric.lower() == 'jaccard':
                     comm = len(ij_intersect) / len(spp_set[i] | spp_set[j])
                 else:
@@ -628,7 +590,7 @@ def comm_grid(patch, cols, splits, divs, metric='Sorensen'):
     return result_list
 
 
-def _yield_spatial_table(patch, div, spp_col, x_col, y_col):
+def _yield_spatial_table(patch, div, spp_col, count_col, x_col, y_col):
     """
     Calculates an empirical spatial table
 
@@ -642,7 +604,7 @@ def _yield_spatial_table(patch, div, spp_col, x_col, y_col):
     The spatial table is the precursor to the SAR, EAR, and grid-based
     commonality metrics. Each row in the table corresponds to a cell created by
     a given division. Columns are cell_loc (within the grid defined by the
-    division), spp_count, and spp_set.
+    division), spp_set, n_spp, and n_individs.
 
     """
 
@@ -651,7 +613,7 @@ def _yield_spatial_table(patch, div, spp_col, x_col, y_col):
                  y_col + ':' + div_split_list[1])
 
     # Get cell_locs
-    # Requires _parse_splits and _product functions to go through x then y
+    # Requires _parse_splits and _product functions to go y inside of x
     x_starts, x_ends = _col_starts_ends(patch, x_col, div_split_list[0])
     x_offset = (x_ends[0] - x_starts[0]) / 2
     x_locs = x_starts + x_offset
@@ -663,16 +625,19 @@ def _yield_spatial_table(patch, div, spp_col, x_col, y_col):
     cell_locs = _product(x_locs, y_locs)
 
     # Get spp set and count for all cells
-    spp_count_list = [] # Number of species in cell
+    n_spp_list = [] # Number of species in cell
+    n_individs_list = []
     spp_set_list = []   # Set object giving unique species IDs in cell
-    for cellstring, cellpatch in _yield_subpatches(patch, div_split):
+    for cellstring, cellpatch in _yield_subpatches(patch,div_split,name='div'):
         spp_set = set(np.unique(cellpatch.table[spp_col]))
         spp_set_list.append(spp_set)
-        spp_count_list.append(len(spp_set))
+        n_spp_list.append(len(spp_set))
+        n_individs_list.append(np.sum(cellpatch.table[count_col]))
 
     # Create and return dataframe
-    df = pd.DataFrame({'cell_loc': cell_locs, 'spp_count': spp_count_list,
-                       'spp_set': spp_set_list})
+    df = pd.DataFrame({'cell_loc': cell_locs, 'spp_set': spp_set_list,
+                       'n_spp': n_spp_list, 'n_individs': n_individs_list})
+
     return df
 
 
@@ -1267,7 +1232,7 @@ def _get_cols(special_col_names, cols, patch):
     return tuple(result), patch
 
 @doc_sub(splits_note)
-def _yield_subpatches(patch, splits):
+def _yield_subpatches(patch, splits, name='split'):
     """
     Iterator for subtables defined by a splits string
 
@@ -1292,7 +1257,7 @@ def _yield_subpatches(patch, splits):
     if splits:
         subset_list = _parse_splits(patch, splits)
         for subset in subset_list:
-            log.info('Analyzing subset: %s' % subset)
+            log.info('Analyzing subset %s: %s' % (name, subset))
             subpatch = copy.copy(patch)
             subpatch.table = _subset_table(patch.table, subset)
             subpatch.meta = _subset_meta(patch.meta, subset)

@@ -41,4 +41,6 @@ Discrete distributions
 from _distributions import (geom, geom_uptrunc, nbinom, cnbinom,
                                  logser_uptrunc, expon, expon_uptrunc)
 
-from ._curves import (power_law)
+from ._curves import (power_law,
+                      mete_sar, mete_iterative_sar,
+                      mete_ear, mete_iterative_ear)

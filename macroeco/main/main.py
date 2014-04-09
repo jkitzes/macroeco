@@ -203,7 +203,7 @@ def _get_args_kwargs(options, module):
 
     if module == 'emp':
         options = _emp_extra_options(options)
-    arg_names, kw_names = _arg_kwarg_lists(options, module)
+    arg_names, kw_names = _arg_kwarg_lists(module, options['analysis'])
 
     # Create list of values for arg_names
     args = []
@@ -251,6 +251,7 @@ def _emp_extra_options(options):
     if not os.path.isfile(metadata_path):
         raise IOError, ("Path to metadata file %s is invalid." %
                         metadata_path)
+    options['metadata_path'] = metadata_path
 
     # Using subset if given, create and store patch
     subset = options.get('subset', '')
@@ -265,11 +266,11 @@ def _emp_extra_options(options):
     return options
 
 
-def _arg_kwarg_lists(options, module):
+def _arg_kwarg_lists(module, analysis):
 
     # Get names of args and kwargs to method specified by analysis option
     exec ("arg_and_kwd_names, _, _, kw_defaults = "
-          "inspect.getargspec(%s.%s)" % (module, options['analysis']))
+          "inspect.getargspec(%s.%s)" % (module, analysis))
     if kw_defaults:  # If there are kwargs
         arg_names = arg_and_kwd_names[:-len(kw_defaults)]
         kw_names = arg_and_kwd_names[-len(kw_defaults):]
@@ -280,7 +281,7 @@ def _arg_kwarg_lists(options, module):
     # Inspection for rv classes doesn't work since it uses args internally
     # Unless method is translate_args or fit_mle, appends shapes to args
     try:
-        obj_meth = options['analysis'].split('.')
+        obj_meth = analysis.split('.')
         if obj_meth[1] not in ['fit_mle', 'translate_args']:
             arg_names += eval(module+'.'+obj_meth[0]+'.'+"shapes.split(',')")
     except:
@@ -316,6 +317,7 @@ def _fit_models(options, core_results):
 
     """
 
+    log.info("Fitting models")
     models = options['models'].replace(' ', '').split(';')
 
     # TODO: Make work for 2D results, i.e., curves, comm_sep, o_ring
@@ -324,7 +326,7 @@ def _fit_models(options, core_results):
     for core_result in core_results:  # Each subset
         fit_result = {}
         for model in models:
-            fits = _get_fits(core_result, model)
+            fits = _get_fits(core_result, model, options)
             values = _get_values(core_result, model, fits)
             stat_names, stats = _get_comparison_stat(core_result, values,
                                                      model, fits)
@@ -334,28 +336,35 @@ def _fit_models(options, core_results):
     return fit_results
 
 
-def _get_fits(core_result, model):
+def _get_fits(core_result, model, options):
 
-    y = core_result[1]['y'].values
-    try:
-        result = eval("mod.%s.fit_mle(y)" % model)
-    except:
-        x = core_result[1]['x'].values
-        result = eval("mod.%s.fit_lsq(x, y)" % model)
-    return result
+    options_copy = {}
+    for key, val in options.iteritems():
+        if key not in ['patch']:  # Ignore patch since won't deepcopy
+            options_copy[key] = copy.deepcopy(val)
+
+    model_obj = eval('mod.' + model)
+    if hasattr(model_obj, 'fit_mle'):
+        options_copy['analysis'] = model + '.' + 'fit_mle'
+        options_copy['data'] = core_result[1]['y'].values
+    else:
+        options_copy['analysis'] = model + '.' + 'fit_lsq'
+        options_copy['x'] = core_result[1]['x'].values
+        options_copy['y_obs'] = core_result[1]['y'].values
+        options_copy['df'] = core_result[1]  # Entire result df, for mete_sar
+
+    return _call_analysis_function(options_copy, 'mod')
 
 
 def _get_values(core_result, model, fits):
 
-    try:
+    model_obj = eval('mod.' + model)
+    if hasattr(model_obj, 'vals'):
         x = core_result[1]['x'].values  # Calc model at x values
         values = eval("mod.%s.vals(x, *fits)" % model)
-    except:
-        x = core_result[1]['y'].values  # Calc model at data values
-        try:
-            values = eval("mod.%s.pdf(x, *fits)" % model)
-        except AttributeError:
-            values = eval("mod.%s.pmf(x, *fits)" % model)
+    else:
+        n = len(core_result[1])  # Calc model at data values
+        values = eval("mod.%s.rank(n, *fits)" % model)
 
     return values
 
@@ -502,6 +511,7 @@ def _write_comparison_plot_table(spid, models, options, core_results,
     also given.
 
     """
+    # TODO: Clean up sorting, may not work if SAR x out of order, e.g.
 
     is_curve = 'x' in core_results[0][1]
     core_result = core_results[spid][1]
@@ -519,12 +529,7 @@ def _write_comparison_plot_table(spid, models, options, core_results,
     # Add residual column for each model
     for model in models:
         fit_result = fit_results[spid][model]
-        shapes = fit_result[0]
-        if is_curve:
-            result = eval("mod.%s.vals(df['x'].values, *shapes)"
-                          % model)['y'].values
-        else:
-            result = eval("mod.%s.rank(len(df['x']), *shapes)" % model)[::-1]
+        result = fit_result[1]['y'].values[::-1]
         df[model] = result
         df[model + "_residual"] = result - df['empirical']
 
@@ -538,30 +543,31 @@ def _write_comparison_plot_table(spid, models, options, core_results,
     # Save plot
     fig, (ax1, ax2) = plt.subplots(1, 2)
 
-    ax1.plot(df['x'], df[models])
     ax1.scatter(df['x'], df['empirical'], color='k')
+    ax1.plot(df['x'], df[models])
     ax1.legend(models + ['empirical'], loc='best')
     ax1.set_xlabel('x')
     ax1.set_ylabel('value')
 
-    ax2.plot(df['x'], df[[x + '_residual' for x in models]])
     ax2.hlines(0, np.min(df['x']), np.max(df['x']))
+    ax2.plot(df['x'], df[[x + '_residual' for x in models]])
     ax2.legend(models + ['empirical'], loc='best')
-    #ax2.set_ylim((-1 * np.max(df['empirical']), np.max(df['empirical'])))
     ax2.set_xlabel('x')
     ax2.set_ylabel('residual')
+    ax2.set_xlim(ax1.get_xlim())
+    ax2.set_ylim(min(ax2.get_ylim()[0], -1), max(ax2.get_ylim()[1], 1))
 
     if options.get('log_y', None):
         ax1.set_yscale('log')
     if options.get('log_x', None):
         ax1.set_xscale('log')
+        ax2.set_xscale('log')
 
     if not options.get('log_x', None) and not options.get('log_y', None):
         ax1.set_ylim(bottom=0)
         ax1.set_xlim(left=0)
         ax1 = _pad_plot_frame(ax1)
-
-    ax2 = _pad_plot_frame(ax2)
+        ax2 = _pad_plot_frame(ax2)
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")

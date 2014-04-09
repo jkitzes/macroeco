@@ -353,7 +353,7 @@ def _geom_solve_p_from_mu(mu, b):
         return ( (x / (1 - x)) - ((b + 1) / (x**-b - 1)) - mu )
 
     # x here is the param raised to the k_agg power, or 1 - p
-    return 1 - optim.brentq(p_eq, 1e-9, 20, args=(mu, b), disp=True)
+    return 1 - optim.brentq(p_eq, 1e-16, 100, args=(mu, b), disp=True)
 
 _geom_solve_p_from_mu_vect = np.vectorize(_geom_solve_p_from_mu)
 
@@ -556,7 +556,7 @@ class logser_uptrunc_gen(rv_discrete_meco):
     r"""
     Upper truncated logseries random variable
 
-    This distribuiton was described by Harte (2011) [#]_
+    This distribution was described by Harte (2011) [#]_
 
     .. math::
 
@@ -688,7 +688,7 @@ def _trunc_logser_solver(bins, b):
         y = lambda x: np.sum(x ** m / b * bins) - np.sum((x ** m) / m)
         p = optim.bisect(y, BOUNDS[0] + DIST_FROM_BOUND,
                    min((sys.float_info[0] / bins) ** (1 / b), 2),
-                   xtol=1.490116e-08)
+                   xtol=1.490116e-08, maxiter=1000)
     return p
 
 #

@@ -31,5 +31,5 @@ Metrics
 """
 
 from .empirical import (Patch,
-                        sad, ssad, sar, ear, comm_grid,
+                        sad, ssad, sar, comm_grid,
                         empirical_cdf)
