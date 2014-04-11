@@ -559,6 +559,7 @@ def _write_comparison_plot_table(spid, models, options, core_results,
 
     if options.get('log_y', None):
         ax1.set_yscale('log')
+        ax2.set_yscale('symlog', linthreshy=1)
     if options.get('log_x', None):
         ax1.set_xscale('log')
         ax2.set_xscale('log')
