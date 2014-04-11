@@ -25,11 +25,18 @@ Metrics
    sad
    ssad
    sar
-   ear
    comm_grid
+
+Other
+=====
+
+.. autosummary::
+   :toctree: generated/
+
+   empirical_cdf
 
 """
 
-from .empirical import (Patch,
-                        sad, ssad, sar, comm_grid,
-                        empirical_cdf)
+from ._empirical import (Patch,
+                         sad, ssad, sar, comm_grid,
+                         empirical_cdf)
