@@ -49,8 +49,7 @@ class curve(object):
 
         """
         x = np.array(x)
-        y = self._vals(x, *args, **kwargs)
-        return pd.DataFrame({'x': x, 'y': y})
+        return self._vals(x, *args, **kwargs)
 
     def _vals(self, x, *args):
         """
@@ -97,7 +96,7 @@ class curve(object):
 
         # Calculate fit
         def residuals(params, x, y_obs):
-            y_pred = self.vals(x, *params)['y']
+            y_pred = self.vals(x, *params)
             return y_obs - y_pred
 
         params_fit, _, _, msg, ier = optimize.leastsq(residuals, params_start,

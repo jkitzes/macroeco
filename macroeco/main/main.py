@@ -375,7 +375,7 @@ def _get_comparison_stat(core_result, values, model, fits):
     try:  # Only curves have vals
         eval("mod.%s" % model + ".vals.__doc__")
         obs = core_result[1]['y'].values
-        pred = values['y'].values
+        pred = values
         name = ['R2']
         stat = comp.r_squared(obs, pred, one_to_one=True)
     except AttributeError:
