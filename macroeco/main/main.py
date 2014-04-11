@@ -514,24 +514,24 @@ def _write_comparison_plot_table(spid, models, options, core_results,
     # TODO: Clean up sorting, may not work if SAR x out of order, e.g.
 
     is_curve = 'x' in core_results[0][1]
-    core_result = core_results[spid][1]
-    n_vals = len(core_result)
-
-    # Set x (given or rank) and y in df
-    if is_curve:
-        df = core_result.sort(columns='x')
-    else:
-        x = np.arange(n_vals) + 1
-        df = core_result.sort(columns='y', ascending=False)
-        df.insert(0, 'x', x)
+    df = core_results[spid][1]
     df.rename(columns={'y': 'empirical'}, inplace=True)
+
+    # If distribution, need to sort values so will match sorted rank in fits
+    if not is_curve:
+        x = np.arange(len(df)) + 1
+        df = df.sort(columns='empirical')
+        df.insert(0, 'x', x[::-1])
 
     # Add residual column for each model
     for model in models:
         fit_result = fit_results[spid][model]
-        result = fit_result[1]['y'].values[::-1]
-        df[model] = result
-        df[model + "_residual"] = result - df['empirical']
+        df[model] = fit_result[1]
+        df[model + "_residual"] = df[model] - df['empirical']
+
+    # If curve, sort now for plotting purposes
+    if is_curve:
+        df = df.sort(columns='x')
 
     # Set up file paths
     f_path = _get_file_path(spid, options, 'data_models.csv')
