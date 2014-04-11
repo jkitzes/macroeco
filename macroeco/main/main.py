@@ -116,14 +116,21 @@ def _do_format(options):
 
         misc.data_read_write(datapath, out_path, "dense", **options)
 
-    elif analysis_name == 'format_columnar':
-        misc.format_columnar()
+    elif analysis_name == 'format_stacked':
+
+        misc.data_read_write(datapath, out_path, "stacked", **options)
+
     elif analysis_name == 'format_grid':
-        misc.format_grid()
+
+        misc.data_read_write(datapath, out_path, "grid", **options)
+
     elif analysis_name == 'format_transect':
-        misc.format_transect()
+
+        misc.data_read_write(datapath, out_path, "transect", **options)
+
     else:
         raise NameError("Cannot format data using analysis %s" % analysis_name)
+
 
 def _do_analysis(options):
     """
