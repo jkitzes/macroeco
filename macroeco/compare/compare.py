@@ -8,14 +8,13 @@ import pandas as pd
 from ..misc import doc_sub
 
 _data_doc = \
-    """data : array-like
-        data from which to caculate the the likelihood
-    """
+    """data : iterable
+        Data for analysis"""
 
 _model_doc = \
-    """model : frozen distribution object A frozen scipy model object. When
-        freezing, keyword args ``loc`` and ``scale`` should only be included if
-        they represent a distribution parameter.
+    """model : obj
+        Scipy frozen distribution object. When freezing, keyword args ``loc``
+        and ``scale`` should only be included if they represent a parameter.
     """
 
 _obs_pred_doc = \
@@ -27,7 +26,7 @@ _obs_pred_doc = \
 @doc_sub(_data_doc, _model_doc)
 def nll(data, model):
     """
-    Calculate the neagtive log likelihood given data and a model
+    Negative log likelihood given data and a model
 
     Parameters
     ----------
@@ -51,25 +50,19 @@ def nll(data, model):
 @doc_sub(_data_doc)
 def lrt(data, model_null, model_alt, df=None):
     """
-    This functions compares two nested models using the likelihood ratio
-    test.
+    Compare two nested models using a likelihood ratio test
 
     Parameters
     ----------
     {0}
-    model_null : scipy distribution object
-        The null model as a frozen scipy distribution object. Parameters of
-        distribution must be given as keyword arguments.
-        Ex. ``norm = stats.norm(loc=0, scale=1)``
-
+    model_null : obj
+        A frozen scipy distribution object representing the null model.
     model_alt : scipy distribution object
-        The alternative model as a a frozen scipy distribution object.
-
+        A frozen scipy distribution object representing the alternative model.
     df : int
-        Optional. Specify the degrees of freedom for the lrt.  Calculated
-        as the number of parameters in model_alt - number of parameters in
-        model_null.  If None, the df is calculated from the model
-        objects.
+        The degrees of freedom for the lrt (optional). If none, df is
+        calculated as the difference between the number of parameters in the
+        null and alternative models.
 
     Returns
     -------
@@ -78,14 +71,15 @@ def lrt(data, model_null, model_alt, df=None):
 
     Notes
     -----
+    Parameters of distribution objects must be given as keyword arguments. Ex.
+    ``norm = stats.norm(loc=0, scale=1)``
 
-    Interpretation: p-value < alpha suggests signficant evidence for your
-    alternative model
+    A p-value < alpha suggests signficant evidence for the alternative model.
 
-    The LRT only applies to nested models. The variable test_stat is known as
-    the G^2 statistic.  The G-test uses the fact that -2log(Likelihood_null /
-    Likelihood_alt) is approximately chi-squared.  This assumption breaks down
-    for small samples sizes.
+    The LRT only applies to nested models. The G^2 statistic and G-test rely on
+    the the assumption that -2log(Likelihood_null / Likelihood_alt) is
+    approximately chi-squared distributed. This assumption breaks down for
+    small samples sizes.
 
     """
 
@@ -105,19 +99,17 @@ def lrt(data, model_null, model_alt, df=None):
 @doc_sub(_data_doc, _model_doc)
 def AIC(data, model, params=None, corrected=True):
     """
-    Calculate AIC given values of a model given data and model parameters
+    Akaike Information Criteria given data and a model
 
     Parameters
     ----------
     {0}
     {1}
     params : int
-        The number of parameters in the model. If None, calculates the number
-        of parameters from the distribution object
-
+        Number of parameters in the model. If None, calculated from model
+        object.
     corrected : bool
-        If True, calculates the corrected AICC, if False calculates the
-        uncorrected AIC.
+        If True, calculates the small-sample size correct AICC. Default False.
 
     Returns
     -------
@@ -131,9 +123,9 @@ def AIC(data, model, params=None, corrected=True):
     References
     ----------
     .. [#]
-        Burnham, K and Anderson, D. (2002) Model Selection and Multimodel
-        Inference: A Practical and Information-Theoretic Approach (p. 66). New
-        York City, USA: Springer.
+       Burnham, K and Anderson, D. (2002) Model Selection and Multimodel
+       Inference: A Practical and Information-Theoretic Approach (p. 66). New
+       York City, USA: Springer.
 
     """
     n = len(data)  # Number of observations
@@ -152,25 +144,26 @@ def AIC(data, model, params=None, corrected=True):
     return aic_value
 
 
-def AIC_weights(aic_list):
+def AIC_compare(aic_list):
     """
-    Calculates the AIC weights for a given set of models.
+    Calculates delta AIC and AIC weights from a list of AIC values
 
     Parameters
     -----------------
-    aic_list : array-like object
-        Array-like object containing AIC values from different models
+    aic_list : iterable
+        AIC values from set of candidat models
 
     Returns
     -------------
     tuple
-        First element contains the relative AIC weights, second element
-        contains the delta AIC values.
+        First element contains the delta AIC values, second element contains
+        the relative AIC weights.
 
     Notes
     -----
     AIC weights can be interpreted as the probability that a given model is the
-    best model in comparison to the other models
+    best model in the set.
+
     """
 
     aic_values = np.array(aic_list)
@@ -179,42 +172,50 @@ def AIC_weights(aic_list):
     values = np.exp(-delta / 2)
     weights = values / np.sum(values)
 
-    return weights, delta
+    return delta, weights
 
 
-@doc_sub(_obs_pred_doc)
 def sum_of_squares(obs, pred):
     """
-    Calculates the sum of squares between observed (X) and predicted (Y) data.
-    Attempts to braodcast arrays if lengths don't match.
+    Sum of squares between observed and predicted data
 
     Parameters
     ----------
-    {0}
+    obs : iterable
+        Observed data
+    pred : iterable
+        Predicted data
+
     Returns
     -------
     float
         Sum of squares
+
+    Notes
+    -----
+    The length of observed and predicted data must match.
+
     """
-    #obs, pred = tuple(np.broadcast_arrays(obs, pred))
+
     return np.sum((np.array(obs) - np.array(pred)) ** 2)
 
 
-@doc_sub(_obs_pred_doc)
 def r_squared(obs, pred, one_to_one=False, log_trans=False):
     """
-    Get's the R^2 value for a regression of observed (X) and predicted (Y)
-    data
+    R^2 value for a regression of observed and predicted data
 
     Parameters
     ----------
-    {0}
+    obs : iterable
+        Observed data
+    pred : iterable
+        Predicted data
     one_to_one : bool
-        If True, calculates the R^2 based on the one-to-one line as done in
-        [#]_.  If False, calculates the standard R^2 from a regression fit.
-
+        If True, calculates the R^2 based on the one-to-one line (see [#]_),
+        and if False, calculates the standard R^2 based on a linear regression.
+        Default False.
     log_trans : bool
-        If True, log transforms obs and pred.
+        If True, log transforms obs and pred before R^2 calculation.
 
     Returns
     -------
@@ -223,64 +224,61 @@ def r_squared(obs, pred, one_to_one=False, log_trans=False):
 
     Notes
     -----
-    Using just R^2 to compare the fit of observed and predicted values can be
-    misleading because the relationship may not be one-to-one but the R^2
-    value may be quite high. The one-to-one option alleviates this problem.
+    Using the traditional R^2 to compare the fit of observed and predicted
+    values may be misleading as the relationship may not be one-to-one but the
+    R^2 value may be quite high. The one-to-one option alleviates this problem.
 
     References
     ----------
     .. [#]
-        White, E., Thibault, K., & Xiao, X. (2012). Characterizing the species
-        abundance distributions across taxa and ecosystems using a simple
-        maximum entropy model. Ecology, 93(8), 1772-8
+       White, E., Thibault, K., & Xiao, X. (2012). Characterizing the species
+       abundance distributions across taxa and ecosystems using a simple
+       maximum entropy model. Ecology, 93(8), 1772-8
 
     """
-
-    # Sort obs and pred
-    obs = np.sort(obs)
-    pred = np.sort(pred)
 
     if log_trans:
         obs = np.log(obs)
         pred = np.log(pred)
 
     if one_to_one:
-        # Equation from White et al 2012
-        r_sq = 1 - sum_of_squares(obs, pred) / \
-                        sum_of_squares(obs, np.mean(obs))
+        r_sq = 1 - (sum_of_squares(obs, pred) /
+                    sum_of_squares(obs, np.mean(obs)))
     else:
         b0, b1, r, p_value, se = stats.linregress(obs, pred)
         r_sq = r ** 2
 
     return r_sq
 
-
-def bin_data(data, max_num):
+def preston_bin(data, max_num):
     """
-    Bins the data on base 2.  Uses Preston's method of binning which has
-    exclusive lower boundaries and inclusive upper boundaries. Densities are
-    not split between bins.
+    Bins data on base 2 using Preston's method
 
     Parameters
     ----------
     data : array-like
         Data to be binned
-
     max_num :  float
-        The maximum upper most boundary of the data
+        The maximum upper value of the data
 
     Returns
     -------
     tuple
         (binned_data, bin_edges)
 
+    Notes
+    -----
+    Uses Preston's method of binning, which has exclusive lower boundaries and
+    inclusive upper boundaries. Densities are not split between bins.
+
     References
     ----------
     .. [#]
-        Preston, F. (1962). The canonical distribution of commonness and rarity.
-        Ecology, 43, 185-215
+       Preston, F. (1962). The canonical distribution of commonness and rarity.
+       Ecology, 43, 185-215
 
     """
+
     log_ub = np.ceil(np.log2(max_num))
 
     # Make an exclusive lower bound in keeping with Preston

@@ -23,6 +23,6 @@ Comparison Functions
 
 """
 
-from .compare import (nll, lrt, AIC, AIC_weights,
+from .compare import (nll, lrt, AIC, AIC_compare,
                       sum_of_squares, r_squared,
-                      bin_data)
+                      preston_bin)
