@@ -1,452 +1,250 @@
-'''
-Unit tests for empirical.py
-'''
-
 from __future__ import division
+import os
+from configparser import ConfigParser
 
 from numpy.testing import (TestCase, assert_equal, assert_array_equal,
                            assert_almost_equal, assert_array_almost_equal,
                            assert_allclose, assert_, assert_raises)
+from pandas.util.testing import (assert_frame_equal)
 
-from macroeco.empirical import *
+import macroeco.empirical as emp
+import macroeco.empirical._empirical as _emp
 import numpy as np
+import pandas as pd
 import scipy.stats as stats
-import numpy.testing as nt
 
-class TestEmpiricalCDF(TestCase):
+
+class Patches(TestCase):
+
+    def setUp(self):
+        local_path = os.path.dirname(os.path.abspath(__file__))
+
+        self.meta1_path = os.path.join(local_path, 'test_meta1.txt')
+        self.table1_path = os.path.join(local_path, 'test_table1.csv')
+        self.table1 = pd.DataFrame.from_csv(self.table1_path, index_col=False)
+        self.meta1 = ConfigParser()
+        self.meta1.read(self.meta1_path)
+        self.pat1 = emp.Patch(self.meta1_path)  # No subset
+        self.cols1 = 'spp_col:spp; count_col:count; x_col:x; y_col:y'
+        self.A1 = 0.2 * 0.3
+
+
+class TestPatch(Patches):
+
+    def test_load_data_meta(self):
+        assert_array_equal(self.pat1.table, self.table1)
+        assert_equal(self.pat1.meta, self.meta1)
+
+    def test_subset_numeric(self):
+        pat1 = emp.Patch(self.meta1_path, 'x>=0.2')
+        assert_array_equal(pat1.table, self.table1[self.table1.x >= 0.2])
+
+        self.meta1['x']['min'] = '0.2'
+        assert_equal(pat1.meta, self.meta1)
+
+    def test_subset_categorical(self):
+        pat1 = emp.Patch(self.meta1_path, "spp=='b'")
+        assert_array_equal(pat1.table, self.table1[self.table1['spp']=='b'])
+        assert_equal(pat1.meta, self.meta1)  # Meta should not change
+
+    def test_multiple_subset(self):
+        # Only first element in table remains
+        pat1 = emp.Patch(self.meta1_path, "spp=='a' ; y < 0.2")
+        assert_array_equal(pat1.table.iloc[0], self.table1.iloc[0])
+        assert_equal(len(pat1.table), 1)
+
+        self.meta1['y']['max'] = '0.1'
+        assert_equal(pat1.meta, self.meta1)
+
+
+class TestSAD(Patches):
+
+    def test_simple(self):
+        # Falling back on spp_col in metadata, so count 1 for each row
+        sad = emp.sad(self.pat1, None, None)
+        assert_equal(sad[0][1]['y'], [3,2])
+
+    def test_simple_with_cols(self):
+        # Specify count and spp_col here
+        sad = emp.sad(self.pat1, self.cols1, None)
+        assert_equal(sad[0][1]['y'], [4,3])
+
+    def test_two_way_split(self):
+        # Complete split generates 6 results
+        sad = emp.sad(self.pat1, self.cols1, 'x:2; y:3')
+        assert_equal(len(sad), 6)
+
+        # Goes through x then y
+        assert_equal(sad[0][1]['spp'].values, 'a')
+        assert_equal(sad[0][1]['y'].values, 2)
+        assert_equal(sad[1][1]['y'].values, [1,1])
+        assert_equal(sad[5][1]['spp'].values, 'b')
+        assert_equal(sad[0][1]['y'].values, 2)
+
+    def test_one_way_uneven_split(self):
+        # 0.2 should fall in second division of y
+        sad = emp.sad(self.pat1, self.cols1, 'y:2')
+        print sad
+        assert_equal(len(sad), 2)
+        assert_equal(sad[0][1]['spp'].values, ['a'])
+        assert_equal(sad[0][1]['y'].values, [2])
+        assert_equal(sad[1][1]['spp'].values, ['a','b'])
+        assert_equal(sad[1][1]['y'].values, [2,3])
+
+    def test_split_categorical(self):
+        sad = emp.sad(self.pat1, self.cols1, 'year:split; x:2')
+        assert_equal(sad[0][1]['y'].values, 3)
+        assert_equal(sad[1][1]['y'].values, [])
+        assert_equal(sad[2][1]['y'].values, [1,1])
+        assert_equal(sad[3][1]['y'].values, [2])
+
+    def test_clean(self):
+        # No a in second split on x
+        sad = emp.sad(self.pat1, self.cols1, 'x:2', clean=False)
+        assert_equal(len(sad[1][1]), 2)  # Both spp when clean False
+
+        sad = emp.sad(self.pat1, self.cols1, 'x:2', clean=True)
+        assert_equal(len(sad[1][1]), 1)  # Only 'b' when clean True
+
+
+class TestSSAD(Patches):
+
+    def test_no_splits(self):
+        # Just total abundance by species
+        ssad = emp.ssad(self.pat1, self.cols1, None)
+        assert_equal(ssad[0][1]['y'], [4])
+        assert_equal(ssad[1][1]['y'], [3])
+
+    def test_with_split(self):
+        ssad = emp.ssad(self.pat1, self.cols1, 'x:2')
+        assert_equal(ssad[0][1]['y'], [4,0])  # spp a
+        assert_equal(ssad[1][1]['y'], [1,2])  # spp b
+
+
+class TestSAR(Patches):
+
+    def test_no_splits(self):
+        sar = emp.sar(self.pat1, self.cols1, None, '1,1; 2,1; 2,3')
+        assert_almost_equal(sar[0][1]['x'],
+                            [1*self.A1, 0.5*self.A1, 1/6*self.A1])
+        assert_equal(sar[0][1]['y'], [2, 1.5, (1+2+1+0+0+1)/6.])
+
+    def test_with_split(self):
+        sar = emp.sar(self.pat1, self.cols1, 'year:split', '2,1; 1,3')
+        assert_almost_equal(sar[0][1]['x'], [0.5*self.A1, 1/3.*self.A1])
+        assert_almost_equal(sar[1][1]['x'], [0.5*self.A1, 1/3.*self.A1])
+        assert_equal(sar[0][1]['y'], [0.5, 2/3.])
+        assert_equal(sar[1][1]['y'], [3/2., 1])
+
+    def test_single_division(self):
+        sar = emp.sar(self.pat1, self.cols1, None, '2,1')
+        assert_almost_equal(sar[0][1]['x'], [0.5*self.A1])
+        assert_equal(sar[0][1]['y'], [1.5])
+
+
+class TestEAR(Patches):
+
+    def test_no_splits(self):
+        sar = emp.sar(self.pat1, self.cols1, None, '1,1; 2,1; 2,3', ear=True)
+        assert_equal(sar[0][1]['y'], [2, 0.5, 0])
+
+    def test_with_split(self):
+        sar = emp.sar(self.pat1, self.cols1, 'year:split', '2,1;1,3', ear=True)
+        assert_equal(sar[0][1]['y'], [0.5, 0])
+        assert_equal(sar[1][1]['y'], [0.5, 1/3.])
+
+
+class TestCommGrid(Patches):
+
+    def test_no_splits_Sorensen(self):
+        comm = emp.comm_grid(self.pat1, self.cols1, None, '2,1')
+        assert_almost_equal(comm[0][1]['x'], [0.1])
+        assert_equal(comm[0][1]['y'], [2./(2+1)])
+
+    def test_no_splits_Jaccard(self):
+        comm = emp.comm_grid(self.pat1, self.cols1, None, '2,1',
+                             metric='Jaccard')
+        assert_almost_equal(comm[0][1]['x'], [0.1])
+        assert_equal(comm[0][1]['y'], [1/2.])
+
+    def test_with_split(self):
+        comm = emp.comm_grid(self.pat1, self.cols1, 'year:split', '2,1')
+        assert_equal(comm[0][1]['y'], [0])
+        assert_equal(comm[1][1]['y'], [2/3.])
+
+    def test_y_division_even(self):
+        comm = emp.comm_grid(self.pat1, self.cols1, '', '1,3')
+        assert_equal(comm[0][1]['pair'], ['(0.15 0.1) - (0.15 0.2)',
+                                          '(0.15 0.1) - (0.15 0.3)',
+                                          '(0.15 0.2) - (0.15 0.3)'])
+        assert_almost_equal(comm[0][1]['x'], [0.1, 0.2, 0.1])
+        assert_equal(comm[0][1]['y'], [2/3., 2/3., 1.])
+
+    def test_x_y_division_uneven_y(self):
+        comm = emp.comm_grid(self.pat1, self.cols1, '', '2,2')
+        print comm
+        assert_equal(comm[0][1]['pair'], ['(0.1 0.125) - (0.1 0.275)',
+                                          '(0.1 0.125) - (0.2 0.125)',
+                                          '(0.1 0.125) - (0.2 0.275)',
+                                          '(0.1 0.275) - (0.2 0.125)',
+                                          '(0.1 0.275) - (0.2 0.275)',
+                                          '(0.2 0.125) - (0.2 0.275)'])
+        assert_almost_equal(comm[0][1]['x'], [0.15, 0.1, 0.180278, 0.180278,
+                                              0.1, 0.15], 6)
+        assert_equal(comm[0][1]['y'], [2/3., 0, 0, 0, 2/3., 0])
+
+    def test_x_y_division_uneven_y_jaccard(self):
+        comm = emp.comm_grid(self.pat1, self.cols1, '', '2,2',metric='Jaccard')
+        assert_equal(comm[0][1]['y'], [1/2., 0, 0, 0, 1/2., 0])
+
+
+class TestProduct():
+
+    def test_product_with_order(self):
+        # Several places rely on product to sequentially loop first -> last
+        expected = [[1,5], [1,6], [1,7], [2,5], [2,6], [2,7]]
+        assert_equal(_emp._product([1,2],[5,6,7]), expected)
+
+
+class TestDistance():
+
+    def test_cartesian_distance(self):
+        assert_equal(_emp._distance((0,0),(2,2)), np.sqrt(8))
+
+
+class TestDecDegDistance():
+
+    def test_ucberkeley_to_sf(self):
+        # Latlong: http://www.findlatitudeandlongitude.com
+        # Dist: http://www.movable-type.co.uk/scripts/latlong.html (17.37 km)
+        berkeley = (37.87133, -122.259293)
+        sf = (37.780213, -122.419968)
+        assert_almost_equal(_emp._decdeg_distance(berkeley, sf), 17.37, 1)
+
+
+class TestEmpiricalCDF():
 
     def test_sorted_data(self):
         test_data = [1, 1, 1, 1, 2, 3, 4, 5, 6, 6]
         ans = [.4, .4, .4, .4, .5, .6, .7, .8, 1, 1]
-        res = empirical_cdf(test_data)
+        res = emp.empirical_cdf(test_data)
         assert_array_equal(ans, res['ecdf'])
 
     def test_unsorted_data(self):
         test_data = [6, 6, 1, 1, 5, 1, 1, 2, 3, 4]
         ans = [.4, .4, .4, .4, .5, .6, .7, .8, 1, 1]
-        res = empirical_cdf(test_data)
+        res = emp.empirical_cdf(test_data)
         assert_array_equal(ans, res['ecdf'])  # Result sorted
         assert_array_equal(np.sort(test_data), res['data'])  # Data sorted
 
     def test_all_data_same(self):
         test_data = [3, 3, 3, 3]
         ans = [1, 1, 1, 1]
-        res = empirical_cdf(test_data)
+        res = emp.empirical_cdf(test_data)
         assert_array_equal(ans, res['ecdf'])
 
-# class TestPatch(unittest.TestCase):
-
-#     def setUp(self):
-#         self.xyfile5 = open('xyfile5.csv','w')
-#         self.xyfile5.write('''spp_code, x, y, count
-# grt, .1, .1, 2
-# grt, .1, .2, 1
-# grt, .1, .3, 1
-# rty, .1, .2, 1
-# rty, .2, .3, 2''')
-#         self.xyfile5.close()
-#         self.xymeta5 = {('x', 'maximum'): .2, ('x', 'minimum'): .1, ('x',
-#         'precision'): .1, ('x', 'type'): 'interval', ('y', 'maximum'): .3,
-#         ('y', 'minimum'): .1, ('y', 'precision'): .1, ('y', 'type'): 'interval',
-#         ('spp_code', 'maximum'): None, ('spp_code', 'minimum'): None,
-#         ('spp_code', 'precision'): None, ('spp_code', 'type'): 'ordinal',
-#         ('count', 'maximum'): None, ('count', 'minimum'): None, ('count',
-#         'precision'): None, ('count', 'type'): 'ratio'}
-
-#         self.pat1 = Patch('xyfile5.csv')
-#         # Line below sets metadata manually-no metadata file loaded
-#         self.pat1.data_table.meta = self.xymeta5
-
-#         self.xyfile6 = open('xyfile6.csv', 'w')
-#         self.xyfile6.write('''spp_code, x, y, count
-# a, 0, 0, 1
-# b, 0, 0, 1
-# c, 0, 0, 0
-# d, 0, 0, 3
-# a, 0, 1, 0
-# b, 0, 1, 4
-# c, 0, 1, 0
-# d, 0, 1, 1
-# a, 1, 0, 1
-# b, 1, 0, 0
-# c, 1, 0, 3
-# d, 1, 0, 1
-# a, 1, 1, 0
-# b, 1, 1, 1
-# c, 1, 1, 3
-# d, 1, 1, 1''')
-#         self.xyfile6.close()
-#         self.xymeta6 = {('x', 'maximum'): 1, ('x', 'minimum'): 0, ('x',
-#         'precision'): 1, ('x', 'type'): 'interval', ('y', 'maximum'): 1,
-#         ('y', 'minimum'): 0, ('y', 'precision'): 1, ('y', 'type'): 'interval',
-#         ('spp_code', 'maximum'): None, ('spp_code', 'minimum'): None,
-#         ('spp_code', 'precision'): None, ('spp_code', 'type'): 'ordinal',
-#         ('count', 'maximum'): None, ('count', 'minimum'): None, ('count',
-#         'precision'): None, ('count', 'type'): 'ratio'}
-#         self.pat2 = Patch('xyfile6.csv')
-#         self.pat2.data_table.meta = self.xymeta6
-
-#         self.xyfile7 = open('xyfile7.csv', 'w')
-#         self.xyfile7.write('''spp_code, x, y, count
-# tery, 1, 1, 1
-# 1, 1, 1, 1
-# 2, 1, 1, 0
-# 3, 1, 1, 3
-# 0, 1, 2, 0
-# 1, 1, 2, 4
-# 2, 1, 2, 0
-# tery, 1, 2, 1
-# 0, 2, 1, 1
-# 1, 2, 1, 0
-# 2, 2, 1, 3
-# 3, 2, 1, 1
-# tery, 2, 2, 0
-# 1, 2, 2, 1
-# 2, 2, 2, 3
-# 3, 2, 2, 1''')
-#         self.xyfile7.close()
-#         self.xymeta7 = {('x', 'maximum'): 2, ('x', 'minimum'): 1, ('x',
-#         'precision'): 1, ('x', 'type'): 'interval', ('y', 'maximum'): 2,
-#         ('y', 'minimum'): 1, ('y', 'precision'): 1, ('y', 'type'): 'interval',
-#         ('spp_code', 'maximum'): None, ('spp_code', 'minimum'): None,
-#         ('spp_code', 'precision'): None, ('spp_code', 'type'): 'ordinal',
-#         ('count', 'maximum'): None, ('count', 'minimum'): None, ('count',
-#         'precision'): None, ('count', 'type'): 'ratio'}
-#         self.pat3 = Patch('xyfile7.csv')
-#         self.pat3.data_table.meta = self.xymeta7
-
-#         self.xyfile8 = open('xyfile8.csv', 'w')
-#         self.xyfile8.write('''spp_code, x, y, count
-# 0, 0, 0, 1
-# 1, 0, 0, 1
-# 2, 0, 0, 0
-# 3, 0, 0, 3
-# 0, 0, 1, 0
-# 1, 0, 1, 4
-# 2, 0, 1, 0
-# 3, 0, 1, 1
-# 0, 1, 0, 1
-# 1, 1, 0, 0
-# 2, 1, 0, 3
-# 3, 1, 0, 1
-# 0, 1, 1, 0
-# 1, 1, 1, 1
-# 2, 1, 1, 3
-# 3, 1, 1, 1
-# 0, 2, 0, 0
-# 1, 2, 0, 0
-# 2, 2, 0, 2
-# 3, 2, 0, 4
-# 0, 2, 1, 0
-# 1, 2, 1, 0
-# 2, 2, 1, 0
-# 3, 2, 1, 1''')
-#         self.xyfile8.close()
-#         self.xymeta8 = {('x', 'maximum'): 2, ('x', 'minimum'): 0, ('x',
-#         'precision'): 1, ('x', 'type'): 'interval', ('y', 'maximum'): 1,
-#         ('y', 'minimum'): 0, ('y', 'precision'): 1, ('y', 'type'): 'interval',
-#         ('spp_code', 'maximum'): None, ('spp_code', 'minimum'): None,
-#         ('spp_code', 'precision'): None, ('spp_code', 'type'): 'ordinal',
-#         ('count', 'maximum'): None, ('count', 'minimum'): None, ('count',
-#         'precision'): None, ('count', 'type'): 'ratio'}
-#         self.pat4 = Patch('xyfile8.csv')
-#         self.pat4.data_table.meta = self.xymeta8
-#         self.xyfile9 = open('xyfile9.csv','w')
-#         self.xyfile9.write('''spp_code, x, y, count, energy, mass
-# grt, .1, .1, 2, 1, 34
-# grt, .1, .2, 1, 2, 12
-# grt, .1, .3, 1, 3, 23
-# rty, .1, .2, 1, 4, 45
-# rty, .2, .3, 1, 5, 110''')
-#         self.xyfile9.close()
-#         self.xymeta9 = {('x', 'maximum'): .2, ('x', 'minimum'): .1, ('x',
-#         'precision'): .1, ('x', 'type'): 'interval', ('y', 'maximum'): .3,
-#         ('y', 'minimum'): .1, ('y', 'precision'): .1, ('y', 'type'): 'interval',
-#         ('spp_code', 'maximum'): None, ('spp_code', 'minimum'): None,
-#         ('spp_code', 'precision'): None, ('spp_code', 'type'): 'ordinal',
-#         ('count', 'maximum'): None, ('count', 'minimum'): None, ('count',
-#         'precision'): None, ('count', 'type'): 'ratio'}
-
-#         self.pat5 = Patch('xyfile9.csv')
-#         self.pat5.data_table.meta = self.xymeta9
-#         self.xyfile10 = open('xyfile10.csv', 'w')
-#         self.xyfile10.write('''spp_code, x, y, count
-# a, 0, 0, 1
-# b, 0, 0, 1
-# d, 0, 0, 3
-# b, 0, 1, 4
-# d, 0, 1, 1
-# a, 1, 0, 1
-# c, 1, 0, 3
-# d, 1, 0, 1
-# b, 1, 1, 1
-# c, 1, 1, 3
-# d, 1, 1, 1''')
-#         self.xyfile10.close()
-#         self.xymeta10 = {('x', 'maximum'): 1, ('x', 'minimum'): 0, ('x',
-#         'precision'): 1, ('x', 'type'): 'interval', ('y', 'maximum'): 1,
-#         ('y', 'minimum'): 0, ('y', 'precision'): 1, ('y', 'type'): 'interval',
-#         ('spp_code', 'maximum'): None, ('spp_code', 'minimum'): None,
-#         ('spp_code', 'precision'): None, ('spp_code', 'type'): 'ordinal',
-#         ('count', 'maximum'): None, ('count', 'minimum'): None, ('count',
-#         'precision'): None, ('count', 'type'): 'ratio'}
-#         self.pat6 = Patch('xyfile10.csv')
-#         self.pat6.data_table.meta = self.xymeta10
-#         self.xyfile11 = open('xyfile11.csv', 'w')
-#         self.xyfile11.write('''spp_code, x, y, count, reptile
-# a, 0, 0, 1, lizard
-# b, 0, 0, 1, lizard
-# d, 0, 0, 3, snake
-# b, 0, 1, 4, lizard
-# d, 0, 1, 1, turtle
-# a, 1, 0, 1, snake
-# c, 1, 0, 3, lizard
-# d, 1, 0, 1, snake
-# b, 1, 1, 1, tuatara
-# c, 1, 1, 3, turtle
-# d, 1, 1, 1, snake''')
-#         self.xyfile11.close()
-#         self.xymeta11 = {('x', 'maximum'): 1, ('x', 'minimum'): 0, ('x',
-#         'precision'): 1, ('x', 'type'): 'interval', ('y', 'maximum'): 1,
-#         ('y', 'minimum'): 0, ('y', 'precision'): 1, ('y', 'type'): 'interval',
-#         ('spp_code', 'maximum'): None, ('spp_code', 'minimum'): None,
-#         ('spp_code', 'precision'): None, ('spp_code', 'type'): 'ordinal',
-#         ('count', 'maximum'): None, ('count', 'minimum'): None, ('count',
-#         'precision'): None, ('count', 'type'): 'ratio', ('reptile', 'maximum')
-#         : None, ('reptile', 'minimum') : None, ('reptile', 'precision'):None,
-#         ('reptile', 'type') : 'ordinal'}
-#         self.pat7 = Patch('xyfile11.csv')
-#         self.pat7.data_table.meta = self.xymeta11
-
-#         self.xyfile12 = open('xyfile12.csv', 'w')
-#         self.xyfile12.write('''spp_code, x, y, count
-# 3, 0, 0, 3
-# 3, 0, 1, 1
-# 2, 0, 2, 3
-# 1, 0, 3, 8
-# 3, 1, 0, 1
-# 3, 1, 1, 1
-# 0, 1, 2, 5
-# 3, 1, 3, 1
-# 2, 2, 0, 1
-# 1, 2, 1, 3
-# 1, 2, 2, 6
-# 0, 2, 3, 1
-# 1, 3, 0, 9
-# 2, 3, 1, 1
-# 0, 3, 2, 3
-# 3, 3, 3, 1''')
-#         self.xyfile12.close()
-#         self.xymeta12 = {('x', 'maximum'): 3, ('x', 'minimum'): 0, ('x',
-#         'precision'): 1, ('x', 'type'): 'interval', ('y', 'maximum'): 3,
-#         ('y', 'minimum'): 0, ('y', 'precision'): 1, ('y', 'type'): 'interval',
-#         ('spp_code', 'maximum'): None, ('spp_code', 'minimum'): None,
-#         ('spp_code', 'precision'): None, ('spp_code', 'type'): 'ordinal',
-#         ('count', 'maximum'): None, ('count', 'minimum'): None, ('count',
-#         'precision'): None, ('count', 'type'): 'ratio'}
-#         self.pat8 = Patch('xyfile12.csv')
-#         self.pat8.data_table.meta = self.xymeta12
-
-#         # Data file with three count colums, unique row for each species
-#         self.xyfile13 = open('xyfile13.csv', 'w')
-#         self.xyfile13.write('''spp_code, order, plot1, plot2, plot3
-# a, pred, 0, 0, 0
-# b, pred, 0, 0, 1
-# c, pred, 0, 1, 0
-# d, pred, 0, 2, 3
-# e, scav, 0, 1, 0
-# f, scav, 0, 1, 4''')
-#         self.xyfile13.close()
-#         self.xymeta13 = {('spp_code', 'maximum'): None,
-#                          ('spp_code', 'minimum'): None,
-#                          ('spp_code', 'precision'): None,
-#                          ('spp_code', 'type'): 'ordinal',
-#                          ('order', 'maximum'): None,
-#                          ('order', 'minimum'): None,
-#                          ('order', 'precision'): None,
-#                          ('order', 'type'): 'ordinal',
-#                          ('plot1', 'maximum'): None,
-#                          ('plot1', 'minimum'): None,
-#                          ('plot1', 'precision'): None,
-#                          ('plot1', 'type'): 'ratio',
-#                          ('plot2', 'maximum'): None,
-#                          ('plot2', 'minimum'): None,
-#                          ('plot2', 'precision'): None,
-#                          ('plot2', 'type'): 'ratio',
-#                          ('plot3', 'maximum'): None,
-#                          ('plot3', 'minimum'): None,
-#                          ('plot3', 'precision'): None,
-#                          ('plot3', 'type'): 'ratio'}
-#         self.pat9 = Patch('xyfile13.csv')
-#         self.pat9.data_table.meta = self.xymeta13
 
 
-
-
-#     def tearDown(self):
-#         os.remove('xyfile5.csv')
-#         os.remove('xyfile6.csv')
-#         os.remove('xyfile7.csv')
-#         os.remove('xyfile8.csv')
-#         os.remove('xyfile9.csv')
-#         os.remove('xyfile10.csv')
-#         os.remove('xyfile11.csv')
-#         os.remove('xyfile12.csv')
-#         os.remove('xyfile13.csv')
-
-#     #
-#     # init and set_attributes
-#     #
-
-#     def test_patch_init(self):
-
-#         # Test entire table is loaded
-#         self.assertTrue(len(self.pat1.data_table.table) == 5)
-#         self.assertTrue(len(self.pat2.data_table.table) == 16)
-
-#         # Test that subsetting works
-#         pat = Patch('xyfile6.csv', {'spp_code': [('!=','a'), ('!=', 'b'),
-#                                     ('!=','c')]})
-#         self.assertTrue(np.all(pat.data_table.table['spp_code'] == 'd'))
-#         pat = Patch('xyfile7.csv', {'spp_code': ('==', "tery")})
-#         self.assertTrue(sum(pat.data_table.table['count']) == 2)
-
-#         # Testing that metadata was set correctly
-#         self.assertTrue(self.pat1.data_table.meta[('x', 'maximum')] == .2)
-
-#     def test_sad(self):
-
-#         # Test correct result with 'whole' and one division
-#         sad = self.pat1.sad({'spp_code': 'species', 'count': 'count',
-#                                                                     'x': 1})
-#         self.assertTrue(np.array_equal(sad[0][1], np.array([4,3])))
-#         sad = self.pat1.sad({'spp_code': 'species', 'count': 'count',
-#                                                         'x': 'whole'})
-#         self.assertTrue(np.array_equal(sad[0][1], np.array([4,3])))
-#         sad = self.pat4.sad({'spp_code': 'species', 'count' :'count', 'x': 1})
-#         self.assertTrue(np.array_equal(sad[0][2], np.array([0,1,2,3])))
-
-#         # Test correct result with other divisions
-#         sad = self.pat4.sad({'spp_code': 'species', 'count': 'count', 'x': 3,
-#         'y': 2})
-#         self.assertTrue(np.array_equal(sad[-1][1], np.array([0,0,0,1])))
-
-#         # Test that 'whole' and ignore give the same result
-#         sad1 = self.pat4.sad({'spp_code': 'species', 'count': 'count'})
-#         sad2 = self.pat4.sad({'spp_code': 'species', 'count': 'count', 'x' :
-#         'whole'})
-#         self.assertTrue(np.array_equal(sad1[0][1], sad2[0][1]))
-
-#         # Test that 'split' keyword returns the correct results
-#         sad = self.pat5.sad({'spp_code' :'species', 'energy':'split', 'count'
-#                              : 'count'})
-#         self.assertTrue(len(sad) == 5)
-#         self.assertTrue(np.array_equal(sad[0][1], np.array([2,0])))
-
-#         # Test split and clean on numeric column
-#         sad = self.pat5.sad({'spp_code' :'species', 'energy':'split', 'count'
-#                              : 'count'}, clean=True)
-#         self.assertTrue(len(sad) == 5)
-#         self.assertTrue(np.array_equal(sad[0][1], np.array([2])))
-
-#         # Test that cleaning sad and split works on string
-#         sad = self.pat7.sad({'spp_code' : 'species', 'count' : 'count',
-#                              'reptile' : 'split'}, clean=True)
-#         self.assertTrue(len(sad) == 4)
-#         self.assertTrue(np.array_equal(sad[0][1], np.array([1,5,3])))
-#         self.assertTrue(np.array_equal(sad[2][1], np.array([1])))
-#         self.assertTrue(sad[2][2][0] == 'b')
-
-#     def test_parse_criteria(self):
-
-#         # Checking parse returns what we would expect
-#         pars = self.pat4.parse_criteria({'spp_code': 'species', 'count': 'count',
-#         'x': 1})
-#         self.assertTrue(pars[1] == 'spp_code')
-#         self.assertTrue(pars[2] == 'count')
-
-#         # Test that energy, mass and count col are None
-#         pars = self.pat4.parse_criteria({'spp_code': 'species',
-#                                                 'y': 'whole'})
-#         self.assertTrue((pars[2] == None) and (pars[3] == None) and (pars[4] ==
-#                         None))
-
-#         # If species is not specified correctly an error is thrown
-#         self.assertRaises(ValueError, self.pat3.parse_criteria, {'spp_col'
-#                             :'species'})
-#         # Make sure if count is not passed, no error is thrown
-#         self.pat3.parse_criteria({'spp_code': 'species'})
-
-#         # Check energy and mass returns
-#         pars = self.pat5.parse_criteria({'spp_code': 'species', 'count':
-#         'count', 'energy': 'energy'})
-
-#         self.assertTrue(pars[3] == 'energy')
-#         self.assertTrue(pars[4] == None)
-
-#         # Check that combinations in empty dict if no criteria given
-#         pars = self.pat5.parse_criteria({'spp_code': 'species', 'count':
-#                                 'count'})
-#         self.assertTrue(pars[5] == [{}])
-
-#         # TODO: Test that error is thrown if step < prec
-
-#     def test_sar(self):
-
-#         # Checking that sar function returns correct S0 for full plot
-#         sar = self.pat3.sar(('x', 'y'), [(1,1)], {'spp_code': 'species',
-#         'count': 'count'})
-#         self.assertTrue(sar[0]['items'][0] == 5)
-
-#         # Checking for correct result for sar
-#         sar = self.pat3.sar(('x', 'y'), [(1,1), (2,2)], {'spp_code': 'species',
-#         'count': 'count'})
-#         self.assertTrue(np.array_equal(sar[1][1], np.array([3,3,2,3])))
-#         sar = self.pat4.sar(('x', 'y'), [(1,1), (1,2), (3,2)], {'spp_code':
-#                 'species', 'count': 'count'}, form='sar')
-#         self.assertTrue(np.array_equal(sar[1][2], np.array([3,3,2,2,3,1])))
-
-#         # Checking for correct result for ear
-#         ear = self.pat3.sar(('x', 'y'), [(1,1), (2,2)], {'spp_code': 'species',
-#         'count': 'count'}, form='ear')
-#         self.assertTrue(np.array_equal(ear[1][1], np.array([0,1,0,0])))
-
-#         # Test that returned areas are correct
-#         sar = self.pat1.sar(('x', 'y'), [(1,1)], {'spp_code': 'species',
-#                             'count': 'count'})
-#         self.assertTrue(np.round(sar[0]['area'][0], decimals=2) == 0.06)
-#         self.assertTrue(sar[0]['items'][0] == 2)
-
-#     def test_universal_sar(self):
-
-#         # Check that it returns the right length
-#         criteria = {'spp_code': 'species', 'count' : 'count'}
-#         div_cols = ('x', 'y')
-#         vals = self.pat8.universal_sar(div_cols, [(1,1), (1,2), (2,2), (2,4),
-#                                             (4,4)], criteria)
-#         self.assertTrue(len(vals) == 3)
-
-#         # If (1,1) is not passed in it should have a length of zero
-#         vals = self.pat8.universal_sar(div_cols, [(1,2), (2,2)], criteria)
-#         self.assertTrue(len(vals) == 0)
-
-#         # If (1,1) is not passed in but include_full == True should have len
-#         # equal to 1
-#         vals = self.pat8.universal_sar(div_cols, [(1,2), (2,2), (2,4)],
-#                                        criteria,
-#                                                             include_full=True)
-#         self.assertTrue(len(vals) == 2)
-
-#         # Test that I get the correct z-value back
-#         vals = self.pat8.universal_sar(div_cols, [(1,1), (1,2), (2,2)],
-#                                                                     criteria)
-#         self.assertTrue(np.round(vals['z'][0], decimals=4) == 0.3390)
-
-#         # If I pass in something other than a halving I should still get
-#         # something back
-#         vals = self.pat8.universal_sar(div_cols, [(1,1), (2,2), (2,4), (4,4)],
-#                                                                     criteria)
-#         self.assertTrue(len(vals) == 2)
 
 #     def test_comm_sep(self):
 
@@ -525,77 +323,3 @@ class TestEmpiricalCDF(TestCase):
 #                                           density=True)
 #         np.testing.assert_array_almost_equal(result_list[0][2][1],
 #                                              np.array((1358.12218105,0)))
-
-#     def test_ssad(self):
-
-#         # Check that ssad does not lose any individuals
-#         ssad = self.pat2.ssad({'spp_code': 'species', 'count': 'count'})
-#         sad = self.pat2.sad({'spp_code': 'species', 'count': 'count'})
-#         sum_ssad = np.array([sum(val) for val in ssad[1].itervalues()])
-#         self.assertTrue(sum(sad[0][1]) == sum(sum_ssad))
-
-#         ssad = self.pat6.ssad({'spp_code': 'species', 'count': 'count'})
-#         sad = self.pat6.sad({'spp_code': 'species', 'count': 'count'})
-#         sum_ssad = np.array([sum(val) for val in ssad[1].itervalues()])
-#         self.assertTrue(sum(sad[0][1]) == sum(sum_ssad))
-
-#         # Manual checks of correct ssad
-#         ssad = self.pat2.ssad({'spp_code': 'species', 'count': 'count', 'x':
-#                                             2, 'y': 2})
-#         self.assertTrue(set(ssad[1]['a']) == {1, 0, 1, 0})
-#         self.assertTrue(set(ssad[1]['b']) == {1, 4, 0, 1})
-#         self.assertTrue(set(ssad[1]['c']) == {0, 0, 3, 3})
-#         self.assertTrue(set(ssad[1]['d']) == {3, 1, 1, 1})
-
-#         ssad = self.pat6.ssad({'spp_code': 'species', 'count': 'count', 'x' :
-#                                             2, 'y': 2})
-#         self.assertTrue(set(ssad[1]['a']) == {1, 0, 1, 0})
-#         self.assertTrue(set(ssad[1]['b']) == {1, 4, 0, 1})
-#         self.assertTrue(set(ssad[1]['c']) == {0, 0, 3, 3})
-#         self.assertTrue(set(ssad[1]['d']) == {3, 1, 1, 1})
-
-#     def test_ied(self):
-
-#         # Test correct length of result
-#         eng = self.pat5.ied({'spp_code': 'species', 'count': 'count',
-#         'energy': 'energy'})
-#         self.assertTrue(len(eng[0][1]) == 6)
-
-#         # Test error if energy column is missing
-#         self.assertRaises(ValueError, self.pat5.ied,
-#                                 {'spp_code': 'species', 'count': 'count'})
-
-#         # Test normalize is working
-#         eng = self.pat5.ied({'spp_code': 'species', 'count': 'count',
-#                         'energy': 'energy', 'x': 2})
-#         self.assertTrue(np.array_equal(eng[1][1], np.array([1])))
-#         self.assertTrue(len(eng[0][1]) == 5)
-
-#         # Test mass column and normalize
-#         eng = self.pat5.ied({'spp_code': 'species', 'count': 'count',
-#                         'mass' : 'mass'}, exponent=1, normalize=False)
-#         self.assertTrue(np.array_equal(eng[0][1], np.array([17,17,12,23,45,
-#                                     110])))
-
-#         # Test that energy overrides mass
-#         eng = self.pat5.ied({'spp_code': 'species', 'count': 'count',
-#                         'mass' : 'mass', 'energy' : 'energy'}, normalize=False)
-#         self.assertTrue(np.array_equal(eng[0][1], np.array([.5,.5,2,3,4,5])))
-
-#     def test_sed(self):
-
-#         # Check correct result
-#         eng = self.pat5.sed({'spp_code': 'species', 'count': 'count',
-#                                         'energy': 'energy'})
-#         self.assertTrue(np.array_equal(eng[0][1]['grt'],
-#                                                     np.array([1,1,4,6])))
-#         self.assertTrue(np.array_equal(eng[0][1]['rty'],
-#                                                     np.array([8,10])))
-
-#         eng = self.pat5.sed({'spp_code': 'species', 'count': 'count',
-#                         'energy': 'energy', 'x': 2})
-#         self.assertTrue(np.array_equal(eng[1][1]['rty'], np.array([1])))
-#         self.assertTrue(len(eng[1][1]) == 2)
-
-# if __name__ == "__main__":
-#     unittest.main()
