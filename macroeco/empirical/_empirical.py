@@ -76,6 +76,7 @@ division_note = \
     and across eight subplots when the patch is split into 2 parts along x_col
     and 4 parts along y_col."""
 
+
 class Patch(object):
     """
     An object representing an empirical census
@@ -103,11 +104,6 @@ class Patch(object):
     consisting only of letters and numbers, with no spaces or other special
     characters.
 
-    The meta attribute of this object is processed to reflect the value of
-    subset. If columns with a min and a max are included in the subset string,
-    the min and max values for that column in meta will be updated to reflect
-    the specified limits.
-
     The parameter subset takes different forms depending on whether the data
     file described by the metadata is a csv or a sql/db file.
 
@@ -120,6 +116,13 @@ class Patch(object):
 
     For sql/db files, subset is a SQL query string that selects the data from
     the data file.
+
+    The meta attribute of this object is processed to reflect the value of
+    subset. If columns with a min and a max are included in the subset string,
+    the min and max values for that column in meta will be updated to reflect
+    the specified limits.
+
+    An empty Patch object can be created with a metadata_path of None.
 
     """
 
@@ -189,6 +192,7 @@ class Patch(object):
 
         """
         # TODO: This is probably broken
+        raise NotImplementedError, "SQL and db file formats not yet supported"
 
         # Load table
         if extension == 'sql':
@@ -234,7 +238,7 @@ class Patch(object):
 
 def _subset_table(full_table, subset):
     """
-    Return subtable matching all conditions in subset.
+    Return subtable matching all conditions in subset
 
     Parameters
     ----------
@@ -252,19 +256,19 @@ def _subset_table(full_table, subset):
     if not subset:
         return full_table
 
-    # TODO: Figure out in syntax for logical or
+    # TODO: Figure out syntax for logical or
     conditions = subset.replace(' ','').split(';')
 
     valid = np.ones(len(full_table), dtype=bool)
     for condition in conditions:
-        this_valid = eval('full_table.'+condition)
+        this_valid = eval('full_table.' + condition)
         valid = np.logical_and(valid, this_valid)
 
     return full_table[valid]
 
 def _subset_meta(full_meta, subset):
     """
-    Return subset of metadata matching all conditions in subset.
+    Return metadata reflecting all conditions in subset
 
     Parameters
     ----------
@@ -275,7 +279,7 @@ def _subset_meta(full_meta, subset):
 
     Returns
     -------
-    ConfigParser obj
+    Configparser object or dict
         Updated version of full_meta accounting for subset string
 
     """
@@ -323,8 +327,7 @@ def sad(patch, cols, splits, clean=True):
     ----------
     {0}
     clean : bool
-        If True, all species with zero abundance are removed from SAD results
-        (relevant if splits is used and some splits are missing species).
+        If True, all species with zero abundance are removed from SAD results.
         Default False.
 
     Returns
@@ -643,109 +646,6 @@ def _yield_spatial_table(patch, div, spp_col, count_col, x_col, y_col):
 
 
 
-def comm_sep(self, plot_locs, criteria, loc_unit=None):
-    '''
-    Calculates commonality (Sorensen and Jaccard) between pairs of plots.
-
-    Parameters
-    ----------
-    plot_locs : dict
-        Dictionary with keys equal to each plot name, which must be
-        represented by a column in the data table, and values equal to a
-        tuple of the x and y coordinate of each plot
-    criteria : dict
-        See docstring for Patch.sad.
-    loc_unit : str
-        Unit of plot locations. Special cases include 'decdeg' (decimal
-        degrees), returns result in km. Otherwise ignored.
-
-    Returns
-    -------
-    result: structured array
-        Returns a structured array with fields plot-a and plot-b (names of
-        two plots), dist (distance between plots), and sorensen and jaccard
-        (similarity indices). Has row for each unique pair of plots.
-    '''
-
-    # Set up sad_dict with key=plot and val=clean sad for that plot
-    sad_dict = {}
-
-    # Loop through all plot cols, updating criteria, and getting spp_list
-    for plot in plot_locs.keys():
-
-        # Find current count col and remove it from criteria
-        for crit_key in criteria.keys():
-            if criteria[crit_key] == 'count':
-                criteria.pop(crit_key, None)
-
-        # Add this plot as col with counts
-        criteria[plot] = 'count'
-
-        # Get SAD for existing criteria with this plot as count col
-        sad_return = self.sad(criteria, clean=True)
-
-        # Check that sad_return only has one element, or throw error
-        if len(sad_return) > 1:
-            raise NotImplementedError('Too many criteria for comm_sep')
-
-        # Get unique species list for this plot and store in sad_dict
-        sad_dict[plot] = sad_return[0][2]
-
-    # Set up recarray to hold Sorensen index for all pairs of plots
-    n_pairs = np.sum(np.arange(len(plot_locs.keys())))
-    result = np.recarray((n_pairs,), dtype=[('plot-a','S32'),
-                                            ('plot-b', 'S32'),
-                                            ('spp-a', int),
-                                            ('spp-b', int),
-                                            ('dist', float),
-                                            ('sorensen', float),
-                                            ('jaccard', float)])
-
-    # Loop through all combinations of plots and fill in result table
-    row = 0
-    for pair in itertools.combinations(plot_locs.keys(), 2):
-
-        # Names of plots
-        plota = pair[0]
-        plotb = pair[1]
-
-        result[row]['plot-a'] = plota
-        result[row]['plot-b'] = plotb
-
-        # Calculate inter-plot distance
-        if loc_unit == 'decdeg':
-            result[row]['dist'] = decdeg_distance(plot_locs[plota],
-                                                  plot_locs[plotb])
-        else:
-            result[row]['dist'] = distance(plot_locs[plota],
-                                           plot_locs[plotb])
-
-        # Get similarity indices
-        spp_a = len(sad_dict[plota])
-        spp_b = len(sad_dict[plotb])
-
-        result[row]['spp-a'] = spp_a
-        result[row]['spp-b'] = spp_b
-
-        intersect = set(sad_dict[plota]).intersection(sad_dict[plotb])
-        union = set(sad_dict[plota]).union(sad_dict[plotb])
-
-        # Fill in zero if denom is zero
-        if spp_a + spp_b == 0:
-            result[row]['sorensen'] = 0
-        else:
-            result[row]['sorensen'] = (2*len(intersect)) / (spp_a+spp_b)
-
-        if len(union) == 0:
-            result[row]['jaccard'] = 0
-        else:
-            result[row]['jaccard'] = len(intersect) / len(union)
-
-        # Increment row counter
-        row += 1
-
-    return result
-
 def o_ring(self, div_cols, bin_edges, criteria, n0_min_max=None,
               edge_correct=False, density=False):
     '''
@@ -942,6 +842,115 @@ def o_ring(self, div_cols, bin_edges, criteria, n0_min_max=None,
         result_list.append((comb, spp_list, spp_hist_list))
 
     return result_list
+
+
+
+
+def comm_sep(self, plot_locs, criteria, loc_unit=None):
+    '''
+    Calculates commonality (Sorensen and Jaccard) between pairs of plots.
+
+    Parameters
+    ----------
+    plot_locs : dict
+        Dictionary with keys equal to each plot name, which must be
+        represented by a column in the data table, and values equal to a
+        tuple of the x and y coordinate of each plot
+    criteria : dict
+        See docstring for Patch.sad.
+    loc_unit : str
+        Unit of plot locations. Special cases include 'decdeg' (decimal
+        degrees), returns result in km. Otherwise ignored.
+
+    Returns
+    -------
+    result: structured array
+        Returns a structured array with fields plot-a and plot-b (names of
+        two plots), dist (distance between plots), and sorensen and jaccard
+        (similarity indices). Has row for each unique pair of plots.
+    '''
+
+    # Set up sad_dict with key=plot and val=clean sad for that plot
+    sad_dict = {}
+
+    # Loop through all plot cols, updating criteria, and getting spp_list
+    for plot in plot_locs.keys():
+
+        # Find current count col and remove it from criteria
+        for crit_key in criteria.keys():
+            if criteria[crit_key] == 'count':
+                criteria.pop(crit_key, None)
+
+        # Add this plot as col with counts
+        criteria[plot] = 'count'
+
+        # Get SAD for existing criteria with this plot as count col
+        sad_return = self.sad(criteria, clean=True)
+
+        # Check that sad_return only has one element, or throw error
+        if len(sad_return) > 1:
+            raise NotImplementedError('Too many criteria for comm_sep')
+
+        # Get unique species list for this plot and store in sad_dict
+        sad_dict[plot] = sad_return[0][2]
+
+    # Set up recarray to hold Sorensen index for all pairs of plots
+    n_pairs = np.sum(np.arange(len(plot_locs.keys())))
+    result = np.recarray((n_pairs,), dtype=[('plot-a','S32'),
+                                            ('plot-b', 'S32'),
+                                            ('spp-a', int),
+                                            ('spp-b', int),
+                                            ('dist', float),
+                                            ('sorensen', float),
+                                            ('jaccard', float)])
+
+    # Loop through all combinations of plots and fill in result table
+    row = 0
+    for pair in itertools.combinations(plot_locs.keys(), 2):
+
+        # Names of plots
+        plota = pair[0]
+        plotb = pair[1]
+
+        result[row]['plot-a'] = plota
+        result[row]['plot-b'] = plotb
+
+        # Calculate inter-plot distance
+        if loc_unit == 'decdeg':
+            result[row]['dist'] = _decdeg_distance(plot_locs[plota],
+                                                   plot_locs[plotb])
+        else:
+            result[row]['dist'] = _distance(plot_locs[plota],
+                                            plot_locs[plotb])
+
+        # Get similarity indices
+        spp_a = len(sad_dict[plota])
+        spp_b = len(sad_dict[plotb])
+
+        result[row]['spp-a'] = spp_a
+        result[row]['spp-b'] = spp_b
+
+        intersect = set(sad_dict[plota]).intersection(sad_dict[plotb])
+        union = set(sad_dict[plota]).union(sad_dict[plotb])
+
+        # Fill in zero if denom is zero
+        if spp_a + spp_b == 0:
+            result[row]['sorensen'] = 0
+        else:
+            result[row]['sorensen'] = (2*len(intersect)) / (spp_a+spp_b)
+
+        if len(union) == 0:
+            result[row]['jaccard'] = 0
+        else:
+            result[row]['jaccard'] = len(intersect) / len(union)
+
+        # Increment row counter
+        row += 1
+
+    return result
+
+
+
 
 
 def ied(self, criteria, normalize=True, exponent=0.75):
@@ -1335,19 +1344,50 @@ def _product(*args, **kwds):
     return result
 
 
+def _distance(pt1, pt2):
+    """Euclidean distance between two points"""
+    return np.sqrt((pt1[0] - pt2[0]) ** 2 + (pt1[1] - pt2[1]) ** 2)
+
+
+def _decdeg_distance(pt1, pt2):
+    """
+    Earth surface distance (in km) between decimal latlong points using
+    Haversine approximation.
+
+    http://stackoverflow.com/questions/15736995/
+    how-can-i-quickly-estimate-the-distance-between-two-latitude-longitude-
+    points
+    """
+
+    lat1, lon1 = pt1
+    lat2, lon2 = pt2
+
+    # Convert decimal degrees to radians
+    lon1, lat1, lon2, lat2 = map(np.radians, [lon1, lat1, lon2, lat2])
+
+    # haversine formula
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = np.sin(dlat/2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon/2)**2
+    c = 2 * np.arcsin(np.sqrt(a))
+    km = 6367 * c
+
+    return km
+
+
 def empirical_cdf(data):
     """
-    Generates an empirical cdf from data.
+    Generates an empirical cdf from data
 
     Parameters
     ----------
-    data : array-like object
+    data : iterable
         Empirical data
 
     Returns
     --------
-    : DataFrame
-        Columns 'data' and 'ecdf'.  'data' contains ordered data and 'ecdf'
+    DataFrame
+        Columns 'data' and 'ecdf'. 'data' contains ordered data and 'ecdf'
         contains the corresponding ecdf values for the data.
 
     """
