@@ -11,11 +11,12 @@ from macroeco.models._distributions import _trunc_logser_solver
 import matplotlib.pyplot as plt
 import scipy.stats as stats
 
+
 class TestGeom(TestCase):
 
     def test_pmf(self):
-        vals = geom.pmf([0,1,2], 0.5)
-        assert_array_almost_equal(vals, [0.5,0.25,0.125])
+        vals = geom_uptrunc.pmf([0,1,2], 0.25, 2)
+        assert_array_almost_equal(vals, np.array([0.25, 0.1875, 0.140625]))
 
     def test_mean(self):
         mu1 = geom.mean(0.5)
@@ -43,17 +44,17 @@ class TestGeomUptrunc(TestCase):
         # Expected values are regular geo cdf divided by cdf at b
         vals = geom_uptrunc.pmf([0,1,2], 0.25, 2)
         assert_array_almost_equal(vals,
-                                  np.array([0.25,0.1875,0.140625])/0.578125)
+                                  np.array([0.25,0.1875,0.140625]) / 0.578125)
 
     def test_cdf(self):
         # Expected values are regular geom cdf divided by cdf at b
         vals = geom_uptrunc.cdf([0,1,2], 0.5, 2)
-        assert_array_almost_equal(vals, np.array([0.5,0.75,0.875])/0.875)
+        assert_array_almost_equal(vals, np.array([0.5,0.75,0.875]) / 0.875)
 
     def test_cdf_x_len_1(self):
         # cdf should be not throw error even if x is len 1
         vals = geom_uptrunc.cdf(0, 0.5, 2)
-        assert_almost_equal(vals, 0.5/0.875)
+        assert_almost_equal(vals, 0.5 / 0.875)
 
     def test_mean(self):
         mu1 = geom_uptrunc.mean(0.801, 32)
