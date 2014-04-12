@@ -1187,33 +1187,6 @@ def tsed(self, criteria, normalize=True, exponent=0.75):
     return result
 
 
-def _distance(pt1, pt2):
-    """Euclidean distance between two points"""
-    return np.sqrt((pt1[0] - pt2[0]) ** 2 + (pt1[1] - pt2[1]) ** 2)
-
-
-def decdeg_distance(pt1, pt2):
-    ''' Calculate Earth surface distance (in km) between decimal latlong points
-    using Haversine approximation.
-
-    http://stackoverflow.com/questions/15736995/how-can-i-quickly-estimate-the-distance-between-two-latitude-longitude-points
-    '''
-    lat1, lon1 = pt1
-    lat2, lon2 = pt2
-
-    # Convert decimal degrees to radians
-    lon1, lat1, lon2, lat2 = map(np.radians, [lon1, lat1, lon2, lat2])
-
-    # haversine formula
-    dlon = lon2 - lon1
-    dlat = lat2 - lat1
-    a = np.sin(dlat/2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon/2)**2
-    c = 2 * np.asin(np.sqrt(a))
-    km = 6367 * c
-
-    return km
-
-
 def _get_cols(special_col_names, cols, patch):
     """
     Retrieve values of special_cols from cols string or patch metadata
