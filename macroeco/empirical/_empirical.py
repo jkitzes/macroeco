@@ -1317,8 +1317,11 @@ def _parse_splits(patch, splits):
         col, val = split.split(':')
 
         if val == 'split':
-            level_list = [col + '==' + str(x) + ';'
-                          for x in np.unique(patch.table[col])]
+            uniques = []
+            for level in patch.table[col]:
+                if level not in uniques:
+                    uniques.append(level)
+            level_list = [col + '==' + str(x) + '; ' for x in uniques]
         else:
             starts, ends = _col_starts_ends(patch, col, val)
             level_list = [col + '>=' + str(x) + '; ' + col + '<' + str(y)+'; '
