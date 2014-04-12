@@ -488,6 +488,9 @@ def _sar_ear_inner(patch, cols, splits, divs, y_func):
     result_list = []
     for substring, subpatch in _yield_subpatches(patch, splits):
 
+        # Get A0
+        A0 = _patch_area(subpatch, x_col, y_col)
+
         # Loop through all divisions within this split
         all_spp = np.unique(subpatch.table[spp_col])
         subresultx = []
@@ -499,7 +502,7 @@ def _sar_ear_inner(patch, cols, splits, divs, y_func):
             spatial_table = _yield_spatial_table(subpatch, subdiv, spp_col,
                                                  count_col, x_col, y_col)
             subresulty.append(y_func(spatial_table, all_spp))
-            subresultx.append(1 / eval(subdiv.replace(',', '*')))  # a frac
+            subresultx.append(A0 / eval(subdiv.replace(',', '*')))
             subresultnspp.append(np.mean(spatial_table['n_spp']))
             subresultnindivids.append(np.mean(spatial_table['n_individs']))
 
@@ -1321,6 +1324,17 @@ def _parse_splits(patch, splits):
     # Get product of all string levels as list, conv to string, drop final ;
     return [''.join(x)[:-2] for x in _product(*subset_list)]
 
+
+def _patch_area(patch, x_col, y_col):
+
+    lengths = []
+    for col in [x_col, y_col]:
+        col_step = eval(patch.meta[col]['step'])
+        col_min = eval(patch.meta[col]['min'])
+        col_max = eval(patch.meta[col]['max'])
+        lengths.append(col_max - col_min + col_step)
+
+    return lengths[0] * lengths[1]
 
 def _col_starts_ends(patch, col, slices):
 
