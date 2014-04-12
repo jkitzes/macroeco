@@ -1232,10 +1232,6 @@ def _get_cols(special_col_names, cols, patch):
     col_list = cols.split(';')
     col_dict = {x.split(':')[0]: x.split(':')[1] for x in col_list}
 
-    # Check for spp_col
-    if 'spp_col' not in col_dict.keys():
-        raise NameError, ("spp_col not specified")
-
     # Get special_col_names from dict
     result = []
     for special_col_name in special_col_names:
@@ -1246,9 +1242,15 @@ def _get_cols(special_col_names, cols, patch):
             col_name = 'count'
             patch.table['count'] = np.ones(len(patch.table))
 
+        # All special cols must be specified (count must exist by now)
+        if col_name is None:
+            raise ValueError, ("Required column %s not specified" %
+                               special_col_name)
+
         result.append(col_name)
 
     return tuple(result), patch
+
 
 @doc_sub(splits_note)
 def _yield_subpatches(patch, splits, name='split'):
