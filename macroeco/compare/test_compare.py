@@ -1,8 +1,3 @@
-#!/usr/bin/python
-"""
-Tests for compare module
-
-"""
 from __future__ import division
 
 from numpy.testing import (TestCase, assert_equal, assert_array_equal,
@@ -12,7 +7,6 @@ from numpy.testing import (TestCase, assert_equal, assert_array_equal,
 from macroeco.compare import *
 import numpy as np
 import scipy.stats as stats
-import numpy.testing as nt
 
 
 class TestNLL(TestCase):

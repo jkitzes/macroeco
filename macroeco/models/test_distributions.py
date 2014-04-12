@@ -1,8 +1,3 @@
-"""
-Tests for distributions2 module
-
-"""
-
 from __future__ import division
 
 from numpy.testing import (TestCase, assert_equal, assert_array_equal,
