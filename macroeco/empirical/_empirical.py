@@ -1343,12 +1343,12 @@ def _patch_area(patch, x_col, y_col):
 
 def _col_starts_ends(patch, col, slices):
 
-    col_step = eval(patch.meta[col]['step']) # eval converts to float
+    col_step = eval(patch.meta[col]['step'])
     col_min = eval(patch.meta[col]['min'])
     col_max = eval(patch.meta[col]['max'])
-    step = (col_max - col_min + col_step) / eval(slices)
-    starts = np.arange(col_min, col_max + col_step, step)
-    ends = starts + step
+    edges = np.linspace(col_min-col_step/2, col_max+col_step/2, eval(slices)+1)
+    starts = edges[:-1]
+    ends = edges[1:]
 
     return starts, ends
 
