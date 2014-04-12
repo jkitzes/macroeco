@@ -98,38 +98,13 @@ def _get_params_base_options(param_path):
 
 
 def _do_format(options):
-    """
-    Notes
-    -----
-    All format functions take the same parameters: original csv path, output
-    csv path, and keyword arguments.
 
-    """
-
-    analysis_name = options['analysis']
     datapath = os.path.normpath(os.path.join(options['param_dir'],
                                                   options['data']))
-
     out_path = os.path.splitext(datapath)[0] + "_formatted.csv"
 
-    if analysis_name == 'format_dense':
-
-        misc.data_read_write(datapath, out_path, "dense", **options)
-
-    elif analysis_name == 'format_stacked':
-
-        misc.data_read_write(datapath, out_path, "stacked", **options)
-
-    elif analysis_name == 'format_grid':
-
-        misc.data_read_write(datapath, out_path, "grid", **options)
-
-    elif analysis_name == 'format_transect':
-
-        misc.data_read_write(datapath, out_path, "transect", **options)
-
-    else:
-        raise NameError("Cannot format data using analysis %s" % analysis_name)
+    format_type = options['analysis'].split('_')[1]
+    misc.data_read_write(datapath, out_path, format_type, **options)
 
 
 def _do_analysis(options):
