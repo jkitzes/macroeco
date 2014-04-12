@@ -577,7 +577,10 @@ def comm_grid(patch, cols, splits, divs, metric='Sorensen'):
         for i in range(len(spatial_table)):
             for j in range(i+1, len(spatial_table)):
 
-                pair_list.append(str(cell_loc[i]) + '-' + str(cell_loc[j]))
+                iloc = np.round(cell_loc[i], 6)
+                jloc = np.round(cell_loc[j], 6)
+                pair_list.append('('+str(iloc[0])+' '+str(iloc[1])+') - '+
+                                 '('+str(jloc[0])+' '+str(jloc[1])+')')
 
                 dist_list.append(_distance(cell_loc[i], cell_loc[j]))
 
