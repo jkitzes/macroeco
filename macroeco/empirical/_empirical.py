@@ -164,7 +164,7 @@ class Patch(object):
         extension = data_path.split('.')[-1]
 
         if extension == 'csv':
-            full_table = pd.read_csv(data_path)
+            full_table = pd.read_csv(data_path, index_col=False)
             table = _subset_table(full_table, self.subset)
             self.meta = _subset_meta(self.meta, self.subset)
         elif extension in ['db', 'sql']:
