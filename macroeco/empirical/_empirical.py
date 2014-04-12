@@ -292,12 +292,16 @@ def _subset_meta(full_meta, subset):
 
     conditions = subset.replace(' ','').split(';')
 
-    # TODO: This works for numeric, modify to do nothing for categorical cols
     for condition in conditions:
         condition_list = re.split('[<>=]', condition)
         col = condition_list[0]
         val = condition_list[-1]
-        col_step = meta[col]['step']
+
+        try:
+            col_step = meta[col]['step']
+        except:  # If there's no metadata for this col, do nothing
+            continue
+
         operator = re.sub('[^<>=]', '', condition)
 
         if operator == '==':
