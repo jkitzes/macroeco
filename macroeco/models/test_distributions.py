@@ -290,6 +290,11 @@ class TestLognorm(TestCase):
         test1 = lognorm.pdf(np.arange(1, 11), 2, 2)
         assert_array_almost_equal(test1, r_output, decimal=4)
 
+        # R pmf: dlnorm(5, -3, 5)
+        r_ans = 0.0104333
+        test2 = lognorm.pdf(5, -3, 5)
+        assert_almost_equal(test2, r_ans)
+
     def test_cdf(self):
         # R cdf: plnorm(c(1,1,4,5,12), 1.2, 3.45)
         r_output = np.array([0.3639854, 0.3639854, 0.5215318, 0.5472346,
@@ -308,13 +313,41 @@ class TestLognorm(TestCase):
         assert_almost_equal(mu, exp_mu)
 
     def test_fit_mle(self):
+        '''
+        # R code
+        pmf <- function(x, N, S, sigma){
+            mu = log(N / S) - (sigma^2 / 2)
+            dlnorm(x, meanlog=mu, sdlog=sigma)
+        }
 
+        mle <- function(sdlog, x, N, S){
+            -sum(log(pmf(x, N, S, sdlog)))
+        }
 
+        params <- function(x){
+            N = sum(x);
+            S = length(x);
+        optimize(mle, interval=c(0,5), x, N, S)
+        }
 
+        data = # some data
+        params(data)'''
 
+        data1 = [1, 1, 1, 1, 1, 2, 2, 3, 3, 4, 5, 6, 123, 456]
+        data2 = [2, 2, 2, 4, 67, 34, 152, 9]
 
+        r_fits = [2.07598, 1.59213]  # data1, data2
 
+        testfit1 = lognorm.fit_mle(data1, fix_mean=True)[1]
+        testfit2 = lognorm.fit_mle(data2, fix_mean=True)[1]
 
+        assert_almost_equal(r_fits[0], testfit1, decimal=5)
+        assert_almost_equal(r_fits[1], testfit2, decimal=5)
+
+        # Scipy code: stats.lognorm.fit(data1, floc=0)
+        scipy_ans = 1.79518287
+        test1 = lognorm.fit_mle(data1)[1]
+        assert_almost_equal(scipy_ans, test1)
 
 class TestExpon(TestCase):
     pass
