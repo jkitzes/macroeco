@@ -780,8 +780,11 @@ class expon_uptrunc_gen(rv_continuous_meco):
     @inherit_docstring_from(rv_continuous_meco)
     def fit_mle(self, data, b=None):
         """%(super)s
-        In addition to data, requires ``b``, the upper limit of the
-        distribution.
+
+        Additional Parameters
+        ----------------------
+        b : float
+            The upper limit of the distribution
         """
         if not b:
             b = np.sum(data)
@@ -839,10 +842,28 @@ class lognorm_gen(rv_continuous_meco):
         return np.log(mean) - (sigma ** 2 / 2), sigma
 
     @inherit_docstring_from(rv_continuous_meco)
-    def fit_mle(self, data, mean=None):
+    def fit_mle(self, data, fix_mean=False):
+        """%(super)s
 
-        sigma, _, scale = stats.lognorm.fit(data, floc=0)
-        return np.log(scale), sigma
+Additional Parameters
+----------------------
+fix_mean : bool
+    Default False.  If True, fixes mean before optimizing sigma
+
+        """
+
+        if not fix_mean:
+            sigma, _, scale = stats.lognorm.fit(data, floc=0)
+            return np.log(scale), sigma
+
+        else:
+            mean = np.mean(data)
+            sigma = optim.fmin(mle, np.array([np.std(np.log(data), ddof=1)]),
+                                            args=(data, mean), disp=0)[0]
+            return self.translate_args(mean, sigma)
+
+    def _argcheck(self, mu, sigma):
+        return True
 
     def _rvs(self, mu, sigma):
         return stats.lognorm.rvs(sigma, scale=np.exp(mu))
@@ -858,6 +879,16 @@ class lognorm_gen(rv_continuous_meco):
 
 lognorm = lognorm_gen(name="lognorm", shapes="mu, sigma")
 
+
+def tpdf(x, mean, sigma):
+    # Lognorm pmf with mean for optimization
+    mu, sigma = lognorm.translate_args(mean, sigma)
+    return lognorm.logpdf(x, mu, sigma)
+
+
+def mle(sigma, x, mean):
+    # MLE function for lognormal
+    return -1 * np.sum(tpdf(x, mean, sigma))
 
 def _solve_k_from_mu(data, k_range, nll, *args):
     """
