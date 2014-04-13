@@ -460,7 +460,7 @@ def nbinom_nll(data, k_agg, mu):
 
 class cnbinom_gen(rv_discrete_meco):
     r"""
-    The conditional negative binomial random variable
+    The conditional negative binomial random variable.
 
     This distribution was described by Zillio and He (2010) [#]_ and Conlisk
     et al. (2007) [#]_
@@ -554,7 +554,7 @@ def _ln_choose(n, k_agg):
 
 class logser_uptrunc_gen(rv_discrete_meco):
     r"""
-    Upper truncated logseries random variable
+    Upper truncated logseries random variable.
 
     This distribution was described by Harte (2011) [#]_
 
@@ -666,7 +666,7 @@ def _trunc_logser_solver(bins, b):
     bins : float
         Number of bins. Considered S in an ecological context
     b : float
-        Upper truncation of distribution
+        Upper truncation of distribution. Considered N in an ecological context
 
     Returns
     -------
@@ -809,6 +809,54 @@ class expon_uptrunc_gen(rv_continuous_meco):
         return expon.stats(lam)
 
 expon_uptrunc = expon_uptrunc_gen(a=0.0, name='expon_uptrunc', shapes='lam, b')
+
+
+class lognorm_gen(rv_continuous_meco):
+    r"""
+    A lognormal random variable.
+
+    .. math::
+
+        f(x) = \frac{1}{\sigma x \sqrt{2 \pi}} e^{(\log{x} - \mu)^2 / 2
+        \sigma^2}
+
+    Methods
+    -------
+    translate_args(mean, sigma)
+        Shape parameters mu and sigma given mean and sigma
+    fit_mle(data, b=sum(data))
+        ML estimate of shape parameters mu and sigma
+    %(before_notes)s
+    mu : float
+        mu parameter of lognormal distribution. Mean log(x)
+    sigma : float
+        sigma parameter of lognormal distribution. sd of log(x)
+
+    """
+
+    @inherit_docstring_from(rv_continuous_meco)
+    def translate_args(self, mean, sigma):
+        return np.log(mean) - (sigma ** 2 / 2), sigma
+
+    @inherit_docstring_from(rv_continuous_meco)
+    def fit_mle(self, data, mean=None):
+
+        sigma, _, scale = stats.lognorm.fit(data, floc=0)
+        return np.log(scale), sigma
+
+    def _rvs(self, mu, sigma):
+        return stats.lognorm.rvs(sigma, scale=np.exp(mu))
+
+    def _pdf(self, x, mu, sigma):
+        return stats.lognorm.pdf(x, sigma, scale=np.exp(mu))
+
+    def _cdf(self, x, mu, sigma):
+        return stats.lognorm.cdf(x, sigma, scale=np.exp(mu))
+
+    def _stats(self, mu, sigma):
+        return stats.lognorm.stats(sigma, scale=np.exp(mu))
+
+lognorm = lognorm_gen(name="lognorm", shapes="mu, sigma")
 
 
 def _solve_k_from_mu(data, k_range, nll, *args):

@@ -280,6 +280,42 @@ class TestLogserUptrunc(TestCase):
         _trunc_logser_solver(3, 4)
         _trunc_logser_solver(100, 101)
 
+class TestLognorm(TestCase):
+
+    def test_pmf(self):
+        # R pmf: dlnorm(c(1:10), 2, 2)
+        r_output = np.array([0.1210, .0806, .0601, 0.0476, 0.0391, .0331,
+            0.0285, 0.0249, 0.0221, 0.0197])
+
+        test1 = lognorm.pdf(np.arange(1, 11), 2, 2)
+        assert_array_almost_equal(test1, r_output, decimal=4)
+
+    def test_cdf(self):
+        # R cdf: plnorm(c(1,1,4,5,12), 1.2, 3.45)
+        r_output = np.array([0.3639854, 0.3639854, 0.5215318, 0.5472346,
+                                        0.6452161])
+
+        test = lognorm.cdf([1, 1, 4, 5, 12], 1.2, 3.45)
+        assert_array_almost_equal(test, r_output, decimal=7)
+
+    def test_translate_args(self):
+
+        mean = 67; sigma = 2
+        mu, sigma = lognorm.translate_args(mean, sigma)
+
+        # Expected mu: np.log(mean) - (sigma**2 / 2)
+        exp_mu = 2.2046926
+        assert_almost_equal(mu, exp_mu)
+
+    def test_fit_mle(self):
+
+
+
+
+
+
+
+
 class TestExpon(TestCase):
     pass
 
