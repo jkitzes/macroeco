@@ -197,6 +197,52 @@ class TestCommGrid(Patches):
         comm = emp.comm_grid(self.pat1, self.cols1, '', '2,2',metric='Jaccard')
         assert_equal(comm[0][1]['y'], [1/2., 0, 0, 0, 1/2., 0])
 
+class TestORing(Patches):
+    # TODO: Individuals falling directly on a radius may be allocated
+    # ambiguously between adjacent toruses
+
+    # TODO: Main may fail with error if dataframe has no records when trying to
+    # fit or make plot.
+
+    def test_missing_spp_returns_df_with_no_records(self):
+        o_ring = emp.o_ring(self.pat1, self.cols1, '', 'nothere', [0,.11,.2])
+        assert_frame_equal(o_ring[0][1], pd.DataFrame(columns=['x','y']))
+
+    def test_one_individual_returns_zeros(self):
+        self.pat1.table = self.pat1.table[2:4]  # Leave 1 'a' and 1 'b'
+        o_ring = emp.o_ring(self.pat1, self.cols1, '', 'a', [0,.11,.2])
+        assert_equal(o_ring[0][1]['y'], [0, 0])
+
+    def test_simple_count_no_density_a(self):
+        o_ring = emp.o_ring(self.pat1, self.cols1, '', 'a', [0,.11,.2],
+                            density=False)
+        assert_almost_equal(o_ring[0][1]['x'], [0.055, 0.155])
+        assert_almost_equal(o_ring[0][1]['y'], [8, 4])
+
+    def test_simple_count_no_density_b(self):
+        o_ring = emp.o_ring(self.pat1, self.cols1, '', 'b', [0,.11,.2],
+                            density=False)
+        assert_almost_equal(o_ring[0][1]['x'], [0.055, 0.155])
+        assert_almost_equal(o_ring[0][1]['y'], [2, 4])
+
+    def test_simple_count_with_split_a(self):
+        o_ring = emp.o_ring(self.pat1, self.cols1, 'y:2', 'a', [0,.11,.2],
+                            density=False)
+        assert_equal(o_ring[0][1]['y'], [2, 0])  # Bottom
+        assert_equal(o_ring[1][1]['y'], [2, 0])  # Top
+
+    def test_simple_count_with_split_b(self):
+        o_ring = emp.o_ring(self.pat1, self.cols1, 'y:2', 'b', [0,.11,.2],
+                            density=False)
+        assert_equal(o_ring[0][1]['y'], [])  # Bottom
+        assert_equal(o_ring[1][1]['y'], [2, 4])  # Top
+
+    def test_density_a(self):
+        o_ring = emp.o_ring(self.pat1, self.cols1, '', 'b', [0,.05,.1])
+        assert_array_almost_equal(o_ring[0][1]['y'], [1358.12218105,0])
+
+    # TODO: More checks of density (which inclues edge correction)
+
 
 class TestProduct():
 
@@ -243,83 +289,3 @@ class TestEmpiricalCDF():
         res = emp.empirical_cdf(test_data)
         assert_array_equal(ans, res['ecdf'])
 
-
-
-
-#     def test_comm_sep(self):
-
-#         # Create result recarray
-#         comm = self.pat9.comm_sep({'plot1': (0,0), 'plot2': (0,1),
-#                                    'plot3': (3,4)},
-#                                   {'spp_code': 'species', 'count': 'count'})
-
-#         # Create result recarray with dec degree locs
-#         comm_decdeg = self.pat9.comm_sep({'plot1': (9.1,79.0),
-#                                    'plot2': (9.2,79.5), 'plot3': (12.7,50)},
-#                                   {'spp_code': 'species', 'count': 'count'},
-#                                          loc_unit='decdeg')
-
-#         # Check distances
-#         dist_sort = np.sort(comm['dist'])
-#         np.testing.assert_array_almost_equal(dist_sort, np.array((1,4.242,5)),
-#                                              3)
-
-#         # Check distances dec degree
-#         # TODO: Find exact third party comparison formula - formulas online use
-#         # different radii, etc. and give approx same answer
-#         dist_sort = np.sort(comm_decdeg['dist'])
-#         #np.testing.assert_array_almost_equal(dist_sort,
-#         #                                     np.array((56.058,3193.507,
-#         #                                               3245.820)), 3)
-
-#         # Check species in each plot
-#         spp_sort = np.sort(np.array(list(comm['spp-a']) + list(comm['spp-b'])))
-#         np.testing.assert_array_equal(spp_sort, np.array((0,0,3,3,4,4)))
-
-#         # Check Sorensen - 2 zeros from empty plot1
-#         sor_sort = np.sort(comm['sorensen'])
-#         np.testing.assert_array_almost_equal(sor_sort,
-#                                              np.array((0,0,0.571428571)), 5)
-
-#         # Check Jaccard - 2 zeros from empty plot1
-#         jac_sort = np.sort(comm['jaccard'])
-#         np.testing.assert_array_almost_equal(jac_sort, np.array((0,0,0.4)), 5)
-
-#     def test_o_ring(self):
-
-#         # Check standard case, no min max, no edge correction, no criteria
-#         # Tests that distances and repeats for count col are correct
-#         result_list = self.pat1.o_ring(('x','y'), [0,.11,.2],
-#                                      {'spp_code': 'species', 'count': 'count'})
-
-#         np.testing.assert_array_equal(result_list[0][2][0], np.array((8,4)))
-#         np.testing.assert_array_equal(result_list[0][2][1], np.array((2,4)))
-
-#         # Check standard case, no min max, no edge correction, with division
-#         result_list = self.pat1.o_ring(('x','y'), [0,.11,.2],
-#                                      {'spp_code': 'species', 'count': 'count',
-#                                       'y': 2})
-
-#         # - First half of y, both species
-#         np.testing.assert_array_equal(result_list[0][2][0], np.array((6,0)))
-#         np.testing.assert_array_equal(result_list[0][2][1], np.array((0,0)))
-
-#         # - Second half of y, both species
-#         np.testing.assert_array_equal(result_list[1][2][0], np.array((0,0)))
-#         np.testing.assert_array_equal(result_list[1][2][1], np.array((2,0)))
-
-#         # Check edge correction - check only first species
-#         # Almost equal required due to float division
-#         result_list = self.pat1.o_ring(('x','y'), [0,.05,.1],
-#                                      {'spp_code': 'species', 'count': 'count'},
-#                                           edge_correct=True)
-#         np.testing.assert_array_almost_equal(result_list[0][2][0],
-#                                              np.array((8,18)))
-
-#         # Check density - check only second species
-#         print 'here '
-#         result_list = self.pat1.o_ring(('x','y'), [0,.05,.1],
-#                                      {'spp_code': 'species', 'count': 'count'},
-#                                           density=True)
-#         np.testing.assert_array_almost_equal(result_list[0][2][1],
-#                                              np.array((1358.12218105,0)))

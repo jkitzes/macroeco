@@ -38,5 +38,5 @@ Other
 """
 
 from ._empirical import (Patch,
-                         sad, ssad, sar, comm_grid,
+                         sad, ssad, sar, comm_grid, o_ring,
                          empirical_cdf)
