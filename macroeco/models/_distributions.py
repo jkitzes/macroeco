@@ -552,6 +552,38 @@ def _ln_choose(n, k_agg):
     return gammaln(n + 1) - (gammaln(k_agg + 1) + gammaln(n - k_agg + 1))
 
 
+def _solve_k_from_mu(data, k_range, nll, *args):
+    """
+    For given args, return k_agg from searching some k_range.
+
+    Parameters
+    ----------
+    data : array
+    k_range : array
+    nll : function
+
+    args :
+
+    Returns
+    --------
+    :float
+        Minimum k_agg
+
+    """
+    # TODO: See if a root finder like fminbound would work with Decimal used in
+    # logpmf method (will this work with arrays?)
+
+    k_array = np.arange(*k_range)
+    nll_array = np.zeros(len(k_array))
+
+    for i in range(len(k_array)):
+        nll_array[i] = nll(data, k_array[i], *args)
+
+    min_nll_idx = np.argmin(nll_array)
+
+    return k_array[min_nll_idx]
+
+
 class logser_uptrunc_gen(rv_discrete_meco):
     r"""
     Upper truncated logseries random variable.
