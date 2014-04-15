@@ -10,6 +10,7 @@ from scipy.stats.distributions import (rv_discrete, rv_continuous, docdict,
 import scipy.stats as stats
 import scipy.optimize as optim
 import scipy.special as special
+import scipy.integrate as integrate
 
 from ..misc import doc_sub, inherit_docstring_from
 
@@ -724,9 +725,232 @@ def _trunc_logser_solver(bins, b):
                    xtol=1.490116e-08, maxiter=1000)
     return p
 
+
+class plnorm_gen(rv_discrete_meco):
+    r"""
+    Poisson lognormal random variable
+
+    Adapted from Bulmer (1974) [#]_
+
+    Methods
+    -------
+    translate_args(mean, sigma)
+        not implemented
+    fit_mle(data)
+        ml estimate of shape parameters mu and sigma
+    %(before_notes)s
+    mu : float
+        mu parameter of the poisson lognormal
+    sigma : float
+        sigma parameter of the poisson lognormal
+
+    Notes
+    -----
+    The pmf method was adopted directly from the VGAM package in R.
+    The VGAM R package was adopted directly from Bulmer (1974).
+
+    The fit_mle function was adapted from Ethan White's pln_solver function in
+    macroeco_distributions (https://github.com/weecology/macroecotools)
+
+    References
+    ----------
+    .. [#]
+
+        Bulmer, M. G. (1974). On fitting the poisson lognormal distribution to
+        species bundance data. Biometrics, 30, 101-110.
+
+    """
+
+    @inherit_docstring_from(rv_discrete_meco)
+    def translate_args(self, mean, sigma):
+        raise NotImplementedError("Translate args not implemented")
+
+    @inherit_docstring_from(rv_discrete_meco)
+    def fit_mle(self, data):
+
+        mu0 = np.mean(np.log(data))
+        sig0 = np.std(np.log(data))
+
+        def mle(params):
+            return -np.sum(self.logpmf(data, params[0], params[1]))
+
+        # Bounded fmin?
+        mu, sigma = optim.fmin(mle, x0=[mu0, sig0], disp=0)
+
+        return mu, sigma
+
+    @inherit_docstring_from(rv_discrete_meco)
+    def rank(self, n, mu, sigma, upper=100000):
+        """%(super)s
+        Uses approximation of rank distribution. Increasing ``upper`` will
+        give a closer approximation.
+        """
+
+        return make_rank(self.pmf(np.arange(upper + 1), mu, sigma), n,
+            min_supp=0)
+
+    def _argcheck(self, mu, sigma):
+        return True
+
+    def _pmf(self, x, mu, sigma, approx_cut=10):
+
+        x = np.array(x)
+        pmf = np.empty(len(x), dtype=np.float)
+        xbelow = x <= approx_cut
+        xabove = x > approx_cut
+
+        # If below, use exact answer
+        if np.sum(xbelow) > 0:
+
+            pmf[xbelow] = plognorm_intg_vec(x[xbelow], mu[xbelow],
+                                                                sigma[xbelow])
+
+        # If above, use approximation
+        if np.sum(xabove) > 0:
+
+            z = (np.log(x[xabove]) - mu[xabove]) / sigma[xabove]
+
+            pmf_above = ((1 + (z**2 + np.log(x[xabove]) - mu[xabove] - 1) /
+                    (2 * x[xabove] * sigma[xabove]**2)) * np.exp(-0.5 * z**2) /
+                    (np.sqrt(2 * np.pi) * sigma[xabove] * x[xabove]))
+
+            pmf[xabove] = pmf_above
+
+        return pmf
+
+    def _cdf(self, x, mu, sigma, approx_cut=10):
+
+        mu = np.atleast_1d(mu)
+        sigma = np.atleast_1d(sigma)
+        x = np.atleast_1d(x)
+
+        max_x = np.max(x)
+        pmf_list = self.pmf(np.arange(np.int(max_x) + 1), mu[0], sigma[0])
+        full_cdf = np.cumsum(pmf_list)
+
+        cdf = np.array([full_cdf[tx] for tx in x])
+
+        return cdf
+
+    def _stats(self, mu, sigma, upper=100000):
+        # TODO: stats doesn't like the upper argument
+
+        vals = np.arange(0, upper + 1)
+        full_pmf = self.pmf(vals, mu, sigma)
+
+        mean, var = mean_var(vals, full_pmf)
+
+        return mean, var, None, None
+
+plnorm = plnorm_gen(name="plnorm", shapes="mu, sigma")
+
+
+class plnorm_lowtrunc_gen(rv_discrete_meco):
+    """
+    Zero-truncated poisson lognormal random variable
+
+    Adapted from Bulmer (1974) [#]_
+
+    Methods
+    -------
+    translate_args(mean, sigma)
+        not implemented
+    fit_mle(data)
+        ml estimate of shape parameters mu and sigma
+    %(before_notes)s
+    mu : float
+        mu parameter of the poisson lognormal
+    sigma : float
+        sigma parameter of the poisson lognormal
+
+    Notes
+    -----
+    The pmf method was adopted directly from the VGAM package in R.
+    The VGAM R package was adopted directly from Bulmer (1974).
+
+    The fit_mle function was adapted from Ethan White's pln_solver function in
+    macroeco_distributions (https://github.com/weecology/macroecotools)
+
+    References
+    ----------
+    .. [#]
+
+        Bulmer, M. G. (1974). On fitting the poisson lognormal distribution to
+        species bundance data. Biometrics, 30, 101-110.
+
+    """
+
+    @inherit_docstring_from(rv_discrete_meco)
+    def translate_args(self, mean, sigma):
+        raise NotImplementedError("Translate args not implemented")
+
+    @inherit_docstring_from(rv_discrete_meco)
+    def fit_mle(self, data):
+
+        # Copying code...could we make this a generic function with an eval?
+        # Or would that slow it down too much?
+        mu0 = np.mean(np.log(data))
+        sig0 = np.std(np.log(data))
+
+        def mle(params):
+            return -np.sum(np.log(self._pmf(data, params[0], params[1])))
+
+        # Bounded fmin?
+        mu, sigma = optim.fmin(mle, x0=[mu0, sig0], disp=0)
+
+        return mu, sigma
+
+    @inherit_docstring_from(rv_discrete_meco)
+    def rank(self, n, mu, sigma, upper=100000):
+        """%(super)s
+        Uses approximation of rank distribution. Increasing ``upper`` will
+        give a closer approximation.
+        """
+
+        return make_rank(self.pmf(np.arange(upper + 1), mu, sigma), n,
+            min_supp=1)
+
+    def _argcheck(self, mu, sigma):
+        return True
+
+    def _pmf(self, x, mu, sigma):
+        x = np.array(x)
+        return plnorm.pmf(x, mu, sigma) / (1 - plognorm_intg_vec(0, mu, sigma))
+
+    def _cdf(self, x, mu, sigma):
+        x = np.array(x)
+        return plnorm.cdf(x, mu, sigma) / (1 - plognorm_intg_vec(0, mu, sigma))
+
+    def _stats(self, mu, sigma, upper=100000):
+
+        vals = np.arange(1, upper + 1)
+        full_pmf = self.pmf(vals, mu, sigma)
+        mean, var = mean_var(vals, full_pmf)
+
+        return mean, var, None, None
+
+
+plnorm_lowtrunc = plnorm_lowtrunc_gen(name="plnorm_lowtrunc",
+        shapes="mu, sigma")
+
+def plognorm_intg(x, mu, sigma):
+    # Integral for plognorm
+    eq = lambda t, x, mu, sigma: np.exp(t * x - np.exp(t) - 0.5 *
+                                        ((t - mu) / sigma) ** 2)
+
+    intg = integrate.quad(eq, -np.inf, np.inf, args=(x, mu, sigma))[0]
+
+    norm = np.exp(-0.5 * np.log(2 * np.pi * sigma ** 2) -
+                            special.gammaln(x + 1))
+
+    return norm * intg
+
+plognorm_intg_vec = np.vectorize(plognorm_intg)
+
 #
 # Continuous
 #
+
 
 class expon_gen(rv_continuous_meco):
     r"""
