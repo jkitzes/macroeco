@@ -37,8 +37,8 @@ Discrete distributions
 """
 
 from _distributions import (geom, geom_uptrunc, nbinom, cnbinom,
-                                 logser_uptrunc, expon, expon_uptrunc,
-                                 lognorm)
+                                 logser_uptrunc, plnorm, plnorm_lowtrunc,
+                                 expon, expon_uptrunc, lognorm)
 
 from ._curves import (power_law,
                       mete_sar, mete_iterative_sar,
