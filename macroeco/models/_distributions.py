@@ -679,10 +679,11 @@ class logser_uptrunc_gen(rv_discrete_meco):
         return np.array(out)
 
     def _stats(self, p, b):
+
         vals = np.arange(1, b + 1)
-        mu = np.sum(vals * self.pmf(vals, p, b))
-        var = np.sum(vals ** 2 * self.pmf(vals, p, b)) - mu ** 2
-        return mu, var, None, None
+        full_pmf = self.pmf(vals, p, b)
+        mean, var = mean_var(vals, full_pmf)
+        return mean, var, None, None
 
 
 logser_uptrunc = logser_uptrunc_gen(name="logser_uptrunc", shapes="p, b")
@@ -922,33 +923,56 @@ def mle(sigma, x, mean):
     # MLE function for lognormal
     return -1 * np.sum(tpdf(x, mean, sigma))
 
-def _solve_k_from_mu(data, k_range, nll, *args):
-    """
-    For given args, return k_agg from searching some k_range.
+
+
+def mean_var(vals, pmf):
+    # Calculates the mean and variance from vals and pmf
+
+    mean = np.sum(vals * pmf)
+    var = np.sum(vals ** 2 * pmf) - mean ** 2
+    return mean, var
+
+
+def make_rank(pmf, n, min_supp=1):
+    '''
+    Convert any pmf into a rank curve for S species using cumulative
+    distribution function.
 
     Parameters
     ----------
-    data : array
-    k_range : array
-    nll : function
-
-    args :
+    pmf : ndarray
+        Probability of observing a species from 1 to length pmf individs.
+    n : int
+        Total number of samples
+    min_supp : int
+        The minimum support of the distribution. Often either 1 or 0.
 
     Returns
-    --------
-    :float
-        Minimum k_agg
+    -------
+    ndarray
+        1D array of predicted ranks
 
-    """
-    # TODO: See if a root finder like fminbound would work with Decimal used in
-    # logpmf method (will this work with arrays?)
+    Notes
+    -----
+    Function actually implements (philosophically) a step quantile function.
+    Use if ppf in rv_discrete_meco is too slow
 
-    k_array = np.arange(*k_range)
-    nll_array = np.zeros(len(k_array))
+    '''
 
-    for i in range(len(k_array)):
-        nll_array[i] = nll(data, k_array[i], *args)
+    pmf = pmf / np.sum(pmf)  # Ensure distribution is normalized
 
-    min_nll_idx = np.argmin(nll_array)
+    points = np.arange(1 / (2 * n), 1, 1 / n)
+    counts = np.zeros(n)
 
-    return k_array[min_nll_idx]
+    if min_supp == 1:
+        pmf = np.array([0] + list(pmf)) # Add 0 to start of pmf
+    cum_pmf = np.cumsum(pmf)
+
+    for cutoff in cum_pmf:
+        greater_thans = (points >= cutoff)
+        counts[greater_thans] += 1
+
+        if not greater_thans.any():  # If no greater thans, done with samples
+            break
+
+    return counts
