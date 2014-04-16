@@ -20,6 +20,7 @@ Continouous distributions
 
    expon
    expon_uptrunc
+   lognorm
 
 Discrete distributions
 ======================
@@ -32,7 +33,8 @@ Discrete distributions
    nbinom
    cnbinom
    logser_uptrunc
-   lognorm
+   plnorm
+   plnorm_lowtrunc
 
 """
 
