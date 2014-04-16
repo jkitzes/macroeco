@@ -728,9 +728,7 @@ def _trunc_logser_solver(bins, b):
 
 class plnorm_gen(rv_discrete_meco):
     r"""
-    Poisson lognormal random variable
-
-    Adapted from Bulmer (1974) [#]_
+    Poisson lognormal random variable.
 
     Methods
     -------
@@ -747,7 +745,7 @@ class plnorm_gen(rv_discrete_meco):
     Notes
     -----
     The pmf method was adopted directly from the VGAM package in R.
-    The VGAM R package was adopted directly from Bulmer (1974).
+    The VGAM R package was adopted directly from Bulmer (1974) [#]_
 
     The fit_mle function was adapted from Ethan White's pln_solver function in
     macroeco_distributions (https://github.com/weecology/macroecotools)
@@ -755,7 +753,6 @@ class plnorm_gen(rv_discrete_meco):
     References
     ----------
     .. [#]
-
         Bulmer, M. G. (1974). On fitting the poisson lognormal distribution to
         species bundance data. Biometrics, 30, 101-110.
 
@@ -780,12 +777,13 @@ class plnorm_gen(rv_discrete_meco):
         return mu, sigma
 
     @inherit_docstring_from(rv_discrete_meco)
-    def rank(self, n, mu, sigma, upper=100000):
+    def rank(self, n, mu, sigma, **kwds):
         """%(super)s
-        Uses approximation of rank distribution. Increasing ``upper`` will
-        give a closer approximation.
-        """
 
+        Uses approximation of rank distribution. The keyword ``upper`` defines
+        the upper bound used in the approximation.  Default is 100000.
+        """
+        upper = kwds.get('upper', 100000)
         return make_rank(self.pmf(np.arange(upper + 1), mu, sigma), n,
             min_supp=0)
 
@@ -833,7 +831,6 @@ class plnorm_gen(rv_discrete_meco):
         return cdf
 
     def _stats(self, mu, sigma, upper=100000):
-        # TODO: stats doesn't like the upper argument
 
         vals = np.arange(0, upper + 1)
         full_pmf = self.pmf(vals, mu, sigma)
@@ -846,10 +843,8 @@ plnorm = plnorm_gen(name="plnorm", shapes="mu, sigma")
 
 
 class plnorm_lowtrunc_gen(rv_discrete_meco):
-    """
-    Zero-truncated poisson lognormal random variable
-
-    Adapted from Bulmer (1974) [#]_
+    r"""
+    Zero-truncated poisson lognormal random variable.
 
     Methods
     -------
@@ -866,7 +861,7 @@ class plnorm_lowtrunc_gen(rv_discrete_meco):
     Notes
     -----
     The pmf method was adopted directly from the VGAM package in R.
-    The VGAM R package was adopted directly from Bulmer (1974).
+    The VGAM R package was adopted directly from Bulmer (1974) [#]_
 
     The fit_mle function was adapted from Ethan White's pln_solver function in
     macroeco_distributions (https://github.com/weecology/macroecotools)
@@ -874,7 +869,6 @@ class plnorm_lowtrunc_gen(rv_discrete_meco):
     References
     ----------
     .. [#]
-
         Bulmer, M. G. (1974). On fitting the poisson lognormal distribution to
         species bundance data. Biometrics, 30, 101-110.
 
@@ -914,12 +908,21 @@ class plnorm_lowtrunc_gen(rv_discrete_meco):
         return True
 
     def _pmf(self, x, mu, sigma):
-        x = np.array(x)
-        return plnorm.pmf(x, mu, sigma) / (1 - plognorm_intg_vec(0, mu, sigma))
+
+        mu = np.atleast_1d(mu)
+        sigma = np.atleast_1d(sigma)
+
+        norm = 1 - plognorm_intg_vec(0, mu[0], sigma[0])
+        return plnorm.pmf(x, mu, sigma) / norm
 
     def _cdf(self, x, mu, sigma):
-        x = np.array(x)
-        return plnorm.cdf(x, mu, sigma) / (1 - plognorm_intg_vec(0, mu, sigma))
+
+        mu = np.atleast_1d(mu)
+        sigma = np.atleast_1d(sigma)
+
+        norm = 1 - plognorm_intg_vec(0, mu[0], sigma[0])
+        return (plnorm.cdf(x, mu, sigma) -
+                                        plnorm.cdf(0, mu[0], sigma[0])) / norm
 
     def _stats(self, mu, sigma, upper=100000):
 
@@ -946,6 +949,7 @@ def plognorm_intg(x, mu, sigma):
     return norm * intg
 
 plognorm_intg_vec = np.vectorize(plognorm_intg)
+
 
 #
 # Continuous
