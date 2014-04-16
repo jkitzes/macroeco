@@ -16,10 +16,10 @@ Comparison Functions
    nll
    lrt
    AIC
-   AIC_weights
+   AIC_compare
    sum_of_squares
    r_squared
-   bin_data
+   preston_bin
 
 """
 
