@@ -814,6 +814,9 @@ class plnorm_gen(rv_discrete_meco):
 
             pmf[xabove] = pmf_above
 
+        # If pmf is 0 the likelihood might break
+        pmf[pmf == 0] = 1e-120
+
         return pmf
 
     def _cdf(self, x, mu, sigma, approx_cut=10):
@@ -909,20 +912,28 @@ class plnorm_lowtrunc_gen(rv_discrete_meco):
 
     def _pmf(self, x, mu, sigma):
 
+        x = np.array(x)
         mu = np.atleast_1d(mu)
         sigma = np.atleast_1d(sigma)
 
         norm = 1 - plognorm_intg_vec(0, mu[0], sigma[0])
-        return plnorm.pmf(x, mu, sigma) / norm
+        pmf_vals = plnorm.pmf(x, mu, sigma) / norm
+        pmf_vals[x < 1] = 0
+
+        return pmf_vals
 
     def _cdf(self, x, mu, sigma):
 
+        x = np.array(x)
         mu = np.atleast_1d(mu)
         sigma = np.atleast_1d(sigma)
 
         norm = 1 - plognorm_intg_vec(0, mu[0], sigma[0])
-        return (plnorm.cdf(x, mu, sigma) -
+        cdf_vals = (plnorm.cdf(x, mu, sigma) -
                                         plnorm.cdf(0, mu[0], sigma[0])) / norm
+        cdf_vals[x < 1] = 0
+
+        return cdf_vals
 
     def _stats(self, mu, sigma, upper=100000):
 
