@@ -369,6 +369,40 @@ class TestPlnorm(TestCase):
         test = plnorm.pmf([0, 50, 1000], 2.34, 5)
         assert_array_almost_equal(md_res, test)
 
+        # Unit test from test_macroeco_distributions
+
+        # Test values for Poisson lognomal are chosen from Table 1 and Table 2
+        # in Grundy Biometrika 38:427-434.
+        # In Table 1 the values are deducted from 1 which give p(0).
+        pln_table1 = [[-2.0, 2, '0.9749'],
+                      [-2.0, 8, '0.9022'],
+                      [-2.0, 16, '0.8317'],
+                      [0.5, 2, '0.1792'],
+                      [0.5, 8, '0.2908'],
+                      [0.5, 16, '0.3416'],
+                      [3, 2, '0.0000'],
+                      [3, 8, '0.0069'],
+                      [3, 16, '0.0365']]
+
+        pln_table2 = [[-2.0, 2, '0.0234'],
+                      [-2.0, 8, '0.0538'],
+                      [-2.0, 16, '0.0593'],
+                      [0.5, 2, '0.1512'],
+                      [0.5, 8, '0.1123'],
+                      [0.5, 16, '0.0879'],
+                      [3, 2, '0.0000'],
+                      [3, 8, '0.0065'],
+                      [3, 16, '0.0193']]
+
+        for vals in pln_table1:
+            test = plnorm.pmf(0, np.log(10 ** vals[0]), vals[1] ** .5)
+            assert_almost_equal(test, float(vals[2]), decimal=4)
+
+        for vals in pln_table2:
+            test = plnorm.pmf(1, np.log(10 ** vals[0]), vals[1] ** .5)
+            assert_almost_equal(test, float(vals[2]), decimal=4)
+
+
     def test_cdf(self):
 
         # Test against R VGAM fxn: ppolono(c(0, 15, 10000), .1, 2)
@@ -395,6 +429,7 @@ class TestPlnorm(TestCase):
         # pln_solver(data, lower_trunc=False)
         md_res = (1.3195580310886075, 1.1876019842774048)
         assert_array_almost_equal(md_res, fits, decimal=4)
+
 
     def test_rank(self):
         pass
