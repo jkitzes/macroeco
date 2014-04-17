@@ -772,7 +772,7 @@ class plnorm_gen(rv_discrete_meco):
             return -np.sum(self.logpmf(data, params[0], params[1]))
 
         # Bounded fmin?
-        mu, sigma = optim.fmin(mle, x0=[mu0, sig0], disp=0)
+        mu, sigma = optim.fmin_bfgs(mle, x0=[mu0, sig0], disp=0)
 
         return mu, sigma
 
@@ -890,7 +890,7 @@ class plnorm_lowtrunc_gen(rv_discrete_meco):
             return -np.sum(np.log(self._pmf(data, params[0], params[1])))
 
         # Bounded fmin?
-        mu, sigma = optim.fmin(mle, x0=[mu0, sig0], disp=0)
+        mu, sigma = optim.fmin_bfgs(mle, x0=[mu0, sig0], disp=0)
 
         return mu, sigma
 
