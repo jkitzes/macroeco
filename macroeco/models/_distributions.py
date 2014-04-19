@@ -816,6 +816,8 @@ class plnorm_gen(rv_discrete_meco):
             pmf[xabove] = pmf_above
 
         # If pmf is 0 the likelihood might break
+        # TODO: This should be fixed in likelihood function as it might apply
+        # to other distributions
         pmf[pmf == 0] = 1e-120
 
         return pmf
@@ -843,7 +845,7 @@ class plnorm_gen(rv_discrete_meco):
 
         return mean, var, None, None
 
-plnorm = plnorm_gen(name="plnorm", shapes="mu, sigma")
+plnorm = plnorm_gen(name='plnorm', shapes='mu,sigma')
 
 
 class plnorm_lowtrunc_gen(rv_discrete_meco):
@@ -946,7 +948,7 @@ class plnorm_lowtrunc_gen(rv_discrete_meco):
 
 
 plnorm_lowtrunc = plnorm_lowtrunc_gen(name="plnorm_lowtrunc",
-        shapes="mu, sigma")
+        shapes='mu,sigma')
 
 def plognorm_intg(x, mu, sigma):
     # Integral for plognorm
