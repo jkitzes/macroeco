@@ -9,13 +9,14 @@ from decimal import Decimal
 from macroeco.models import *
 from macroeco.models._distributions import _trunc_logser_solver
 import matplotlib.pyplot as plt
+import scipy as sp
 import scipy.stats as stats
 
 
 class TestGeom(TestCase):
 
     def test_pmf(self):
-        vals = geom_uptrunc.pmf([0,1,2], 0.25, 2)
+        vals = geom.pmf([0,1,2], 0.25)
         assert_array_almost_equal(vals, np.array([0.25, 0.1875, 0.140625]))
 
     def test_mean(self):
