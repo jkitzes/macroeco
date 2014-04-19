@@ -419,7 +419,6 @@ class nbinom_gen(rv_discrete_meco):
         return (k_agg >= 0) & (p >= 0) & (p <= 1)
 
     def _pmf(self, x, mu, k_agg):
-        p = self._get_p_from_mu(mu, k_agg)
         return np.exp(self._logpmf(x, mu, k_agg))
 
     def _logpmf(self, x, mu, k_agg):
@@ -1022,7 +1021,7 @@ class expon_uptrunc_gen(rv_continuous_meco):
 
     .. math::
 
-       f(x) = \frac{\lambda e^{-\lambda x}}{1 - e^{-\lambda x}}
+       f(x) = \frac{\lambda e^{-\lambda x}}{1 - e^{-\lambda b}}
 
     for ``b >= x >= 0``. The ``loc`` and ``scale`` parameters are not used.
 
@@ -1047,7 +1046,7 @@ class expon_uptrunc_gen(rv_continuous_meco):
 
     @inherit_docstring_from(rv_continuous_meco)
     def translate_args(self, mu, b):
-        raise NotImplementedError, "Translation of mu to lam not implemented"
+        return _expon_solve_lam_from_mu_vect(mu, b), b
 
     @inherit_docstring_from(rv_continuous_meco)
     def fit_mle(self, data, b=None):
@@ -1063,27 +1062,32 @@ class expon_uptrunc_gen(rv_continuous_meco):
         expon = expon_gen(a=0.0, b=b)
         return 1/expon.fit(data, floc=0)[2], b
 
-    def _rvs(self, lam, b):
-        expon = expon_gen(a=0.0, b=b)
-        return expon.rvs(lam)
+    def _argcheck(self, lam, b):
+        return True
 
     def _pdf(self, x, lam, b):
-        expon = expon_gen(a=0.0, b=b)
-        return expon.pdf(x, lam)
+        return (lam * np.exp(-lam*x)) / (1 - np.exp(-lam*b))
 
     def _cdf(self, x, lam, b):
-        expon = expon_gen(a=0.0, b=b)
-        return expon.cdf(x, lam)
-
-    def _entropy(self, lam, b):
-        expon = expon_gen(a=0.0, b=b)
-        return expon.entropy(lam)
-
-    def _stats(self, lam, b):
-        expon = expon_gen(a=0.0, b=b)
-        return expon.stats(lam)
+        return (1 - np.exp(-lam*x)) / (1 - np.exp(-lam*b))
 
 expon_uptrunc = expon_uptrunc_gen(a=0.0, name='expon_uptrunc', shapes='lam, b')
+
+def _expon_solve_lam_from_mu(mu, b):
+    """
+    For the expon_uptrunc, given mu and b, return lam.
+    Similar to geom_uptrunc
+    """
+
+    def lam_eq(lam, mu, b):
+        # Small offset added to denominator to avoid 0/0 erors
+        lam, mu, b = Decimal(lam), Decimal(mu), Decimal(b)
+        return ( (1 - (lam*b + 1) * np.exp(-lam*b)) /
+                 (lam - lam * np.exp(-lam*b) + Decimal(1e-32)) - mu )
+
+    return optim.brentq(lam_eq, -100, 100, args=(mu, b), disp=True)
+
+_expon_solve_lam_from_mu_vect = np.vectorize(_expon_solve_lam_from_mu)
 
 
 class lognorm_gen(rv_continuous_meco):
