@@ -474,9 +474,83 @@ class TestPlnormLowTrunc(TestCase):
 
 
 class TestExpon(TestCase):
-    pass
+
+    def test_pdf(self):
+        vals = expon.pdf([0,1,2], 2.5)
+        assert_almost_equal(vals, [2.5, 0.205212497, 0.016844867])
+
+    def test_mean(self):
+        mu1 = expon.mean(0.5)
+        assert_almost_equal(mu1, 2)
+
+        mu2 = expon.mean(0.25)
+        assert_almost_equal(mu2, 4)
+
+    def test_cdf(self):
+        vals = expon.cdf([0,1,2], 0.5)
+        assert_array_almost_equal(vals, [0, 0.39346934, 0.632120559])
+
+    def test_translate_args(self):
+        assert_almost_equal(1/13, expon.translate_args(13))
+
+    def test_fit_mle(self):
+        assert_almost_equal(1/8, expon.fit_mle([6,7,9,10]))
 
 
 class TestExponUptrunc(TestCase):
-    pass
+
+    def test_pdf(self):
+        vals = expon_uptrunc.pdf([0,1,2], 0.2, 10)
+        assert_almost_equal(vals, [0.231303529, 0.189375312, 0.155047392])
+
+    def test_pdf_lambda_equal_zero_is_uniform(self):
+        vals = expon_uptrunc.pdf([0,1,2], 0.0000001, 10)
+        assert_almost_equal(vals, [0.1, 0.1, 0.1])
+
+    def test_pdf_integrates_to_one(self):
+        val1 = sp.integrate.quad(expon_uptrunc.pdf, 0, 10, (0.2, 10))
+        assert_almost_equal(val1[0], 1)
+
+        val2 = sp.integrate.quad(expon_uptrunc.pdf, 0, 100, (.000000001, 100))
+        assert_almost_equal(val2[0], 1)
+
+        val3 = sp.integrate.quad(expon_uptrunc.pdf, 0, 100, (-5, 100))
+        assert_almost_equal(val3[0], 1)
+
+    def test_mean_lambda_equal_zero(self):
+        # If lam zero (uniform distribution), mean should be 1/2 b
+        assert_almost_equal(expon_uptrunc.mean(0.0000001, 10), 5, 5)
+
+    def test_mean(self):
+        def integrand(x, lam, b):
+            return x * expon_uptrunc.pdf(x, lam, b)
+
+        for lam in [2, 4.5]:
+            val = sp.integrate.quad(integrand, 0, 5, args=(lam, 10))[0]
+            assert_almost_equal(expon_uptrunc.mean(lam, 5), val, 4)
+
+    def test_cdf(self):
+        vals = expon_uptrunc.cdf([0,1,2], 0.2, 10)
+        assert_array_almost_equal(vals, [0, 0.209641082, 0.381280683])
+
+    def test_translate_args_uniform_case(self):
+        lam = expon_uptrunc.translate_args(5, 10)
+        assert_almost_equal(lam[0], 0)
+
+    def test_translate_args(self):
+        # mean -> lambda -> mean comparison
+        lam = expon_uptrunc.translate_args(3, 10)
+        assert_almost_equal(expon_uptrunc.mean(lam, 10), 3)
+
+    def test_fit_mle_uniform_case(self):
+        data = [5,5,5]
+        mean = np.mean(data)
+        lam = expon_uptrunc.fit_mle(data, 10)[0]
+        assert_almost_equal(expon_uptrunc.mean(lam, 10), 5, 4)
+
+    def test_fit_mle(self):
+        data = [4,5,7,8]
+        mean = np.mean(data)
+        lam = expon_uptrunc.fit_mle(data, 10)[0]
+        assert_almost_equal(expon_uptrunc.mean(lam, 10), 6)
 

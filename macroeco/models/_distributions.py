@@ -380,7 +380,8 @@ class nbinom_gen(rv_discrete_meco):
     translate_args(mu, k_agg)
         not used, returns mu and k_agg.
     fit_mle(data, k_range=(0.1,100,0.1))
-        ml estimate of shape parameters mu and k_agg given data, with k_agg evaluated at (min, max, step) values given by k_range.
+        ml estimate of shape parameters mu and k_agg given data, with k_agg
+        evaluated at (min, max, step) values given by k_range.
     %(before_notes)s
     mu : float
         distribution mean
@@ -478,7 +479,8 @@ class cnbinom_gen(rv_discrete_meco):
     translate_args(mu, k_agg, b)
         not used, returns mu, k_agg, and b.
     fit_mle(data, k_range=(0.1,100,0.1))
-        ml estimate of shape parameters mu and k_agg given data, with k_agg evaluated at (min, max, step) values given by k_range.
+        ml estimate of shape parameters mu and k_agg given data, with k_agg
+        evaluated at (min, max, step) values given by k_range.
     %(before_notes)s
     mu : float
         distribution mean
@@ -994,8 +996,8 @@ class expon_gen(rv_continuous_meco):
 
     @inherit_docstring_from(rv_continuous_meco)
     def fit_mle(self, data):
-        expon = expon_gen(a=0.0)
-        return 1 / expon.fit(data, floc=0)[2],
+        # MLE is method of moments for exponential
+        return 1 / (np.sum(data) / len(data))
 
     def _rvs(self, lam):
         return nprand.exponential(1/lam, self._size)
@@ -1039,11 +1041,6 @@ class expon_uptrunc_gen(rv_continuous_meco):
 
     """
 
-    # Internally, class works by creating a new expon_gen object with the
-    # appropriate upper limit and calling its methods.
-
-    # TODO: Do all of these broadcast correctly, or should we call _pdf, etc.?
-
     @inherit_docstring_from(rv_continuous_meco)
     def translate_args(self, mu, b):
         return _expon_solve_lam_from_mu_vect(mu, b), b
@@ -1057,10 +1054,17 @@ class expon_uptrunc_gen(rv_continuous_meco):
         b : float
             The upper limit of the distribution
         """
+        # Take mean of data as MLE of distribution mean, then calculate p
+        mu = np.mean(data)
         if not b:
             b = np.sum(data)
-        expon = expon_gen(a=0.0, b=b)
-        return 1/expon.fit(data, floc=0)[2], b
+        lam = _expon_solve_lam_from_mu_vect(mu, b)
+
+        # Just return float, not len 1 array
+        if len(np.atleast_1d(lam)) == 1:
+            return float(lam), b
+        else:
+            return lam, b
 
     def _argcheck(self, lam, b):
         return True
@@ -1121,10 +1125,10 @@ class lognorm_gen(rv_continuous_meco):
     def fit_mle(self, data, fix_mean=False):
         """%(super)s
 
-Additional Parameters
-----------------------
-fix_mean : bool
-    Default False.  If True, fixes mean before optimizing sigma
+        Additional Parameters
+        ----------------------
+        fix_mean : bool
+            Default False.  If True, fixes mean before optimizing sigma
 
         """
 
@@ -1177,7 +1181,7 @@ def mean_var(vals, pmf):
 
 
 def make_rank(pmf, n, min_supp=1):
-    '''
+    """
     Convert any pmf into a rank curve for S species using cumulative
     distribution function.
 
@@ -1200,7 +1204,7 @@ def make_rank(pmf, n, min_supp=1):
     Function actually implements (philosophically) a step quantile function.
     Use if ppf in rv_discrete_meco is too slow
 
-    '''
+    """
 
     pmf = pmf / np.sum(pmf)  # Ensure distribution is normalized
 
