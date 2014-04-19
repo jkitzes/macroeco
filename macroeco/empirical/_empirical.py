@@ -765,16 +765,17 @@ def o_ring(patch, cols, splits, spp, bin_edges, density=True):
 
             # Convert histogram to density if desired
             corr_factor = np.ones(len(radii))  # Frac length in plot
-            if density:
-                for i, r in enumerate(radii):
-                    circ = geo.Point(*point).buffer(r, resolution=64)
-                    outside_len = circ.boundary.difference(plot_poly).length
-                    corr_factor[i] = ((circ.boundary.length - outside_len) /
-                                       circ.boundary.length)
-            hist = hist / corr_factor  # Edge corrected if density, else same
+            for i, r in enumerate(radii):
+                circ = geo.Point(*point).buffer(r, resolution=64)
+                outside_len = circ.boundary.difference(plot_poly).length
+                corr_factor[i] = ((circ.boundary.length - outside_len) /
+                                   circ.boundary.length)
+
+            hist = hist / corr_factor  # Edge corrected hist
+            hist[corr_factor == 0] = 0  # If corr_factor 0, hist should be 0
 
             hists += hist
-            areas += (torus_areas * corr_factor)  # Only used later if density
+            areas += torus_areas
 
         # If density, divide summed torus counts by summed areas
         if density:
