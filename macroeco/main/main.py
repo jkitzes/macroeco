@@ -258,7 +258,8 @@ def _arg_kwarg_lists(module, analysis):
     try:
         obj_meth = analysis.split('.')
         if obj_meth[1] not in ['fit_mle', 'translate_args']:
-            arg_names += eval(module+'.'+obj_meth[0]+'.'+"shapes.split(',')")
+            arg_names += eval(module + '.' + obj_meth[0] + '.' +
+                              "shapes.replace(' ','').split(',')")
     except:
         pass
 
