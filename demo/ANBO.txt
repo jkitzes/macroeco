@@ -1,6 +1,6 @@
 [Description]
 name = Anzo Borrego
-author = John Harte and Mary Ellen Harte
+author = Mary Ellen Harte and John Harte
 description = Vegetation census conducted at Anza-Borrego Desert State Park. Site in Indian Valley at N 32' 52.091", W 116' 14.447". Elevation 1195 feet.
 citation = Unpublished
 
