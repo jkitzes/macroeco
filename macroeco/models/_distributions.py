@@ -380,8 +380,7 @@ class nbinom_gen(rv_discrete_meco):
     translate_args(mu, k_agg)
         not used, returns mu and k_agg.
     fit_mle(data, k_range=(0.1,100,0.1))
-        ml estimate of shape parameters mu and k_agg given data, with k_agg
-        evaluated at (min, max, step) values given by k_range.
+        ml estimate of shape parameters mu and k_agg given data
     %(before_notes)s
     mu : float
         distribution mean
@@ -400,7 +399,7 @@ class nbinom_gen(rv_discrete_meco):
 
         In addition to data, gives an optional keyword argument k_range
         contains a tuple of the start, stop, and step values to search for
-        k_agg. default is ``k_range=(0.1,100,0.1)``. a brute force search is
+        k_agg. default is ``k_range=(0.1,100,0.1)``. A brute force search is
         then used to find the parameter k_agg.
 
         """
@@ -479,8 +478,7 @@ class cnbinom_gen(rv_discrete_meco):
     translate_args(mu, k_agg, b)
         not used, returns mu, k_agg, and b.
     fit_mle(data, k_range=(0.1,100,0.1))
-        ml estimate of shape parameters mu and k_agg given data, with k_agg
-        evaluated at (min, max, step) values given by k_range.
+        ml estimate of shape parameters mu and k_agg given data
     %(before_notes)s
     mu : float
         distribution mean
