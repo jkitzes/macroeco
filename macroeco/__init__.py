@@ -40,16 +40,19 @@ Biology.
 
 """
 
-__author__ = "Justin Kitzes and Mark Wilber"
-__copyright__ = "Copyright 2012-2014, Regents of University of California"
-__license__ = "BSD 2-clause"
-__version__ = "0.3"
-__maintainer__ = "Justin Kitzes"
-__email__ = "jkitzes@berkeley.edu"
-__status__ = "Development"
+import sys as _sys
+
+__version__ = '0.3'
 
 import empirical
 import models
 import compare
 import main
 import misc
+
+def mecodesktop():
+    if len(_sys.argv) > 1:
+        param_path = _sys.argv[1]
+        main.main(param_path)
+    else:
+        print "Macroeco Desktop must be called with path to parameters file"
