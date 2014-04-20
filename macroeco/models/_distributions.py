@@ -806,8 +806,10 @@ Additional Parameters
     def _argcheck(self, mu, sigma):
         return True
 
-    def _pmf(self, x, mu, sigma, approx_cut=10):
+    def _pmf(self, x, mu, sigma):
 
+        # TODO: Add approx_cut as keyword. Strange parse_args error
+        approx_cut = 10
         x = np.array(x)
         pmf = np.empty(len(x), dtype=np.float)
         xbelow = x <= approx_cut
@@ -837,7 +839,7 @@ Additional Parameters
 
         return pmf
 
-    def _cdf(self, x, mu, sigma, approx_cut=10):
+    def _cdf(self, x, mu, sigma):
 
         mu = np.atleast_1d(mu)
         sigma = np.atleast_1d(sigma)
@@ -851,14 +853,6 @@ Additional Parameters
 
         return cdf
 
-    def _stats(self, mu, sigma, upper=100000):
-
-        vals = np.arange(0, upper + 1)
-        full_pmf = self.pmf(vals, mu, sigma)
-
-        mean, var = _mean_var(vals, full_pmf)
-
-        return mean, var, None, None
 
 plnorm = plnorm_gen(name='plnorm', shapes='mu,sigma')
 
@@ -960,15 +954,6 @@ Additional Parameters
         cdf_vals[x < 1] = 0
 
         return cdf_vals
-
-    def _stats(self, mu, sigma, upper=100000):
-
-        vals = np.arange(1, upper + 1)
-        full_pmf = self.pmf(vals, mu, sigma)
-        mean, var = _mean_var(vals, full_pmf)
-
-        return mean, var, None, None
-
 
 plnorm_ztrunc = plnorm_ztrunc_gen(name="plnorm_ztrunc",
         shapes='mu, sigma')
