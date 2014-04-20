@@ -431,9 +431,26 @@ class TestPlnorm(TestCase):
         md_res = (1.3195580310886075, 1.1876019842774048)
         assert_array_almost_equal(md_res, fits, decimal=4)
 
-
     def test_rank(self):
-        pass
+        # This should be a slow test!
+
+        # Test against ppf.
+        # >>> n = 50
+        # >>> vals = (np.arange(1, n+1) - 0.5) / n
+        # >>> plnorm.ppf(vals, 1, 1)
+        test_case = np.array([  0.,   0.,   0.,   0.,   0.,   0.,   0.,   0.,
+            1.,   1.,   1., 1.,   1.,   1.,   1.,   1.,   1.,   2.,   2.,   2.,
+            2.,   2., 2.,   2.,   3.,   3.,   3.,   3.,   3.,   3.,   4.,   4.,
+            4., 4.,   5.,   5.,   5.,   6.,   6.,   6.,   7.,   7.,   8.,   9.,
+            10.,  11.,  13.,  15.,  19.,  29.])
+
+        pred_res = plnorm.rank(50, 1, 1, crit=0.5, upper=40)
+
+        # Test the values are within one
+        diff = np.abs(pred_res - test_case)
+        zeros = np.sum(diff == 0)
+        ones = np.sum(diff == 1)
+        assert_equal(zeros + ones, len(diff))
 
 
 class TestPlnormZtrunc(TestCase):
@@ -470,6 +487,8 @@ class TestPlnormZtrunc(TestCase):
         assert_array_almost_equal(test, r_fits, decimal=3)
 
     def test_rank(self):
+
+        # TODO: Can't test this against ppf because ppf is too slow
         pass
 
 

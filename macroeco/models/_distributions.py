@@ -111,6 +111,20 @@ Describe 0.5 offset. References.
 """
 # TODO: Finish doc_rank above
 
+_doc_make_rank = \
+"""
+obj : discrete distribution object
+    Scipy discrete distribution object
+crit : float
+    A value between 0 - 1.  Below this value ppf is used, above a this
+    value a solver is used.
+upper : int
+    Upper bound to the solver.  Rank will not return values above
+    upper
+xtol : float
+    Precision of the brentq solver.
+"""
+
 
 class rv_continuous_meco(rv_continuous):
     """
@@ -682,7 +696,7 @@ class logser_uptrunc_gen(rv_discrete_meco):
 
         vals = np.arange(1, b + 1)
         full_pmf = self.pmf(vals, p, b)
-        mean, var = mean_var(vals, full_pmf)
+        mean, var = _mean_var(vals, full_pmf)
         return mean, var, None, None
 
 
@@ -776,15 +790,18 @@ class plnorm_gen(rv_discrete_meco):
         return mu, sigma
 
     @inherit_docstring_from(rv_discrete_meco)
-    def rank(self, n, mu, sigma, **kwds):
+    @doc_sub(_doc_make_rank)
+    def rank(self, n, mu, sigma, crit=.5, upper=10000, xtol=1):
         """%(super)s
 
-        Uses approximation of rank distribution. The keyword ``upper`` defines
-        the upper bound used in the approximation.  Default is 100000.
+Additional Parameters
+----------------------
+        {0}
+
         """
-        upper = kwds.get('upper', 100000)
-        return make_rank(self.pmf(np.arange(upper + 1), mu, sigma), n,
-            min_supp=0)
+
+        return _make_rank(self, n, mu, sigma, crit=crit, upper=upper,
+                                                                    xtol=xtol)
 
     def _argcheck(self, mu, sigma):
         return True
@@ -839,7 +856,7 @@ class plnorm_gen(rv_discrete_meco):
         vals = np.arange(0, upper + 1)
         full_pmf = self.pmf(vals, mu, sigma)
 
-        mean, var = mean_var(vals, full_pmf)
+        mean, var = _mean_var(vals, full_pmf)
 
         return mean, var, None, None
 
@@ -899,15 +916,18 @@ class plnorm_ztrunc_gen(rv_discrete_meco):
         return mu, sigma
 
     @inherit_docstring_from(rv_discrete_meco)
-    def rank(self, n, mu, sigma, upper=100000):
+    @doc_sub(_doc_make_rank)
+    def rank(self, n, mu, sigma, crit=0, upper=10000, xtol=1):
         """%(super)s
-        Uses approximation of rank distribution. Increasing ``upper`` will
-        give a closer approximation.
+
+Additional Parameters
+----------------------
+        {0}
+
         """
 
-        return make_rank(self.pmf(np.arange(upper + 1), mu, sigma), n,
-            min_supp=1)
-
+        return _make_rank(self, n, mu, sigma, crit=crit, upper=upper,
+                                                                    xtol=xtol)
     def _argcheck(self, mu, sigma):
         return True
 
@@ -936,6 +956,7 @@ class plnorm_ztrunc_gen(rv_discrete_meco):
                                         plnorm.cdf(0, mu[0], sigma[0])) / norm
 
         # Values less than one have zero probability
+        cdf_vals = np.atleast_1d(cdf_vals)
         cdf_vals[x < 1] = 0
 
         return cdf_vals
@@ -944,7 +965,7 @@ class plnorm_ztrunc_gen(rv_discrete_meco):
 
         vals = np.arange(1, upper + 1)
         full_pmf = self.pmf(vals, mu, sigma)
-        mean, var = mean_var(vals, full_pmf)
+        mean, var = _mean_var(vals, full_pmf)
 
         return mean, var, None, None
 
@@ -966,6 +987,7 @@ def plognorm_intg(x, mu, sigma):
     return norm * intg
 
 plognorm_intg_vec = np.vectorize(plognorm_intg)
+
 
 
 #
@@ -1193,7 +1215,49 @@ class lognorm_gen(rv_continuous_meco):
 lognorm = lognorm_gen(name="lognorm", shapes="mu, sigma")
 
 
-def mean_var(vals, pmf):
+@doc_sub(_doc_make_rank)
+def _make_rank(dist_obj, n, mu, sigma, crit=0.5, upper=10000, xtol=1):
+    """
+    Make rank distribution using both ppf and brute force.
+
+    Setting crit = 1 is equivalent to just using the ppf
+
+    Parameters
+    ----------
+    {0}
+
+    """
+    qs = (np.arange(1, n + 1) - 0.5) / n
+    rank = np.empty(len(qs))
+
+    brute_ppf = lambda val, prob: prob - dist_obj.cdf(val, mu, sigma)
+
+    qs_less = qs <= crit
+    ind = np.sum(qs_less)
+
+    # Use ppf if qs are below crit
+    rank[qs_less] = dist_obj.ppf(qs[qs_less], mu, sigma)
+
+    # Use brute force if they are above
+    for i, tq in enumerate(qs[~qs_less]):
+
+        j = ind + i
+        try:
+            # TODO: Use an adaptable lower bound to increase speed
+            rank[j] = np.abs(np.ceil(optim.brentq(brute_ppf, -1, upper,
+                                        args=(tq,), xtol=xtol)))
+
+        except ValueError:
+
+            # If it is above the upper bound set all remaining values
+            # to the previous value
+            rank[j:] = np.repeat(rank[j - 1], len(rank[j:]))
+            break
+
+    return rank
+
+
+def _mean_var(vals, pmf):
     """
     Calculates the mean and variance from vals and pmf
 
@@ -1216,46 +1280,3 @@ def mean_var(vals, pmf):
     return mean, var
 
 
-def make_rank(pmf, n, min_supp=1):
-    """
-    Convert any pmf into a rank curve for S species using cumulative
-    distribution function.
-
-    Parameters
-    ----------
-    pmf : ndarray
-        Probability of observing a species from 1 to length pmf individs.
-    n : int
-        Total number of samples
-    min_supp : int
-        The minimum support of the distribution. Often either 1 or 0.
-
-    Returns
-    -------
-    ndarray
-        1D array of predicted ranks
-
-    Notes
-    -----
-    Function actually implements (philosophically) a step quantile function.
-    Use if ppf in rv_discrete_meco is too slow
-
-    """
-
-    pmf = pmf / np.sum(pmf)  # Ensure distribution is normalized
-
-    points = np.arange(1 / (2 * n), 1, 1 / n)
-    counts = np.zeros(n)
-
-    if min_supp == 1:
-        pmf = np.array([0] + list(pmf)) # Add 0 to start of pmf
-    cum_pmf = np.cumsum(pmf)
-
-    for cutoff in cum_pmf:
-        greater_thans = (points >= cutoff)
-        counts[greater_thans] += 1
-
-        if not greater_thans.any():  # If no greater thans, done with samples
-            break
-
-    return counts
