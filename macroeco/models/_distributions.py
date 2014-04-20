@@ -846,7 +846,7 @@ class plnorm_gen(rv_discrete_meco):
 plnorm = plnorm_gen(name='plnorm', shapes='mu,sigma')
 
 
-class plnorm_lowtrunc_gen(rv_discrete_meco):
+class plnorm_ztrunc_gen(rv_discrete_meco):
     r"""
     Zero-truncated poisson lognormal random variable.
 
@@ -945,8 +945,9 @@ class plnorm_lowtrunc_gen(rv_discrete_meco):
         return mean, var, None, None
 
 
-plnorm_lowtrunc = plnorm_lowtrunc_gen(name="plnorm_lowtrunc",
-        shapes='mu,sigma')
+plnorm_ztrunc = plnorm_ztrunc_gen(name="plnorm_ztrunc",
+        shapes='mu, sigma')
+
 
 def plognorm_intg(x, mu, sigma):
     # Integral for plognorm

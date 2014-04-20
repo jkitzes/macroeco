@@ -34,12 +34,12 @@ Discrete distributions
    cnbinom
    logser_uptrunc
    plnorm
-   plnorm_lowtrunc
+   plnorm_ztrunc
 
 """
 
 from _distributions import (geom, geom_uptrunc, nbinom, cnbinom,
-                                 logser_uptrunc, plnorm, plnorm_lowtrunc,
+                                 logser_uptrunc, plnorm, plnorm_ztrunc,
                                  expon, expon_uptrunc, lognorm)
 
 from ._curves import (power_law,
