@@ -10,14 +10,16 @@
 #
 # All configuration values have a default; values that are commented out
 # serve to show the default.
-
-import sys, os
-
+#
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath('..'))
 #sys.path.insert(0, os.path.abspath('_ext/numpydoc'))
+
+import sys
+import os
+from macroeco import __version__
 
 # -- General configuration -----------------------------------------------------
 
@@ -49,7 +51,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'macroeco'
-copyright = u'2013-2014, Justin Kitzes and Mark Wilber'
+# copyright = u'2013-2014, Justin Kitzes and Mark Wilber'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -94,6 +96,7 @@ pygments_style = 'sphinx'
 # A list of ignored prefixes for module index sorting.
 #modindex_common_prefix = []
 
+# Mock objects that RTC can't build/import
 class Mock(object):
 
     __all__ = []
@@ -122,10 +125,8 @@ for mod_name in MOCK_MODULES:
 
 # -- Options for HTML output ---------------------------------------------------
 
-# on_rtd is whether we are on readthedocs.org
-import os
+# Use local RTD theme if building locally
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
-
 if not on_rtd:  # only import and set the theme if we're building docs locally
     import sphinx_rtd_theme
     html_theme = 'sphinx_rtd_theme'
@@ -229,7 +230,7 @@ latex_elements = {
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'macroeco.tex', u'macroeco Documentation',
+  ('index', 'macroeco.tex', u'Macroeco',
    u'Justin Kitzes and Mark Wilber', 'manual'),
 ]
 
@@ -259,7 +260,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'macroeco', u'macroeco Documentation',
+    ('index', 'macroeco', u'Macroeco',
      [u'Justin Kitzes and Mark Wilber'], 1)
 ]
 
@@ -273,9 +274,9 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'macroeco', u'macroeco Documentation',
+  ('index', 'macroeco', u'Macroeco',
    u'Justin Kitzes and Mark Wilber', 'macroeco',
-   'One line description of project.',
+   'Ecological pattern analysis in Python',
    'Miscellaneous'),
 ]
 
