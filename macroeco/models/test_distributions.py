@@ -436,14 +436,14 @@ class TestPlnorm(TestCase):
         pass
 
 
-class TestPlnormLowTrunc(TestCase):
+class TestPlnormZtrunc(TestCase):
 
     def test_pmf(self):
 
         # Test against macroeco_distributions:
         # pln.pmf([0, 50, 1000], 2.34, 5, 1)
         md_res = np.array([0, 2.12916164e-03, 7.36783061e-05])
-        test = plnorm_lowtrunc.pmf([0, 50, 1000], 2.34, 5)
+        test = plnorm_ztrunc.pmf([0, 50, 1000], 2.34, 5)
 
         assert_array_almost_equal(md_res, test)
 
@@ -453,7 +453,7 @@ class TestPlnormLowTrunc(TestCase):
         # ppolono(c(1,2,3), 4.3, 100) / (1 - ppolono(0, 4.3, 100))
         r_res = [0.007670365, 0.011507417, 0.014065948]
 
-        test = plnorm_lowtrunc.cdf(np.arange(1, 4), 4.3, 100)
+        test = plnorm_ztrunc.cdf(np.arange(1, 4), 4.3, 100)
         assert_array_almost_equal(r_res, test)
 
     def test_fit_mle(self):
@@ -462,7 +462,7 @@ class TestPlnormLowTrunc(TestCase):
 
         # macroeco_distributions fit: pln_solver(data)
         md_fits = (1.068510556981163, 1.8800439687956865)
-        test = plnorm_lowtrunc.fit_mle(data)
+        test = plnorm_ztrunc.fit_mle(data)
         assert_array_almost_equal(test, md_fits, decimal=4)
 
         # R poilog: poilogMLE(data)
