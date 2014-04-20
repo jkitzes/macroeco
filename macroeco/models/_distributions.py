@@ -925,13 +925,17 @@ class plnorm_ztrunc_gen(rv_discrete_meco):
 
     def _cdf(self, x, mu, sigma):
 
+        # Format input
         x = np.array(x)
         mu = np.atleast_1d(mu)
         sigma = np.atleast_1d(sigma)
 
+        # Calculate cdf from plnorm_gen
         norm = 1 - plognorm_intg_vec(0, mu[0], sigma[0])
         cdf_vals = (plnorm.cdf(x, mu, sigma) -
                                         plnorm.cdf(0, mu[0], sigma[0])) / norm
+
+        # Values less than one have zero probability
         cdf_vals[x < 1] = 0
 
         return cdf_vals
@@ -1139,9 +1143,37 @@ class lognorm_gen(rv_continuous_meco):
 
         else:
             mean = np.mean(data)
+
+            # MLE fxn to be optmimized
+            mle = lambda sigma, x, mean: -1 *\
+                                    np.sum(self._pdf_w_mean(x, mean, sigma))
+
             sigma = optim.fmin(mle, np.array([np.std(np.log(data), ddof=1)]),
                                             args=(data, mean), disp=0)[0]
+
             return self.translate_args(mean, sigma)
+
+    def _pdf_w_mean(self, x, mean, sigma):
+        """
+        Calculates the pdf of a lognormal distribution with parameters mean
+        and sigma
+
+        Parameters
+        ----------
+        mean : float or ndarray
+            Mean of the lognormal distribution
+        sigma : float or ndarray
+            Sigma parameter of the lognormal distribution
+
+        Returns
+        -------
+        : float or ndarray
+            pdf of x
+        """
+
+        # Lognorm pmf with mean for optimization
+        mu, sigma = self.translate_args(mean, sigma)
+        return self.logpdf(x, mu, sigma)
 
     def _argcheck(self, mu, sigma):
         return True
@@ -1161,20 +1193,23 @@ class lognorm_gen(rv_continuous_meco):
 lognorm = lognorm_gen(name="lognorm", shapes="mu, sigma")
 
 
-def tpdf(x, mean, sigma):
-    # Lognorm pmf with mean for optimization
-    mu, sigma = lognorm.translate_args(mean, sigma)
-    return lognorm.logpdf(x, mu, sigma)
-
-
-def mle(sigma, x, mean):
-    # MLE function for lognormal
-    return -1 * np.sum(tpdf(x, mean, sigma))
-
-
-
 def mean_var(vals, pmf):
-    # Calculates the mean and variance from vals and pmf
+    """
+    Calculates the mean and variance from vals and pmf
+
+    Parameters
+    ----------
+    vals : ndarray
+        Value range for a distribution
+    pmf : ndarray
+        pmf values corresponding with vals
+
+    Returns
+    -------
+    : tuple
+        (mean, variance)
+
+    """
 
     mean = np.sum(vals * pmf)
     var = np.sum(vals ** 2 * pmf) - mean ** 2
