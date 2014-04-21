@@ -61,7 +61,6 @@ def data_read_write(data_path_in, data_path_out, format_type, **kwargs):
     form_data.to_csv(data_path_out, index=False)
 
 
-
 def format_dense(base_data, non_label_cols, **kwargs):
     """
     Formats dense data type to stacked data type.
@@ -74,8 +73,8 @@ def format_dense(base_data, non_label_cols, **kwargs):
         The dense data
     non_label_cols : list
         A list of columns in the data that are not label columns
-    item_col : str
-        Name of the item column in the formatted data. Default, "label"
+    label_col : str
+        Name of the label column in the formatted data. Default, "label"
     count_col : str
         Name of the count column in the formatted data. Default, "count"
     nan_to_zero : bool
@@ -136,10 +135,12 @@ def format_dense(base_data, non_label_cols, **kwargs):
     if kwargs['nan_to_zero']:
         ind = np.isnan(columnar_data[kwargs['count_col']])
         columnar_data[kwargs['count_col']][ind] = 0
+        columnar_data.reset_index(inplace=True, drop=True)
 
     # Drop nans?
     if kwargs['drop_na']:
         columnar_data = columnar_data.dropna(how="any")
+        columnar_data.reset_index(inplace=True, drop=True)
 
     return columnar_data
 
