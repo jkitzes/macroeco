@@ -1,26 +1,32 @@
 [Description]
 name = Anzo Borrego
 author = Mary Ellen Harte and John Harte
-description = Vegetation census conducted at Anza-Borrego Desert State Park. Site in Indian Valley at N 32' 52.091", W 116' 14.447". Elevation 1195 feet.
+description = Vegetation census conducted at Anza-Borrego Desert State Park. Site in Indian Valley at N 32' 52.091", W 116' 14.447". Elevation 1195 feet. Census was conducted on a 4 m x 4 m grid, with 16 grid cells each 1 m2 in area.
 citation = Unpublished
 
 datapath = ANBO.csv
 cols = spp_col:spp
 
 [year]
+description = Year of census
 
 [cell]
+description = Unique cell identifier, from 0 to 15 (total of 16 cells)
 
 [row]
+description = Row of cell in gridded plot
 min = 0
 max = 3
 step = 1
 
 [column]
+description = Column of cell in gridded plot
 min = 0
 max = 3
 step = 1
 
 [spp]
+description = Name of species
 
 [count]
+description = Number of individuals of a species in a cell
