@@ -1,5 +1,5 @@
 # -*- mode: python -*-
-a = Analysis(['desktop.py'],
+a = Analysis(['mecodesktop.py'],
              pathex=['/Users/jkitzes/Projects/macroeco'],
              hiddenimports=['scipy.special._ufuncs_cxx'],
              hookspath=None,
@@ -8,7 +8,7 @@ pyz = PYZ(a.pure)
 exe = EXE(pyz,
           a.scripts,
           exclude_binaries=True,
-          name='desktop',
+          name='mecodesktop',
           debug=False,
           strip=None,
           upx=True,
@@ -21,8 +21,8 @@ a.binaries + [('libwx_osx_cocoau-3.0.0.0.0.dylib',
                a.datas,
                strip=None,
                upx=True,
-               name='desktop')
+               name='mecodesktop')
 app = BUNDLE(coll,
-             name='desktop.app',
-             icon=None)
+             name='Macroeco Desktop.app',
+             icon='icon.icns')
 
