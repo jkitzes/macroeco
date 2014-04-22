@@ -93,8 +93,7 @@ class Patch(object):
     table : dataframe
         Table of census data recorded in patch
     meta : ConfigParser obj
-        Object similar to dict describing data table, loaded from metadata
-        file at metadata_path and processed by subset
+        Dict-like metadata, loaded from metadata_path and processed by subset
     subset : str
         Subset string passed as parameter
 
@@ -134,7 +133,7 @@ class Patch(object):
             self.table = None
         else:
             self.meta = ConfigParser()
-            self.meta.read(metadata_path)
+            self.meta.read(os.path.expanduser(metadata_path))
             self.subset = subset
             self.table = self._load_table(metadata_path,
                                           self.meta['Description']['datapath'])
@@ -158,7 +157,7 @@ class Patch(object):
 
         """
 
-        metadata_dir = os.path.dirname(metadata_path)
+        metadata_dir = os.path.dirname(os.path.expanduser(metadata_path))
         data_path = os.path.normpath(os.path.join(metadata_dir, data_path))
 
         extension = data_path.split('.')[-1]
