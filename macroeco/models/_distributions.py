@@ -654,7 +654,10 @@ class logser_uptrunc_gen(rv_discrete_meco):
         return _trunc_logser_solver(length, b), b
 
     def _pmf(self, x, p, b):
+
         x = np.array(x)
+        p = np.atleast_1d(p)
+        b = np.atleast_1d(b)
 
         if p[0] > 0:
             pmf = stats.logser.pmf(x, p) / stats.logser.cdf(b, p)
@@ -666,7 +669,11 @@ class logser_uptrunc_gen(rv_discrete_meco):
         return pmf
 
     def _cdf(self, x, p, b):
+
         x = np.array(x)
+        p = np.atleast_1d(p)
+        b = np.atleast_1d(b)
+
         if p[0] < 1:
             return stats.logser.cdf(x, p) / stats.logser.cdf(b, p)
         else:
