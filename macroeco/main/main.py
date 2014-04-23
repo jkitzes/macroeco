@@ -17,7 +17,7 @@ import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-from .. __init__ import __version__
+#from .. __init__ import __version__
 from .. import empirical as emp
 from .. import models as mod
 from .. import compare as comp
@@ -46,7 +46,7 @@ def main(param_path='parameters.txt'):
 
     # Start logging
     log = misc.setup_log(base_options['results_dir'])
-    log.info('Running macroeco v%s' % __version__)
+    log.info('Running macroeco') # v%s' % __version__)
     log.info('Parameters file at %s' % os.path.abspath(param_path))
     log.info('Starting analysis')
 
