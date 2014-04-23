@@ -3,9 +3,7 @@
 Main (:mod:`macroeco.main`)
 ===========================
 
-This module contains functions that execute macroecological analyses specified
-by user-generated `parameters.txt` configuration files. Instructions for
-creating parameter files can be found here.
+This module contains the functions that make up MacroecoDesktop.
 
 .. autosummary::
    :toctree: generated/

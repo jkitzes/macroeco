@@ -168,6 +168,7 @@ def _call_analysis_function(options, module):
     """
 
     args, kwargs = _get_args_kwargs(options, module)
+    print args, kwargs
     return eval("%s.%s(*args, **kwargs)" % (module, options['analysis']))
 
 
@@ -179,6 +180,7 @@ def _get_args_kwargs(options, module):
     if module == 'emp':
         options = _emp_extra_options(options)
     arg_names, kw_names = _arg_kwarg_lists(module, options['analysis'])
+    print kw_names
 
     # Create list of values for arg_names
     args = []
@@ -260,6 +262,8 @@ def _arg_kwarg_lists(module, analysis):
         if obj_meth[1] not in ['fit_mle', 'translate_args']:
             arg_names += eval(module + '.' + obj_meth[0] + '.' +
                               "shapes.replace(' ','').split(',')")
+        if obj_meth[1] == 'rvs':  # Inspection for size not working
+            kw_names.append('size')
     except:
         pass
 

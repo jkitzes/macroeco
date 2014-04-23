@@ -36,22 +36,31 @@ metric_return = \
         second element is a dataframe giving the result."""
 
 cols_note = \
-    """The parameter ``cols`` is a dictionary with keys for four special
-    columns and values giving the column name in the patch data table
-    associated with each special column.
+    """The parameter ``cols`` is a string describing which column in the data
+    table should be used for which "special columns" in analysis. The five
+    possible special columns are
 
     - spp_col - Unique species identifiers
     - count_col - Number of individuals at a location
-    - energy_col - Energy of individuals
-    - mass_cal - Mass of individuals
+    - x_col - x coordinate of location
+    - y_col - y coordinate of location
+    - energy_col - Energetic requirements of individual(s) at a location
 
-    Only spp_col is always mandatory. Note that the value of spp_col may be
-    set to a columm in the data table giving the genus, family, functional
-    group, etc., which allows for analysis of this metric by those groups.
-    count_col is used when multiple individuals of a species may be found at
-    a single recorded location, as is the case in gridded censuses where all
-    individuals in a quadrat are "assigned" to a single point. energy_col
-    and mass_col are used for energy-based metrics."""
+    For example, setting ``cols`` to ``spp_col: spp: count_col: number`` will
+    use the column named "spp" in the data table to represent the unique
+    species identifiers, and the column "number" in the data table to represent
+    the count of individuals at a point.
+
+    Different special columns are required for different analyses. count_col is
+    used when multiple individuals of a species may be found at a single
+    recorded location, as is the case in gridded censuses where all individuals
+    in a quadrat are "assigned" to a single point. If count_col is not
+    specified, each record in the data table will be presumed to represent a
+    single individual (i.e., a count of 1).
+
+    Note that the value of spp_col may be set to a columm in the data table
+    giving the genus, family, functional group, etc., which allows for analysis
+    of this metric by those groups. """
 
 splits_note = \
     """The parameter ``splits`` is a semicolon-separated string in the form of

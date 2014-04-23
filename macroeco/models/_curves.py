@@ -236,14 +236,10 @@ generic_sar = generic_sar_gen(name='generic_sar', parameters='')
 
 class mete_sar_gen(curve):
     """
-    The SAR predicted by the Maximum Entropy Theory of Ecology
+    A SAR/EAR predicted by the Maximum Entropy Theory of Ecology
 
-    .. math::
-
-       S = c x^z
-
-    The generic SAR may be used either for downscaling, when values of A are
-    less than A0, or upscaling, when values of A are greater than A0.
+    The METE SAR and EAR may be used either for downscaling, when values of A
+    are less than A0, or upscaling, when values of A are greater than A0.
     Downscaling creates the traditional SAR known to ecologists, while
     upscaling is useful for estimating large-scale species richness from small-
     scale plot data.
@@ -251,8 +247,8 @@ class mete_sar_gen(curve):
     A keyword argument iterative is available (default is False). If True, the
     SAR is calculated at successive A values, with the result at each value of
     A used as the base values of S and N for the subsequent calculation. The
-    iterative form was used in is the form used in Harte et al [#]_, although
-    note that the implementation here uses a different internal equation.
+    iterative form was used in Harte et al [#]_, although note that the
+    implementation here uses a different internal equation.
 
     Methods
     -------
@@ -375,6 +371,8 @@ class mete_sar_gen(curve):
         Method does not use least squares to fit, but rather parameterizes SAD
         and SSAD mdoels based on SAR output. Name ``fit_lsq`` is retained for
         consistency with other curves.
+
+        The first row of the empirical dataframe must be for an area A = A0.
 
         """
         # Just return S0 and N0 at largest scale, which is first row of df

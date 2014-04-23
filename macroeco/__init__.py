@@ -19,10 +19,9 @@ refer to the Using macroeco tutorial and the Reference guide.
 .. toctree::
    :maxdepth: 2
 
+   about
    tutorials
    reference
-   about
-
 
 """
 
