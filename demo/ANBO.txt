@@ -5,7 +5,7 @@ description = Vegetation census conducted at Anza-Borrego Desert State Park. Sit
 citation = Unpublished
 
 datapath = ANBO.csv
-cols = spp_col:spp
+cols = spp_col:spp; count_col: count; x_col: row; y_col: column
 
 [year]
 description = Year of census
