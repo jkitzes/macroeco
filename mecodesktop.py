@@ -146,6 +146,7 @@ class MainWindow(wx.Frame):
         if self.askUserForFilename(style=wx.SAVE,
                                    **self.defaultFileDialogOptions()):
             self.OnSave(e, new_file=True)
+            self.save_button.Enable(True)
 
     def OnSave(self, event, new_file=False):
         f = open(os.path.join(self.dirname, self.filename), 'w')
