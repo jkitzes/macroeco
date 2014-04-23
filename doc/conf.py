@@ -17,10 +17,9 @@
 
 import sys
 import os
-from macroeco import __version__
 
 sys.path.insert(0, os.path.abspath('..'))
-#sys.path.insert(0, os.path.abspath('_ext/numpydoc'))
+from macroeco import __version__
 
 # -- General configuration -----------------------------------------------------
 
@@ -52,7 +51,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'macroeco'
-# copyright = u'2013-2014, Justin Kitzes and Mark Wilber'
+copyright = u'Justin Kitzes and Mark Wilber'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
