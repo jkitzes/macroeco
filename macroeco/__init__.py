@@ -4,39 +4,25 @@ Macroeco: Ecological pattern analysis in Python
 ===============================================
 
 Macroeco provides a comprehensive set of functions for analyzing empirical
-patterns in data, predicting patterns using theory and models, and comparing
-empirical results to theory. Many major macroecological patterns can be
-analyzed using this package, including the species abundance distribution, the
-species and endemics area relationships, several measures of beta diversity,
-and many others.
+patterns in ecological data, predicting patterns using theory and models, and
+comparing empirical patterns to theory.  Many major macroecological patterns
+can be analyzed using this package, including the species abundance
+distribution, the species and endemics area relationships, several measures of
+beta diversity, and many others.
 
-Extensive documentation for macroeco, including tutorials and a reference
-guide, are available at http://macroeco.org.
+Macroeco can be used either as a scientific python Package or through a high-
+level interface called MacroecoDesktop. Users new to Macroeco should begin by
+reviewing all of the tutorials found below. Experienced Python programmers who
+wish to use the ``macroeco`` Python package can ``pip install macroeco`` and
+refer to the Using macroeco tutorial and the Reference guide.
 
-The package is organized into five submodules.
+.. toctree::
+   :maxdepth: 2
 
-Empirical provides a Patch class for reading data and metadata from an
-empirical census and functions that calculate empirical macroecological metrics
-based on that data.
+   tutorials
+   reference
+   about
 
-Models provides a set of distributions and curves that have been proposed by
-basic theory to describe macroecological metrics.
-
-Compare provides functions for comparing the empirical and modeled results.
-
-Misc provides a set of miscellanous functions, including several that aid in
-formatting census data for use by functions in the empirical module.
-
-Main provides a programmatic interface to this package, known as Macroeco
-Desktop, that allows a user to specify all of the parameters for an analysis in
-a single parameters file, which is then executed, and results saved, with no
-additional intervention needed.
-
-Macroeco was developed at the University of California, Berkeley, by Justin
-Kitzes and Mark Wilber. Additional contributors include Chloe Lewis and Ethan
-White. The development of macroeco has been supported by the National Science
-Foundataion, the Moore Foundation, and the Berkeley Institute for Global Change
-Biology.
 
 """
 
