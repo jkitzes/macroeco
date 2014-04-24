@@ -38,7 +38,7 @@ The lines beginning with the ``#`` symbol are comments. They are purely for info
     analysis = ssad
 
     metadata = ANBO.txt
-    divs = 4,4;
+    splits = row: 4; column: 4
 
     # Species area relationship
     [SAR ANBO]
