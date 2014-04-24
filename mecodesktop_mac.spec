@@ -23,6 +23,6 @@ a.binaries + [('libwx_osx_cocoau-3.0.0.0.0.dylib',
                upx=True,
                name='mecodesktop')
 app = BUNDLE(coll,
-             name='Macroeco Desktop.app',
+             name='MacroecoDesktop.app',
              icon='icon.icns')
 
