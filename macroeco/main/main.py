@@ -168,7 +168,6 @@ def _call_analysis_function(options, module):
     """
 
     args, kwargs = _get_args_kwargs(options, module)
-    print args, kwargs
     return eval("%s.%s(*args, **kwargs)" % (module, options['analysis']))
 
 
@@ -180,7 +179,6 @@ def _get_args_kwargs(options, module):
     if module == 'emp':
         options = _emp_extra_options(options)
     arg_names, kw_names = _arg_kwarg_lists(module, options['analysis'])
-    print kw_names
 
     # Create list of values for arg_names
     args = []
