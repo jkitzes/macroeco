@@ -712,6 +712,11 @@ def o_ring(patch, cols, splits, spp, bin_edges, density=True):
 
     """
 
+    try:
+        geo.box(0, 0, 1, 1)
+    except:
+        raise ImportError, "O-ring analysis requires shapely package"
+
     (spp_col, count_col, x_col, y_col), patch = \
         _get_cols(['spp_col', 'count_col', 'x_col', 'y_col'], cols, patch)
 
