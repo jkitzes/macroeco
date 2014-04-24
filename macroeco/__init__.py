@@ -12,16 +12,16 @@ beta diversity, and many others.
 
 Macroeco can be used either as a scientific python Package or through a high-
 level interface called MacroecoDesktop. Users new to Macroeco should begin by
-reviewing all of the tutorials found below. Experienced Python programmers who
-wish to use the ``macroeco`` Python package can ``pip install macroeco`` and
-refer to the Using macroeco tutorial and the Reference guide.
+reviewing the tutorials found below. Experienced Python programmers who wish to
+use the ``macroeco`` Python package can ``pip install macroeco`` and refer to
+the :ref:`using-macroeco` tutorial and the :ref:`reference` guide.
 
 .. toctree::
    :maxdepth: 2
 
-   about
    tutorials
    reference
+   about
 
 """
 
