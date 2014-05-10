@@ -445,7 +445,7 @@ def sar(patch, cols, splits, divs, ear=False):
 
     Returns
     -------
-    {1} Result has three columns, div, x, and y, that give the ID for the
+    {1} Result has 5 columns; div, x, and y; that give the ID for the
     division given as an argument, fractional area, and the mean species
     richness at that division.
 
