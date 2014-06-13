@@ -785,7 +785,10 @@ def o_ring(patch, cols, splits, spp, bin_edges, density=True):
                                    circ.boundary.length)
 
             hist = hist / corr_factor  # Edge corrected hist
-            hist[corr_factor == 0] = 0  # If corr_factor 0, hist should be 0
+
+            # If none of ring inside plot, ignore by setting hist and area 0
+            hist[corr_factor == 0] = 0
+            torus_areas[corr_factor == 0] = 0
 
             hists += hist
             areas += torus_areas
