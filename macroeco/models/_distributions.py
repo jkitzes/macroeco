@@ -413,18 +413,17 @@ class nbinom_gen(rv_discrete_meco):
         return mu, k_agg
 
     @inherit_docstring_from(rv_discrete_meco)
-    def fit_mle(self, data, k_range=(0.1, 100, 0.1)):
+    def fit_mle(self, data, k_array=np.arange(0.1, 100, 0.1)):
         """%(super)s
 
-        In addition to data, gives an optional keyword argument k_range
-        contains a tuple of the start, stop, and step values to search for
-        k_agg. default is ``k_range=(0.1,100,0.1)``. A brute force search is
-        then used to find the parameter k_agg.
+        In addition to data, gives an optional keyword argument k_array
+        containing the values to search for k_agg. A brute force search is then
+        used to find the parameter k_agg.
 
         """
         # todo: check and mention in docstring biases of mle for k_agg
         mu = np.mean(data)
-        return mu, _solve_k_from_mu(data, k_range, nbinom_nll, mu)
+        return mu, _solve_k_from_mu(data, k_array, nbinom_nll, mu)
 
     def _get_p_from_mu(self, mu, k_agg):
         return k_agg / (k_agg + mu)
@@ -496,7 +495,7 @@ class cnbinom_gen(rv_discrete_meco):
     -------
     translate_args(mu, k_agg, b)
         not used, returns mu, k_agg, and b.
-    fit_mle(data, k_range=(0.1,100,0.1))
+    fit_mle(data, k_array=np.arange(0.1,100,0.1))
         ml estimate of shape parameters mu and k_agg given data
     %(before_notes)s
     mu : float
@@ -522,7 +521,7 @@ class cnbinom_gen(rv_discrete_meco):
         return mu, k_agg, b
 
     @inherit_docstring_from(rv_discrete_meco)
-    def fit_mle(self, data, b=None, k_range=(0.1, 100, 0.1)):
+    def fit_mle(self, data, b=None, k_array=np.arange(0.1, 100, 0.1)):
 
         data = np.array(data)
         mu = np.mean(data)
@@ -530,7 +529,7 @@ class cnbinom_gen(rv_discrete_meco):
         if not b:
             b = np.sum(data)
 
-        return mu, _solve_k_from_mu(data, k_range, _cnbinom_nll, mu, b), b
+        return mu, _solve_k_from_mu(data, k_array, _cnbinom_nll, mu, b), b
 
     def _pmf(self, x, mu, k_agg, b):
         return np.exp(self._logpmf(x, mu, k_agg, b))
@@ -571,7 +570,7 @@ def _ln_choose(n, k_agg):
     return gammaln(n + 1) - (gammaln(k_agg + 1) + gammaln(n - k_agg + 1))
 
 
-def _solve_k_from_mu(data, k_range, nll, *args):
+def _solve_k_from_mu(data, k_array, nll, *args):
     """
     For given args, return k_agg from searching some k_range.
 
@@ -592,7 +591,6 @@ def _solve_k_from_mu(data, k_range, nll, *args):
     # TODO: See if a root finder like fminbound would work with Decimal used in
     # logpmf method (will this work with arrays?)
 
-    k_array = np.arange(*k_range)
     nll_array = np.zeros(len(k_array))
 
     for i in range(len(k_array)):
