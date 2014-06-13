@@ -372,6 +372,65 @@ def _geom_solve_p_from_mu(mu, b):
 
 _geom_solve_p_from_mu_vect = np.vectorize(_geom_solve_p_from_mu)
 
+
+class dgamma_gen(rv_discrete_meco):
+    r"""
+    A discrete gamma random variable
+
+    From Frank 2011
+    """
+
+    @inherit_docstring_from(rv_discrete_meco)
+    def translate_args(self, alpha, theta):
+        return alpha, theta
+
+    @inherit_docstring_from(rv_discrete_meco)
+    def fit_mle(self, data):
+
+        alpha0 = 1
+        theta0 = .9
+        b = np.sum(data)
+
+        def mle(params):
+            return -np.sum(np.log(self.pmf(data, params[0], params[1], b)))
+
+        # Bounded fmin?
+        alpha, theta = optim.fmin(mle, x0=[alpha0, theta0], disp=0)
+
+        return alpha, theta, b
+
+    def _pmf(self, x, alpha, theta, b):
+
+        #b = 1e5  # Upper cutoff
+        eq = lambda val, talpha, ttheta: val**(talpha - 1) * ttheta**val
+
+        norm = np.sum(eq(np.arange(1, b[0] + 1), alpha[0], theta[0]))
+
+        return eq(x, alpha, theta) / norm
+
+    def _cdf(self, x, alpha, theta, b):
+
+        # Repeating code from plnorm...can we make this more generic?
+        alpha = np.atleast_1d(alpha)
+        theta = np.atleast_1d(theta)
+        b = np.atleast_1d(b)
+        x = np.atleast_1d(x)
+
+        max_x = np.max(x)
+        pmf_list = self.pmf(np.arange(np.int(max_x) + 1), alpha[0], theta[0],
+            b[0])
+        full_cdf = np.cumsum(pmf_list)
+
+        cdf = np.array([full_cdf[tx] for tx in x])
+
+        return cdf
+
+    def _argcheck(self, alpha, theta, b):
+        return True
+
+dgamma = dgamma_gen(name='dgamma', shapes='alpha, theta, b')
+
+
 class nbinom_gen(rv_discrete_meco):
     r"""
     A negative binomial discrete random variable.
