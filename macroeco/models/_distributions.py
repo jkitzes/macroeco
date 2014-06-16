@@ -662,6 +662,14 @@ def _solve_k_from_mu(data, k_range, nll, *args):
 
     return k_array[min_nll_idx]
 
+class logser_gen(rv_discrete_meco):
+    """
+    Logseries random variable
+    """
+
+    def _pmf(x, p):
+        pass
+
 
 class logser_uptrunc_gen(rv_discrete_meco):
     r"""
