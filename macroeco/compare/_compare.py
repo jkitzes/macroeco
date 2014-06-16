@@ -293,3 +293,33 @@ def preston_bin(data, max_num):
 
     hist_data = np.histogram(data, bins=boundaries)
     return hist_data
+
+
+def pueyo_bins(data):
+    """
+    Binning method based on Pueyo (2006)
+
+    Parameters
+    ----------
+    data : array-like data
+        Data to be binned
+
+    Returns
+    -------
+    : tuple of arrays
+        binned data, empirical probability density
+
+    Notes
+    -----
+    Bins the data in into bins of lenth 2**i, i=0, 1, 2 ...
+    The empirical probability densities will sum to 1 if multiplied by the
+    respective 2**i.
+
+    """
+    log_ub = np.ceil(np.log2(np.max(data)))
+    bins = 2**np.arange(log_ub + 1)
+    binned_data = np.histogram(data, bins=bins)[0]
+    epdf = (1 / bins[:-1]) * binned_data / len(data)
+    return binned_data, epdf
+
+
