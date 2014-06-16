@@ -401,12 +401,18 @@ class dgamma_gen(rv_discrete_meco):
 
     def _pmf(self, x, alpha, theta, b):
 
-        #b = 1e5  # Upper cutoff
+        alpha = np.atleast_1d(alpha)
+        theta = np.atleast_1d(theta)
+        b = np.atleast_1d(b)
+        x = np.atleast_1d(x)
+
         eq = lambda val, talpha, ttheta: val**(talpha - 1) * ttheta**val
 
         norm = np.sum(eq(np.arange(1, b[0] + 1), alpha[0], theta[0]))
 
-        return eq(x, alpha, theta) / norm
+        pmf = eq(x, alpha, theta) / norm
+        pmf[x > b] = 0
+        return pmf
 
     def _cdf(self, x, alpha, theta, b):
 
