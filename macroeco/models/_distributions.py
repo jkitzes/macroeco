@@ -417,11 +417,11 @@ class dgamma_gen(rv_discrete_meco):
         x = np.atleast_1d(x)
 
         max_x = np.max(x)
-        pmf_list = self.pmf(np.arange(np.int(max_x) + 1), alpha[0], theta[0],
+        pmf_list = self.pmf(np.arange(1, np.int(max_x) + 1), alpha[0], theta[0],
             b[0])
         full_cdf = np.cumsum(pmf_list)
 
-        cdf = np.array([full_cdf[tx] for tx in x])
+        cdf = np.array([full_cdf[tx - 1] for tx in x])
 
         return cdf
 
@@ -703,6 +703,10 @@ class logser_uptrunc_gen(rv_discrete_meco):
 
     @inherit_docstring_from(rv_discrete_meco)
     def fit_mle(self, data, b=None):
+        """%(super)s
+b : float
+    The upper bound of the distribution. If None, fixed at sum(data)
+        """
 
         data = np.array(data)
         length = len(data)
@@ -714,7 +718,7 @@ class logser_uptrunc_gen(rv_discrete_meco):
 
     def _pmf(self, x, p, b):
 
-        x = np.array(x)
+        x = np.atleast_1d(x)
         p = np.atleast_1d(p)
         b = np.atleast_1d(b)
 
@@ -729,7 +733,7 @@ class logser_uptrunc_gen(rv_discrete_meco):
 
     def _cdf(self, x, p, b):
 
-        x = np.array(x)
+        x = np.atleast_1d(x)
         p = np.atleast_1d(p)
         b = np.atleast_1d(b)
 
