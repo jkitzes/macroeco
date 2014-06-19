@@ -412,12 +412,13 @@ class dgamma_gen(rv_discrete_meco):
     def translate_args(self, alpha, theta):
         return alpha, theta
 
-
     @inherit_docstring_from(rv_discrete_meco)
-    def fit_mle(self, data, initial_guess=(1, .9), b=1e5):
+    def fit_mle(self, data):
 
-        alpha0 = initial_guess[0]
-        theta0 = initial_guess[1]
+        mu = np.mean(data)
+        var = np.var(data, ddof=1)
+        alpha0 = mu / var
+        theta0 = mu / alpha0
 
         def mle(params):
             return -np.sum(np.log(self.pmf(data, params[0], params[1])))
@@ -454,14 +455,14 @@ class dgamma_gen(rv_discrete_meco):
                         theta[0])
         full_cdf = np.cumsum(pmf_list)
 
-        cdf = np.array([full_cdf[tx - 1] if x != 0 else 0 for tx in x])
+        cdf = np.array([full_cdf[tx - 1] if tx != 0 else 0 for tx in x])
 
         return cdf
 
     def _argcheck(self, alpha, theta):
 
         # TODO: Can theta or alpha be 0 in the discrete version?
-        return (alpha > 0 and theta > 0)
+        return (theta > 0)
 
 dgamma = dgamma_gen(name='dgamma', shapes='alpha, theta')
 
