@@ -377,64 +377,93 @@ class dgamma_gen(rv_discrete_meco):
     r"""
     A discrete gamma random variable
 
-    From Frank 2011
+    .. math::
+
+       P(x) = k * x^(\alpha - 1) * e^{(-1 / \theta)*x}
+
+    for ``x >= 1``, ``\alpha > 0`` and ``\theta > 0``.
+    ``k`` is the normalizing constant.
+
+    Methods
+    -------
+    translate_args(alpha, theta)
+        not used, returns alpha and thet.
+    fit_mle(data)
+        ml estimate of shape parameters alpha and theta given data
+    %(before_notes)s
+    alpha : float
+        distribution parameter
+    theta : float
+        distribution parameter
+
+    Notes
+    -----
+    This parameterization of the discrete gamma was taken from [#]_.
+
+    References
+    ----------
+    .. [#]
+       Frank, F. (2011). Measurement scale in maximum entropy models of species
+       abundance. Journal of Evolutionary Biology, 24(3), 485-496
+
     """
 
     @inherit_docstring_from(rv_discrete_meco)
     def translate_args(self, alpha, theta):
         return alpha, theta
 
-    @inherit_docstring_from(rv_discrete_meco)
-    def fit_mle(self, data):
 
-        alpha0 = 1
-        theta0 = .9
-        b = np.sum(data)
+    @inherit_docstring_from(rv_discrete_meco)
+    def fit_mle(self, data, initial_guess=(1, .9), b=1e5):
+
+        alpha0 = initial_guess[0]
+        theta0 = initial_guess[1]
 
         def mle(params):
-            return -np.sum(np.log(self.pmf(data, params[0], params[1], b)))
+            return -np.sum(np.log(self.pmf(data, params[0], params[1])))
 
         # Bounded fmin?
         alpha, theta = optim.fmin(mle, x0=[alpha0, theta0], disp=0)
 
-        return alpha, theta, b
+        return alpha, theta
 
-    def _pmf(self, x, alpha, theta, b):
+    def _pmf(self, x, alpha, theta):
 
+        b = 1e5
         alpha = np.atleast_1d(alpha)
         theta = np.atleast_1d(theta)
         b = np.atleast_1d(b)
         x = np.atleast_1d(x)
 
-        eq = lambda val, talpha, ttheta: val**(talpha - 1) * ttheta**val
+        eq = lambda val, talpha, ttheta: val**(talpha - 1) * \
+                                        np.exp((-1 / ttheta)*val)
 
         norm = np.sum(eq(np.arange(1, b[0] + 1), alpha[0], theta[0]))
 
         pmf = eq(x, alpha, theta) / norm
-        pmf[x > b] = 0
         return pmf
 
-    def _cdf(self, x, alpha, theta, b):
+    def _cdf(self, x, alpha, theta):
 
-        # Repeating code from plnorm...can we make this more generic?
         alpha = np.atleast_1d(alpha)
         theta = np.atleast_1d(theta)
-        b = np.atleast_1d(b)
         x = np.atleast_1d(x)
 
         max_x = np.max(x)
-        pmf_list = self.pmf(np.arange(1, np.int(max_x) + 1), alpha[0], theta[0],
-            b[0])
+        pmf_list = self.pmf(np.arange(1, np.int(max_x) + 1), alpha[0],
+                        theta[0])
         full_cdf = np.cumsum(pmf_list)
 
-        cdf = np.array([full_cdf[tx - 1] for tx in x])
+        cdf = np.array([full_cdf[tx - 1] if x != 0 else 0 for tx in x])
 
         return cdf
 
-    def _argcheck(self, alpha, theta, b):
-        return True
+    def _argcheck(self, alpha, theta):
 
-dgamma = dgamma_gen(name='dgamma', shapes='alpha, theta, b')
+        # TODO: Can theta or alpha be 0 in the discrete version?
+        return (alpha > 0 and theta > 0)
+
+dgamma = dgamma_gen(name='dgamma', shapes='alpha, theta')
 
 
 class nbinom_gen(rv_discrete_meco):
@@ -661,14 +690,6 @@ def _solve_k_from_mu(data, k_range, nll, *args):
     min_nll_idx = np.argmin(nll_array)
 
     return k_array[min_nll_idx]
-
-class logser_gen(rv_discrete_meco):
-    """
-    Logseries random variable
-    """
-
-    def _pmf(x, p):
-        pass
 
 
 class logser_uptrunc_gen(rv_discrete_meco):
