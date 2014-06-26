@@ -67,7 +67,7 @@ class TestSAD(Patches):
     def test_simple_with_cols(self):
         # Specify count and spp_col here
         sad = emp.sad(self.pat1, self.cols1, None)
-        assert_equal(sad[0][1]['y'], [4,3])
+        assert_equal(sad[0][1]['y'], [4,4])
 
     def test_two_way_split(self):
         # Complete split generates 6 results
@@ -84,19 +84,18 @@ class TestSAD(Patches):
     def test_one_way_uneven_split(self):
         # 0.2 should fall in second division of y
         sad = emp.sad(self.pat1, self.cols1, 'y:2')
-        print sad
         assert_equal(len(sad), 2)
         assert_equal(sad[0][1]['spp'].values, ['a'])
         assert_equal(sad[0][1]['y'].values, [2])
         assert_equal(sad[1][1]['spp'].values, ['a','b'])
-        assert_equal(sad[1][1]['y'].values, [2,3])
+        assert_equal(sad[1][1]['y'].values, [2,4])
 
     def test_split_categorical(self):
         sad = emp.sad(self.pat1, self.cols1, 'year:split; x:2')
         assert_equal(sad[0][1]['y'].values, 3)
         assert_equal(sad[1][1]['y'].values, [])
         assert_equal(sad[2][1]['y'].values, [1,1])
-        assert_equal(sad[3][1]['y'].values, [2])
+        assert_equal(sad[3][1]['y'].values, [3])
 
     def test_clean(self):
         # No a in second split on x
@@ -113,12 +112,12 @@ class TestSSAD(Patches):
         # Just total abundance by species
         ssad = emp.ssad(self.pat1, self.cols1, None)
         assert_equal(ssad[0][1]['y'], [4])
-        assert_equal(ssad[1][1]['y'], [3])
+        assert_equal(ssad[1][1]['y'], [4])
 
     def test_with_split(self):
         ssad = emp.ssad(self.pat1, self.cols1, 'x:2')
         assert_equal(ssad[0][1]['y'], [4,0])  # spp a
-        assert_equal(ssad[1][1]['y'], [1,2])  # spp b
+        assert_equal(ssad[1][1]['y'], [1,3])  # spp b
 
 
 class TestSAR(Patches):
@@ -198,50 +197,58 @@ class TestCommGrid(Patches):
         assert_equal(comm[0][1]['y'], [1/2., 0, 0, 0, 1/2., 0])
 
 class TestORing(Patches):
-    # TODO: Individuals falling directly on a radius may be allocated
-    # ambiguously between adjacent toruses
-
     # TODO: Main may fail with error if dataframe has no records when trying to
     # fit or make plot.
 
-    def test_missing_spp_returns_df_with_no_records(self):
-        o_ring = emp.o_ring(self.pat1, self.cols1, '', 'nothere', [0,.11,.2])
+    def test_spp_no_present_returns_empty_df(self):
+        o_ring = emp.o_ring(self.pat1, self.cols1, '', 'nothere', [0,.1,.2])
         assert_frame_equal(o_ring[0][1], pd.DataFrame(columns=['x','y']))
 
     def test_one_individual_returns_zeros(self):
         self.pat1.table = self.pat1.table[2:4]  # Leave 1 'a' and 1 'b'
-        o_ring = emp.o_ring(self.pat1, self.cols1, '', 'a', [0,.11,.2])
+        o_ring = emp.o_ring(self.pat1, self.cols1, '', 'a', [0,.1,.2])
         assert_equal(o_ring[0][1]['y'], [0, 0])
 
-    def test_simple_count_no_density_a(self):
-        o_ring = emp.o_ring(self.pat1, self.cols1, '', 'a', [0,.11,.2],
+    def test_no_density_a(self):
+        # Points on bin edge may be allocated ambiguously due to floating point
+        # issues - testing here with slightly offset edges
+        o_ring = emp.o_ring(self.pat1, self.cols1, '', 'a', [0,.101,.201,.301],
                             density=False)
-        assert_almost_equal(o_ring[0][1]['x'], [0.055, 0.155])
-        assert_almost_equal(o_ring[0][1]['y'], [8, 4])
+        assert_almost_equal(o_ring[0][1]['x'], [0.0505, 0.151, 0.251])
+        assert_almost_equal(o_ring[0][1]['y'], [8, 4, 0])
 
-    def test_simple_count_no_density_b(self):
-        o_ring = emp.o_ring(self.pat1, self.cols1, '', 'b', [0,.11,.2],
+    def test_no_density_b(self):
+        o_ring = emp.o_ring(self.pat1, self.cols1, '', 'b', [0,.1,.2,.3],
                             density=False)
-        assert_almost_equal(o_ring[0][1]['x'], [0.055, 0.155])
-        assert_almost_equal(o_ring[0][1]['y'], [2, 4])
+        assert_almost_equal(o_ring[0][1]['x'], [0.05, 0.15,0.25])
+        assert_almost_equal(o_ring[0][1]['y'], [6, 6, 0])
 
-    def test_simple_count_with_split_a(self):
-        o_ring = emp.o_ring(self.pat1, self.cols1, 'y:2', 'a', [0,.11,.2],
+    def test_with_split_a(self):
+        o_ring = emp.o_ring(self.pat1, self.cols1, 'y:2', 'a', [0,.1,.2],
                             density=False)
         assert_equal(o_ring[0][1]['y'], [2, 0])  # Bottom
         assert_equal(o_ring[1][1]['y'], [2, 0])  # Top
 
-    def test_simple_count_with_split_b(self):
-        o_ring = emp.o_ring(self.pat1, self.cols1, 'y:2', 'b', [0,.11,.2],
+    def test_with_split_b(self):
+        o_ring = emp.o_ring(self.pat1, self.cols1, 'y:2', 'b', [0,.1,.2],
                             density=False)
         assert_equal(o_ring[0][1]['y'], [])  # Bottom
-        assert_equal(o_ring[1][1]['y'], [2, 4])  # Top
+        assert_equal(o_ring[1][1]['y'], [6, 6])  # Top
 
     def test_density_a(self):
-        o_ring = emp.o_ring(self.pat1, self.cols1, '', 'b', [0,.05,.1])
-        assert_array_almost_equal(o_ring[0][1]['y'], [1358.12218105,0])
+        # First radius is 0.05
+        o_ring = emp.o_ring(self.pat1, self.cols1, '', 'a', [0,.10000001])
+        assert_array_almost_equal(o_ring[0][1]['y'],
+                                  [8 / (1.25*np.pi*(0.1)**2)],
+                                  3)
 
-    # TODO: More checks of density (which inclues edge correction)
+    def test_density_b(self):
+        # First radius is 0.05
+        o_ring = emp.o_ring(self.pat1, self.cols1, '', 'b', [0,.10000001,.1828427])
+        assert_array_almost_equal(o_ring[0][1]['y'],
+                                  [6 / (1.25*np.pi*(0.1)**2),
+                                   6 / (3/8 * np.pi*(0.1828427**2 - 0.1**2))],
+                                  3)
 
 
 class TestProduct():

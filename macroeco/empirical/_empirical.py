@@ -682,26 +682,30 @@ def o_ring(patch, cols, splits, spp, bin_edges, density=True):
     Returns
     -------
     {1} Result has two columns, x and y, that give the distance to the center
-    of a torus and the number or density of individuals (possibly edge
-    corrected) found in that torus.
+    of a torus and the number or density of individuals found in that torus.
 
     Notes
     -----
-    If density is False, raw counts of individuals within a distance range,
-    without any edge correction, are returned.
+    If density is False, counts are raw counts, non-edge corrected, within
+    rings.
 
     Pairwise distances are directional, giving n(n-1) total distances for a
     species with n individuals, as edge correction is inherently directional.
 
-    If there are no records for a species in a split, entire result table will
-    be a dataframe with no records. If there are records but a species has only
-    one individual, dataframe will have zero count at all torus areas.
+    Bins include the lower edge and exclude the upper edge, except for the
+    final bin which includes both the lower and upper edge. Floating point
+    arithmetic may cause points located "exactly" on edges to be allocated
+    contrary to this rule, however.
+
+    If there are no records for a species, result table will be a dataframe
+    with no records. If there are records but a species has only one
+    individual, dataframe will have zero count at all torus areas.
 
     When using density, the maximum distance used for edge correction, given by
-    the mean of the last two bin_edge values, should be set to no greater than
-    one half the diagonal distance across the plot. This ensures that it is not
-    possible for an entire edge correction buffer to be outside of the plot,
-    which could lead to divide by zero errors.
+    the mean of the last two bin_edge values, should ideally be set to no
+    greater than one half the diagonal distance across the plot. This ensures
+    that it is not possible for an entire edge correction buffer to be outside
+    of the plot.
 
     {2}
 
@@ -727,7 +731,7 @@ def o_ring(patch, cols, splits, spp, bin_edges, density=True):
         # Get table for just this species
         spp_table = subpatch.table[subpatch.table[spp_col] == spp]
 
-        # If spp not present or singleton, continue
+        # If spp not present, continue
         if (len(spp_table) == 0):
             result_list.append((substring, pd.DataFrame(columns=['x','y'])))
             continue
@@ -767,31 +771,26 @@ def o_ring(patch, cols, splits, spp, bin_edges, density=True):
             other_dists = np.tile(other_dists, count)
 
             # Add 0's for count at this point to account for count here
-            # Multiplied by two to get directional pairwise dists
-            n_others_here = count - 1
-            if n_others_here > 0:
+            if count > 1:
                 other_dists = np.concatenate((other_dists,
-                                              np.zeros(n_others_here*2)))
+                                              np.zeros(count*(count-1))))
 
             # Calculate histogram of distances to other points
             hist, _ = np.histogram(other_dists, bin_edges)
 
             # Convert histogram to density if desired
             corr_factor = np.ones(len(radii))  # Frac length in plot
-            for i, r in enumerate(radii):
+            for j, r in enumerate(radii):
                 circ = geo.Point(*point).buffer(r, resolution=64)
                 outside_len = circ.boundary.difference(plot_poly).length
-                corr_factor[i] = ((circ.boundary.length - outside_len) /
+                corr_factor[j] = ((circ.boundary.length - outside_len) /
                                    circ.boundary.length)
 
-            hist = hist / corr_factor  # Edge corrected hist
-
-            # If none of ring inside plot, ignore by setting hist and area 0
-            hist[corr_factor == 0] = 0
-            torus_areas[corr_factor == 0] = 0
-
+            # Add hist and corrected area for this point to running totals
             hists += hist
-            areas += torus_areas
+            areas += torus_areas * corr_factor * count
+            print radii
+            print i, torus_areas, corr_factor, areas
 
         # If density, divide summed torus counts by summed areas
         if density:
