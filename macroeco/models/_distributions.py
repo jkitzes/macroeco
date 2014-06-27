@@ -387,7 +387,7 @@ class dgamma_gen(rv_discrete_meco):
     Methods
     -------
     translate_args(alpha, theta)
-        not used, returns alpha and thet.
+        not used, returns alpha and theta.
     fit_mle(data)
         ml estimate of shape parameters alpha and theta given data
     %(before_notes)s
@@ -415,10 +415,14 @@ class dgamma_gen(rv_discrete_meco):
     @inherit_docstring_from(rv_discrete_meco)
     def fit_mle(self, data):
 
-        mu = np.mean(data)
-        var = np.var(data, ddof=1)
-        alpha0 = mu / var
-        theta0 = mu / alpha0
+        if len(data) > 1:
+            mu = np.mean(data)
+            var = np.var(data)
+            theta0 = var / mu
+            alpha0 = mu / theta0
+        else:
+            alpha0 = 10
+            theta0 = 10
 
         def mle(params):
             return -np.sum(np.log(self.pmf(data, params[0], params[1])))
@@ -436,8 +440,11 @@ class dgamma_gen(rv_discrete_meco):
         b = np.atleast_1d(b)
         x = np.atleast_1d(x)
 
-        eq = lambda val, talpha, ttheta: val**(talpha - 1) * \
-                                        np.exp((-1 / ttheta)*val)
+        eq = lambda val, talpha, ttheta: np.exp((talpha - 1) * np.log(val) -
+            (val / ttheta))
+
+        # eq = lambda val, talpha, ttheta: val**(talpha - 1) * \
+        #                                 np.exp((-1 / ttheta)*val)
 
         norm = np.sum(eq(np.arange(1, b[0] + 1), alpha[0], theta[0]))
 
@@ -513,6 +520,7 @@ class nbinom_gen(rv_discrete_meco):
 
         """
         # todo: check and mention in docstring biases of mle for k_agg
+        data = np.array(data)
         mu = np.mean(data)
         return mu, _solve_k_from_mu(data, k_range, nbinom_nll, mu)
 

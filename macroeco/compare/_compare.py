@@ -175,6 +175,70 @@ def AIC_compare(aic_list):
     return delta, weights
 
 
+def deviance(red_model_nll, full_model_nll):
+    """
+    Calculates the deviance given the negative log-likelihood for a reduced
+    model and the negative log-likelihood for the full model.
+
+    Parameters
+    ----------
+    red_model_nll : float
+        Reduced model negative log-likelihood
+    full_model_nll : float
+        Full model negative log-likelihood
+
+    Returns
+    -------
+    : float
+        Deviance
+
+    Notes
+    -----
+    Deviance is 2 * (red_model_nll - full_model_nll)
+
+
+    """
+    return 2 * (red_model_nll - full_model_nll)
+
+
+@doc_sub(_data_doc)
+def full_model_nll(data, model):
+    """
+    Fits a full model to the data.  Every data point has a parameter
+
+    Parameters
+    -----------
+    {0}
+    model : Scipy distribution object
+        The model to be fit to the data
+
+    Returns
+    -------
+    : float
+        Negative log likelihood of full model given data
+
+    Notes
+    -----
+    Full model log likelihoods are used when calculating deviance
+
+    """
+    try:
+        mle_params = [model.fit_mle(np.array([dp])) for dp in data]
+    except AttributeError:
+        try:
+            mle_params = [model.fit(np.array([dp])) for dp in data]
+        except AttributeError:
+            raise AttributeError("%s has no attribute fit_mle or fit" %
+                str(model))
+
+    try:
+        ll = [model(*mle_params[i]).logpmf(data[i]) for i in xrange(len(data))]
+    except:
+        ll = [model(*mle_params[i]).logpdf(data[i]) for i in xrange(len(data))]
+
+    return -np.sum(ll)
+
+
 def sum_of_squares(obs, pred):
     """
     Sum of squares between observed and predicted data

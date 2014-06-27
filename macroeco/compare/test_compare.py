@@ -7,6 +7,7 @@ from numpy.testing import (TestCase, assert_equal, assert_array_equal,
 from macroeco.compare import *
 import numpy as np
 import scipy.stats as stats
+import macroeco.models as mod
 
 
 class TestNLL(TestCase):
@@ -73,6 +74,43 @@ class TestAIC(TestCase):
         aic1 = AIC(data, model, corrected=True, params=2)
         expected = 225.10302  # Calculated by hand
         assert_almost_equal(expected, aic1, decimal=5)
+
+
+class TestFullModelNLL(TestCase):
+
+    def test_correct_value_for_continuous_models(self):
+
+        # Test that the full model returns what we expect
+        data = np.array([3, 4, 5])
+
+        models = [mod.lognorm]
+        for model in models:
+
+            params = [model.fit_mle(np.array([td])) for td in data]
+            values = [model(*params[i]).logpdf(data[i]) for i in
+                            xrange(len(data))]
+            pred_nll = -np.sum(values)
+
+            test_nll = full_model_nll(data, model)
+
+            assert_equal(pred_nll, test_nll)
+
+    def test_correct_value_for_discrete_models(self):
+
+        # Test that the full model returns what we expect
+        data = np.array([3, 4, 5])
+
+        models = [mod.nbinom]
+        for model in models:
+
+            params = [model.fit_mle(np.array([td])) for td in data]
+            values = [model(*params[i]).logpmf(data[i]) for i in
+                            xrange(len(data))]
+            pred_nll = -np.sum(values)
+
+            test_nll = full_model_nll(data, model)
+
+            assert_equal(pred_nll, test_nll)
 
 
 class TestAICCompare(TestCase):
