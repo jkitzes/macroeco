@@ -222,19 +222,30 @@ def full_model_nll(data, model):
     Full model log likelihoods are used when calculating deviance
 
     """
+    data = np.sort(data)
+    unique_data = np.unique(data)
+
     try:
-        mle_params = [model.fit_mle(np.array([dp])) for dp in data]
+        mle_params = [model.fit_mle(np.array([dp])) for dp in unique_data]
     except AttributeError:
         try:
-            mle_params = [model.fit(np.array([dp])) for dp in data]
+            mle_params = [model.fit(np.array([dp])) for dp in unique_data]
         except AttributeError:
             raise AttributeError("%s has no attribute fit_mle or fit" %
                 str(model))
 
+    data_df = pd.DataFrame(unique_data, columns=["unq_data"])
+    data_df['mle_params'] = mle_params
+    data_df.set_index("unq_data", inplace=True)
+    fitted_data = pd.DataFrame(np.arange(len(data)), index=data).join(data_df)
+    full_mle = fitted_data.mle_params
+
     try:
-        ll = [model(*mle_params[i]).logpmf(data[i]) for i in xrange(len(data))]
+        ll = [model(*full_mle.iloc[i]).logpmf(data[i]) for i in
+                                            xrange(len(data))]
     except:
-        ll = [model(*mle_params[i]).logpdf(data[i]) for i in xrange(len(data))]
+        ll = [model(*full_mle.iloc[i]).logpdf(data[i]) for i in
+                                            xrange(len(data))]
 
     return -np.sum(ll)
 
