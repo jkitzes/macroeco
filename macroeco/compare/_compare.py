@@ -202,7 +202,7 @@ def deviance(red_model_nll, full_model_nll):
 
 
 @doc_sub(_data_doc)
-def full_model_nll(data, model):
+def full_model_nll(data, model, **kwargs):
     """
     Fits a full model to the data.  Every data point has a parameter
 
@@ -211,6 +211,8 @@ def full_model_nll(data, model):
     {0}
     model : Scipy distribution object
         The model to be fit to the data
+    kwargs : keyword args
+        Additional keyword arguments for model fitting procedure
 
     Returns
     -------
@@ -226,7 +228,7 @@ def full_model_nll(data, model):
     unique_data = np.unique(data)
 
     try:
-        mle_params = [model.fit_mle(np.array([dp])) for dp in unique_data]
+        mle_params = [model.fit_mle(np.array([dp]), **kwargs) for dp in unique_data]
     except AttributeError:
         try:
             mle_params = [model.fit(np.array([dp])) for dp in unique_data]
