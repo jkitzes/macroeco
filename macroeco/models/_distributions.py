@@ -413,7 +413,12 @@ class dgamma_gen(rv_discrete_meco):
         return alpha, theta
 
     @inherit_docstring_from(rv_discrete_meco)
-    def fit_mle(self, data):
+    def fit_mle(self, data, init_vals=(80, 80)):
+        """%(super)s
+        In addition to data, can take init_vals which allows the user to
+        specify initial values for (alpha, theta) during the optimization.
+
+        """
 
         if len(data) > 1:
             mu = np.mean(data)
@@ -421,8 +426,8 @@ class dgamma_gen(rv_discrete_meco):
             theta0 = var / mu
             alpha0 = mu / theta0
         else:
-            alpha0 = 10
-            theta0 = 10
+            alpha0 = init_vals[0]
+            theta0 = init_vals[1]
 
         def mle(params):
             return -np.sum(np.log(self.pmf(data, params[0], params[1])))
