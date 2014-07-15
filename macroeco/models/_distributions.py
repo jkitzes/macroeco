@@ -4,9 +4,14 @@ import sys
 from decimal import Decimal
 import numpy as np
 import numpy.random as nprand
+from scipy.stats.distributions import (rv_discrete, rv_continuous)
 
-from scipy.stats.distributions import (rv_discrete, rv_continuous, docdict,
-                                       docdict_discrete)
+try:
+    from scipy.stats.distributions import (docdict, docdict_discrete)
+except ImportError:
+    # Scipy version  '0.14.0' support
+    from scipy.stats._distn_infrastructure import (docdict, docdict_discrete)
+
 import scipy.stats as stats
 import scipy.optimize as optim
 import scipy.special as special
