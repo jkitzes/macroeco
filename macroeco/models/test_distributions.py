@@ -208,6 +208,43 @@ class TestCnbinom(TestCase):
         # fig.savefig("test_cbinom")
 
 
+class TestDgamma(TestCase):
+
+    def test_pmf(self):
+        # import macroeco_distribution as mac
+        # mac.dis_gamma_ll([1,1,2,5,6,7], 5, .3)
+        test_val = -32.3085384957
+        pred_val = np.sum(dgamma.logpmf([1, 1, 2, 5, 6, 7], 5, .3))
+        assert_almost_equal(test_val, pred_val)
+
+        # ab = [1, 1, 1, 1, 2, 4, 4, 4, 4, 4, 45, 267]
+        # mac.dis_gamma_ll(ab, 0.1, 200)
+        test_val = -39.889246913391531
+        ab = [1, 1, 1, 1, 2, 4, 4, 4, 4, 4, 45, 267]
+        pred_val = np.sum(dgamma.logpmf(ab, 0.1, 200))
+        assert_almost_equal(test_val, pred_val)
+
+    def test_cdf(self):
+        # Test that cdf gets close to one
+        assert_almost_equal(dgamma.cdf(1000, 4, .9), 1)
+
+    def test_fit_mle(self):
+        # mac.dis_gamma_solver([1,1,2,5,6,7])
+        fit_alpha = 1.1324749
+        fit_theta = 2.86753
+        alpha, theta = dgamma.fit_mle([1, 1, 2, 5, 6, 7])
+        assert_almost_equal(fit_alpha, alpha, decimal=3)
+        assert_almost_equal(fit_theta, theta, decimal=3)
+
+    def test_rank(self):
+        # When alpha is almost zero should be similar to logseries with p =
+        # e^(-1 / theta)
+        logseries_rank = logser_uptrunc.rank(10, np.exp(-1 / 3), 1000)
+        dgamma_rank = dgamma.rank(10, 0.0001, 3)
+
+        assert_array_equal(logseries_rank, dgamma_rank)
+
+
 class TestLogserUptrunc(TestCase):
 
     def test_pmf(self):

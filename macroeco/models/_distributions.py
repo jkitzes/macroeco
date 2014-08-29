@@ -377,6 +377,113 @@ def _geom_solve_p_from_mu(mu, b):
 
 _geom_solve_p_from_mu_vect = np.vectorize(_geom_solve_p_from_mu)
 
+
+class dgamma_gen(rv_discrete_meco):
+    r"""
+    A discrete gamma random variable
+
+    .. math::
+
+       P(x) = k * x^(\alpha - 1) * e^{(-1 / \theta)*x}
+
+    for ``x >= 1``, ``\alpha > 0`` and ``\theta > 0``.
+    ``k`` is the normalizing constant.
+
+    Methods
+    -------
+    translate_args(alpha, theta)
+        not used, returns alpha and theta.
+    fit_mle(data)
+        ml estimate of shape parameters alpha and theta given data
+    %(before_notes)s
+    alpha : float
+        distribution parameter
+    theta : float
+        distribution parameter
+
+    Notes
+    -----
+    This parameterization of the discrete gamma was taken from [#]_.
+
+    References
+    ----------
+    .. [#]
+       Frank, F. (2011). Measurement scale in maximum entropy models of species
+       abundance. Journal of Evolutionary Biology, 24(3), 485-496
+
+    """
+
+    @inherit_docstring_from(rv_discrete_meco)
+    def translate_args(self, alpha, theta):
+        return alpha, theta
+
+    @inherit_docstring_from(rv_discrete_meco)
+    def fit_mle(self, data, init_vals=(80, 80)):
+        """%(super)s
+        In addition to data, can take init_vals which allows the user to
+        specify initial values for (alpha, theta) during the optimization.
+
+        """
+
+        if len(data) > 1:
+            mu = np.mean(data)
+            var = np.var(data)
+            theta0 = var / mu
+            alpha0 = mu / theta0
+        else:
+            alpha0 = init_vals[0]
+            theta0 = init_vals[1]
+
+        def mle(params):
+            return -np.sum(np.log(self.pmf(data, params[0], params[1])))
+
+        # Bounded fmin?
+        alpha, theta = optim.fmin(mle, x0=[alpha0, theta0], disp=0)
+
+        return alpha, theta
+
+    def _pmf(self, x, alpha, theta):
+
+        b = 1e5
+        alpha = np.atleast_1d(alpha)
+        theta = np.atleast_1d(theta)
+        b = np.atleast_1d(b)
+        x = np.atleast_1d(x)
+
+        eq = lambda val, talpha, ttheta: np.exp((talpha - 1) * np.log(val) -
+            (val / ttheta))
+
+        # eq = lambda val, talpha, ttheta: val**(talpha - 1) * \
+        #                                 np.exp((-1 / ttheta)*val)
+
+        norm = np.sum(eq(np.arange(1, b[0] + 1), alpha[0], theta[0]))
+
+        pmf = eq(x, alpha, theta) / norm
+        return pmf
+
+    def _cdf(self, x, alpha, theta):
+
+        alpha = np.atleast_1d(alpha)
+        theta = np.atleast_1d(theta)
+        x = np.atleast_1d(x)
+
+        max_x = np.max(x)
+        pmf_list = self.pmf(np.arange(1, np.int(max_x) + 1), alpha[0],
+                        theta[0])
+        full_cdf = np.cumsum(pmf_list)
+
+        cdf = np.array([full_cdf[tx - 1] if tx != 0 else 0 for tx in x])
+
+        return cdf
+
+    def _argcheck(self, alpha, theta):
+
+        # TODO: Can theta or alpha be 0 in the discrete version?
+        return (theta > 0)
+
+dgamma = dgamma_gen(name='dgamma', shapes='alpha, theta')
+
+
 class nbinom_gen(rv_discrete_meco):
     r"""
     A negative binomial discrete random variable.
@@ -422,6 +529,7 @@ class nbinom_gen(rv_discrete_meco):
 
         """
         # todo: check and mention in docstring biases of mle for k_agg
+        data = np.array(data)
         mu = np.mean(data)
         return mu, _solve_k_from_mu(data, k_array, nbinom_nll, mu)
 
@@ -700,6 +808,10 @@ class logser_uptrunc_gen(rv_discrete_meco):
 
     @inherit_docstring_from(rv_discrete_meco)
     def fit_mle(self, data, b=None):
+        """%(super)s
+b : float
+    The upper bound of the distribution. If None, fixed at sum(data)
+        """
 
         data = np.array(data)
         length = len(data)
@@ -711,7 +823,7 @@ class logser_uptrunc_gen(rv_discrete_meco):
 
     def _pmf(self, x, p, b):
 
-        x = np.array(x)
+        x = np.atleast_1d(x)
         p = np.atleast_1d(p)
         b = np.atleast_1d(b)
 
@@ -726,7 +838,7 @@ class logser_uptrunc_gen(rv_discrete_meco):
 
     def _cdf(self, x, p, b):
 
-        x = np.array(x)
+        x = np.atleast_1d(x)
         p = np.atleast_1d(p)
         b = np.atleast_1d(b)
 

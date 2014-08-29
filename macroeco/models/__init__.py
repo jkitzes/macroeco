@@ -60,8 +60,8 @@ Several common curves used in ecologial analysis are included here.
 """
 
 from _distributions import (geom, geom_uptrunc, nbinom, cnbinom,
-                                 logser, logser_uptrunc, plnorm, plnorm_ztrunc,
-                                 expon, expon_uptrunc, lognorm)
+                            logser, logser_uptrunc, plnorm, plnorm_ztrunc,
+                            expon, expon_uptrunc, lognorm, dgamma)
 
 from ._curves import (power_law,
                       mete_sar, mete_iterative_sar,
