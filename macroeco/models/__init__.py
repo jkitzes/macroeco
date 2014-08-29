@@ -29,6 +29,7 @@ The following discrete distributions are available.
    geom_uptrunc
    nbinom
    cnbinom
+   logser
    logser_uptrunc
    plnorm
    plnorm_ztrunc
@@ -59,7 +60,7 @@ Several common curves used in ecologial analysis are included here.
 """
 
 from _distributions import (geom, geom_uptrunc, nbinom, cnbinom,
-                                 logser_uptrunc, plnorm, plnorm_ztrunc,
+                                 logser, logser_uptrunc, plnorm, plnorm_ztrunc,
                                  expon, expon_uptrunc, lognorm)
 
 from ._curves import (power_law,
