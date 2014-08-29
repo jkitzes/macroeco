@@ -789,8 +789,6 @@ def o_ring(patch, cols, splits, spp, bin_edges, density=True):
             # Add hist and corrected area for this point to running totals
             hists += hist
             areas += torus_areas * corr_factor * count
-            print radii
-            print i, torus_areas, corr_factor, areas
 
         # If density, divide summed torus counts by summed areas
         if density:
