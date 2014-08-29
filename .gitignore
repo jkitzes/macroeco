@@ -1,7 +1,9 @@
 *generated*
-*/build/*
 */_build/*
-*/dist/*
+build/*
+dist/*
+demo/*
+_private/*
 *.swp
 *.pyc
 *.DS_Store
