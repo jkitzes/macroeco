@@ -852,6 +852,9 @@ b : float
     def _rvs(self, p, b):
         # Code from weecology/macroecotools
 
+        if not self._size:
+            self._size = 1
+
         out = []
         if p < 1:
             for i in range(self._size):
@@ -1361,7 +1364,7 @@ class lognorm_gen(rv_continuous_meco):
         return True
 
     def _rvs(self, mu, sigma):
-        return stats.lognorm.rvs(sigma, scale=np.exp(mu))
+        return stats.lognorm.rvs(sigma, scale=np.exp(mu), size=self._size)
 
     def _pdf(self, x, mu, sigma):
         return stats.lognorm.pdf(x, sigma, scale=np.exp(mu))

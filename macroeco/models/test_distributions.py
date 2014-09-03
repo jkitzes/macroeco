@@ -310,7 +310,6 @@ class TestLogserUptrunc(TestCase):
         lg = logser_uptrunc.translate_args(20 / 20, 20)[0]
         assert_equal(0, 0)
 
-
     def test_n_close_to_s(self):
         # Test the solver doesn't fail when N is very close to S
 
@@ -326,6 +325,15 @@ class TestLogserUptrunc(TestCase):
         test_vals = logser_uptrunc.rank(10, .99, 100)
 
         assert_array_equal(exp_vals, test_vals)
+
+    def test_rvs(self):
+
+        # Make sure random number generator is returning what is expected
+        res1 = logser_uptrunc.rvs(.9, 100)
+        assert_equal(1, len(np.atleast_1d(res1)))
+
+        res2 = lognorm.rvs(.9, 100, size=5)  # Should be length 5
+        assert_equal(5, len(res2))
 
 
 class TestLognorm(TestCase):
@@ -396,6 +404,15 @@ class TestLognorm(TestCase):
         scipy_ans = 1.79518287
         test1 = lognorm.fit_mle(data1)[1]
         assert_almost_equal(scipy_ans, test1)
+
+    def test_rvs(self):
+
+        # Test that multiple random numbers can be returned without error
+        res1 = lognorm.rvs(5, 5)  # Should be length 1
+        assert_equal(1, len(np.atleast_1d(res1)))
+
+        res2 = lognorm.rvs(5, 5, size=5)  # Should be length 5
+        assert_equal(5, len(res2))
 
 
 class TestPlnorm(TestCase):
