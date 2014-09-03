@@ -206,6 +206,22 @@ class rv_discrete_meco(rv_discrete):
         """{0}"""
         return self.ppf((np.arange(1, n+1) - 0.5) / n, *args)
 
+    @doc_sub(_doc_rvs_alt)
+    def rvs_alt(self, *args, **kwargs):
+        """{0}"""
+        l = kwargs.get('l', 1)
+        b = kwargs.get('b', 1e5)
+        size = kwargs.get('size', 1)
+
+        model_cdf = self.cdf(np.arange(l, b + 1), *args)
+
+        unif_rands = np.random.random(size)
+        model_rands = np.array([np.where(tx <= model_cdf)[0][0] + l
+                            for tx in unif_rands])
+
+        return model_rands
+
+
 #
 # Discrete
 #
