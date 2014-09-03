@@ -781,13 +781,18 @@ class logser_gen(rv_discrete_meco):
     def _rvs(self, p):
         # looks wrong for p>0.5, too few k=1
         # trying to use generic is worse, no k=1 at all
-        return mtrand.logseries(p, size=self._size)
+        return stats.logser.rvs(p, size=self._size)
+        #return np.random.mtrand.logseries(p, size=self._size)
 
     def _argcheck(self, p):
         return (p > 0) & (p < 1)
 
     def _pmf(self, x, p):
-        return -np.power(p, x) * 1.0 / x / np.log(1 - p)
+        return stats.logser.pmf(x, p)
+        # return -np.power(p, x) * 1.0 / x / np.log(1 - p)
+
+    def _cdf(self, x, p):
+        return stats.logser.cdf(x, p)
 
     def _stats(self, p):
         r = log(1 - p)

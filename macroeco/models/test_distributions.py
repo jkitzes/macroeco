@@ -253,6 +253,60 @@ class TestDgamma(TestCase):
 
         assert_array_equal(logseries_rank, dgamma_rank)
 
+class TestLogser(TestCase):
+
+    def test_pmf(self):
+
+        # Testing against values in Williams 1944,
+        # Some applications of the logarithmic series and the index of
+        # diversity to ecological problems, pg. 18.
+
+        # Acridiidae: S = 826, p = 0.92964 (There seems to be an error in
+        # their data at 3 -> should be 83.3 not 88.3)
+        test_vals = np.array([289.3, 134.5, 83.3, 58.1, 43.2, 33.5, 26.7, 21.7,
+         17.9, 15., 12.7, 10.8, 9.3, 8., 6.9, 6.1, 5.3, 4.6, 4.1, 3.6])
+
+        pred_pmf = logser.pmf(np.arange(1, 21), 0.92964)
+        pred_vals = np.round(pred_pmf * 826, decimals=1)
+        assert_array_equal(test_vals, pred_vals)
+
+        # Mantidae: S = 209, p = 0.89781
+        test_vals = np.array([82.3, 36.9, 22.1, 14.9, 10.7, 8., 6.2, 4.8, 3.9,
+         3.1, 2.5, 2.1, 1.7, 1.4, 1.2, 1., 0.9, 0.7, 0.6, 0.5])
+
+        pred_pmf = logser.pmf(np.arange(1, 21), 0.89781)
+        pred_vals = np.round(pred_pmf * 209, decimals=1)
+        assert_array_equal(test_vals, pred_vals)
+
+        # Blattidae: S = 197, p = 0.96476
+        test_vals = np.array([56.8, 27.4, 17.6, 12.8, 9.8, 7.9, 6.5, 5.5, 4.7,
+         4.1, 3.6, 3.2, 2.8, 2.5, 2.3, 2.1, 1.9, 1.7,
+         1.6, 1.4, 1.3, 1.2, 1.1, 1., 1., 0.9, 0.8,
+         0.8, 0.7, 0.7])
+
+        pred_pmf = logser.pmf(np.arange(1, 31), 0.96476)
+        pred_vals = np.round(pred_pmf * 197, decimals=1)
+        assert_array_equal(test_vals, pred_vals)
+
+    def test_translate_args(self):
+
+        # Using values from Williams 1994
+        test_vals = [0.92964, 0.89781, 0.96476, 0.97003]
+        data = [4112 / 826., 805. / 209, 1612. / 197, 480. / 52]
+
+        pred_vals = [logser.translate_args(td) for td in data]
+
+        assert_array_almost_equal(test_vals, pred_vals, decimal=5)
+
+    def test_fit_mle(self):
+
+        test_val = .97003  # Value from Williams 1944
+        x = np.arange(1, 53.)
+        norm_x = x / sum(x)
+        data = norm_x * (480)
+        pred_val = logser.fit_mle(data)
+        assert_almost_equal(test_val, pred_val, decimal=5)
+
 
 class TestLogserUptrunc(TestCase):
 
