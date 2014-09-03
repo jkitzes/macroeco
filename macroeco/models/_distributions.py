@@ -72,6 +72,34 @@ Notes
 -----
 """
 
+_doc_rvs_alt = \
+"""
+Alternative random number generator for discrete distributions.  Uses the
+model's cdf function and a uniform random number generator.  Can be faster than
+native scipy rvs for some custom models.  Will perform well if the the models
+cdf function is also fast.
+
+Parameters
+----------
+%(shapes)s : array_like
+    shape parameters
+l : int
+    Lower bound of distribution (Either 0 or 1).  Default is 1
+b : int
+    Upper bound of distribution for computational purposes, even if
+    distribution technically has infinite support. Default is 1e5.
+size : int
+    Number of random variables to draw.  Default is 1.
+
+Returns
+-------
+array
+    Random variables from model
+
+Notes
+-----
+"""
+
 _doc_fit_mle = \
 """
 Return MLEs for shape parameters from data

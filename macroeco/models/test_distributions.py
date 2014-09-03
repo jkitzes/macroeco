@@ -140,8 +140,17 @@ class TestNbinom(TestCase):
 
     def test_fit_mle_with_manual_calc(self):
         x = np.array([6,17,14,12,8,10,4,9,3,12,4,2,12,8,14,16,9,10,8,5,6])
-        mu, k = nbinom.fit_mle(x, k_range=(0.01,10,0.01))
+        mu, k = nbinom.fit_mle(x, k_array=np.arange(0.01,10,0.01))
         assert_array_almost_equal([mu, k], [9, 8.54], decimal=2)
+
+    def test_alternative_rvs(self):
+        rand_alt = nbinom.rvs_alt(5, 1, l=0, size=10000)
+        rand = nbinom.rvs(5, 1, size=10000)
+
+        alt_k = nbinom.fit_mle(rand_alt, k_array=np.arange(0.5, 1.5, 0.01))
+        k = nbinom.fit_mle(rand, k_array=np.arange(0.5, 1.5, 0.01))
+
+        assert_almost_equal(alt_k, k, decimal=1)
 
 class TestCnbinom(TestCase):
 
