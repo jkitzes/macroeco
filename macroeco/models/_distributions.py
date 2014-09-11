@@ -628,6 +628,69 @@ def nbinom_nll(data, k_agg, mu):
     return -np.sum(nbinom._logpmf(data, mu, k_agg))
 
 
+class nbinom_ztrunc_gen(rv_discrete_meco):
+    r"""
+    The zero-truncated negative binomial random variable
+
+    This distribution is described by Sampford (1955) [#]_
+
+    .. math::
+
+       p(x) = \frac{\binom{x + k - 1}{x}  \binom{b - x + k/a - k -1}{b
+                -x}}{\binom{b + k/a - 1}{b}}
+
+
+
+
+    """
+
+    @inherit_docstring_from(rv_discrete_meco)
+    def translate_args(self, mu, k_agg):
+        return mu, k_agg
+
+    @inherit_docstring_from(rv_discrete_meco)
+    def fit_mle(self, data):
+        raise NotImplementedError("Method not yet implemented")
+
+    def _pmf(self, x, mu, k_agg):
+
+        norm = np.exp(special.gammaln(k_agg + x) - ((special.gammaln(k_agg) +
+                                        special.gammaln(x + 1))))
+        p = nbinom_ztrunc_p(mu, k_agg)
+        kernel = (p / (1 + p))**x * (1 / ((1 + p)**k_agg - 1))
+
+        return norm * kernel
+
+    def _stats(self, mu, k_agg):
+        p = nbinom_ztrunc_p(mu, k_agg)
+        omega = 1 / (1 + p)
+        eta = 1 - omega
+        mu = mu
+        var = (k_agg * eta * (1 + k_agg * eta)) / \
+                (omega**2 * (1 - omega**k_agg)) - mu**2
+        return mu, var, None, None
+
+nbinom_ztrunc = nbinom_ztrunc_gen(name='nbinom_ztrunc', shapes='mu, k_agg')
+
+
+def _nbinom_ztrunc_p(mu, k_agg):
+        """ Calculates p parameter for truncated negative binomial
+
+        Function given in Sampford 1955, equation 4
+
+        Note that omega = 1 / 1 + p in Samford
+        """
+
+        p_eq = lambda p, mu, k_agg: (k_agg * p) / (1 - (1 + p)**-k_agg) - mu
+
+        # The upper bound needs to be large. p will increase with increasing mu
+        # and decreasing k_agg
+        p = optim.brentq(p_eq, 1e-10, 1e10, args=(mu, k_agg))
+        return p
+
+nbinom_ztrunc_p = np.vectorize(_nbinom_ztrunc_p)
+
+
 class cnbinom_gen(rv_discrete_meco):
     r"""
     The conditional negative binomial random variable.
@@ -880,7 +943,7 @@ b : float
             pmf = stats.logser.pmf(x, p) / stats.logser.cdf(b, p)
         else:
             ivals = np.arange(1, b[0] + 1)
-            normalization = sum(p[0] ** ivals / ivals)
+            normalization = np.sum(p[0] ** ivals / ivals)
             pmf = (p[0] ** x / x) / normalization
 
         return pmf
