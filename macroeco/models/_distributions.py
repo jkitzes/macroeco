@@ -634,12 +634,12 @@ class nbinom_ztrunc_gen(rv_discrete_meco):
 
     This distribution is described by Sampford (1955) [#]_
 
+    Wrong math
+
     .. math::
 
        p(x) = \frac{\binom{x + k - 1}{x}  \binom{b - x + k/a - k -1}{b
                 -x}}{\binom{b + k/a - 1}{b}}
-
-
 
 
     """
@@ -649,17 +649,32 @@ class nbinom_ztrunc_gen(rv_discrete_meco):
         return mu, k_agg
 
     @inherit_docstring_from(rv_discrete_meco)
-    def fit_mle(self, data):
-        raise NotImplementedError("Method not yet implemented")
+    def fit_mle(self, data, k_agg0=0.5):
+
+        mu = np.mean(data)
+
+        def mle(k):
+
+            p = nbinom_ztrunc_p(mu, k)
+            return -np.sum(np.log(self.pmf(data, p, k)))
+
+        k = optim.fmin(mle, x0=k_agg0, disp=0)
+
+        return mu, k[0]
 
     def _pmf(self, x, mu, k_agg):
+
+        x = np.atleast_1d(x)
 
         norm = np.exp(special.gammaln(k_agg + x) - ((special.gammaln(k_agg) +
                                         special.gammaln(x + 1))))
         p = nbinom_ztrunc_p(mu, k_agg)
         kernel = (p / (1 + p))**x * (1 / ((1 + p)**k_agg - 1))
+        pmf = norm * kernel
 
-        return norm * kernel
+        pmf[x == 0] = 0
+
+        return pmf
 
     def _stats(self, mu, k_agg):
         p = nbinom_ztrunc_p(mu, k_agg)
@@ -678,7 +693,7 @@ def _nbinom_ztrunc_p(mu, k_agg):
 
         Function given in Sampford 1955, equation 4
 
-        Note that omega = 1 / 1 + p in Samford
+        Note that omega = 1 / 1 + p in Sampford
         """
 
         p_eq = lambda p, mu, k_agg: (k_agg * p) / (1 - (1 + p)**-k_agg) - mu
