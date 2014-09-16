@@ -62,12 +62,12 @@ class TestSAD(Patches):
     def test_simple(self):
         # Falling back on spp_col in metadata, so count 1 for each row
         sad = emp.sad(self.pat1, None, None)
-        assert_equal(sad[0][1]['y'], [3,2])
+        assert_array_equal(sad[0][1]['y'], [3,2])
 
     def test_simple_with_cols(self):
         # Specify count and spp_col here
         sad = emp.sad(self.pat1, self.cols1, None)
-        assert_equal(sad[0][1]['y'], [4,4])
+        assert_array_equal(sad[0][1]['y'], [4,4])
 
     def test_two_way_split(self):
         # Complete split generates 6 results
@@ -111,46 +111,55 @@ class TestSSAD(Patches):
     def test_no_splits(self):
         # Just total abundance by species
         ssad = emp.ssad(self.pat1, self.cols1, None)
-        assert_equal(ssad[0][1]['y'], [4])
-        assert_equal(ssad[1][1]['y'], [4])
+        assert_array_equal(ssad[0][1]['y'], [4])
+        assert_array_equal(ssad[1][1]['y'], [4])
 
     def test_with_split(self):
         ssad = emp.ssad(self.pat1, self.cols1, 'x:2')
-        assert_equal(ssad[0][1]['y'], [4,0])  # spp a
-        assert_equal(ssad[1][1]['y'], [1,3])  # spp b
+        assert_array_equal(ssad[0][1]['y'], [4,0])  # spp a
+        assert_array_equal(ssad[1][1]['y'], [1,3])  # spp b
 
 
 class TestSAR(Patches):
 
     def test_no_splits(self):
         sar = emp.sar(self.pat1, self.cols1, None, '1,1; 2,1; 2,3')
-        assert_almost_equal(sar[0][1]['x'],
+        assert_array_almost_equal(sar[0][1]['x'],
                             [1*self.A1, 0.5*self.A1, 1/6*self.A1])
-        assert_equal(sar[0][1]['y'], [2, 1.5, (1+2+1+0+0+1)/6.])
+        assert_array_equal(sar[0][1]['y'], [2, 1.5, (1+2+1+0+0+1)/6.])
 
     def test_with_split(self):
         sar = emp.sar(self.pat1, self.cols1, 'year:split', '2,1; 1,3')
-        assert_almost_equal(sar[0][1]['x'], [0.5*self.A1, 1/3.*self.A1])
-        assert_almost_equal(sar[1][1]['x'], [0.5*self.A1, 1/3.*self.A1])
-        assert_equal(sar[0][1]['y'], [0.5, 2/3.])
-        assert_equal(sar[1][1]['y'], [3/2., 1])
+        assert_array_almost_equal(sar[0][1]['x'], [0.5*self.A1, 1/3.*self.A1])
+        assert_array_almost_equal(sar[1][1]['x'], [0.5*self.A1, 1/3.*self.A1])
+        assert_array_equal(sar[0][1]['y'], [0.5, 2/3.])
+        assert_array_equal(sar[1][1]['y'], [3/2., 1])
 
     def test_single_division(self):
         sar = emp.sar(self.pat1, self.cols1, None, '2,1')
-        assert_almost_equal(sar[0][1]['x'], [0.5*self.A1])
-        assert_equal(sar[0][1]['y'], [1.5])
+        assert_array_almost_equal(sar[0][1]['x'], [0.5*self.A1])
+        assert_array_equal(sar[0][1]['y'], [1.5])
+
+    def test_empty_equals_split_subset(self):
+        sar_empty = emp.sar(self.pat1, self.cols1, "", '1,1')
+        sar_split = emp.sar(self.pat1, self.cols1, "x:1; y:1", '1,1')
+        print sar_empty
+        print sar_split
+        assert_frame_equal(sar_empty[0][1].sort(axis=1),
+                                            sar_split[0][1].sort(axis=1))
+
 
 
 class TestEAR(Patches):
 
     def test_no_splits(self):
         sar = emp.sar(self.pat1, self.cols1, None, '1,1; 2,1; 2,3', ear=True)
-        assert_equal(sar[0][1]['y'], [2, 0.5, 0])
+        assert_array_equal(sar[0][1]['y'], [2, 0.5, 0])
 
     def test_with_split(self):
         sar = emp.sar(self.pat1, self.cols1, 'year:split', '2,1;1,3', ear=True)
-        assert_equal(sar[0][1]['y'], [0.5, 0])
-        assert_equal(sar[1][1]['y'], [0.5, 1/3.])
+        assert_array_equal(sar[0][1]['y'], [0.5, 0])
+        assert_array_equal(sar[1][1]['y'], [0.5, 1/3.])
 
 
 class TestCommGrid(Patches):
@@ -158,43 +167,43 @@ class TestCommGrid(Patches):
     def test_no_splits_Sorensen(self):
         comm = emp.comm_grid(self.pat1, self.cols1, None, '2,1')
         assert_almost_equal(comm[0][1]['x'], [0.1])
-        assert_equal(comm[0][1]['y'], [2./(2+1)])
+        assert_array_equal(comm[0][1]['y'], [2./(2+1)])
 
     def test_no_splits_Jaccard(self):
         comm = emp.comm_grid(self.pat1, self.cols1, None, '2,1',
                              metric='Jaccard')
         assert_almost_equal(comm[0][1]['x'], [0.1])
-        assert_equal(comm[0][1]['y'], [1/2.])
+        assert_array_equal(comm[0][1]['y'], [1/2.])
 
     def test_with_split(self):
         comm = emp.comm_grid(self.pat1, self.cols1, 'year:split', '2,1')
-        assert_equal(comm[0][1]['y'], [0])
-        assert_equal(comm[1][1]['y'], [2/3.])
+        assert_array_equal(comm[0][1]['y'], [0])
+        assert_array_equal(comm[1][1]['y'], [2/3.])
 
     def test_y_division_even(self):
         comm = emp.comm_grid(self.pat1, self.cols1, '', '1,3')
-        assert_equal(comm[0][1]['pair'], ['(0.15 0.1) - (0.15 0.2)',
+        assert_array_equal(comm[0][1]['pair'], ['(0.15 0.1) - (0.15 0.2)',
                                           '(0.15 0.1) - (0.15 0.3)',
                                           '(0.15 0.2) - (0.15 0.3)'])
-        assert_almost_equal(comm[0][1]['x'], [0.1, 0.2, 0.1])
-        assert_equal(comm[0][1]['y'], [2/3., 2/3., 1.])
+        assert_array_almost_equal(comm[0][1]['x'], [0.1, 0.2, 0.1])
+        assert_array_equal(comm[0][1]['y'], [2/3., 2/3., 1.])
 
     def test_x_y_division_uneven_y(self):
         comm = emp.comm_grid(self.pat1, self.cols1, '', '2,2')
         print comm
-        assert_equal(comm[0][1]['pair'], ['(0.1 0.125) - (0.1 0.275)',
+        assert_array_equal(comm[0][1]['pair'], ['(0.1 0.125) - (0.1 0.275)',
                                           '(0.1 0.125) - (0.2 0.125)',
                                           '(0.1 0.125) - (0.2 0.275)',
                                           '(0.1 0.275) - (0.2 0.125)',
                                           '(0.1 0.275) - (0.2 0.275)',
                                           '(0.2 0.125) - (0.2 0.275)'])
-        assert_almost_equal(comm[0][1]['x'], [0.15, 0.1, 0.180278, 0.180278,
+        assert_array_almost_equal(comm[0][1]['x'], [0.15, 0.1, 0.180278, 0.180278,
                                               0.1, 0.15], 6)
-        assert_equal(comm[0][1]['y'], [2/3., 0, 0, 0, 2/3., 0])
+        assert_array_equal(comm[0][1]['y'], [2/3., 0, 0, 0, 2/3., 0])
 
     def test_x_y_division_uneven_y_jaccard(self):
         comm = emp.comm_grid(self.pat1, self.cols1, '', '2,2',metric='Jaccard')
-        assert_equal(comm[0][1]['y'], [1/2., 0, 0, 0, 1/2., 0])
+        assert_array_equal(comm[0][1]['y'], [1/2., 0, 0, 0, 1/2., 0])
 
 class TestORing(Patches):
     # TODO: Main may fail with error if dataframe has no records when trying to
