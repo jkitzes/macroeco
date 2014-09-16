@@ -28,11 +28,13 @@ The following discrete distributions are available.
    geom
    geom_uptrunc
    nbinom
+   nbinom_ztrunc
    cnbinom
    logser
    logser_uptrunc
    plnorm
    plnorm_ztrunc
+   dgamma
 
 The following continuous distributions are available.
 
