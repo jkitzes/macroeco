@@ -152,6 +152,53 @@ class TestNbinom(TestCase):
 
         assert_almost_equal(alt_k, k, decimal=1)
 
+
+class TestNbinom_ztrunc(TestCase):
+
+    def test_pmf(self):
+        # Test pmf gives back expected mean
+        tpmf = nbinom_ztrunc.pmf(np.arange(1, 500), 4, 1)
+        tmean = np.sum(np.arange(1, 500) * tpmf)
+        assert_almost_equal(tmean, 4)
+
+        # Test pmf of 0 is 0
+        tpmf = nbinom_ztrunc.pmf(0, 1, 1)
+        assert_equal(tpmf, 0)
+
+    def test_cdf(self):
+
+        # Test cdf and pmf agree!
+        tpmf = np.sum(nbinom_ztrunc.pmf(np.arange(1, 20), 20, 10))
+        tcdf = nbinom_ztrunc.cdf(19, 20, 10)
+        assert_equal(tpmf, tcdf)
+
+    def test_get_p_from_mu(self):
+
+        # Test the fit p values are equal to those given in He and Legendre
+        # 2002
+        test_values = [205.9878, 410.9853, 794.7613, 1210.0497,
+                            1945.9970, 3193.8362]
+        test_ks = [2, 1, 0.5, 0.3, 0.1363, 0.01]
+
+        ps = np.array([nbinom_ztrunc.translate_args(335356 / 814., tk,
+            return_p=True)[0] for tk in test_ks])
+
+        assert_array_almost_equal(ps, test_values, decimal=0)
+
+    def test_fit_mle(self):
+
+        # Test fit returns something close the input
+        rvs_data = nbinom_ztrunc(10, 1).rvs(size=1000)
+        ml_mean, ml_k = nbinom_ztrunc.fit_mle(rvs_data)
+        assert_almost_equal(ml_mean, np.mean(rvs_data))
+        assert_almost_equal(ml_k, 1, decimal=0)
+
+        rvs_data = nbinom_ztrunc(20, 10).rvs(size=1000)
+        ml_mean, ml_k = nbinom_ztrunc.fit_mle(rvs_data)
+        assert_almost_equal(ml_mean, np.mean(rvs_data))
+        assert_almost_equal(ml_k, 10, decimal=0)
+
+
 class TestCnbinom(TestCase):
 
     def test_pmf(self):
