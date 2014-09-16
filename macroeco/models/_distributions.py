@@ -424,13 +424,13 @@ _geom_solve_p_from_mu_vect = np.vectorize(_geom_solve_p_from_mu)
 
 class dgamma_gen(rv_discrete_meco):
     r"""
-    A discrete gamma random variable
+    A discrete gamma random variable.
 
     .. math::
 
-       P(x) = k * x^(\alpha - 1) * e^{(-1 / \theta)*x}
+       P(x) = k * x^{(\alpha - 1)} * e^{(-1 / \theta)*x}
 
-    for ``x >= 1``, ``\alpha > 0`` and ``\theta > 0``.
+    for ``x >= 1``, ``\theta > 0``.
     ``k`` is the normalizing constant.
 
     Methods
@@ -541,7 +541,7 @@ class nbinom_gen(rv_discrete_meco):
        p(x) = \frac{\gamma (k + x)}{\gamma(k) x!}
        \left(\frac{k}{k+\mu}\right)^k \left(\frac{\mu}{k+\mu}\right)^x
 
-    for ``x >= 0``. in the traditional parameterization, ``n = k_agg`` (the
+    for ``x >= 0``. In the traditional parameterization, ``n = k_agg`` (the
     size parameter) and ``p = k_agg / (k_agg + mu)``. the ``loc`` parameter is
     not used.
 
@@ -630,33 +630,69 @@ def nbinom_nll(data, k_agg, mu):
 
 class nbinom_ztrunc_gen(rv_discrete_meco):
     r"""
-    The zero-truncated negative binomial random variable
+    The zero-truncated negative binomial random variable.
 
-    This distribution is described by Sampford (1955) [#]_
-
-    Wrong math
+    This distribution is described by Sampford (1955) [#]_.
 
     .. math::
 
-       p(x) = \frac{\binom{x + k - 1}{x}  \binom{b - x + k/a - k -1}{b
-                -x}}{\binom{b + k/a - 1}{b}}
+       p(x) = \frac{(k + x - 1)!}{(k - 1)!x!} \left(\frac{p}
+        {1 + p}\right)^{x} \frac{1}{(1 + p)^{k - 1}}
+
+    for ``x >= 1``. ``p`` can be computed directly from the mean of the
+    distribution and is calculated internally so that the distribution is
+    parameterized by ``\mu`` and ``k_agg`` analogous to ``nbinom``.
+
+    Methods
+    -------
+    translate_args(mu, k_agg, return_p=False)
+        Returns mu and k_agg. Returns p parameter if return_p is True.
+    fit_mle(data, k_agg0=0.5)
+        ml estimate of shape parameters mu and k_agg given data
+    %(before_notes)s
+    mu : float
+        distribution mean
+    k_agg : float
+        clustering parameter
+
+    Notes
+    -----
+
+    References
+    ----------
+    .. [#]
+       Sampford, M. R. (1955). The truncated negative binomial distribution.
+       Biometrika, 42(1), 58-69
 
 
     """
 
     @inherit_docstring_from(rv_discrete_meco)
-    def translate_args(self, mu, k_agg):
-        return mu, k_agg
+    def translate_args(self, mu, k_agg, return_p=False):
+        """%(super)s
+
+        The keyword argument return_p computes the p values used to define the
+        the truncated negative binomial
+        """
+        if return_p:
+            return nbinom_ztrunc_p(mu, k_agg), k_agg
+        else:
+            return mu, k_agg
 
     @inherit_docstring_from(rv_discrete_meco)
     def fit_mle(self, data, k_agg0=0.5):
+        """%(super)s
+
+        In addition to data, gives an optional keyword argument k_agg0 that
+        specifies the initial value of k_agg used in the optimization.
+
+        """
 
         mu = np.mean(data)
 
         def mle(k):
 
-            p = nbinom_ztrunc_p(mu, k)
-            return -np.sum(np.log(self.pmf(data, p, k)))
+            return -np.sum(np.log(self.pmf(data, mu, k)))
 
         k = optim.fmin(mle, x0=k_agg0, disp=0)
 
