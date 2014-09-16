@@ -717,6 +717,8 @@ class nbinom_ztrunc_gen(rv_discrete_meco):
         omega = 1 / (1 + p)
         eta = 1 - omega
         mu = mu
+
+        # From Sampford 1955
         var = (k_agg * eta * (1 + k_agg * eta)) / \
                 (omega**2 * (1 - omega**k_agg)) - mu**2
         return mu, var, None, None
