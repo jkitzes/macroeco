@@ -74,7 +74,9 @@ splits_note = \
     "x:2; y:2; year:split" will perform the analysis separately for each of
     four subplots of the patch (created by dividing the x and y coordinates
     each into two equally sized divisions) within each of the three years,
-    for a total of 12 separate analyses."""
+    for a total of 12 separate analyses.  Note that if you pass in the x
+    split you MUST also pass in a y split (even if it is just "y:1") or vice
+    versa.  Otherwise, the computed areas will be incorrect."""
 
 division_note = \
     """The parameter divisions describes how to successively divide the patch
@@ -147,6 +149,7 @@ class Patch(object):
             self.table = self._load_table(metadata_path,
                                           self.meta['Description']['datapath'])
 
+        self.incremented = False
 
     def _load_table(self, metadata_path, data_path):
         """
@@ -174,8 +177,10 @@ class Patch(object):
         if extension == 'csv':
             full_table = pd.read_csv(data_path, index_col=False)
             table = _subset_table(full_table, self.subset)
-            self.meta = _subset_meta(self.meta, self.subset)
+            self.meta, _ = _subset_meta(self.meta, self.subset)
         elif extension in ['db', 'sql']:
+
+            # TODO: deal with incrementing in DB table
             table = self._get_db_table(data_path, extension)
         else:
             raise TypeError('Cannot process file of type %s' % extension)
@@ -274,7 +279,7 @@ def _subset_table(full_table, subset):
 
     return full_table[valid]
 
-def _subset_meta(full_meta, subset):
+def _subset_meta(full_meta, subset, incremented=False):
     """
     Return metadata reflecting all conditions in subset
 
@@ -284,6 +289,8 @@ def _subset_meta(full_meta, subset):
         Metadata object
     subset : str
         String describing subset of data to use for analysis
+    incremented : bool
+        If True, the metadata has already been incremented
 
     Returns
     -------
@@ -292,7 +299,7 @@ def _subset_meta(full_meta, subset):
 
     """
     if not subset:
-        return full_meta
+        return full_meta, False
 
     meta = {}  # Make deepcopy of entire meta (all section dicts in meta dict)
     for key, val in full_meta.iteritems():
@@ -300,6 +307,7 @@ def _subset_meta(full_meta, subset):
 
     conditions = subset.replace(' ','').split(';')
 
+    inc = False
     for condition in conditions:
         condition_list = re.split('[<>=]', condition)
         col = condition_list[0]
@@ -318,15 +326,23 @@ def _subset_meta(full_meta, subset):
         elif operator == '>=':
             meta[col]['min'] = val
         elif operator == '>':
-            meta[col]['min'] = str(eval(val) + eval(col_step))
+            if incremented:
+                meta[col]['min'] = val
+            else:
+                meta[col]['min'] = str(eval(val) + eval(col_step))
+            inc = True
         elif operator == '<=':
             meta[col]['max'] = val
         elif operator == '<':
-            meta[col]['max'] = str(eval(val) - eval(col_step))
+            if incremented:
+                meta[col]['max'] = val
+            else:
+                meta[col]['max'] = str(eval(val) - eval(col_step))
+            inc = True
         else:
             raise ValueError, "Subset %s not valid" % condition
 
-    return meta
+    return meta, inc
 
 
 @log_start_end
@@ -508,7 +524,7 @@ def _sar_ear_inner(patch, cols, splits, divs, y_func):
         subdivlist = _split_divs(divs)
         for subdiv in subdivlist:
             spatial_table = _yield_spatial_table(subpatch, subdiv, spp_col,
-                                                 count_col, x_col, y_col)
+                                        count_col, x_col, y_col)
             subresulty.append(y_func(spatial_table, all_spp))
             subresultx.append(A0 / eval(subdiv.replace(',', '*')))
             subresultnspp.append(np.mean(spatial_table['n_spp']))
@@ -995,7 +1011,9 @@ def _yield_subpatches(patch, splits, name='split'):
             log.info('Analyzing subset %s: %s' % (name, subset))
             subpatch = copy.copy(patch)
             subpatch.table = _subset_table(patch.table, subset)
-            subpatch.meta = _subset_meta(patch.meta, subset)
+            subpatch.meta, subpatch.incremented = _subset_meta(patch.meta,
+                                                subset, incremented=True)
+
             yield subset, subpatch
     else:
         yield '', patch
@@ -1054,7 +1072,11 @@ def _patch_area(patch, x_col, y_col):
         col_step = eval(patch.meta[col]['step'])
         col_min = eval(patch.meta[col]['min'])
         col_max = eval(patch.meta[col]['max'])
-        lengths.append(col_max - col_min + col_step)
+
+        if patch.incremented:
+            lengths.append(col_max - col_min)
+        else:
+            lengths.append(col_max - col_min + col_step)
 
     return lengths[0] * lengths[1]
 
@@ -1063,7 +1085,9 @@ def _col_starts_ends(patch, col, slices):
     col_step = eval(patch.meta[col]['step'])
     col_min = eval(patch.meta[col]['min'])
     col_max = eval(patch.meta[col]['max'])
+
     edges = np.linspace(col_min-col_step/2, col_max+col_step/2, eval(slices)+1)
+
     starts = edges[:-1]
     ends = edges[1:]
 
