@@ -1,6 +1,8 @@
 macroeco
 ========
 
+## For the most up-to-date and unittested version of `macroeco` please use the develop branch
+
 Overview
 --------
 
