@@ -911,7 +911,7 @@ class logser_gen(rv_discrete_meco):
         return stats.logser.cdf(x, p)
 
     def _stats(self, p):
-        r = log(1 - p)
+        r = np.log(1 - p)
         mu = p / (p - 1.0) / r
         mu2p = -p / r / (p - 1.0)**2
         var = mu2p - mu*mu
