@@ -680,7 +680,7 @@ def _yield_spatial_table(patch, div, spp_col, count_col, x_col, y_col):
 
 @log_start_end
 @doc_sub(metric_params, metric_return, cols_note, splits_note)
-def o_ring(patch, cols, splits, spp, bin_edges, density=True):
+def o_ring(patch, cols, splits, spp, bin_edges, density=True, full=False):
     """
     Calculates univariate O-ring for a species
 
@@ -694,6 +694,9 @@ def o_ring(patch, cols, splits, spp, bin_edges, density=True):
     density : bool
         If True, return densities (counts divided by area of torus defined
         by bin edges) instead of counts. Default True.
+    full : bool
+        If True, return a separate column giving density at distance x for
+        every individual, rather than mean density. Default False.
 
     Returns
     -------
@@ -763,8 +766,13 @@ def o_ring(patch, cols, splits, spp, bin_edges, density=True):
         counts = list(spp_table[count_col])
 
         # Arrays to hold summed areas and distance histograms for all points
-        areas = np.zeros(len(radii))
-        hists = np.zeros(len(radii))
+
+        if full:
+            hists = []  # Vectors of len(radii) appended for each point
+            areas = []
+        else:
+            hists = np.zeros(len(radii))
+            areas = np.zeros(len(radii))
 
         # Go through each point and associated count
         for i, (point, count) in enumerate(zip(points, counts)):
@@ -803,15 +811,24 @@ def o_ring(patch, cols, splits, spp, bin_edges, density=True):
                                    circ.boundary.length)
 
             # Add hist and corrected area for this point to running totals
-            hists += hist
-            areas += torus_areas * corr_factor * count
+            if full:
+                hists.append(hist)
+                areas.append(torus_areas * corr_factor * count)
+            else:
+                hists += hist
+                areas += torus_areas * corr_factor * count
 
         # If density, divide summed torus counts by summed areas
         if density:
-            hists = hists / areas
+            hists = np.array(hists) / np.array(areas)
 
         # Append subset result
-        subresult = pd.DataFrame({'x': radii, 'y': hists})
+        subresult = pd.DataFrame({'x': radii})
+        if full:
+            for i in range(len(hists)):
+                subresult[i] = hists[i]
+        else:
+            subresult['y'] = hists
         result_list.append((substring, subresult))
 
     # Return all results
