@@ -10,7 +10,6 @@ from twiggy import log
 import copy
 log = log.name('meco')
 
-
 import numpy as np
 import pandas as pd
 
@@ -22,8 +21,6 @@ from .. import empirical as emp
 from .. import models as mod
 from .. import compare as comp
 from .. import misc
-
-mpl.rcParams.update(misc.rcparams.ggplot_rc)
 
 
 def main(param_path='parameters.txt'):
@@ -382,6 +379,9 @@ def _save_results(options, module, core_results, fit_results):
     """
 
     log.info("Saving all results")
+
+    # Use custom plot format
+    mpl.rcParams.update(misc.rcparams.ggplot_rc)
 
     # Make run directory
     os.makedirs(options['run_dir'])
