@@ -66,4 +66,5 @@ from _distributions import (geom, geom_uptrunc, nbinom, nbinom_ztrunc,
                             dgamma)
 
 from ._curves import (power_law,
-                      mete_sar, mete_sar_iterative, mete_ear)
+                      mete_sar, mete_sar_iterative, mete_upscale_iterative_alt,
+                      mete_ear)

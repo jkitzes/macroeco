@@ -3,6 +3,7 @@ from __future__ import division
 import numpy as np
 import pandas as pd
 from scipy import optimize
+from mpmath import lerchphi
 
 from ..misc import inherit_docstring_from
 import _distributions as dist
@@ -202,7 +203,7 @@ class mete_sar_gen(curve):
         self.iterative = iterative
         self.ear = ear
 
-    def _vals(self, x, S0, N0, array_size=1e6, approx=False):
+    def _vals(self, x, S0, N0, array_size=1e6, approx=False, alt_up=False):
         # x is area, y is S
 
         A0 = x[0]
@@ -229,11 +230,13 @@ class mete_sar_gen(curve):
         lower = 1
         upper = array_size + 1
         S = 0
+        print S0,N0
 
         if S0 < 1 or np.isnan(S0):  # Give up if S0 too small
             return np.nan, N0*a
 
         while lower < N0:
+            print lower
 
             if upper > N0:
                 upper = N0 + 1
@@ -276,6 +279,7 @@ class mete_sar_gen(curve):
     def _upscale_step(self, a, S0, N0, array_size, approx):
 
         N1 = N0*a
+        print a
 
         def eq(S1, N1, a, S0, array_size, approx):
             return S0-self._downscale_step(1/a, S1, N1, array_size, approx)[0]
@@ -308,3 +312,76 @@ mete_sar_iterative = mete_sar_gen(name='mete_iterative_sar',
                                   parameters='S0,N0', iterative=True)
 
 mete_ear = mete_sar_gen(name='mete_ear', parameters='S0,N0', ear=True)
+
+def mete_upscale_iterative_alt(S, N, doublings):
+    """
+    This function is used to upscale from the anchor area.
+
+    Parameters
+    ----------
+    S : int or float
+        Number of species at anchor scale
+    N : int or float
+        Number of individuals at anchor scale
+    doublings : int
+        Number of doublings of A. Result vector will be length doublings + 1.
+
+    Returns
+    -------
+    result : ndarray
+        1D array of number of species at each doubling
+
+    """
+
+    # Arrays to store N and S at all doublings
+    n_arr = np.empty(doublings+1)
+    s_arr = np.empty(doublings+1)
+
+    # Loop through all scales
+    for i in xrange(doublings+1):
+
+        # If this is first step (doubling 0), N and S are initial values
+        if i == 0:
+            n_arr[i] = N
+            s_arr[i] = S
+
+        # If not first step
+        else:
+
+            # Get previous S
+            SA = s_arr[i-1]
+
+            # N is double previous N
+            n_arr[i] = 2 * n_arr[i-1]
+            N2A = n_arr[i]
+
+            # Eq 8 from Harte 2009, setup to return S2A given input of x
+            # x is exp(-lam_phi, 2A)
+            def S2A_calc(x, SA, N2A):
+                return ((SA +
+                        N2A *
+                        (1-x)/(x-x**(N2A+1)) *
+                        (1 - (x**N2A)/(N2A+1))) /
+                        x**-1)
+
+            # Eq 9 from Harte 2009, setup to equal to zero, used to solve x
+            # Note that two summations are replaced by known formulas for sum
+            # of geometric and logarithmic series.
+            # Note "offset" of 1e-23, which is needed because f(a) and f(b) do
+            # not have the same sign in solver otherwise. This introduces no
+            # more than a 1e-23 error in the calculation of x, which should not
+            # cause a significant problem.
+            def x_calc(x, SA, N2A):
+                return (S2A_calc(x,SA,N2A) /
+                        N2A *
+                        x*(x**N2A-1)/(x-1) -
+                        (x**N2A * (-lerchphi(x,1,N2A+1))-np.log(1-x)) ) - 1e-23
+
+            # Solve for x
+            x = (optimize.brentq(x_calc, 1e-24, 1-1e-16, args=(SA,N2A),
+                    xtol=1e-16, maxiter=1000, disp=True) + 1e-23)
+
+            # Given x, calculate S2A
+            s_arr[i] = S2A_calc(x,SA,N2A)
+
+    return s_arr
