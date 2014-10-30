@@ -1121,8 +1121,12 @@ class plnorm_gen(rv_discrete_meco):
     @inherit_docstring_from(rv_discrete_meco)
     def fit_mle(self, data):
 
-        mu0 = np.mean(np.log(data))
-        sig0 = np.std(np.log(data))
+        mu0 = np.mean(np.log(np.array(data) + 1))
+        sig0 = np.std(np.log(np.array(data) + 1))
+
+        if sig0 == 0:
+
+            sig0 = 1e-5 # can't be zero
 
         def mle(params):
             return -np.sum(self.logpmf(data, params[0], params[1]))
