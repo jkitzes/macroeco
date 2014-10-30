@@ -1248,6 +1248,10 @@ class plnorm_ztrunc_gen(rv_discrete_meco):
         mu0 = np.mean(np.log(data))
         sig0 = np.std(np.log(data))
 
+        if sig0 == 0:
+
+            sig0 = 1e-5 # can't be zero
+
         def mle(params):
             return -np.sum(np.log(self._pmf(data, params[0], params[1])))
 
