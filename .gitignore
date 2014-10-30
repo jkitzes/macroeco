@@ -8,3 +8,5 @@ _private/*
 *.pyc
 *.DS_Store
 *.pdf
+*egg-info*
+
