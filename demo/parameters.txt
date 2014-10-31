@@ -1,0 +1,21 @@
+[Plognorm pmf]
+analysis = plnorm.pmf
+
+x = np.arange(10)
+mu = 2
+sigma = 1.
+
+[SAD ANBO Row > 2]
+analysis = sad
+metadata = ANBO.txt
+
+subset = row>=2
+log_y = True
+
+[Comm ANBO]
+analysis = comm_grid
+metadata = ANBO.txt
+
+cols = spp_col:spp; count_col:count; x_col:row; y_col:column
+divs = 4,4;
+models = power_law

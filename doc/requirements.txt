@@ -1,0 +1,9 @@
+scipy
+numpy
+matplotlib
+pandas
+mpmath
+configparser
+decorator
+twiggy
+numpydoc
