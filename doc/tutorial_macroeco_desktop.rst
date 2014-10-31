@@ -113,9 +113,8 @@ The third portion of this run begins with the input parameter ``models``, which 
 
    power_law
    mete_sar
-   mete_iterative_sar
+   mete_sar_iterative
    mete_ear
-   mete_iterative_ear
 
 If the metric is a probability distribution, the following models may be used (note that some are discrete and some continuous).
 
