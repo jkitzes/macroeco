@@ -18,11 +18,11 @@ Installation
 
 For users with an existing scientific Python environment, the latest stable version of both ``macroeco`` and the MacroecoDesktop interface can be installed with ``pip install macroeco``. Several package dependencies may also be installed by this command. The latest development version of Macroeco can be found in the "develop" branch of the `Macroeco GitHub repo <http://github.com/jkitzes/macroeco/>`_.
 
-Mac OS X users who wish only to use MacroecoDesktop can instead download the MacroecoDesktop application from this link. After unzipping, drag the MacroecoDesktop application into the Applications folder.
+Mac OS X users who wish only to use MacroecoDesktop can instead download the MacroecoDesktop application from `this link <https://github.com/jkitzes/macroeco/releases>`_. After unzipping, drag the MacroecoDesktop application into the Applications folder.
 
 Windows and Linux users who wish to use MacroecoDesktop will need to set up a scientific Python environment. The developers recommend the free `Continuum Anaconda <https://store.continuum.io/cshop/anaconda/>`_ scientific Python installation for new users. After downloading and installing Anaconda, run the command ``pip install macroeco`` from a Terminal window.
 
-The remainder of this tutorial uses demo data from a vegetation census in Anza-Borrego Desert State Park in southern California. This demo data can be downloaded at this link. The file ANBO.csv contains the census data and the file ANBO.txt contains metadata describing the data table. This data may be freely shared and used for analysis so long as credit is given to the authors.
+The remainder of this tutorial uses demo data from a vegetation census in Anza-Borrego Desert State Park in southern California. This demo data can be downloaded at `this link <https://github.com/jkitzes/macroeco/releases>`_. The file ANBO.csv contains the census data and the file ANBO.txt contains metadata describing the data table. This data may be freely shared and used for analysis so long as credit is given to the authors.
 
 .. _first-steps-macroeco:
 
