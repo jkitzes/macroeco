@@ -34,7 +34,7 @@ The metadata file ANBO.txt is shown here. ::
     citation = Unpublished
 
     datapath = ANBO.csv
-    cols = spp_col:spp; count_col: count; x_col; row: y_col; column
+    cols = spp_col:spp; count_col: count; x_col: row; y_col: column
 
     [year]
     description = Year of census
