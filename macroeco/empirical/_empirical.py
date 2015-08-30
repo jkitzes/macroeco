@@ -543,8 +543,11 @@ def _split_divs(divs):
     if type(divs) == type((1,1)):  # Tuple (occurs when main evals single div)
         subdivlist = [str(divs)[1:-1]]
     else: # String
+
         subdivlist = divs.split(';')
-    return subdivlist
+
+    # Clean divlist
+    return ["".join(s.strip().split(" ")) for s in subdivlist]
 
 
 @log_start_end
