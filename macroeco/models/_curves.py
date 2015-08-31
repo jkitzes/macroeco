@@ -298,13 +298,14 @@ class mete_sar_gen(curve):
         Notes
         -----
         Simply returns S0 and N0 from empirical SAR output, which are two fixed
-        parameters of METE SAR and EAR. The first row of the empirical
-        dataframe corresponds to area A0. Name ``fit_lsq`` is retained for
-        consistency with other curves.
+        parameters of METE SAR and EAR. This simply returns n_spp and
+        n_individs from the 1,1 division in
+        the dataframe. An error will be thrown if this division is not present
+        The ``fit_lsq`` is retained for consistency with other curves.
 
         """
-        # Just return S0 and N0 at largest scale, which is first row of df
-        return df['n_spp'].values[0], df['n_individs'].values[0]
+        tdf = df.set_index('div')
+        return tdf.ix['1,1']['n_spp'], tdf.ix['1,1']['n_individs']
 
 
 mete_sar = mete_sar_gen(name='mete_sar', parameters='S0,N0')
