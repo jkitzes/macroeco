@@ -49,7 +49,7 @@ class curve(object):
         [Docstring]
 
         """
-        x = np.array(x)
+        x = np.atleast_1d(x)
         return self._vals(x, *args, **kwargs)
 
     def _vals(self, x, *args):
@@ -84,8 +84,8 @@ class curve(object):
         """
 
         # Set up variables
-        x = np.array(x)
-        y_obs = np.array(y_obs)
+        x = np.atleast_1d(x)
+        y_obs = np.atleast_1d(y_obs)
         if not params_start:
             params_start = np.ones(self.n_parameters)
 
@@ -206,6 +206,7 @@ class mete_sar_gen(curve):
     def _vals(self, x, S0, N0, array_size=1e6, approx=False, alt_up=False):
         # x is area, y is S
 
+        x = np.atleast_1d(x)
         A0 = x[0]
         y = [S0]
 
@@ -245,7 +246,7 @@ class mete_sar_gen(curve):
 
             if approx:
                 sad_p = dist.logser.translate_args(N0/S0)
-                sad = dist.logser.pmf(n0, sad_p)
+                sad = dist.logser.pmf(n0, sad_p) #/ dist.logser.cdf(N0, sad_p)
             else:
                 sad_p, _ = dist.logser_uptrunc.translate_args(N0/S0, N0)
                 sad = dist.logser_uptrunc.pmf(n0, sad_p, N0)
