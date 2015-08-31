@@ -230,13 +230,13 @@ class mete_sar_gen(curve):
         lower = 1
         upper = array_size + 1
         S = 0
-        print S0,N0
+        #print S0,N0
 
         if S0 < 1 or np.isnan(S0):  # Give up if S0 too small
             return np.nan, N0*a
 
         while lower < N0:
-            print lower
+            #print lower
 
             if upper > N0:
                 upper = N0 + 1
@@ -279,7 +279,7 @@ class mete_sar_gen(curve):
     def _upscale_step(self, a, S0, N0, array_size, approx):
 
         N1 = N0*a
-        print a
+        # print a
 
         def eq(S1, N1, a, S0, array_size, approx):
             return S0-self._downscale_step(1/a, S1, N1, array_size, approx)[0]
