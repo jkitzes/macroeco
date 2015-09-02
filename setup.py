@@ -20,17 +20,20 @@ setup(
         "Topic :: Scientific/Engineering :: Bio-Informatics",
         "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: BSD License",],
+        "License :: OSI Approved :: BSD License",
+    ],
 
     install_requires = [
         'numpy>=1.6',
-        'scipy>=0.12',
-        'pandas>=0.13',
-        'matplotlib',
+        'scipy>=0.14',
+        'pandas>=0.14',
+        'matplotlib>=1.3',
         # 'shapely',  # Do not force install if user doesn't have
         'configparser',
         'decorator',
-        'twiggy'],
+        'twiggy',
+        # 'wxpython' # Do not force install if user doesn't have
+    ],
 )
 
 # python setup.py sdist bdist_egg upload -r https://testpypi.python.org/pypi
