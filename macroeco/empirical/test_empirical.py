@@ -2,6 +2,7 @@ from __future__ import division
 import os
 from configparser import ConfigParser
 
+import unittest
 from numpy.testing import (TestCase, assert_equal, assert_array_equal,
                            assert_almost_equal, assert_array_almost_equal,
                            assert_allclose, assert_, assert_raises)
@@ -13,6 +14,12 @@ import numpy as np
 import pandas as pd
 import scipy.stats as stats
 
+# Check whether shapely is installed
+try:
+    import shapely.geometry as geo
+    shapely_missing = False
+except:
+    shapely_missing = True
 
 class Patches(TestCase):
 
@@ -149,7 +156,6 @@ class TestSAR(Patches):
                                             sar_split[0][1].sort(axis=1))
 
 
-
 class TestEAR(Patches):
 
     def test_no_splits(self):
@@ -205,6 +211,8 @@ class TestCommGrid(Patches):
         comm = emp.comm_grid(self.pat1, self.cols1, '', '2,2',metric='Jaccard')
         assert_array_equal(comm[0][1]['y'], [1/2., 0, 0, 0, 1/2., 0])
 
+
+@unittest.skipIf(shapely_missing, "shapely not present, skipping O-ring test")
 class TestORing(Patches):
     # TODO: Main may fail with error if dataframe has no records when trying to
     # fit or make plot.
@@ -216,33 +224,33 @@ class TestORing(Patches):
     def test_one_individual_returns_zeros(self):
         self.pat1.table = self.pat1.table[2:4]  # Leave 1 'a' and 1 'b'
         o_ring = emp.o_ring(self.pat1, self.cols1, '', 'a', [0,.1,.2])
-        assert_equal(o_ring[0][1]['y'], [0, 0])
+        assert_array_equal(o_ring[0][1]['y'], [0, 0])
 
     def test_no_density_a(self):
         # Points on bin edge may be allocated ambiguously due to floating point
         # issues - testing here with slightly offset edges
         o_ring = emp.o_ring(self.pat1, self.cols1, '', 'a', [0,.101,.201,.301],
                             density=False)
-        assert_almost_equal(o_ring[0][1]['x'], [0.0505, 0.151, 0.251])
-        assert_almost_equal(o_ring[0][1]['y'], [8, 4, 0])
+        assert_array_almost_equal(o_ring[0][1]['x'], [0.0505, 0.151, 0.251])
+        assert_array_almost_equal(o_ring[0][1]['y'], [8, 4, 0])
 
     def test_no_density_b(self):
         o_ring = emp.o_ring(self.pat1, self.cols1, '', 'b', [0,.1,.2,.3],
                             density=False)
-        assert_almost_equal(o_ring[0][1]['x'], [0.05, 0.15,0.25])
-        assert_almost_equal(o_ring[0][1]['y'], [6, 6, 0])
+        assert_array_almost_equal(o_ring[0][1]['x'], [0.05, 0.15,0.25])
+        assert_array_almost_equal(o_ring[0][1]['y'], [6, 6, 0])
 
     def test_with_split_a(self):
         o_ring = emp.o_ring(self.pat1, self.cols1, 'y:2', 'a', [0,.1,.2],
                             density=False)
-        assert_equal(o_ring[0][1]['y'], [2, 0])  # Bottom
-        assert_equal(o_ring[1][1]['y'], [2, 0])  # Top
+        assert_array_equal(o_ring[0][1]['y'], [2, 0])  # Bottom
+        assert_array_equal(o_ring[1][1]['y'], [2, 0])  # Top
 
     def test_with_split_b(self):
         o_ring = emp.o_ring(self.pat1, self.cols1, 'y:2', 'b', [0,.1,.2],
                             density=False)
-        assert_equal(o_ring[0][1]['y'], [])  # Bottom
-        assert_equal(o_ring[1][1]['y'], [6, 6])  # Top
+        assert_array_equal(o_ring[0][1]['y'], [])  # Bottom
+        assert_array_equal(o_ring[1][1]['y'], [6, 6])  # Top
 
     def test_density_a(self):
         # First radius is 0.05
