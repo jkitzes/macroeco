@@ -533,7 +533,7 @@ class nbinom_gen(rv_discrete_meco):
 
     .. math::
 
-       p(x) = \frac{\gamma (k + x)}{\gamma(k) x!}
+       P(x) = \frac{\gamma (k + x)}{\gamma(k) x!}
        \left(\frac{k}{k+\mu}\right)^k \left(\frac{\mu}{k+\mu}\right)^x
 
     for ``x >= 0``. In the traditional parameterization, ``n = k_agg`` (the
@@ -631,7 +631,7 @@ class nbinom_ztrunc_gen(rv_discrete_meco):
 
     .. math::
 
-       p(x) = \frac{(k + x - 1)!}{(k - 1)!x!} \left(\frac{p}
+       P(x) = \frac{(k + x - 1)!}{(k - 1)!x!} \left(\frac{p}
         {1 + p}\right)^{x} \frac{1}{(1 + p)^{k - 1}}
 
     for ``x >= 1``. ``p`` can be computed directly from the mean of the
@@ -748,7 +748,7 @@ class cnbinom_gen(rv_discrete_meco):
 
     .. math::
 
-       p(x) = \frac{\binom{x + k - 1}{x}  \binom{b - x + k/a - k -1}{b
+       P(x) = \frac{\binom{x + k - 1}{x}  \binom{b - x + k/a - k -1}{b
                 -x}}{\binom{b + k/a - 1}{b}}
 
     for ``x >= 0``. In this parameterization ``a = E[p(x)] / b`` where ``b`` is
@@ -865,17 +865,21 @@ def _solve_k_from_mu(data, k_array, nll, *args):
 
 class logser_gen(rv_discrete_meco):
     """
-    A Logarithmic (Log-Series, Series) discrete random variable.
+    Logseries (logarithmic) random variable.
 
-    Notes
-    -----
-    The probability mass function for `logser` is::
+    .. math::
 
-    logser.pmf(k) = - p**k / (k*log(1-p))
+        P(x) = - p**x / (x*log(1-p))
 
-    for ``k >= 1``.
-
-    `logser` takes ``p`` as shape parameter.
+    Methods
+    -------
+    translate_args(mu)
+        Translates the mean into p
+    fit_mle(data)
+        ml estimate of shape parameter p
+    %(before_notes)s
+    p : float
+        p parameter of the logseries distribution
 
     """
 
