@@ -134,7 +134,7 @@ def format_dense(base_data, non_label_cols, **kwargs):
     # Set nans to zero?
     if kwargs['nan_to_zero']:
         ind = np.isnan(columnar_data[kwargs['count_col']])
-        columnar_data[kwargs['count_col']][ind] = 0
+        columnar_data.loc[ind, kwargs['count_col']] = 0
         columnar_data.reset_index(inplace=True, drop=True)
 
     # Drop nans?
