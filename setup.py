@@ -1,9 +1,8 @@
 from setuptools import setup, find_packages
-from macroeco import __version__
 
 setup(
     name = 'macroeco',
-    version = __version__,
+    version = 1.0,
     packages = find_packages(),
     entry_points = {'console_scripts': ['mecodesktop=macroeco:mecodesktop',],},
     package_data = {'': ['*.txt', '*.csv']},
