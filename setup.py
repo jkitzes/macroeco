@@ -28,11 +28,12 @@ setup(
         'scipy>=0.14',
         'pandas>=0.14',
         'matplotlib>=1.3',
-        # 'shapely',  # Do not force install if user doesn't have
+        'mpmath>=0.19',
         'configparser',
         'decorator',
         'twiggy',
-        # 'wxpython' # Do not force install if user doesn't have
+        # 'shapely',  # Do not force install if user doesn't have
+        # 'wxpython', 
     ],
 )
 

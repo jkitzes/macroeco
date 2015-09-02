@@ -176,8 +176,8 @@ class MainWindow(wx.Frame):
                 self.run_button.Enable(True)  # Turn the run button on
 
 if __name__ == '__main__':
-    # To execute, run `pythonw -m desktop path/to/parameters.txt`
-    # With arg, execute main(arg), without arg open GUI window
+    # To run GUI, run `pythonw -m mecodesktop`
+    # To run headless, run `mecodesktop /path/to/paramsfile`
     if len(sys.argv) > 1:
         param_path = sys.argv[1]
         main(param_path)

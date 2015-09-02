@@ -170,7 +170,7 @@ class TestNbinom_ztrunc(TestCase):
         # Test cdf and pmf agree!
         tpmf = np.sum(nbinom_ztrunc.pmf(np.arange(1, 20), 20, 10))
         tcdf = nbinom_ztrunc.cdf(19, 20, 10)
-        assert_equal(tpmf, tcdf)
+        assert_almost_equal(tpmf, tcdf)
 
     def test_get_p_from_mu(self):
 
