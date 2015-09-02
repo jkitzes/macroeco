@@ -1179,7 +1179,7 @@ def empirical_cdf(data):
     vals = pd.Series(data).value_counts()
     ecdf = pd.DataFrame(data).set_index(keys=0)
     probs = pd.DataFrame(vals.sort_index().cumsum() / np.float(len(data)))
-    ecdf = ecdf.join(probs, how="right")
+    ecdf = ecdf.join(probs)
     ecdf = ecdf.reset_index()
     ecdf.columns = ['data', 'ecdf']
 
