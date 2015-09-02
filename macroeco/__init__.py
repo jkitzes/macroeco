@@ -40,4 +40,7 @@ def mecodesktop():
         param_path = _sys.argv[1]
         main.main(param_path)
     else:
-        print "Macroeco Desktop must be called with path to parameters file"
+        print "Usage:"
+        print "    'pythonw -m mecodesktop' will launch the MacroecoDesktop graphical interface"
+        print "    'mecodesktop /path/to/paramfile' will run MacroecoDesktop directly on a parameter file"
+        
