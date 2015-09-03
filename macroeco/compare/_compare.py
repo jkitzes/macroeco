@@ -109,7 +109,7 @@ def AIC(data, model, params=None, corrected=True):
         Number of parameters in the model. If None, calculated from model
         object.
     corrected : bool
-        If True, calculates the small-sample size correct AICC. Default False.
+        If True, calculates the small-sample size correct AICC. Default True.
 
     Returns
     -------
