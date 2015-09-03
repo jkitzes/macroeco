@@ -46,11 +46,12 @@ The distributions contained in the `models` package also contain some special fu
 
 A community with 30 species following this logseries distribution is expected to have 15 species with one individual.
 
-The `models` subpackage also contains objects known as `Curves`. These consist of macroecological curves such as species area relationships (SAR)s and endemic area relationships (EAR)s.  Currently, there are 4 implemented curves
+The `models` subpackage also contains objects known as `Curves`. These consist of macroecological curves such as species area relationships (SAR)s and endemic area relationships (EAR)s.  Currently, there are 4 implemented curves (:doc:`models`)
 
-* Power law curve
-* Maximum Entropy Theory of Ecology (METE) SAR/EAR with direct upscaling and downscaling
-* METE SAR with iterative upscaling and downscaling
+1. Power law curve
+2. Maximum Entropy Theory of Ecology (METE) SAR with direct upscaling and downscaling
+3. METE SAR with iterative upscaling and downscaling
+4. METE endemics area relationship (EAR)
 
 The METE SAR is a particular SAR that is described at length in the book **Maximum Entropy and Ecology: A Theory of Abundance, Distribution, and Energetics** by John Harte. It can be used to upscale and downscale species richness given knowledge of the total number of species (`S`) and the total number of individual (`N`) at some base area.
 
@@ -196,8 +197,9 @@ Any number of distributions from the `models` subpackage can be fit to the resul
     >>> # Fit the logseries distribution to the empirical SAD
     >>> p = meco.models.logser.fit_mle(sad_df['y'])
     >>> p
+    (0.9984913251355505,)
 
-  We can then get an AIC value to determine the "goodness of fit" of the logseries distribution to the empirical data.
+We can then get an AIC value to determine the "goodness of fit" of the logseries distribution to the empirical data.
 
     >>> # Get the AIC value
     >>> logser_aic = meco.compare.AIC(sad_df['y'], meco.models.logser(p[0]))
@@ -399,7 +401,7 @@ The result `all_spp_ssads` is a list with 24 tuples where each tuple contains tw
 
 If we want to quantify the aggregation of each of these species in space, we can loop through all of the species in `all_spp_ssads` (24 of them) and fit a finite negative binomial distribution to each species.  A finite negative binomial distribution describes the probability of a single cell on the landscape having an abundance of 0-n where n is the total number of individuals in the species of interest.
 
- The `k` parameter of this distribution specifies how aggregated a species is in space with `k` approaching 0 being very aggregated and `k` approaching infinity being binomially distributed.  Here is how we can fit the spatial distribution of each species in the landscape to a finite negative binomial distribution and extract the aggregation parameter `k`.::
+The `k` parameter of this distribution specifies how aggregated a species is in space with `k` approaching 0 being very aggregated and `k` approaching infinity being binomially distributed.  Here is how we can fit the spatial distribution of each species in the landscape to a finite negative binomial distribution and extract the aggregation parameter `k` ::
 
 
     # Store the results
@@ -418,7 +420,7 @@ If we want to quantify the aggregation of each of these species in space, we can
         agg_res[spp_name] = (k_param, total_abund)
 
 
-The dictionary `agg_res` contains the `k` parameter and total abundance for each species in the ANBO data.  If we wanted to see how `k` varied with abundance we could plot `k` versus abundance for each species.::
+The dictionary `agg_res` contains the `k` parameter and total abundance for each species in the ANBO data.  If we wanted to see how `k` varied with abundance we could plot `k` versus abundance for each species ::
 
     # Extract k and abundance
     k, abund = zip(*list(agg_res.viewvalues()))
@@ -440,7 +442,7 @@ The dictionary `agg_res` contains the `k` parameter and total abundance for each
 A more complex analysis
 =========================
 
-One of the major benefits of `macroeco` is that you can explore how macroeco logical patterns vary across scale and/or for different subsets of your data. For example, what if we wanted to compare how an SAD changed across scale?  We will again use the ANBO data to illustrate this example.
+One of the major benefits of `macroeco` is that you can explore how macroecological patterns vary across scale and/or for different subsets of your data. For example, what if we wanted to explore how an SAD changed across scale?  We will again use the ANBO data to illustrate this example.
 
 Remember that the ANBO census was conducted on a 4m x 4m grid where each cell was 1m x 1m.  To examine how the SAD changes across scale, we will take the following steps.
 
@@ -452,7 +454,7 @@ First, split the ANBO plot on the `row` and `column` columns and get the empiric
 
 Each of these cells has a unique SAD.  I get these SADs using the following code
 
-    # Split row by 2, split column by 4
+    >>> # Split row by 2, split column by 4
     >>> split_sads = meco.empirical.sad(pat, "spp_col:spp; count_col:count", splits="row:2; column:4")
 
 `split_sads` is a list with 8 tuples and each tuple contains the empirical SAD for one of the 8 cells created by `splits`. For example,
@@ -529,7 +531,7 @@ The parameter `results` stores the empirical SAD results across scales. For exam
      23  unsp4    1)
 
 
-Now we fit the SAD to a zero-truncated negative binomial distribution. ::
+Now we fit all the SADs to a zero-truncated negative binomial distribution and plot the results ::
 
     # Fit the SAD
 
@@ -557,7 +559,7 @@ Now we fit the SAD to a zero-truncated negative binomial distribution. ::
     :scale: 50 %
     :align: center
 
-`k` is clearly decreasing with increasing scale.
+For this data, `k` is clearly decreasing with increasing scale.
 
 
 
