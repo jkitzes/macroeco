@@ -80,13 +80,13 @@ This section describes the MacroecoDesktop interface. Mac OS X users who have do
 
 The purpose of MacroecoDesktop is to provide non-programmers an interface for accessing the functionality of Macroeco without the need to write Python code. Instead, the user creates a text file, called a parameters file, that contains the information and instructions needed by MacroecoDesktop to execute an analysis.
 
-This section gives a very brief overview of how to create a simple parameter file and use it to analyze a species abundance distribution (the analysis and output are identical to that shown above in :ref:`first-steps-macroeco`). More information on the structure of parameter files and how to customize them can be found in the tutorial XXXX.
+This section gives a very brief overview of how to create a simple parameter file and use it to analyze a species abundance distribution (the analysis and output are identical to that shown above in :ref:`first-steps-macroeco`). More information on the structure of parameter files and how to customize them can be found in the tutorial :ref:`recipes`.
 
 To create a simple parameter file, open a text editor of your choice. Windows users can use Notepad, which can be accessed through the Start Menu. Mac users can use the program TextEdit, which is located in Utilities folder inside of the Applications folder.
 
-IMPORTANT: Mac users who use TextEdit should open the program and immediately go to the Format menu and select the option Make Plain Text. This will need to be done every time TextEdit is used to create a new document. Alternatively, you might wish to download a better text editor such as the free program `TextWrangler <http://www.barebones.com/products/textwrangler/>`_.
+**IMPORTANT**: Mac users who use TextEdit should open the program and immediately go to the Format menu and select the option Make Plain Text. This will need to be done every time TextEdit is used to create a new document. Alternatively, you might wish to download a better text editor such as the free program `TextWrangler <http://www.barebones.com/products/textwrangler/>`_.
 
-To get started, type the following text into your text editor. Save this file with the name "new_parameters.txt" in the demo directory containing the ANBO.txt and ANBO.csv files. ::
+To get started, type the following text into your text editor. Save this file with the name `new_parameters.txt` in the demo directory containing the ANBO.txt and ANBO.csv files. ::
 
     [SAD-ANBO]
 
@@ -97,8 +97,7 @@ To get started, type the following text into your text editor. Save this file wi
     models = logser_uptrunc; lognorm
     log_y = True
 
-
-A single parameter file can contain multiple "runs", each of which is denoted by the name of the run written in brackets (this run is titled "SAD ANBO", as it will analyze the species abundance distribution for the Anza-Borrego demo data).
+A single parameter file can contain multiple "runs", each of which is denoted by the name of the run written in brackets (this run is titled `SAD ANBO`, as it will analyze the species abundance distribution for the Anza-Borrego demo data).
 
 Conceptually, the information required for a single run can be broken down into three parts. The first part tells MacroecoDesktop the type of analysis that's desired, in this case a species abundance distribution (any function contained in the empirical or models subpackage of ``macroeco`` can be listed here as an analysis).
 
@@ -108,13 +107,133 @@ The third part describes what, if any, theoretical models should be compared to 
 
 Once the parameter file has been created and saved, MacroecoDesktop can be called either from the graphical MacroecoDesktop program or from the Terminal.
 
-For Mac users who have downloaded the standalone MacroecoDesktop application, double click to launch the program. Use the Open button near the top to find and open the new_parameters.txt file that you just created. The parameters file will appear, and it can be edited and saved here again if desired. Once the parameter file is opened, click the Run button near the bottom. When the line "Finished analysis successfully" appears in the bottom window, the analysis is complete and the results are available. The results will be found in a folder named "results" in the same location as the new_parameters.txt file.
+For Mac users who have downloaded the standalone MacroecoDesktop application, double click to launch the program. You should see a screen that looks like this
 
-For users who wish to access MacroecoDesktop from the terminal and who have installed ``macroeco`` in their Python environment, simply run the command ``mecodesktop path/to/new_parameters.txt``. Output about the analysis progress will be printed in the Terminal window, and the results will eventually be saved in a folder named "results" in the same location as the new_parameters.txt file.
+.. figure:: images/mecodesktop.png
+    :scale: 30 %
+    :align: center
+
+
+Use the Open button near the top to find and open the `new_parameters.txt` file that you just created. The parameters file will appear, and it can be edited and saved here again if desired.
+
+.. figure:: images/meco_newparams.png
+    :scale: 30 %
+    :align: center
+
+Once the parameter file is opened, click the Run button near the bottom. When the line "Finished analysis successfully" appears in the bottom window, the analysis is complete and the results are available. The results will be found in a folder named `results` in the same location as the `new_parameters.txt` file.
+
+.. figure:: images/meco_run.png
+    :scale: 30 %
+    :align: center
+
+For users who wish to access MacroecoDesktop from the terminal and who have installed ``macroeco`` in their Python environment or clones the github repository and run `setup.py`, simply run the command ``mecodesktop path/to/new_parameters.txt``. Output about the analysis progress will be printed in the Terminal window, and the results will eventually be saved in a folder named `results` in the same location as the `new_parameters.txt` file.
+
+.. figure:: images/terminal.png
+    :scale: 30 %
+    :align: center
 
 Mac users who have downloaded the standalone MacroecoDesktop application can also access MacroecoDesktop from the command line if desired. Presuming that the MacroecoDesktop program has been placed in the Applications folder, the command to use is ``/Applications/MacroecoDesktop.app/Contents/MacOS/mecodesktop path/to/new_parameters.txt``
 
 For information on performing more complex analyses using MacroecoDesktop, see :ref:`using-macroecodesktop`.
+
+First steps: interpreting output
+==========================================
+
+All the results generated from the parameter file `new_parameters.txt` are stored in a folder named `results`. In general the `results` folder will contain a log file (`_log.txt`) as well some number of folders. Each folder corresponds to a particular run specified in the parameters file.
+
+In the case of the analysis that we ran above the log file should be similar to the output you saw on the MacroecoDesktop GUI or the terminal window ::
+
+    [2015/09/02 15:21:47 PM] {meco} INFO Running macroeco
+    [2015/09/02 15:21:47 PM] {meco} INFO Parameters file at /Users/mqwilber/Desktop/new_parameters.txt
+    [2015/09/02 15:21:47 PM] {meco} INFO Starting analysis
+    [2015/09/02 15:21:47 PM] {meco} INFO Starting run SAD-ANBO
+    [2015/09/02 15:21:47 PM] {meco} INFO Starting sad
+    [2015/09/02 15:21:47 PM] {meco} INFO Finished sad
+    [2015/09/02 15:21:47 PM] {meco} INFO Fitting models
+    [2015/09/02 15:21:47 PM] {meco} INFO Saving all results
+    [2015/09/02 15:21:48 PM] {meco} INFO Finished run SAD-ANBO
+    [2015/09/02 15:21:48 PM] {meco} INFO Finished analysis successfully
+    [2015/09/02 15:21:48 PM] {meco} INFO Results available at /Users/mqwilber/Desktop
+
+The other folder in `results` should be named `SAD-ANBO` and it contains the results of the `SAD-ANBO` run specified in the `new_parameters.txt` file.
+
+This folder contains 6 files
+
+1. `_split_index.csv`: This file contains a DataFrame specifying the different splits performed in the analysis.  In this analysis, the ANBO data were not split in any way so the resulting csv file looks like
+
+    +--+-------+
+    |  | split |
+    +==+=======+
+    | 1|       |
+    +--+-------+
+
+  Where the 1 corresponds to the first split (which is blank) for this analysis. For information on splits see :doc:`empirical` or :ref:`a-more-complex-example`.
+
+2. `1_core_result.csv`: This file contains the core result of the analysis for split 1. Because the file `new_parameter.txt` specified `analysis = sad` the core result is a species abundance distribution. `spp` gives the name of a species and `y` gives the abundance of that species.
+
+    ====== =========
+    spp    y
+    ====== =========
+    arsp1  2.0000
+    cabr   31.0000
+    caspi1 58.0000
+    chst   1.0000
+    comp1  5.0000
+    cran   4.0000
+    crcr   65.0000
+    crsp2  79.0000
+    enfa   1.0000
+    gnwe   41.0000
+    .      .
+    ====== =========
+
+3. `1_data_models.csv`: This file contains a comparison of the empirical species abundance distribution with the models specified in `new_parameters.txt` for the split 1. In this case `models = logser_uptrunc; lognorm`.
+
+
+== ====== ========= ============== ======================= ======== ================
+x  spp    empirical logser_uptrunc logser_uptrunc_residual lognorm  lognorm_residual
+== ====== ========= ============== ======================= ======== ================
+24 lesp1  1.0000    1.0000         0.0000                  0.1010   -0.8990
+23 unsh1  1.0000    1.0000         0.0000                  0.3082   -0.6918
+22 plsp1  1.0000    1.0000         0.0000                  0.5685   -0.4315
+21 magl   1.0000    1.0000         0.0000                  0.8933   -0.1067
+.  .      .         .              .                       .        .
+4  crsp2  79.0000   192.0000       113.0000                96.2083  17.2083
+3  phdi   210.0000  281.0000       71.0000                 151.1795 -58.8205
+2  ticr   729.0000  443.0000       -286.0000               278.8781 -450.1219
+1  grass  1110.0000 868.0000       -242.0000               850.8302 -259.1698
+== ====== ========= ============== ======================= ======== ================
+
+  `x` gives the rank of each species abundance with the most abundance species having a rank of 1. `spp` gives the species names, `empirical` gives the empirical species abundance distribution. `logser_uptrunc` gives the rank abundance distribution predicted by the best fit `logser_uptrunc` to the empirical data. `logser_uptrunc_residual` gives the residuals defined as `empirical` - `logser_uptrunc`. `lognorm` and `lognorm_residul` are defined similarly.
+
+4. `1_data_models.pdf`: A plot of the information provided in `1_data_models.csv`
+
+
+.. figure:: images/1_data_models.png
+    :scale: 30 %
+    :align: center
+
+5. `1_fitted_params.csv`: The fitted parameters for `models = logser_uptrunc; lognorm` to the empirical species abundance distribution for split 1. A description of the different models and their parameters can be found at :doc:`models`
+
+    ============== ================== ================
+    Model           Fit Parameters
+    ============== ================== ================
+    logser_uptrunc 0.9985394369365049 2445.0
+    lognorm        2.2268165055360067 2.2188336108431264
+    ============== ================== ================
+
+6. `1_test_statistics`: The AIC values (corrected AIC by default) for comparing the goodness of fit of the models specified in `models = logser_uptrunc; lognorm` to the empirical species abundance distribution for split 1.
+
+    ============== ===========
+    Model           AIC
+    ============== ===========
+    logser_uptrunc 208.61902087
+    lognorm        217.82289264
+    ============== ===========
+
+
+
+
 
 
 
