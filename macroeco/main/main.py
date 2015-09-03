@@ -475,7 +475,7 @@ def _write_test_statistics(spid, models, options, fit_results):
 
     for model in models:
         fit_result = fit_results[spid][model]
-        fit_stats = str(fit_result[3])[1:-1]
+        fit_stats = str(fit_result[3])[:]
         f.write("%s,%s\n" % (model, fit_stats))
     f.close()
 
