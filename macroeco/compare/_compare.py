@@ -38,6 +38,24 @@ def nll(data, model):
     float
         Negative log likelihood
 
+    Examples
+    ---------
+
+    >>> import macroeco.models as md
+    >>> import macroeco.compare as comp
+
+    # Generate random data
+    >>> rand_samp = md.logser.rvs(p=0.9, size=100)
+
+    # Get nll for p = 0.9
+    >>> comp.nll(rand_samp, md.logser(p=0.9))
+    237.6871819262054
+
+    # Get the nll for the MLE for p
+    >>> mle_p = md.logser.fit_mle(rand_samp)
+    >>> comp.nll(rand_samp, md.logser(*mle_p))
+    235.2841347820297
+
     """
 
     try:
@@ -48,21 +66,23 @@ def nll(data, model):
 
 
 @doc_sub(_data_doc)
-def lrt(data, model_null, model_alt, df=None):
+def lrt(data, model_full, model_reduced, df=None):
     """
     Compare two nested models using a likelihood ratio test
 
     Parameters
     ----------
     {0}
-    model_null : obj
-        A frozen scipy distribution object representing the null model.
-    model_alt : scipy distribution object
-        A frozen scipy distribution object representing the alternative model.
+    model_full : obj
+        A frozen scipy distribution object representing the full model
+        (more complex model).
+    model_reduced : scipy distribution object
+        A frozen scipy distribution object representing the reduced model
+        (simpler model).
     df : int
         The degrees of freedom for the lrt (optional). If none, df is
         calculated as the difference between the number of parameters in the
-        null and alternative models.
+        full and reduced models.
 
     Returns
     -------
@@ -74,24 +94,48 @@ def lrt(data, model_null, model_alt, df=None):
     Parameters of distribution objects must be given as keyword arguments. Ex.
     ``norm = stats.norm(loc=0, scale=1)``
 
-    A p-value < alpha suggests signficant evidence for the alternative model.
+    A p-value < alpha suggests significant evidence for the full (more complex)
+    model. In other words, the null hypothesis is that the reduced model is
+    correct
 
     The LRT only applies to nested models. The G^2 statistic and G-test rely on
-    the the assumption that -2log(Likelihood_null / Likelihood_alt) is
-    approximately chi-squared distributed. This assumption breaks down for
-    small samples sizes.
+    the assumption that the test statistic is approximately chi-squared
+    distributed. This assumption breaks down for small samples sizes.
+
+    Examples
+    --------
+
+    >>> import macroeco.models as md
+    >>> import macroeco.compare as comp
+
+    # Generate random data
+    >>> rand_samp = md.nbinom_ztrunc.rvs(20, 0.5, size=100)
+
+    # Fit Zero-truncated NBD (Full model)
+    >>> mle_nbd = md.nbinom_ztrunc.fit_mle(rand_samp)
+
+    # Fit a logseries (limiting case of Zero-truncated NBD, reduced model)
+    >>> mle_logser = md.logser.fit_mle(rand_samp)
+
+    # Compare models with LRT
+    >>> comp.lrt(rand_samp, md.nbinom_ztrunc(mu=mle_nbd[0], k_agg=mle_nbd[1]),
+                            md.logser(p=mle_logser[0]))
+    (24.9799041597729, 5.7930984953464894e-07)
+
+    # Reject the null hypothesis that the logseries is a better model and
+    # choose the Zero-truncated NBD.
 
     """
 
     # Calculate G^2 statistic
-    ll_null = nll(data, model_null) * -1
-    ll_alt = nll(data, model_alt) * -1
-    test_stat = -2 * (ll_null - ll_alt)
+    ll_full = nll(data, model_full) * -1
+    ll_reduced = nll(data, model_reduced) * -1
+    test_stat = 2 * (ll_full - ll_reduced)
 
     # Set df if necessary
     if not df:
-        df =  ( len(model_alt.args) + len(model_alt.kwds)
-              - len(model_null.args) - len(model_null.kwds) )
+        df =  ( len(model_full.args) + len(model_full.kwds)
+              - len(model_reduced.args) - len(model_reduced.kwds) )
 
     return test_stat, stats.chisqprob(test_stat, df)
 
@@ -175,10 +219,10 @@ def AIC_compare(aic_list):
     return delta, weights
 
 
-def deviance(red_model_nll, full_model_nll):
+def scaled_deviance(red_model_nll, full_model_nll):
     """
-    Calculates the deviance given the negative log-likelihood for a reduced
-    model and the negative log-likelihood for the full model.
+    Calculates the scaled deviance given the negative log-likelihood for a
+    reduced model and the negative log-likelihood for the full model.
 
     Parameters
     ----------
