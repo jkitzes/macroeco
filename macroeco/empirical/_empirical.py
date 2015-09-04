@@ -627,6 +627,14 @@ def sar(patch, cols, splits, divs, ear=False):
                 divs="1,1; 1,2; 2,1; 2,2; 2,4; 4,2; 4,4")
 
     >>> sar[0][1]
+       div  n_individs    n_spp   x        y
+    0  1,1   2445.0000  24.0000  16  24.0000
+    1  1,2   1222.5000  18.5000   8  18.5000
+    2  2,1   1222.5000  17.0000   8  17.0000
+    3  2,2    611.2500  13.5000   4  13.5000
+    4  2,4    305.6250  10.1250   2  10.1250
+    5  4,2    305.6250  10.5000   2  10.5000
+    6  4,4    152.8125   7.5625   1   7.5625
 
     The column div gives the divisions specified in the function call. The
     column n_individs specifies the average number of individuals across the
