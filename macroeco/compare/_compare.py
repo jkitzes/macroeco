@@ -44,14 +44,14 @@ def nll(data, model):
     >>> import macroeco.models as md
     >>> import macroeco.compare as comp
 
-    # Generate random data
+    >>> # Generate random data
     >>> rand_samp = md.logser.rvs(p=0.9, size=100)
 
-    # Get nll for p = 0.9
+    >>> # Get nll for p = 0.9
     >>> comp.nll(rand_samp, md.logser(p=0.9))
     237.6871819262054
 
-    # Get the nll for the MLE for p
+    >>> # Get the nll for the MLE for p
     >>> mle_p = md.logser.fit_mle(rand_samp)
     >>> comp.nll(rand_samp, md.logser(*mle_p))
     235.2841347820297
@@ -108,22 +108,21 @@ def lrt(data, model_full, model_reduced, df=None):
     >>> import macroeco.models as md
     >>> import macroeco.compare as comp
 
-    # Generate random data
+    >>> # Generate random data
     >>> rand_samp = md.nbinom_ztrunc.rvs(20, 0.5, size=100)
 
-    # Fit Zero-truncated NBD (Full model)
+    >>> # Fit Zero-truncated NBD (Full model)
     >>> mle_nbd = md.nbinom_ztrunc.fit_mle(rand_samp)
 
-    # Fit a logseries (limiting case of Zero-truncated NBD, reduced model)
+    >>> # Fit a logseries (limiting case of Zero-truncated NBD, reduced model)
     >>> mle_logser = md.logser.fit_mle(rand_samp)
 
-    # Compare models with LRT
-    >>> comp.lrt(rand_samp, md.nbinom_ztrunc(mu=mle_nbd[0], k_agg=mle_nbd[1]),
-                            md.logser(p=mle_logser[0]))
-    (24.9799041597729, 5.7930984953464894e-07)
+    >>> # Compare models with LRT
+    >>> comp.lrt(rand_samp, md.nbinom_ztrunc(mu=mle_nbd[0], k_agg=mle_nbd[1]), md.logser(p=mle_logser[0]))
+    (15.33429080890221, 9.0066719644695982e-05)
 
-    # Reject the null hypothesis that the logseries is a better model and
-    # choose the Zero-truncated NBD.
+    >>> # Reject the null hypothesis that the logseries is a better model and
+    >>> # choose the Zero-truncated NBD.
 
     """
 
@@ -163,6 +162,40 @@ def AIC(data, model, params=None, corrected=True):
     Notes
     -----
     AICC should be used when the number of observations is < 40.
+
+    Examples
+    --------
+
+    >>> import macroeco.models as md
+    >>> import macroeco.compare as comp
+
+    >>> # Generate random data
+    >>> rand_samp = md.nbinom_ztrunc.rvs(20, 0.5, size=100)
+
+    >>> # Fit Zero-truncated NBD (Full model)
+    >>> mle_nbd = md.nbinom_ztrunc.fit_mle(rand_samp)
+
+    >>> # Fit a logseries (limiting case of Zero-truncated NBD, reduced model)
+    >>> mle_logser = md.logser.fit_mle(rand_samp)
+
+    >>> # Get AIC for ztrunc_nbinom
+    >>> comp.AIC(rand_samp, md.nbinom_ztrunc(*mle_nbd))
+    765.51518598676421
+
+    >>> # Get AIC for logser
+    >>> comp.AIC(rand_samp, md.logser(*mle_logser))
+    777.05165086534805
+
+    >>> # Support for for zero-truncated NBD over logseries because AIC is
+    >>> # smaller
+
+    >>> # Call AIC with params given as 2 (should be the same as above)
+    >>> comp.AIC(rand_samp, md.nbinom_ztrunc(*mle_nbd), params=2)
+    765.51518598676421
+
+    >>> # Call AIC without sample size correction
+    >>> comp.AIC(rand_samp, md.nbinom_ztrunc(*mle_nbd), params=2, corrected=False)
+    765.39147464655798
 
     References
     ----------
@@ -208,6 +241,32 @@ def AIC_compare(aic_list):
     AIC weights can be interpreted as the probability that a given model is the
     best model in the set.
 
+    Examples
+    --------
+
+    >>> # Generate random data
+    >>> rand_samp = md.nbinom_ztrunc.rvs(20, 0.5, size=100)
+
+    >>> # Fit Zero-truncated NBD (Full model)
+    >>> mle_nbd = md.nbinom_ztrunc.fit_mle(rand_samp)
+
+    >>> # Fit a logseries (limiting case of Zero-truncated NBD, reduced model)
+    >>> mle_logser = md.logser.fit_mle(rand_samp)
+
+    >>> # Get AIC for ztrunc_nbinom
+    >>> nbd_aic = comp.AIC(rand_samp, md.nbinom_ztrunc(*mle_nbd))
+
+    >>> # Get AIC for logser
+    >>> logser_aic = comp.AIC(rand_samp, md.logser(*mle_logser))
+
+    >>> # Make AIC list and get weights
+    >>> aic_list = [nbd_aic, logser_aic]
+    >>> comp.AIC_compare(aic_list)
+    (array([  0.        ,  19.11806518]),
+    array([  9.99929444e-01,   7.05560486e-05]))
+
+    >>> # Zero-truncated NBD is a far superior model based on AIC weights
+
     """
 
     aic_values = np.array(aic_list)
@@ -217,83 +276,6 @@ def AIC_compare(aic_list):
     weights = values / np.sum(values)
 
     return delta, weights
-
-
-def scaled_deviance(red_model_nll, full_model_nll):
-    """
-    Calculates the scaled deviance given the negative log-likelihood for a
-    reduced model and the negative log-likelihood for the full model.
-
-    Parameters
-    ----------
-    red_model_nll : float
-        Reduced model negative log-likelihood
-    full_model_nll : float
-        Full model negative log-likelihood
-
-    Returns
-    -------
-    : float
-        Deviance
-
-    Notes
-    -----
-    Deviance is 2 * (red_model_nll - full_model_nll)
-
-
-    """
-    return 2 * (red_model_nll - full_model_nll)
-
-
-@doc_sub(_data_doc)
-def full_model_nll(data, model, **kwargs):
-    """
-    Fits a full model to the data.  Every data point has a parameter
-
-    Parameters
-    -----------
-    {0}
-    model : Scipy distribution object
-        The model to be fit to the data
-    kwargs : keyword args
-        Additional keyword arguments for model fitting procedure
-
-    Returns
-    -------
-    : float
-        Negative log likelihood of full model given data
-
-    Notes
-    -----
-    Full model log likelihoods are used when calculating deviance
-
-    """
-    data = np.sort(data)
-    unique_data = np.unique(data)
-
-    try:
-        mle_params = [model.fit_mle(np.array([dp]), **kwargs) for dp in unique_data]
-    except AttributeError:
-        try:
-            mle_params = [model.fit(np.array([dp])) for dp in unique_data]
-        except AttributeError:
-            raise AttributeError("%s has no attribute fit_mle or fit" %
-                str(model))
-
-    data_df = pd.DataFrame(unique_data, columns=["unq_data"])
-    data_df['mle_params'] = mle_params
-    data_df.set_index("unq_data", inplace=True)
-    fitted_data = pd.DataFrame(np.arange(len(data)), index=data).join(data_df)
-    full_mle = fitted_data.mle_params
-
-    try:
-        ll = [model(*full_mle.iloc[i]).logpmf(data[i]) for i in
-                                            xrange(len(data))]
-    except:
-        ll = [model(*full_mle.iloc[i]).logpdf(data[i]) for i in
-                                            xrange(len(data))]
-
-    return -np.sum(ll)
 
 
 def sum_of_squares(obs, pred):
@@ -348,6 +330,11 @@ def r_squared(obs, pred, one_to_one=False, log_trans=False):
     Using the traditional R^2 to compare the fit of observed and predicted
     values may be misleading as the relationship may not be one-to-one but the
     R^2 value may be quite high. The one-to-one option alleviates this problem.
+    Note that with the one-to-one option R^2 can be negative.
+
+    Examples
+    --------
+
 
     References
     ----------
