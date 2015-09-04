@@ -88,15 +88,13 @@ division_note = \
     and 4 parts along y_col."""
 
 start_emp_example = \
-    """# Using the ANBO data provided in demo_files_ANBO.zip found at
-    # https://github.com/jkitzes/macroeco/releases/
+    """>>> # Using the ANBO data provided in demo_files_ANBO.zip found at
+    >>> # https://github.com/jkitzes/macroeco/releases/
 
     >>> import macroeco as meco
 
-    # Pass in path to metadata in order to make patch object
-
-    >>> pat = meco.empirical.Patch('~/Desktop/ANBO.txt')
-    """
+    >>> # Pass in path to metadata in order to make patch object
+    >>> pat = meco.empirical.Patch('~/Desktop/ANBO.txt')"""
 
 class Patch(object):
     """
@@ -147,18 +145,16 @@ class Patch(object):
     Examples
     --------
 
-    # Using the ANBO data provided in demo_files_ANBO.zip found at
-    # https://github.com/jkitzes/macroeco/releases/
+    >>> # Using the ANBO data provided in demo_files_ANBO.zip found at
+    >>> # https://github.com/jkitzes/macroeco/releases/
 
     >>> import macroeco as meco
 
-    # Pass in path to metadata in order to make patch object
-
+    >>> # Pass in path to metadata in order to make patch object
     >>> pat = meco.empirical.Patch('~/Desktop/ANBO.txt')
 
-    # Subset data upon loading using subset string.
-    # Should be a conditional statements separated by a semicolon
-
+    >>> # Subset data upon loading using subset string.
+    >>> # Should be a conditional statements separated by a semicolon
     >>> pat = meco.empirical.Patch('~/Desktop/ANBO.txt',
                                     subset="year==2010; row>2")
 
@@ -402,11 +398,10 @@ def sad(patch, cols, splits, clean=True):
 
     {4}
 
-    # Get the SAD of the full plot
-
+    >>> # Get the SAD of the full plot
     >>> sad = meco.empirical.sad(pat, 'spp_col:spp; count_col:count', '')
 
-    # Extract the SAD
+    >>> # Extract the SAD
     >>> sad_df = sad[0][1]
     >>> sad_df
            spp     y
@@ -420,46 +415,55 @@ def sad(patch, cols, splits, clean=True):
     7    crsp2    79
     8     enfa     1
     9     gnwe    41
-    .     .       .
-    .     .       .
+    10   grass  1110
+    11   lesp1     1
+    12    magl     1
+    13    mesp     6
+    14    mobe     4
+    15    phdi   210
+    16   plsp1     1
+    17    pypo    73
+    18    sasp     2
+    19    ticr   729
+    20   unsh1     1
+    21   unsp1    18
+    22   unsp3     1
+    23   unsp4     1
 
-    # Get SAD for 4 subplots within the full plot and keep absent species
-    # using clean = False
-
-    >>> sad_subplots = meco.empirical.sad(pat, 'spp_col:spp; count_col:count',
-                                        splits = "row:2; column:2",
-                                        clean=False)
+    >>> # Get SAD for 4 subplots within the full plot and keep absent species
+    >>> # using clean = False
+    >>> sad_subplots = meco.empirical.sad(pat, 'spp_col:spp; count_col:count', splits = "row:2; column:2", clean=False)
     >>> len(sad_subplots)
     4
 
-    # Look at SAD in one of the 4 cells
+    >>> # Look at SAD in one of the 4 cells
     >>> sad_subplots[0]
     ('row>=-0.5; row<1.5; column>=-0.5; column<1.5',
-            spp    y
-     0    arsp1    0
-     1     cabr    7
-     2   caspi1    0
-     3     chst    1
-     4    comp1    1
-     5     cran    3
-     6     crcr   21
-     7    crsp2   16
-     8     enfa    0
-     9     gnwe    8
-     10   grass  236
-     11   lesp1    0
-     12    magl    0
-     13    mesp    4
-     14    mobe    0
-     15    phdi   33
-     16   plsp1    1
-     17    pypo    8
-     18    sasp    2
-     19    ticr  317
-     20   unsh1    1
-     21   unsp1    0
-     22   unsp3    1
-     23   unsp4    1)
+           spp    y
+    0    arsp1    0
+    1     cabr    7
+    2   caspi1    0
+    3     chst    1
+    4    comp1    1
+    5     cran    3
+    6     crcr   21
+    7    crsp2   16
+    8     enfa    0
+    9     gnwe    8
+    10   grass  236
+    11   lesp1    0
+    12    magl    0
+    13    mesp    4
+    14    mobe    0
+    15    phdi   33
+    16   plsp1    1
+    17    pypo    8
+    18    sasp    2
+    19    ticr  317
+    20   unsh1    1
+    21   unsp1    0
+    22   unsp3    1
+    23   unsp4    1)
 
     See http://www.macroeco.org/tutorial_macroeco.html for additional
     examples and explanation
@@ -522,19 +526,16 @@ def ssad(patch, cols, splits):
 
     {4}
 
-    # Get the spatial abundance distribution for all species for each of the 16
-    # cells in the ANBO plot
+    >>> # Get the spatial abundance distribution for all species for each of
+    >>> # the cells in the ANBO plot
+    >>> all_spp_ssads = meco.empirical.ssad(pat, cols='spp_col:spp; count_col:count', splits='row:4; column:4')
 
-    >>> all_spp_ssads = meco.empirical.ssad(pat,
-                            cols='spp_col:spp; count_col:count',
-                            splits='row:4; column:4')
-
-    # Convert to dict for easy searching
+    >>> # Convert to dict for easy searching
     >>> all_ssads_dict = dict(all_spp_ssads)
 
-    # Look up the spatial abundance distribution for 'grass'
+    >>> # Look up the spatial abundance distribution for 'grass'
     >>> all_ssads_dict['grass']
-          y
+         y
     0    42
     1    20
     2    60
@@ -552,7 +553,7 @@ def ssad(patch, cols, splits):
     14   26
     15   11
 
-    # Each value in 'y' gives the abundance of grass in one of the 16 cells
+    >>> # Each value in 'y' gives the abundance of grass in one of the 16 cells
 
     See http://www.macroeco.org/tutorial_macroeco.html for additional
     examples and explanation
@@ -617,25 +618,15 @@ def sar(patch, cols, splits, divs, ear=False):
 
     {5}
 
-    # Get the SAR at the full area (1,1), 1 x 2 division,
-    # 2 x 1 division, 2 x 2 division, 2 x 4 division, 4 x 2 division, and
-    # 4 x 4 division
-
+    >>> # Get the SAR at the full area (1,1), 1 x 2 division,
+    >>> # 2 x 1 division, 2 x 2 division, 2 x 4 division, 4 x 2 division, and
+    >>> # 4 x 4 division
     >>> sar = meco.empirical.sar(pat,
                 cols='spp_col:spp; count_col:count; x_col:row; y_col:column',
                 splits="",
                 divs="1,1; 1,2; 2,1; 2,2; 2,4; 4,2; 4,4")
 
     >>> sar[0][1]
-
-       div  n_individs    n_spp   x        y
-    0  1,1   2445.0000  24.0000  16  24.0000
-    1  1,2   1222.5000  18.5000   8  18.5000
-    2  2,1   1222.5000  17.0000   8  17.0000
-    3  2,2    611.2500  13.5000   4  13.5000
-    4  2,4    305.6250  10.1250   2  10.1250
-    5  4,2    305.6250  10.5000   2  10.5000
-    6  4,4    152.8125   7.5625   1   7.5625
 
     The column div gives the divisions specified in the function call. The
     column n_individs specifies the average number of individuals across the
