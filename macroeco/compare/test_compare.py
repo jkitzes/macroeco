@@ -21,7 +21,18 @@ class TestNLL(TestCase):
         assert_almost_equal(R_res, lglk, decimal=5)
 
 
-# TODO: Test LRT
+class TestLRT(TestCase):
+
+    def test_lrt_gives_right_answer(self):
+        # For an obvious case, test that the LRT gives the right answer
+        rand_samp = mod.nbinom_ztrunc.rvs(20, 0.5, size=100)
+        mle_nbd = mod.nbinom_ztrunc.fit_mle(rand_samp)
+        mle_logser = mod.logser.fit_mle(rand_samp)
+        res = lrt(rand_samp, mod.nbinom_ztrunc(mu=mle_nbd[0],
+                                k_agg=mle_nbd[1]),
+                                mod.logser(p=mle_logser[0]))
+
+        assert_equal(res[1] < 0.05, True)
 
 
 class TestAIC(TestCase):
@@ -76,43 +87,6 @@ class TestAIC(TestCase):
         assert_almost_equal(expected, aic1, decimal=5)
 
 
-class TestFullModelNLL(TestCase):
-
-    def test_correct_value_for_continuous_models(self):
-
-        # Test that the full model returns what we expect
-        data = np.array([3, 4, 5])
-
-        models = [mod.lognorm]
-        for model in models:
-
-            params = [model.fit_mle(np.array([td])) for td in data]
-            values = [model(*params[i]).logpdf(data[i]) for i in
-                            xrange(len(data))]
-            pred_nll = -np.sum(values)
-
-            test_nll = full_model_nll(data, model)
-
-            assert_equal(pred_nll, test_nll)
-
-    def test_correct_value_for_discrete_models(self):
-
-        # Test that the full model returns what we expect
-        data = np.array([3, 4, 5])
-
-        models = [mod.nbinom]
-        for model in models:
-
-            params = [model.fit_mle(np.array([td])) for td in data]
-            values = [model(*params[i]).logpmf(data[i]) for i in
-                            xrange(len(data))]
-            pred_nll = -np.sum(values)
-
-            test_nll = full_model_nll(data, model)
-
-            assert_equal(pred_nll, test_nll)
-
-
 class TestAICCompare(TestCase):
 
     def test_aic_delta_and_weights(self):
@@ -134,7 +108,9 @@ class TestRsquared(TestCase):
         # Identical data should lead to an R^2 of 1
         test_data = np.random.randint(5, 100, 100)
         rsq = r_squared(test_data, test_data)
+        rsq_one_one = r_squared(test_data, test_data, one_to_one=True)
         assert_equal(rsq, 1)
+        assert_equal(rsq_one_one, 1)
 
     # TODO: Test known R2 for regression and one-to-one
 
