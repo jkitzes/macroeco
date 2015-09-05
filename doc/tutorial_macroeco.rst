@@ -16,6 +16,9 @@ The `models` subpackage
 
 The `models` subpackage contains a number of common statistical distributions and curves used in macroecological analyses.  A full list of the available models and their documentation can be found at :doc:`models`.
 
+Distributions
+-------------
+
 All the statistical distributions contained in `models` inherit from the `rv_discrete` or `rv_continuous` classes defined in the package `scipy.stats.distributions`. Therefore, all the distribution can be used in the same way as any distributions defined in `scipy.stats`.  For example, a Fisher logseries distribution, a common distribution used for species abundance distributions, is defined by one parameter `p` which can take values between 0 and 1. This distribution could defined as follows
 
     >>> logser_dist = meco.models.logser(p=0.9)
@@ -46,37 +49,95 @@ The distributions contained in the `models` package also contain some special fu
 
 A community with 30 species following this logseries distribution is expected to have 15 species with one individual.
 
-The `models` subpackage also contains objects known as `Curves`. These consist of macroecological curves such as species area relationships (SAR)s and endemic area relationships (EAR)s.  Currently, there are 4 implemented curves (:doc:`models`)
+Curves
+------
+
+The `models` subpackage also contains objects known as `Curves`. These consist of macroecological curves such as species area relationships (SAR)s and endemic area relationships (EAR)s.  Currently, there are 7 implemented curves (:doc:`models`)
 
 1. Power law curve
-2. Maximum Entropy Theory of Ecology (METE) SAR with direct upscaling and downscaling
-3. METE SAR with iterative upscaling and downscaling
-4. METE endemics area relationship (EAR)
+2. A general sampling SAR with direct upscaling or downscaling
+3. A general sampling SAR with iterative upscaling or downscaling
+4. A general sampling EAR with direct downscaling
+5. Maximum Entropy Theory of Ecology (METE) SAR with direct upscaling and downscaling
+6. METE SAR with iterative upscaling and downscaling
+7. METE EAR with direct downscaling
 
-The METE SAR is a particular SAR that is described at length in the book **Maximum Entropy and Ecology: A Theory of Abundance, Distribution, and Energetics** by John Harte. It can be used to upscale and downscale species richness given knowledge of the total number of species (`S`) and the total number of individual (`N`) at some base area.
+The general sampling SAR/EAR is discussed in Kitzes and Harte (2014) (also see `sampling_sar`) and is a combination of a species abundance distribution (SAD) and a species-level spatial abundance distribution.  In `macroeco`, we implement the general sampling SAR/EAR with a flexible SAD (zero-truncated negative binomial distribution, `nbinom_ztrunc`) and a flexible SSAD (conditional negative binomial distribution, `cnbinom`) both are which are distributions defined within `macroeco.models`.  Each of these distributions has an aggregation parameter `k_agg` that that allows them to take the shapes of most realistically observed SADs and SSADs.
 
-To estimate the expected number of species present in an area that is double the size of the base area and half the size of the base area given `S = 30` and `N = 1000` we can use the following code
+To use the general sampling SAR, you need to specify 4 parameters
+
+1. The total number of species at some base areas (`S0`)
+2. The total number of individuals in a community at some base area (`N0`)
+3. The aggregation parameter of the SAD (`sad_k`)
+4. The aggregation parameter of the SSAD (`ssad_k`)
+
+For example, to estimate the expected number of species present in an area that is double the size of the base area and half the size of the base area given `S0 = 30`, `N0 = 1000`, and a Broken Stick SAD (`sad_k = 1`) and an approximately binomial SSAD (`ssad_k = 10`) we can use the following code
 
     >>> # Number of species in base area
-    >>> S = 30
+    >>> S0 = 30
 
     >>> # Number of individuals in base area
-    >>> N = 1000
+    >>> N0 = 1000
 
-    >>> # A list of habitat areas
+    >>> # A list of habitat areas. Base area is 1
     >>> areas = [1, 2, 0.5]
-    >>> meco.models.mete_sar_iterative.vals(areas, S, N, approx=True)
-    array([ 30.        ,  36.15434332,  23.46676609])
 
-For the parameter `areas`, the first number in the list (1 in this example) is *always* the base area (e.g. 50 ha, 2.5 m^2, 300 in^2), and the following numbers are additional areas at which to calculate species richness (2 and 0.5 in this example). Using the argument `approx=True` significantly speeds up the calculation and will tend to given very similar answers to `approx=False`.
+    >>> # Get the non-iterative sampling SAR
+    >>> meco.models.sampling_sar.vals(areas, S0, N0, sad_k=1, ssad_k=10, approx=True)
+    array([ 30.        ,  30.50645744,  29.03925601])
 
-    >>> meco.models.mete_sar_iterative.vals(areas, S, N, approx=False)
-    array([ 30.        ,  36.15164239,  23.46953897])
+    >>> # Get the iterative sampling SAR
+    >>> meco.models.sampling_sar_iterative.vals(areas, S0, N0, sad_k=1, ssad_k=10, approx=True)
+    array([ 30.        ,  30.50645744,  29.03925601])
 
-Let's compare this result to a power law SAR with a log-log slope of 0.25.
+For the parameter `areas`, the first number in the list (1 in this example) is *always* the base area (e.g. 50 ha, 2.5 m^2, 300 in^2), and the following numbers are additional areas at which to calculate species richness (2 and 0.5 in this example). Using the argument `approx=True` significantly speeds up the calculation and will tend to given very similar answers to `approx=False`. The default is `approx=True`.
 
-    >>> meco.models.power_law.vals(areas, 30, 0.25)
-    array([ 30.        ,  35.67621345,  25.22689246])
+Note that the iterative approach the non-iterative approach are not
+generally the same
+
+    >>> areas = [1, 0.5, 0.25, 0.125, 0.0625]
+    >>> noiter_sar = meco.models.sampling_sar.vals(areas, S0, N0, 1, 1)
+    >>> iter_sar = meco.models.sampling_sar_iterative.vals(areas, S0, N0, 1, 1)
+
+    >>> # Plot the results
+    >>> plt.plot(areas, noiter_sar, label="Non-iterative SAR")
+    >>> plt.plot(areas, iter_sar, label="Iterative SAR")
+    >>> plt.legend(loc="center right")
+    >>> plt.xlabel("Area")
+    >>> plt.ylabel("# of Species")
+
+
+.. figure:: images/sampling_sar.png
+    :scale: 50 %
+    :align: center
+
+We can generate sampling EARs with identical syntax
+
+    >>> # Get a sampling EAR
+    >>> meco.models.sampling_ear.vals(areas, S0, N0, 1, 1)
+    array([ 30.        ,   2.42629621,   0.42783611,   0.14823899,   0.06399121])
+
+
+The METE SAR/EAR (`mete_sar`, `mete_sar_iterative`, 'mete_ear') is a special case of the sampling SAR where `sad_k = 0` (Logseries SAD) and `ssad_k = 1` (truncated geometric SSAD). This SAR that is described at length in the book **Maximum Entropy and Ecology: A Theory of Abundance, Distribution, and Energetics** by John Harte (2011). Just like the general sampling SAR/EAR, it can be used to upscale and downscale species richness, but only requires two parameters: total species at the base area (`S0`) and total individuals at the base area (`N0`).
+
+    >>> # Non-iterative METE SAR
+    >>> areas = [1, 0.5, 2, 0.25, 0.125, 4]
+    >>> meco.models.mete_sar.vals(areas, S0, N0)
+    array([ 30.        ,  24.35087775,  36.15434332,  19.76518824,
+        15.76150633,  41.73194557])
+
+    >>> # Iterative METE SAR
+    >>> meco.models.mete_sar_iterative.vals(areas, S0, N0)
+    array([ 30.        ,  24.35087775,  36.15434332,  19.25568734,
+        14.76483053,  42.77067166])
+
+The METE EAR is called with identical syntax
+
+    >>> # Get the METE EAR
+    >>> areas = [1, 0.9, 0.7, 0.2, 0.001]
+    >>> meco.models.mete_ear.vals(areas, S0, N0)
+    array([  3.00000000e+01,   2.22524222e+01,   1.15798199e+01,
+         1.44475285e+00,   5.79588423e-03])
 
 
 Additional subpackages
