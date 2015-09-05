@@ -23,7 +23,7 @@ class METE_SAR(TestCase):
         # Start with each smaller base and go directly up to A0
         for A, S, N in zip(As[1:], Ss[1:], Ns[1:]):
             assert_almost_equal(S0,
-                mete_sar.vals([A, As[0]], S, N, approx=True)[1])
+                mete_sar.vals([A, As[0]], S, N, approx=True)[1], decimal=5)
 
     def test_vals_down(self):
         pass
@@ -35,7 +35,8 @@ class METE_iterative_SAR(TestCase):
 
     def test_reversible(self):
         S0, N0 = 100, 1e6
-        As = np.array([100,50,10])
+        As = np.array([100, 50, 25])
+
         Ns = N0 * As / As[0]
 
         Ss = mete_sar_iterative.vals(As, 100, 1e6, approx=True)

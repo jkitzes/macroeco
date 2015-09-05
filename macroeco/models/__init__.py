@@ -57,6 +57,9 @@ Several common curves used in ecologial analysis are included here.
    mete_sar
    mete_sar_iterative
    mete_ear
+   sampling_sar
+   sampling_sar_iterative
+   sampling_ear
 
 """
 
@@ -66,5 +69,6 @@ from _distributions import (geom, geom_uptrunc, nbinom, nbinom_ztrunc,
                             dgamma)
 
 from ._curves import (power_law,
-                      mete_sar, mete_sar_iterative, mete_upscale_iterative_alt,
-                      mete_ear)
+                      mete_sar, mete_ear, mete_sar_iterative,
+                      mete_upscale_iterative_alt, sampling_sar,
+                      sampling_sar_iterative, sampling_ear)
