@@ -431,6 +431,11 @@ class sampling_sar_gen(curve):
 
         return np.array(S_vals)
 
+    @inherit_docstring_from(curve)
+    def fit_lsq(self, df):
+
+        raise NotImplementedError("Not implemented for sampling sar")
+
 
 sampling_sar = sampling_sar_gen(name='sampling_sar',
                                 parameters='S0,N0,sad_k,ssad_k',
@@ -716,7 +721,7 @@ class _cnbinom:
     a : float
         Area fraction (can be greater than 1)
     k : float
-        k parameter of CNBD
+        k parameter of cnbinom
     """
 
     def __init__(self, N=None, a=None, k=None):
