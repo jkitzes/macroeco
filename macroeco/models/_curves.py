@@ -148,16 +148,16 @@ class sampling_sar_gen(curve):
 
     As described in Wilber et al. 2015 [#]_, a sampling
     SAR is defined by a species abundance distribution (SAD, :math:`\phi`) and a
-    species-level spatial abundance distribution (SSAD, :math:`\Pi`). The formula is
+    species-level spatial abundance distribution (SSAD, :math:`\Pi`)
 
     .. math::
 
-        S(a) = S_0 \sum_{n_0=1}^{N_0} \phi(n_0 | \Theta_{\phi}) [1 - \Pi(0 | a, n_0, \Theta_{\Pi})]
+        S(A) = S_0 \sum_{n_0=1}^{N_0} \phi(n_0 | \Theta_{\phi}) [1 - \Pi(0 | A / A_0, n_0, \Theta_{\Pi})]
 
     where :math:`\Theta_{\phi}` and :math:`\Theta_{\Pi}` defines the parameters
     of the SAD and SSAD respectively, :math:`S_0` is the total number of
     species at the base area :math:`A_0`, :math:`N_0` is the total number of
-    individual at the base area, and `a` is the area fraction (:math:`A / A_0`)
+    individual at the base area, and `A` is the area
     at which to calculate species richness.
 
     A flexible choice for the SAD is a zero-truncated negative binomial with
@@ -169,32 +169,42 @@ class sampling_sar_gen(curve):
     :math:`\mu` and :math:`k_{SSAD}`. When :math:`k_{SSAD}` is large a binomial
     distribution is obtained and when :math:`k_{SSAD} = 1` and truncated
     geometric distribution is obtained. See Wilber et al. 2015 for more
-    information.
+    information.  We implement these two distributions in the general sampling
+    SAR.
 
-    The general sampling SAR and EAR may be used either for downscaling, when values of A
-    are less than A0, or upscaling, when values of :math:`A` are greater than :math:`A0`.
-    Downscaling creates the traditional SAR known to ecologists, while
-    upscaling is useful for estimating large-scale species richness from small-
-    scale plot data.
+    The general sampling SAR and EAR may be used either for downscaling, when
+    values of :math:`A` are less than :math:`A_0`, or upscaling, when values of
+    :math:`A` are greater than :math:`A0`. Downscaling creates the traditional
+    SAR known to ecologists, while upscaling is useful for estimating large-
+    scale species richness from small- scale plot data.
 
     The parameters required for the sampling SAR are species richness at the
-    base scale (:math:`S_0`), total community abundance at the base scale
+    base scale `A_0` (:math:`S_0`), total community abundance at the base scale
     (:math:`N_0`), the aggregation parameter of the SAD (:math:`k_{SAD}`), and
-    the aggregation parameter of the SSAD (:math:`k_{SSAD}`).
+    the aggregation parameter of the SSAD (:math:`k_{SSAD}`). See examples
+    below.
+
+    If the standard SAR is chosen (`sampling_sar`), the SAR is calculated by
+    solving the above equation for any given value :math:`A` greater than or
+    less than :math:`A_0`.
 
     If the iterative SAR is chosen (`sampling_sar_iterative`), the SAR is
     calculated by successively halving (if downscaling) or successively
-    doubling (if upscaling) the base area, recalculating the values S and N,
-    and then using the new values of S and N for subsequent calculation. The
+    doubling (if upscaling) the base area, calculating the values S and N at
+    this new scale, and then setting these calculated values of S and N as the
+    base :math:`S_0` and :math:`N_0` for subsequent calculations. This
     iterative form was used in Harte et al [#]_, although note that the
-    implementation here uses a different internal equation.
-
-    If the standard SAR is chosen (`sampling_sar`), the SAR is calculated by
-    solving the above equation for any given value :math:`a = A / A_0`.
+    implementation here uses a different internal equation. Note that the
+    the iterative form of the SAR can only calculate species
+    richness at values of `A` that are doublings or halvings of the `A_0`.  Any
+    value of `A` can be passed to `sampling_sar_iterative`, but it will return
+    the species richness at the closest iterative halving that is less than or equal to
+    the given :math:`A` or the closest doubling that is greater than or equal to
+    the given :math:`A`. See examples below.
 
     If the endemics area relationship (`sampling_ear`) is choosen (as
     given in Harte (2011) pg. 46), the number of endemics are calculated at any
-    given :math:`a = A / A_0` where :math:`a < 1`. This method requires the
+    given :math:`A \leq A_0` where :math:`a < 1`. This method requires the
     same parameters as the SAR.
 
     Methods
@@ -246,11 +256,25 @@ class sampling_sar_gen(curve):
     >>> md.sampling_ear.vals(areas, S0, N0, sad_k=1, ssad_k=1, approx=True)
     array([  5.00000000e+01,   1.08666886e+00,   1.23816570e-01, 4.15836438e-02])
 
-
     >>> # Upscaling species richness
     >>> areas = [5, 10, 11, 13]
     >>> md.sampling_sar.vals(areas, S0, N0, sad_k=0, ssad_k=1, approx=True)
     array([ 50.        ,  57.19380999,  58.10403751,  59.66376591])
+
+    >>> # Iterative SAR with doubled areas
+    >>> areas_up = [1, 2, 4, 8]
+    >>> md.sampling_sar_iterative.vals(areas_up, S0, N0, sad_k=0, ssad_k=1, approx=True)
+    array([ 50.        ,  57.19380999,  64.72987319,  72.58968402])
+
+    >>> # Iterative SAR with not quite doubled areas
+    >>> areas_up = [1, 2.1, 4.1, 8.1]
+    >>> md.sampling_sar_iterative.vals(areas_up, S0, N0, sad_k=0, ssad_k=1, approx=True)
+    array([ 50.        ,  64.72987319,  72.58968402,  80.75754743])
+
+    >>> # Notice that the iterative method rounds up if the areas are not
+    >>> # exact doublings.  This is equivalent to the following
+    >>> md.sampling_sar_iterative.vals([1, 4, 8, 16], S0, N0, sad_k=0, ssad_k=1, approx=True)
+    array([ 50.        ,  64.72987319,  72.58968402,  80.75754743])
 
     References
     ----------
