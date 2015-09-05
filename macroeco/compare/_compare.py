@@ -335,6 +335,31 @@ def r_squared(obs, pred, one_to_one=False, log_trans=False):
     Examples
     --------
 
+    >>> import numpy as np
+    >>> import macroeco.compare as comp
+
+    >>> # Generate some data
+    >>> x_vals = np.linspace(1, 20, num=100)
+    >>> y_vals = np.random.normal(4 + x_vals*2, 1)
+
+    >>> # Standard R^2
+    >>> comp.r_squared(x_vals, y_vals)
+    0.99336568326291697
+
+    >>> # R^2 about the 1:1 line, will be a poor fit (possibly negative)
+    >>> comp.r_squared(x_vals, y_vals, one_to_one=True)
+    -6.8621799432144988
+
+    >>> # Generate some other data
+    >>> y_vals = np.random.normal(x_vals, 1)
+
+    >>> # Normal R^2
+    >>> comp.r_squared(x_vals, y_vals)
+    0.97651897660174425
+
+    >>> # R^2 on to the one to one line
+    >>> comp.r_squared(x_vals, y_vals, one_to_one=True)
+    0.97591430200514639
 
     References
     ----------
@@ -379,6 +404,18 @@ def preston_bin(data, max_num):
     Uses Preston's method of binning, which has exclusive lower boundaries and
     inclusive upper boundaries. Densities are not split between bins.
 
+    Examples
+    --------
+
+    >>> import macroeco.compare as comp
+    >>> import numpy as np
+
+    >>> # Load some data and get Preston bins
+    >>> data = np.array([1, 1, 1, 1, 4, 5, 6, 7, 12, 34, 56])
+    >>> comp.preston_bin(data, np.max(data))
+    (array([4, 0, 1, 3, 1, 0, 2]),
+    array([  1.,   2.,   3.,   5.,   9.,  17.,  33.,  65.]))
+
     References
     ----------
     .. [#]
@@ -419,7 +456,7 @@ def pueyo_bins(data):
 
     Notes
     -----
-    Bins the data in into bins of lenth 2**i, i=0, 1, 2 ...
+    Bins the data in into bins of length 2**i, i=0, 1, 2 ...
     The empirical probability densities will sum to 1 if multiplied by the
     respective 2**i.
 
