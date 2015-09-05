@@ -16,6 +16,15 @@ The `models` subpackage
 
 The `models` subpackage contains a number of common statistical distributions and curves used in macroecological analyses.  A full list of the available models and their documentation can be found at :doc:`models`.
 
+    **Note**: When just using the `models` subpackage one will typically start with
+
+        >>> import macroeco.models as md
+
+    This will be sufficient for most users as it will import the core `models` of `macroeco`. However, if you want access to all the functions and classes used to build these models you can use the notation
+
+        >>> import macroeco.models._distributions as dist
+        >>> import macroeco.models._curves as curves
+
 Distributions
 -------------
 
