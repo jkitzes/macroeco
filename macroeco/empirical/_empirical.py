@@ -818,7 +818,12 @@ def _yield_spatial_table(patch, div, spp_col, count_col, x_col, y_col):
 
     """
 
-    div_split_list = div.replace(';','').split(',')
+    # Catch error if you don't use ; after divs in comm_grid in MacroecoDesktop
+    try:
+        div_split_list = div.replace(';','').split(',')
+    except AttributeError:
+        div_split_list = str(div).strip("()").split(',')
+
     div_split = (x_col + ':' + div_split_list[0] + ';' +
                  y_col + ':' + div_split_list[1])
 
