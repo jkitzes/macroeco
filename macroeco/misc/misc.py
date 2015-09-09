@@ -150,3 +150,60 @@ def log_start_end(f):
         log.info('Finished %s' % f.__name__)
         return res
     return decorator.decorator(inner, f)
+
+
+def check_parameter_file(filename):
+    """
+    Function does a rudimentary check whether the cols, splits and divs columns
+    in the parameter files are formatted properly.
+
+    Just provides a preliminary check. Will only catch basic mistakes
+
+    Parameters
+    ----------
+    filename : str
+        Path to parameters file
+
+    Returns
+    -------
+    : list
+        Contains the number of possible bad strings detected
+    """
+
+    # Load file
+    with open(filename, "r") as fin:
+        content = fin.read()
+
+    # Check cols and splits strings
+
+    bad_names = []
+    line_numbers = []
+
+    strs = ["cols", "splits", "divs"]
+
+    for tstr in strs:
+
+        start = content.find(tstr)
+
+        while start != -1:
+
+            cols_str = "".join(content[start:].split("\n")[0].split("=")[-1].split(" "))
+
+            semis = cols_str.count(";")
+
+            # Get line number
+            line_end = content.find("\n", start)
+            line_number = content[:line_end].count("\n") + 1
+
+            if tstr == "divs":
+                colons = cols_str.count(",")
+            else:
+                colons = cols_str.count(":")
+
+            if colons != (semis + 1):
+                bad_names.append(tstr)
+                line_numbers.append(line_number)
+
+            start = content.find(tstr, start + 1)
+
+    return bad_names, line_numbers

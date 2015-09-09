@@ -45,6 +45,14 @@ def main(param_path='parameters.txt'):
     log = misc.setup_log(base_options['results_dir'])
     log.info('Running macroeco') # v%s' % __version__)
     log.info('Parameters file at %s' % os.path.abspath(param_path))
+
+    # Preliminary check for errors in paramet:ers file
+    bad_params = misc.check_parameter_file(param_path)
+    if len(bad_params[0]) > 0:
+        log.warning("Possible formatting error(s) in" +
+                    " %s: parameters %s on lines %s"
+                      % (param_path, bad_params[0], bad_params[1]))
+
     log.info('Starting analysis')
 
     # Do analysis for each run

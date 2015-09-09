@@ -32,7 +32,7 @@ Data Formatting Functions
 """
 
 from .misc import (setup_log, _thread_excepthook, log_start_end,
-                   inherit_docstring_from, doc_sub)
+                   inherit_docstring_from, doc_sub, check_parameter_file)
 from .rcparams import ggplot_rc
 from .format_data import (data_read_write, format_dense)
 
