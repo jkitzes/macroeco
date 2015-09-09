@@ -11,3 +11,4 @@ Tutorials
    tutorial_own_data
    tutorial_with_r
    tutorial_recipes
+   tutorial_common_problems
