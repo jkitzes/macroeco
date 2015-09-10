@@ -16,14 +16,16 @@ The `models` subpackage
 
 The `models` subpackage contains a number of common statistical distributions and curves used in macroecological analyses.  A full list of the available models and their documentation can be found at :doc:`models`.
 
-    **Note**: When just using the `models` subpackage one will typically start with
+    .. note::
 
-        >>> import macroeco.models as md
+        When just using the `models` subpackage one will typically start with
 
-    This will be sufficient for most users as it will import the core `models` of `macroeco`. However, if you want access to all the functions and classes used to build these models you can use the notation
+            >>> import macroeco.models as md
 
-        >>> import macroeco.models._distributions as dist
-        >>> import macroeco.models._curves as curves
+        This will be sufficient for most users as it will import the core `models` of `macroeco`. However, if you want access to all the functions and classes used to build these models you can use the notation
+
+            >>> import macroeco.models._distributions as dist
+            >>> import macroeco.models._curves as curves
 
 Distributions
 -------------
@@ -127,7 +129,7 @@ We can generate sampling EARs with identical syntax
     array([ 30.        ,   2.42629621,   0.42783611,   0.14823899,   0.06399121])
 
 
-The METE SAR/EAR (`mete_sar`, `mete_sar_iterative`, 'mete_ear') is a special case of the sampling SAR where `sad_k = 0` (Logseries SAD) and `ssad_k = 1` (truncated geometric SSAD). This SAR that is described at length in the book **Maximum Entropy and Ecology: A Theory of Abundance, Distribution, and Energetics** by John Harte (2011). Just like the general sampling SAR/EAR, it can be used to upscale and downscale species richness, but only requires two parameters: total species at the base area (`S0`) and total individuals at the base area (`N0`).
+The METE SAR/EAR (`mete_sar`, `mete_sar_iterative`, `mete_ear`) are a special cases of the sampling SAR where `sad_k = 0` (Logseries SAD) and `ssad_k = 1` (truncated geometric SSAD). This SAR that is described at length in the book **Maximum Entropy and Ecology: A Theory of Abundance, Distribution, and Energetics** by John Harte (2011). Just like the general sampling SAR/EAR, it can be used to upscale and downscale species richness, but only requires two parameters: total species at the base area (`S0`) and total individuals at the base area (`N0`).
 
     >>> # Non-iterative METE SAR
     >>> areas = [1, 0.5, 2, 0.25, 0.125, 4]
@@ -211,9 +213,9 @@ The `empirical` subpackage contains a number of functions that operate on patch 
 
 1. The first argument is a `Patch` object
 
-2. The second is a string specifying which column in the data table has the species names (i.e. the `spp_col`) and which, if any, has a count of individuals at a particular location (i.e. the `count_col`). For this data set, the column containing species names is `spp` and the column containing counts is `count`. Therefore, the string would read `'spp_col:spp; count_col:count'`.
+2. The second is a string specifying which column in the data table has the species names (i.e. the `spp_col`) and which, if any, has a count of individuals at a particular location (i.e. the `count_col`). For this data set, the column containing species names is `spp` and the column containing counts is `count`. Therefore, the string would read `'spp_col:spp; count_col:count'`
 
-    **NOTE**: If `count_col` is not given the count at any given location is assumed to be 1.
+.. note:: If `count_col` is not given, the abundance/count at any given location is assumed to be 1.
 
 3. The third is a string specifying how to split the data. We are leaving this argument blank (`''`) in this example but see :doc:`empirical` or later in the tutorial (:ref:`a-more-complex-example`) for more information on splitting.
 
@@ -276,7 +278,7 @@ We can then get an AIC value to determine the "goodness of fit" of the logseries
     >>> logser_aic
     206.2729258353742
 
-If you are using the `ipython` environment you can see the arguments that meco.compare.AIC takes using `meco.compare.AIC?`.  In short, the function takes in the data (in this case the species abundance distribution) and fitted model object and returns the AIC value.  Of course, AICs aren't very useful by themselves, so let's compare the logseries fit to a broken stick distribution, another classic theoretical SAD.  This is equivalent to a zero-truncated negative binomial distribution with aggregation parameter `k` equal to 1.
+If you are using the `ipython` environment you can see the arguments that `meco.compare.AIC` takes using `meco.compare.AIC?`.  In short, the function takes in the data (in this case the species abundance distribution) and fitted model object and returns the AIC value.  Of course, AICs aren't very useful by themselves, so let's compare the logseries fit to a broken stick distribution, another classic theoretical SAD.  This is equivalent to a zero-truncated negative binomial distribution with aggregation parameter `k` equal to 1.
 
     >>> # Get Broken Stick AIC
     >>> broken_stick_aic = meco.compare.AIC(sad_df['y'], meco.models.nbinom_ztrunc(np.mean(sad_df['y']), 1))

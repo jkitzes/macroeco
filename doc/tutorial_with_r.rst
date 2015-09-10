@@ -26,7 +26,7 @@ As an example, the script below completes the following steps:
 
     metadata = ANBO.txt
     cols = spp_col: spp; count_col: count; y_col: row; x_col: column
-    divs = 4,4;
+    divs = 4,4
     models = power_law
     ",file=paste(param_dir,param_file,sep=""), sep="\n")
 

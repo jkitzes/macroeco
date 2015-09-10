@@ -12,15 +12,17 @@ If you are running MacroecoDesktop and something is not working, check the log f
 
 you likely have an improperly formatted `cols`, `divs`, or `splits` parameter in your parameter file. Double check the parameter on the given line to make sure it is properly formatted.
 
-    .. note:: **What is proper formatting?** Check out :ref:`using-macroeco` and :ref:`using-macroecodesktop` for some examples and :doc:`empirical` for method documentation. Here are some quick rules for `subset`, `cols`, `splits`, and `divs`.
+    .. note::
 
-    1. All parameters are semi-colon separated strings in the form `"item1; item2; item3"`
+        **What is proper formatting?** Check out :ref:`using-macroeco` and :ref:`using-macroecodesktop` for some examples and :doc:`empirical` for method documentation. Here are some quick rules for `subset`, `cols`, `splits`, and `divs`.
 
-    2. For `cols` and `splits` each "item" is a colon separated pair: `cols="spp_col:spp; count_col:count"` or `splits="year:split; row:2"`
+        1. All parameters are semi-colon separated strings in the form `"item1; item2; item3"`
 
-    3. For `splits` each item is comparison operator: `splits = "row>=3; year==2010"`
+        2. For `cols` and `splits` each "item" is a colon separated pair: `cols="spp_col:spp; count_col:count"` or `splits="year:split; row:2"`
 
-    4. For `divs` each item is a comma separated pair: `divs = "1, 1"` or `divs = "1, 1; 2, 2; 2, 1"`
+        3. For `splits` each item is comparison operator: `splits = "row>=3; year==2010"`
+
+        4. For `divs` each item is a comma separated pair: `divs = "1, 1"` or `divs = "1, 1; 2, 2; 2, 1"`
 
 
 Common Errors
