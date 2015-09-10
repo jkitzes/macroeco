@@ -27,12 +27,15 @@ class Patches(TestCase):
         local_path = os.path.dirname(os.path.abspath(__file__))
 
         self.meta1_path = os.path.join(local_path, 'test_meta1.txt')
+        self.meta2_path = os.path.join(local_path, 'test_meta2.txt')
         self.table1_path = os.path.join(local_path, 'test_table1.csv')
         self.table1 = pd.DataFrame.from_csv(self.table1_path, index_col=False)
         self.meta1 = ConfigParser()
         self.meta1.read(self.meta1_path)
         self.pat1 = emp.Patch(self.meta1_path)  # No subset
+        self.pat2 = emp.Patch(self.meta2_path)  # No subset
         self.cols1 = 'spp_col:spp; count_col:count; x_col:x; y_col:y'
+        self.cols2 = 'spp_col:spp; count_col:count; x_col:mean; y_col:y'
         self.A1 = 0.2 * 0.3
 
 
@@ -62,6 +65,12 @@ class TestPatch(Patches):
 
         self.meta1['y']['max'] = '0.1'
         assert_equal(pat1.meta, self.meta1)
+
+    def test_subset_count(self):
+        # Subsetting on count should work
+        pat1 = emp.Patch(self.meta1_path, subset="count > 2")
+        assert_equal(pat1.table['count'].iloc[0], 3)
+        assert_equal(len(pat1.table), 1)
 
 
 class TestSAD(Patches):
@@ -111,6 +120,14 @@ class TestSAD(Patches):
 
         sad = emp.sad(self.pat1, self.cols1, 'x:2', clean=True)
         assert_equal(len(sad[1][1]), 1)  # Only 'b' when clean True
+
+    def test_split_panda_default_column_names(self):
+        # Columns can be named as key words in pandas
+        sad = emp.sad(self.pat2, self.cols2, splits="mean:2", clean=False)
+        assert_equal(len(sad[1][1]), 2)
+
+        sad = emp.sad(self.pat2, self.cols2, splits="mean:2; y:3", clean=True)
+        assert_equal(len(sad[1][1]), 2)
 
 
 class TestSSAD(Patches):

@@ -298,7 +298,9 @@ def _subset_table(full_table, subset):
 
     valid = np.ones(len(full_table), dtype=bool)
     for condition in conditions:
-        this_valid = eval('full_table.' + condition)
+        col = re.split("[<>=!]", condition)[0]
+        comp = condition.replace(col, "")
+        this_valid = eval("full_table['{0}']{1}".format(col, comp))
         valid = np.logical_and(valid, this_valid)
 
     return full_table[valid]
