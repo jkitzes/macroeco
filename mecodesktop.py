@@ -161,6 +161,7 @@ class MainWindow(wx.Frame):
             print "File saved at " + os.path.join(self.dirname, self.filename)
 
     def OnRun(self,e):
+        self.OnSave(e)
         self.logbox.SetValue('')
         self.RunMain()
 
