@@ -31,7 +31,6 @@ setup(
         'mpmath>=0.19',
         'configparser',
         'decorator',
-        'twiggy',
         # 'shapely',  # Do not force install if user doesn't have
         # 'wxpython', 
     ],
