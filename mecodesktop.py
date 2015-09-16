@@ -74,8 +74,9 @@ class MainWindow(wx.Frame):
 
         # Step 2
         sizer2 = wx.BoxSizer(wx.HORIZONTAL)
-        run_text = wx.StaticText(self, label='2. Run analysis')
-        self.run_button = wx.Button(self, label='Run')
+        run_text = wx.StaticText(self, label='2. Save parameter file and '
+            + 'Run analysis')
+        self.run_button = wx.Button(self, label='Save and Run')
         sizer2.Add(run_text, 1, wx.EXPAND)
         sizer2.Add(self.run_button, 0, wx.EXPAND)
 
