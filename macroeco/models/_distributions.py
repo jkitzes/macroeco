@@ -144,7 +144,7 @@ _doc_make_rank = \
 obj : discrete distribution object
     Scipy discrete distribution object
 crit : float
-    A value between 0 - 1.  Below this value ppf is used, above a this
+    A probability between 0 - 1.  Below this value ppf is used, above a this
     value a solver is used.
 upper : int
     Upper bound to the solver.  Rank will not return values above
@@ -271,6 +271,29 @@ class geom_gen(rv_discrete_meco):
     mu : float
         distribution mean
 
+    Examples
+    --------
+    >>> import macroeco.models as md
+
+    >>> # Get the geom_parameters from a mean
+    >>> mu = 20
+    >>> p = md.geom.translate_args(mu)
+    0.047619047619047616
+
+    >>> # Get the pmf
+    >>> md.geom.pmf(np.arange(0, 5), p)
+    array([ 0.04761905,  0.04535147,  0.04319188,  0.04113512,  0.03917631])
+
+    >>> # Generate a rank abundance distribution
+    >>> rad = md.geom.rank(20, p)
+    >>> rad
+    array([  0.,   1.,   2.,   3.,   5.,   6.,   8.,   9.,  11.,  13.,  15.,
+        17.,  20.,  23.,  26.,  30.,  35.,  42.,  53.,  75.])
+
+    >>> # Fit the geom to data
+    >>> md.geom.fit_mle(rad)
+    (0.048309178743961352,)
+
     """
 
     @inherit_docstring_from(rv_discrete_meco)
@@ -347,6 +370,31 @@ class geom_uptrunc_gen(rv_discrete_meco):
        Harte, J., Conlisk, E., Ostling, A., Green, J. L., & Smith, A. B.
        (2005). A theory of spatial structure in ecological communities at
        multiple spatial scales. Ecological Monographs, 75(2), 179-197.
+
+    Examples
+    --------
+    >>> import macroeco.models as md
+
+    >>> # Get the geom parameters from a mean and upper limit
+    >>> mu = 20; b = 200
+    >>> p, b = md.geom_uptrunc.translate_args(mu, b)
+    >>> p, b
+    (array(0.047592556687674925), 200)
+
+
+    >>> # Get the pmf
+    >>> md.geom_uptrunc.pmf(np.arange(0, 5), p, b)
+    array([ 0.04759519,  0.04533002,  0.04317264,  0.04111795,  0.03916104])
+
+    >>> # Generate a rank abundance distribution
+    >>> rad = md.geom_uptrunc.rank(20, p, b)
+    >>> rad
+    array([  0.,   1.,   2.,   3.,   5.,   6.,   8.,   9.,  11.,  13.,  15.,
+        17.,  20.,  23.,  26.,  30.,  35.,  42.,  53.,  75.])
+
+    >>> # Fit the geom to data
+    >>> md.geom_uptrunc.fit_mle(rad)
+    (0.048309175638750035, 394.0)
 
     """
     # TODO: Should add a warning for b < 5 or 10 or so (p solver gives erratic
@@ -425,8 +473,9 @@ class dgamma_gen(rv_discrete_meco):
 
        P(x) = k * x^{(\alpha - 1)} * e^{(-1 / \theta)*x}
 
-    for ``x >= 1``, ``\theta > 0``.
-    ``k`` is the normalizing constant.
+    for ``x >= 1``, ``\theta > 0``. ``k`` is the normalizing constant.
+    ``\alpha`` is analogous to the ``k_{agg}`` parameter in the zero-truncated
+    negative binomial.
 
     Methods
     -------
@@ -449,6 +498,33 @@ class dgamma_gen(rv_discrete_meco):
     .. [#]
        Frank, F. (2011). Measurement scale in maximum entropy models of species
        abundance. Journal of Evolutionary Biology, 24(3), 485-496
+
+    Examples
+    --------
+
+    >>> import macroeco.models as md
+
+    >>> # dgamma takes two parameters
+    >>> dgamma_dist = md.dgamma(alpha=1, theta=2)
+
+    >>> # When alpha = 1 and theta = 2, should be similar to a to
+    >>> # zero_truncated NBD with mu = 2.541.
+    >>> dgamma_dist.pmf(np.arange(1, 10))
+    array([ 0.39346934,  0.23865122,  0.14474928,  0.08779488,  0.05325028,
+        0.03229793,  0.01958968,  0.01188174,  0.00720664])
+
+    >>> md.nbinom_ztrunc.pmf(np.arange(1, 10), mu=2.541, k_agg=1)
+    array([ 0.39354585,  0.23866751,  0.1447409 ,  0.08777872,  0.05323377,
+        0.03228384,  0.01957867,  0.01187357,  0.00720077])
+
+    >>> # Get the approximate mean and variance
+    >>> dgamma_dist.stats()
+    (array(2.541494082536799), array(3.917698089032762))
+
+    >>> # Draw random numbers from the discrete gamma distribution
+    >>> dgamma_dist.rvs(size=20)
+    array([5, 4, 2, 1, 1, 1, 3, 3, 3, 3, 1, 1, 2, 1, 1, 1, 3, 1, 1, 3])
+
 
     """
 
@@ -520,6 +596,16 @@ class dgamma_gen(rv_discrete_meco):
         # TODO: Can theta or alpha be 0 in the discrete version?
         return (theta > 0)
 
+    def _stats(self, alpha, theta):
+        # Fixed upper limit
+        upper = 10000
+        vals = np.arange(1, upper)
+        pmf_vals = self.pmf(vals, alpha, theta)
+        mom1 = np.sum(vals * pmf_vals)
+        mom2 = np.sum(vals**2 * pmf_vals)
+        var_est = mom2 - mom1**2
+        return mom1, var_est, None, None
+
 dgamma = dgamma_gen(name='dgamma', shapes='alpha, theta')
 
 
@@ -551,6 +637,41 @@ class nbinom_gen(rv_discrete_meco):
         distribution mean
     k_agg : float
         clustering parameter
+
+    Examples
+    --------
+    >>> import macroeco.models as md
+
+    >>> # Define a NBD distribution with mean = 10 and aggregation = 2
+    >>> nbd_dist = md.nbinom(mu=10, k_agg=2)
+
+    >>> # Get the pmf for some values
+    >>> nbd_dist.pmf(range(1, 10))
+    array([ 0.0462963 ,  0.05787037,  0.06430041,  0.0669796 ,  0.0669796 ,
+        0.06511905,  0.06201814,  0.05814201,  0.05383519])
+
+    >>> # Get the cdf for some values
+    >>> nbd_dist.cdf(range(1, 10))
+    array([ 0.07407407,  0.13194444,  0.19624486,  0.26322445,  0.33020405,
+        0.3953231 ,  0.45734124,  0.51548325,  0.56931845])
+
+    >>> # Get the logpmf using a different notation
+    >>> md.nbinom.logpmf(range(1, 10), 10, 2)
+    array([-3.07269331, -2.84954976, -2.74418925, -2.70336725, -2.70336725,
+       -2.73153813, -2.78032829, -2.84486682, -2.92182786])
+
+    >>> # Get a random sample
+    >>> samp = md.nbinom.rvs(mu=10, k_agg=1, size=10)
+    >>> samp
+    array([12,  1,  4, 10, 23,  0, 12,  4,  1, 15])
+
+
+    >>> # Get the rank abundance distribution for n = 20
+    >>> rad = md.nbinom.rank(20, 10, 1)
+    >>> rad
+    array([  0.,   0.,   0.,   1.,   1.,   2.,   3.,   3.,   4.,   5.,   6.,
+         7.,   9.,  10.,  12.,  14.,  17.,  20.,  26.,  37.])
+
 
     """
 
@@ -659,6 +780,40 @@ class nbinom_ztrunc_gen(rv_discrete_meco):
        Sampford, M. R. (1955). The truncated negative binomial distribution.
        Biometrika, 42(1), 58-69
 
+    Examples
+    --------
+
+    >>> import macroeco.models as md
+
+    >>> # Define a zero_truncated NBD distribution with mean = 10 and aggregation = 2
+    >>> nbd_dist = md.nbinom_ztrunc(mu=10, k_agg=2)
+
+    >>> # Get the pmf for some values
+    >>> nbd_dist.pmf(range(1, 10))
+    array([ 0.04984472,  0.06199534,  0.06854036,  0.07104033,  0.07068624,
+        0.06838018,  0.06479938,  0.06044661,  0.05569011])
+
+    >>> # Get the cdf for some values
+    >>> nbd_dist.cdf(range(1, 10))
+    array([ 0.04984472,  0.11184006,  0.18038041,  0.25142075,  0.32210698,
+        0.39048717,  0.45528654,  0.51573315,  0.57142326])
+
+    >>> # Get the logpmf using a different notation
+    >>> md.nbinom_ztrunc.logpmf(range(1, 10), 10, 2)
+    array([-2.99884273, -2.78069611, -2.68033253, -2.64450747, -2.64950441,
+       -2.68267222, -2.73645932, -2.80599478, -2.88795275])
+
+    >>> # Get and fit random sample
+    >>> samp = md.nbinom_ztrunc.rvs(mu=10, k_agg=1, size=100)
+    >>> md.nbinom_ztrunc.fit_mle(samp)
+    (10.210000000000001, 0.93369140625000113)
+
+
+    >>> # Get the rank abundance distribution for n = 20
+    >>> rad = md.nbinom_ztrunc.rank(20, 10, 1)
+    >>> rad
+    array([  1.,   1.,   2.,   2.,   3.,   4.,   4.,   5.,   6.,   7.,   8.,
+         9.,  10.,  11.,  13.,  15.,  17.,  20.,  25.,  36.])
 
     """
 
@@ -777,6 +932,48 @@ class cnbinom_gen(rv_discrete_meco):
         Conlisk, E., Bloxham, M., Conlisk, J, Enquist, E., and Harte, J.
         (2007). A new class of models of spatial distribution. Ecological
         Monographs, 77(2), 269-284
+
+    Examples
+    --------
+
+    >>> import macroeco.models as md
+
+    >>> # Define a conditional NBD distribution with mean = 10, agg = 2,
+    >>> # and an upper bound (b) = 300
+    >>> cnbd_dist = md.cnbinom(mu=10, k_agg=2, b=300)
+
+    >>> # Get the pmf for some values
+    >>> cnbd_dist.pmf(range(0, 10))
+    array([ 0.02662579,  0.04474923,  0.05637649,  0.06309932,  0.06617407,
+        0.06658649,  0.06510469,  0.06232244,  0.05869438,  0.05456466])
+
+    >>> # Get the cdf for some values
+    >>> cnbd_dist.cdf(range(0, 10))
+    array([ 0.02662579,  0.07137502,  0.12775151,  0.19085083,  0.2570249 ,
+        0.32361139,  0.38871607,  0.45103851,  0.50973289,  0.56429755])
+
+    >>> # Get the logpmf using a different notation
+    >>> md.cnbinom.logpmf(range(1, 10), 10, 2, 300)
+    array([-3.10668105, -2.8757031 , -2.76304533, -2.71546655, -2.7092536 ,
+       -2.73175874, -2.7754338 , -2.83541131, -2.90836891])
+
+    >>> # Get and fit random sample
+    >>> samp = md.cnbinom.rvs(mu=10, k_agg=1, b=300, size=100)
+    >>> md.cnbinom.fit_mle(samp)
+    (11.640000000000001, 1.2000000000000002, 1164)
+
+    >>> # Be more specific about fit_mle
+    >>> md.cnbinom.fit_mle(samp, k_array=np.linspace(1, 1.5, num=1000))
+    (11.640000000000001, 1.1966966966966968, 1164)
+
+
+    >>> # Get the rank abundance distribution for n = 20
+    >>> rad = md.cnbinom.rank(20, 10, 1, 300)
+    >>> rad
+    array([  0.,   0.,   1.,   2.,   2.,   3.,   4.,   5.,   5.,   6.,   7.,
+         9.,  10.,  11.,  13.,  15.,  18.,  21.,  26.,  37.])
+
+
     """
 
     @inherit_docstring_from(rv_discrete_meco)
@@ -881,6 +1078,39 @@ class logser_gen(rv_discrete_meco):
     p : float
         p parameter of the logseries distribution
 
+    Examples
+    --------
+
+    >>> import macroeco.models as md
+
+    >>> # Define a logseries distribution by specifying the necessary parameters
+    >>> logser_dist = md.logser(p=0.9)
+
+    >>> # Get the pmf
+    >>> logser_dist.pmf(1)
+    0.39086503371292664
+
+    >>> # Get the cdf
+    >>> logser_dist.cdf(10)
+    0.9201603889810761
+
+    >>> # You can also use the following notation
+    >>> md.logser.pmf(1, 0.9)
+    0.39086503371292664
+    >>> md.logser.cdf(10, 0.9)
+    0.9201603889810761
+
+    >>> # Get a rank abundance distribution for 30 species
+    >>> rad = md.logser.rank(30, 0.9)
+    >>> rad
+    array([  1.,   1.,   1.,   1.,   1.,   1.,   1.,   1.,   1.,   1.,   1.,
+     1.,   2.,   2.,   2.,   2.,   2.,   3.,   3.,   3.,   4.,   4.,
+     5.,   5.,   6.,   7.,   8.,  10.,  13.,  21.])
+
+    >>> # Fit the logser to data and estimate the parameters
+    >>> md.logser.fit_mle(rad)
+    (0.8957380268455059,)
+
     """
 
     @inherit_docstring_from(rv_continuous_meco)
@@ -963,6 +1193,39 @@ class logser_uptrunc_gen(rv_discrete_meco):
         Harte, J. (2011). Maximum Entropy and Ecology: A Theory of
         Abundance, Distribution, and Energetics. Oxford, United
         Kingdom: Oxford University Press.
+
+    Examples
+    --------
+
+    >>> import macroeco.models as md
+
+    >>> # Define a logseries distribution by specifying the necessary parameters
+    >>> logser_dist = md.logser_uptrunc(p=0.9, b=1000)
+
+    >>> # Get the pmf
+    >>> logser_dist.pmf(1)
+    0.39086503371292664
+
+    >>> # Get the cdf
+    >>> logser_dist.cdf(10)
+    0.9201603889810761
+
+    >>> # You can also use the following notation
+    >>> md.logser_uptrunc.pmf(1, 0.9, 1000)
+    0.39086503371292664
+    >>> md.logser_uptrunc.cdf(10, 0.9, 1000)
+    0.9201603889810761
+
+    >>> # Get a rank abundance distribution for 30 species
+    >>> rad = md.logser_uptrunc.rank(30, 0.9, 1000)
+    >>> rad
+    array([  1.,   1.,   1.,   1.,   1.,   1.,   1.,   1.,   1.,   1.,   1.,
+         1.,   2.,   2.,   2.,   2.,   2.,   3.,   3.,   3.,   4.,   4.,
+         5.,   5.,   6.,   7.,   8.,  10.,  13.,  21.])
+
+    >>> # Fit the logser_uptrunc to data and estimate the parameters
+    >>> md.logser_uptrunc.fit_mle(rad)
+    (0.8957385644316679, 114.0)
 
     """
 
@@ -1111,6 +1374,33 @@ class plnorm_gen(rv_discrete_meco):
         Bulmer, M. G. (1974). On fitting the poisson lognormal distribution to
         species bundance data. Biometrics, 30, 101-110.
 
+    Examples
+    --------
+
+    >>> import macroeco.models as md
+
+    >>> # Get the pmf for the poisson lognormal with mu = -1 and sigma = 3
+    >>> md.plnorm.pmf(np.arange(1, 11), -1, 3)
+    array([ 0.12139284,  0.05769201,  0.03558665,  0.02486353,  0.01868109,
+        0.01472104,  0.01199807,  0.01002759,  0.00854552,  0.00739661])
+
+    >>> md.plnorm.pmf([0, 50, 1000], 2.34, 5)
+    array([  2.86468926e-01,   1.51922299e-03,   5.25717609e-05])
+
+    >>> # Get the CDF
+    >>> md.plnorm.cdf([0, 15, 10000], mu=.1, sigma=2)
+    array([ 0.3954088 ,  0.90489995,  0.99999662])
+
+    >>> # Rank abundance distribution
+    >>> md.plnorm.rank(10, 1, 1, crit=0.5, upper=40)
+    array([  0.,   0.,   1.,   2.,   2.,   4.,   5.,   7.,   8.,  15.])
+
+    >>> # Fit the the plnorm to data
+    >>> data = np.array([1,1,1,1,1,2,2,2,3,3,4,4,5,5,6,6,12,45,67])
+    >>> md.plnorm.fit_mle(data)
+    (1.3195513537335777, 1.1876220131629682)
+
+
     """
 
     @inherit_docstring_from(rv_discrete_meco)
@@ -1233,6 +1523,35 @@ class plnorm_ztrunc_gen(rv_discrete_meco):
         Bulmer, M. G. (1974). On fitting the poisson lognormal distribution to
         species bundance data. Biometrics, 30, 101-110.
 
+    Examples
+    --------
+
+    >>> import macroeco.models as md
+
+    >>> # Get the pmf for the zero-truncated poisson lognormal with mu = -1
+    >>> # and sigma = 3
+    >>> md.plnorm_ztrunc.pmf(np.arange(1, 11), -1, 3)
+    array([ 0.27334111,  0.12990549,  0.08013071,  0.05598538,  0.04206434,
+        0.03314746,  0.02701614,  0.02257919,  0.019242  ,  0.01665499])
+
+    >>> md.plnorm_ztrunc.pmf([1, 50, 1000], 2.34, 5)
+    array([  9.27474648e-02,   2.12916164e-03,   7.36783061e-05])
+
+    >>> # Get the CDF
+    >>> md.plnorm_ztrunc.cdf([1, 15, 10000], mu=.1, sigma=2)
+    array([ 0.27575055,  0.84270355,  0.99999442])
+
+    >>> # Rank abundance distribution. For speed, set crit = 0 or else the
+    >>> # calculation is very slow.
+    >>> md.plnorm_ztrunc.rank(20, 1, 1, crit=0, upper=40)
+    array([  1.,   1.,   2.,   2.,   2.,   2.,   2.,   3.,   3.,   4.,   5.,
+         5.,   6.,   6.,   7.,   7.,   8.,  11.,  14.,  22.])
+
+    >>> # Fit the the plnorm to data
+    >>> data = np.array([1,1,1,1,1,2,2,2,3,3,4,4,5,5,6,6,12,45,67])
+    >>> md.plnorm_ztrunc.fit_mle(data)
+    (0.19056468723097392, 1.7698965441710266)
+
     """
 
     @inherit_docstring_from(rv_discrete_meco)
@@ -1350,6 +1669,38 @@ class expon_gen(rv_continuous_meco):
     mu : float
         distribution mean
 
+    Examples
+    --------
+
+    >>> import macroeco.models as md
+    >>> import numpy as np
+
+    >>> # Get the rate parameter of the exponential distribution from a mean
+    >>> md.expon.translate_args(20)
+    0.05
+
+    >>> # Get the pdf
+    >>> md.expon.pdf(np.linspace(0.1, 10, num=10), 0.05)
+    array([ 0.04975062,  0.04708823,  0.04456831,  0.04218324,  0.03992581,
+        0.03778919,  0.0357669 ,  0.03385284,  0.03204121,  0.03032653])
+
+    >>> # Get the cdf
+    >>> md.expon.cdf(np.linspace(0.1, 10, num=10), 0.05)
+    array([ 0.00498752,  0.05823547,  0.10863386,  0.15633518,  0.20148378,
+        0.24421626,  0.28466191,  0.32294313,  0.35917572,  0.39346934])
+
+    >>> # Get the ppf
+    >>> md.expon.ppf(0.8, 0.05)
+    32.188758248682014
+
+    >>> # Draw a random sample
+    >>> samp = md.expon.rvs(0.05, size=100)
+
+    >>> # Fit the model to data
+    >>> md.expon.fit_mle(samp)
+    0.052277939307395938
+
+
     """
 
     @inherit_docstring_from(rv_continuous_meco)
@@ -1400,6 +1751,36 @@ class expon_uptrunc_gen(rv_continuous_meco):
         distribution mean
     b : float
         distribution upper limit, defaults to sum of data
+
+    Examples
+    ---------
+    >>> import macroeco.models as md
+    >>> import numpy as np
+
+    >>> # Get the rate parameter of the exponential distribution from a mean
+    >>> md.expon_uptrunc.translate_args(20, 100)
+    (array(0.04801007549722518), 100)
+
+    >>> # Get the pdf
+    >>> md.expon_uptrunc.pdf(np.linspace(0.1, 10, num=10), 0.05, 100)
+    array([ 0.05008812,  0.04740766,  0.04487064,  0.0424694 ,  0.04019665,
+        0.03804554,  0.03600953,  0.03408249,  0.03225857,  0.03053226])
+
+    >>> # Get the cdf
+    >>> md.expon_uptrunc.cdf(np.linspace(0.1, 10, num=10), 0.05, 100)
+    array([ 0.00502135,  0.05863052,  0.10937079,  0.15739571,  0.20285058,
+        0.24587294,  0.28659296,  0.32513386,  0.36161225,  0.3961385 ])
+
+    >>> # Get the ppf
+    >>> md.expon_uptrunc.ppf(0.8, 0.05, 100)
+    31.656858541834165
+
+    >>> # Draw a random sample
+    >>> samp = md.expon_uptrunc.rvs(0.05, 100, size=100)
+
+    >>> # Fit the model to data
+    >>> md.expon_uptrunc.fit_mle(samp)
+    (0.06080396315704938, 1644.6296393823973)
 
     """
 
@@ -1477,6 +1858,47 @@ class lognorm_gen(rv_continuous_meco):
     sigma : float
         sigma parameter of lognormal distribution. sd of log(x)
 
+    Examples
+    --------
+
+    >>> import macroeco.models as md
+    >>> import numpy as np
+
+    >>> # Given mean = 20 and sigma = 2, get the parameters for the lognormal
+    >>> md.lognorm.translate_args(20, 2)
+    (0.99573227355399085, 2)
+
+    >>> # Define a lognormal distribution
+    >>> lgnorm = md.lognorm(mu=0.99573227355399085, sigma=2)
+
+    >>> # Get the PDF
+    >>> lgnorm.pdf(np.linspace(0.1, 100, num=10))
+    array([  5.12048368e-01,   1.38409265e-02,   5.13026600e-03,
+         2.71233007e-03,   1.68257934e-03,   1.14517879e-03,
+         8.28497146e-04,   6.26026253e-04,   4.88734158e-04,
+         3.91396174e-04])
+
+    >>> # Get the stats for the lognormal
+    >>> lgnorm.stats()
+    (array(19.99935453933589), array(21437.87621568711))
+
+    >>> # Similarly you could use
+    >>> md.lognorm.stats(mu=0.99573227355399085, sigma=2)
+    (array(20.0), array(21439.260013257688))
+
+    >>> # Draw some random numbers from the lognormal
+    >>> samp = md.lognorm.rvs(mu=1.5, sigma=1.3, size=100)
+
+    >>> # Fit model to data
+    >>> md.lognorm.fit_mle(samp)
+    (1.2717334369626212, 1.3032723732257057)
+
+    >>> # Get the rank abundance distribution for a lognormal for 10 species
+    >>> md.lognorm.rank(10, 1.5, 1.3)
+    array([  0.52818445,   1.16490157,   1.86481775,   2.71579138,
+         3.806234  ,   5.27701054,   7.39583206,  10.77077745,
+        17.24226102,  38.02750505])
+
     """
 
     @inherit_docstring_from(rv_continuous_meco)
@@ -1545,7 +1967,7 @@ class lognorm_gen(rv_continuous_meco):
         return stats.lognorm.cdf(x, sigma, scale=np.exp(mu))
 
     def _stats(self, mu, sigma):
-        return stats.lognorm.stats(sigma, scale=np.exp(mu))
+        return stats.lognorm.stats(sigma, scale=np.exp(mu), moments="mvsk")
 
 lognorm = lognorm_gen(name="lognorm", shapes="mu, sigma")
 
