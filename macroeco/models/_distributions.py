@@ -11,7 +11,7 @@ import scipy.optimize as optim
 import scipy.special as special
 import scipy.integrate as integrate
 
-from _distribution_headers import (docdict, docdict_discrete)
+from _distributions_docstrings import (docdict, docdict_discrete)
 from ..misc import doc_sub, inherit_docstring_from
 
 
