@@ -26,3 +26,4 @@ app = BUNDLE(coll,
              name='MacroecoDesktop.app',
              icon='icon.icns')
 
+# pyinstaller mecodesktop_mac.spec

@@ -5,5 +5,4 @@ pandas
 mpmath
 configparser
 decorator
-twiggy
 numpydoc

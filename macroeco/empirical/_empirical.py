@@ -5,8 +5,7 @@ import copy
 from configparser import ConfigParser
 import itertools
 from copy import deepcopy
-from twiggy import log
-log = log.name('emp ')
+import logging
 
 import numpy as np
 import pandas as pd
@@ -1208,7 +1207,7 @@ def _yield_subpatches(patch, splits, name='split'):
     if splits:
         subset_list = _parse_splits(patch, splits)
         for subset in subset_list:
-            log.info('Analyzing subset %s: %s' % (name, subset))
+            logging.info('Analyzing subset %s: %s' % (name, subset))
             subpatch = copy.copy(patch)
             subpatch.table = _subset_table(patch.table, subset)
             subpatch.meta, subpatch.incremented = _subset_meta(patch.meta,
