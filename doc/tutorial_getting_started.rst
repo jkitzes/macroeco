@@ -159,13 +159,13 @@ The other folder in `results` should be named `SAD-ANBO` and it contains the res
 
 This folder contains 6 files
 
-1. `_split_index.csv`: This file contains a DataFrame specifying the different splits performed in the analysis.  In this analysis, the ANBO data were not split in any way so the resulting csv file looks like
+1. `_subset_index.csv`: This file contains a DataFrame specifying the different splits performed in the analysis.  In this analysis, the ANBO data were not split in any way so the resulting csv file looks like
 
-    +--+-------+
-    |  | split |
-    +==+=======+
-    | 1|       |
-    +--+-------+
+    +--+---------+
+    |  | subsets |
+    +==+=========+
+    | 1|         |
+    +--+---------+
 
   Where the 1 corresponds to the first split (which is blank) for this analysis. For information on splits see :doc:`empirical` or :ref:`a-more-complex-example`.
 

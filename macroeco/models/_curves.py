@@ -134,6 +134,25 @@ class power_law_gen(curve):
     c, z
         Parameters: Log-log slope and intercept
 
+    Examples
+    --------
+
+    >>> # Specify a classic power law with z = 0.25
+    >>> import macroeco.models as md
+
+    >>> areas = [1, 0.5, 0.25, 0.125]
+    >>> c = 20  # Number of species at the base scale
+    >>> z = 0.25 # Slope of the power law
+
+    >>> # Get the species richness predictions of the power law
+    >>> res = md.power_law.vals(areas, c, z)
+    >>> res
+    array([ 20.        ,  16.81792831,  14.14213562,  11.89207115])
+
+    >>> # Fit the power law using least squares
+    >>> md.power_law.fit_lsq(areas, res)
+    (20.0, 0.25000000000000006)
+
     """
 
     def _vals(self, x, c, z):
