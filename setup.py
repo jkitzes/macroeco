@@ -12,7 +12,7 @@ setup(
     description = 'Ecological pattern analysis in Python',
     long_description = open('README.rst').read(),
     license = 'BSD',
-    keywords = ('ecology biology environment conservation biodiversity '
+    keywords = ('ecology macroecology biology environment biodiversity '
                 'informatics data science'),
     url = 'http://github.com/jkitzes/macroeco',
 
