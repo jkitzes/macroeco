@@ -27,7 +27,7 @@ the :ref:`using-macroeco` tutorial and the :ref:`reference` guide.
 
 import sys as _sys
 
-__version__ = '0.3'
+__version__ = '1.0'
 
 import empirical
 import models
