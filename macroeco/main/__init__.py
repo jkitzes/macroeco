@@ -12,4 +12,5 @@ This module contains the functions that make up MacroecoDesktop.
 
 """
 
-from .main import main
+from ._main import main
+from ._gui import launch

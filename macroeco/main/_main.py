@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 
 import matplotlib as mpl
+mpl.use('agg')  # Prevents crash when GUI runs matplotlib in thread on Linux
 import matplotlib.pyplot as plt
 
 from .. import empirical as emp
