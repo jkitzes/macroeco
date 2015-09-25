@@ -4,7 +4,7 @@ setup(
     name = 'macroeco',
     version = 1.0,
     packages = find_packages(),
-    entry_points = {'console_scripts': ['mecodesktop=macroeco:mecodesktop',],},
+    # entry_points = {'console_scripts': ['mecodesktop=macroeco:mecodesktop',],},
     package_data = {'': ['*.txt', '*.csv']},
 
     author = 'Justin Kitzes and Mark Wilber',
