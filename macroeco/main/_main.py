@@ -92,6 +92,9 @@ def main(param_path='parameters.txt'):
     logging.info('Finished analysis successfully')
     logging.info('Results available at %s' % options['param_dir'])
 
+    # Close logging - releases log file lock in Windows GUI
+    logging.shutdown()
+    
 
 def _get_params_base_options(param_path):
 
