@@ -35,12 +35,8 @@ import compare
 import main
 import misc
 
-def mecodesktop():
-    if len(_sys.argv) > 1:
-        param_path = _sys.argv[1]
+def desktop(param_path=False):
+    if param_path:
         main.main(param_path)
     else:
-        print "Usage:"
-        print "    'pythonw -m mecodesktop' will launch the MacroecoDesktop graphical interface"
-        print "    'mecodesktop /path/to/paramfile' will run MacroecoDesktop directly on a parameter file"
-        
+        main.launch()
