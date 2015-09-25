@@ -12,10 +12,10 @@ Support Functions
 .. autosummary::
    :toctree: generated/
 
-   setup_log
    log_start_end
    inherit_docstring_from
    doc_sub
+   check_parameter_file
 
 """
 """
