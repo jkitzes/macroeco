@@ -17,4 +17,4 @@ The desktop subpackage contains the code for MacroecoDesktop, which allows a all
    models
    compare
    misc
-   desktop
+   main

@@ -1,1 +1,1 @@
-.. automodule:: macroeco.desktop
+.. automodule:: macroeco.main
