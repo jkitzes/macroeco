@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name = 'macroeco',
-    version = 1.0,
+    version = '1.0.1',
     packages = find_packages(),
     # entry_points = {'console_scripts': ['mecodesktop=macroeco:mecodesktop',],},
     package_data = {'': ['*.txt', '*.csv']},
@@ -18,7 +18,7 @@ setup(
 
     classifiers = [
         "Topic :: Scientific/Engineering :: Bio-Informatics",
-        "Development Status :: 4 - Beta",
+        "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Science/Research",
         "License :: OSI Approved :: BSD License",
     ],
