@@ -16,6 +16,7 @@ import os, sys
 from threading import Thread
 from multiprocessing import Process
 from _main import main
+import logging
 
 def launch():
     app = wx.App(False)
@@ -182,4 +183,5 @@ class MainWindow(wx.Frame):
     def OnIdle(self, event):
         if self.t:  # If a thread has been started
             if not self.t.is_alive():  # And it's not alive
+                logging.shutdown() # Release lock on log file
                 self.run_button.Enable(True)  # Turn the run button on
