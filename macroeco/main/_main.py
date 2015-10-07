@@ -6,22 +6,25 @@ import warnings
 import inspect
 import configparser
 import threading as thread
-from twiggy import log
+import traceback
 import copy
-log = log.name('meco')
+import logging
 
 import numpy as np
 import pandas as pd
 
 import matplotlib as mpl
+mpl.use('agg')  # Prevents crash when GUI runs matplotlib in thread on Linux
 import matplotlib.pyplot as plt
 
-#from .. __init__ import __version__
 from .. import empirical as emp
 from .. import models as mod
 from .. import compare as comp
 from .. import misc
 
+import time
+def _better_time(gmtime=None):
+    return 
 
 def main(param_path='parameters.txt'):
     """
@@ -41,15 +44,43 @@ def main(param_path='parameters.txt'):
     # Get raw params and base options (non-run-dependent options)
     params, base_options = _get_params_base_options(param_path)
 
-    # Start logging
-    log = misc.setup_log(base_options['results_dir'])
-    log.info('Running macroeco') # v%s' % __version__)
-    log.info('Parameters file at %s' % os.path.abspath(param_path))
-    log.info('Starting analysis')
+    # Configure and start logging
+    # Done here instead of in function so will affect all subsequent calls
+    log_path = os.path.join(base_options['results_dir'], '_log.txt')
+    if os.path.isfile(log_path):
+        os.remove(log_path)
+
+    logging.basicConfig(level=logging.INFO, format='%(message)s')
+
+    fileh = logging.FileHandler(log_path)
+    fileh.setLevel(logging.DEBUG)
+    filefmt = logging.Formatter(
+            time.strftime("%Y/%m/%d %H:%M:%S %p", time.localtime()) + 
+            ' - %(name)s - %(levelname)s - %(message)s')
+    fileh.setFormatter(filefmt)
+    logging.getLogger('').addHandler(fileh)
+
+    def log_uncaught(type1, value1, traceback1):
+        tb_list = traceback.format_exception(type1, value1, traceback1)
+        tb_str = ''.join(tb_list)
+        logging.critical('\n\n'+tb_str)
+    sys.excepthook = log_uncaught
+
+    logging.info('Running macroeco') # v%s' % __version__)
+    logging.info('Parameters file at %s' % os.path.abspath(param_path))
+
+    # Preliminary check for errors in parameters file
+    bad_params = misc.check_parameter_file(param_path)
+    if len(bad_params[0]) > 0:
+        logging.warning("Possible formatting error(s) in" +
+                    " %s: parameters %s on lines %s"
+                      % (param_path, bad_params[0], bad_params[1]))
+
+    logging.info('Starting analysis')
 
     # Do analysis for each run
     for run_name in base_options['run_names']:
-        log.info('Starting run %s' % run_name)
+        logging.info('Starting run %s' % run_name)
         options = dict(params[run_name])  # All parameters from this run
         options.update(base_options)  # Add base parameters
         options['run_dir'] = os.path.join(base_options['results_dir'],run_name)
@@ -57,10 +88,13 @@ def main(param_path='parameters.txt'):
             _do_format(options)
         else:
             _do_analysis(options)
-        log.info('Finished run %s' % run_name)
-    log.info('Finished analysis successfully')
-    log.info('Results available at %s' % options['param_dir'])
+        logging.info('Finished run %s' % run_name)
+    logging.info('Finished analysis successfully')
+    logging.info('Results available at %s' % options['param_dir'])
 
+    # Close logging - releases log file lock in Windows GUI
+    logging.shutdown()
+    
 
 def _get_params_base_options(param_path):
 
@@ -292,7 +326,7 @@ def _fit_models(options, core_results):
 
     """
 
-    log.info("Fitting models")
+    logging.info("Fitting models")
     models = options['models'].replace(' ', '').split(';')
 
     # TODO: Make work for 2D results, i.e., curves, comm_sep, o_ring
@@ -378,7 +412,7 @@ def _save_results(options, module, core_results, fit_results):
 
     """
 
-    log.info("Saving all results")
+    logging.info("Saving all results")
 
     # Use custom plot format
     mpl.rcParams.update(misc.rcparams.ggplot_rc)
@@ -475,7 +509,7 @@ def _write_test_statistics(spid, models, options, fit_results):
 
     for model in models:
         fit_result = fit_results[spid][model]
-        fit_stats = str(fit_result[3])[1:-1]
+        fit_stats = str(fit_result[3])[:]
         f.write("%s,%s\n" % (model, fit_stats))
     f.close()
 

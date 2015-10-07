@@ -47,7 +47,7 @@ The lines beginning with the ``#`` symbol are comments. They are purely for info
     metadata = ANBO.txt
     divs = 1,1;1,2;2,1;2,2;2,4;4,4
 
-    models = mete_iterative_sar
+    models = mete_sar_iterative
     #ear = True  # Endemics area relationship instead of species area
     log_y = True
     log_x = True
@@ -60,7 +60,7 @@ The lines beginning with the ``#`` symbol are comments. They are purely for info
     #subset = row>=2;column>=2  # Use only cells in rows 2-3 and columns 2-3
     cols = spp_col:spp; count_col:count; x_col:row; y_col:column
     #splits = row:2  # Perform analysis once for rows 0-1 and again for 2-3
-    divs = 2,2;
+    divs = 2,2
     #metric = Jaccard  # Use Jaccard instead of Sorensen index
 
     models = power_law

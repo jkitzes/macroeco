@@ -170,7 +170,7 @@ class TestNbinom_ztrunc(TestCase):
         # Test cdf and pmf agree!
         tpmf = np.sum(nbinom_ztrunc.pmf(np.arange(1, 20), 20, 10))
         tcdf = nbinom_ztrunc.cdf(19, 20, 10)
-        assert_equal(tpmf, tcdf)
+        assert_almost_equal(tpmf, tcdf)
 
     def test_get_p_from_mu(self):
 
@@ -247,7 +247,7 @@ class TestCnbinom(TestCase):
                 descrip.append("a=%s, k=%s" % (ta, tk))
 
         # Loop through the data and plot it
-        fig, axes = plt.subplots(3, 3, sharex=True)
+        fig, axes = plt.subplots(3, 3, sharex=True, figsize=(15, 7))
         axes = axes.flatten()
 
         for i, ax in enumerate(axes):
@@ -259,9 +259,8 @@ class TestCnbinom(TestCase):
             ax.set_ylabel('P(x)')
             ax.text(0.6, 0.3, descrip[i], transform=ax.transAxes)
 
-        # plt.tight_layout()
-        # Uncomment to see save figure
-        # fig.savefig("test_cbinom")
+        #Uncomment to save figure
+        #fig.savefig("test_cnbinom")
 
 
 class TestDgamma(TestCase):
@@ -524,6 +523,16 @@ class TestLognorm(TestCase):
         res2 = lognorm.rvs(5, 5, size=5)  # Should be length 5
         assert_equal(5, len(res2))
 
+    def test_stats(self):
+
+        # Test that stats returns the correct stats
+        mu, sigma = lognorm.translate_args(50, 2)
+        mean, sigma = lognorm.stats(mu, sigma, moments="mv")
+        assert_almost_equal(50, mean)
+
+        res = lognorm.stats(mu, sigma, moments="mvsk")
+        assert_equal(len(res), 4)
+
 
 class TestPlnorm(TestCase):
 
@@ -663,8 +672,12 @@ class TestPlnormZtrunc(TestCase):
     def test_rank(self):
 
         # TODO: Can't test this against ppf because ppf is too slow
-        pass
 
+        # Make sure it is working when crit = 0
+        test = [ 1., 1., 2., 2., 2., 2., 2., 3., 3.,
+                4., 5., 5., 6., 6., 7., 7., 8., 11., 14., 22.]
+        rad = plnorm_ztrunc.rank(20, 1, 1, crit=0, upper=40)
+        assert_array_equal(test, rad)
 
 class TestExpon(TestCase):
 

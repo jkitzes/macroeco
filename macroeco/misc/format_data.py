@@ -104,6 +104,10 @@ def format_dense(base_data, non_label_cols, **kwargs):
     3       2       4       4       2
 
     [4 rows x 4 columns]
+
+    # labelA and labelB might be species names. 'row' and 'column'
+    # are non-species names so pass these in as non_label_cols
+
     >>> stacked_data = format_dense(dense_data, ['row', 'column'])
     >>> stacked_data
        row  column   label  count
@@ -117,6 +121,8 @@ def format_dense(base_data, non_label_cols, **kwargs):
     7    2       2  labelB      4
 
     [8 rows x 4 columns]
+
+
     """
 
     kwargs = _set_dense_defaults_and_eval(kwargs)
@@ -134,7 +140,7 @@ def format_dense(base_data, non_label_cols, **kwargs):
     # Set nans to zero?
     if kwargs['nan_to_zero']:
         ind = np.isnan(columnar_data[kwargs['count_col']])
-        columnar_data[kwargs['count_col']][ind] = 0
+        columnar_data.loc[ind, kwargs['count_col']] = 0
         columnar_data.reset_index(inplace=True, drop=True)
 
     # Drop nans?

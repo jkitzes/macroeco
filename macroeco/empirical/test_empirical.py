@@ -2,6 +2,7 @@ from __future__ import division
 import os
 from configparser import ConfigParser
 
+import unittest
 from numpy.testing import (TestCase, assert_equal, assert_array_equal,
                            assert_almost_equal, assert_array_almost_equal,
                            assert_allclose, assert_, assert_raises)
@@ -13,6 +14,12 @@ import numpy as np
 import pandas as pd
 import scipy.stats as stats
 
+# Check whether shapely is installed
+try:
+    import shapely.geometry as geo
+    shapely_missing = False
+except:
+    shapely_missing = True
 
 class Patches(TestCase):
 
@@ -20,12 +27,15 @@ class Patches(TestCase):
         local_path = os.path.dirname(os.path.abspath(__file__))
 
         self.meta1_path = os.path.join(local_path, 'test_meta1.txt')
+        self.meta2_path = os.path.join(local_path, 'test_meta2.txt')
         self.table1_path = os.path.join(local_path, 'test_table1.csv')
         self.table1 = pd.DataFrame.from_csv(self.table1_path, index_col=False)
         self.meta1 = ConfigParser()
         self.meta1.read(self.meta1_path)
         self.pat1 = emp.Patch(self.meta1_path)  # No subset
+        self.pat2 = emp.Patch(self.meta2_path)  # No subset
         self.cols1 = 'spp_col:spp; count_col:count; x_col:x; y_col:y'
+        self.cols2 = 'spp_col:spp; count_col:count; x_col:mean; y_col:y'
         self.A1 = 0.2 * 0.3
 
 
@@ -55,6 +65,12 @@ class TestPatch(Patches):
 
         self.meta1['y']['max'] = '0.1'
         assert_equal(pat1.meta, self.meta1)
+
+    def test_subset_count(self):
+        # Subsetting on count should work
+        pat1 = emp.Patch(self.meta1_path, subset="count > 2")
+        assert_equal(pat1.table['count'].iloc[0], 3)
+        assert_equal(len(pat1.table), 1)
 
 
 class TestSAD(Patches):
@@ -105,6 +121,14 @@ class TestSAD(Patches):
         sad = emp.sad(self.pat1, self.cols1, 'x:2', clean=True)
         assert_equal(len(sad[1][1]), 1)  # Only 'b' when clean True
 
+    def test_split_panda_default_column_names(self):
+        # Columns can be named as key words in pandas
+        sad = emp.sad(self.pat2, self.cols2, splits="mean:2", clean=False)
+        assert_equal(len(sad[1][1]), 2)
+
+        sad = emp.sad(self.pat2, self.cols2, splits="mean:2; y:3", clean=True)
+        assert_equal(len(sad[1][1]), 2)
+
 
 class TestSSAD(Patches):
 
@@ -147,7 +171,6 @@ class TestSAR(Patches):
         print sar_split
         assert_frame_equal(sar_empty[0][1].sort(axis=1),
                                             sar_split[0][1].sort(axis=1))
-
 
 
 class TestEAR(Patches):
@@ -205,6 +228,8 @@ class TestCommGrid(Patches):
         comm = emp.comm_grid(self.pat1, self.cols1, '', '2,2',metric='Jaccard')
         assert_array_equal(comm[0][1]['y'], [1/2., 0, 0, 0, 1/2., 0])
 
+
+@unittest.skipIf(shapely_missing, "shapely not present, skipping O-ring test")
 class TestORing(Patches):
     # TODO: Main may fail with error if dataframe has no records when trying to
     # fit or make plot.
@@ -216,33 +241,33 @@ class TestORing(Patches):
     def test_one_individual_returns_zeros(self):
         self.pat1.table = self.pat1.table[2:4]  # Leave 1 'a' and 1 'b'
         o_ring = emp.o_ring(self.pat1, self.cols1, '', 'a', [0,.1,.2])
-        assert_equal(o_ring[0][1]['y'], [0, 0])
+        assert_array_equal(o_ring[0][1]['y'], [0, 0])
 
     def test_no_density_a(self):
         # Points on bin edge may be allocated ambiguously due to floating point
         # issues - testing here with slightly offset edges
         o_ring = emp.o_ring(self.pat1, self.cols1, '', 'a', [0,.101,.201,.301],
                             density=False)
-        assert_almost_equal(o_ring[0][1]['x'], [0.0505, 0.151, 0.251])
-        assert_almost_equal(o_ring[0][1]['y'], [8, 4, 0])
+        assert_array_almost_equal(o_ring[0][1]['x'], [0.0505, 0.151, 0.251])
+        assert_array_almost_equal(o_ring[0][1]['y'], [8, 4, 0])
 
     def test_no_density_b(self):
         o_ring = emp.o_ring(self.pat1, self.cols1, '', 'b', [0,.1,.2,.3],
                             density=False)
-        assert_almost_equal(o_ring[0][1]['x'], [0.05, 0.15,0.25])
-        assert_almost_equal(o_ring[0][1]['y'], [6, 6, 0])
+        assert_array_almost_equal(o_ring[0][1]['x'], [0.05, 0.15,0.25])
+        assert_array_almost_equal(o_ring[0][1]['y'], [6, 6, 0])
 
     def test_with_split_a(self):
         o_ring = emp.o_ring(self.pat1, self.cols1, 'y:2', 'a', [0,.1,.2],
                             density=False)
-        assert_equal(o_ring[0][1]['y'], [2, 0])  # Bottom
-        assert_equal(o_ring[1][1]['y'], [2, 0])  # Top
+        assert_array_equal(o_ring[0][1]['y'], [2, 0])  # Bottom
+        assert_array_equal(o_ring[1][1]['y'], [2, 0])  # Top
 
     def test_with_split_b(self):
         o_ring = emp.o_ring(self.pat1, self.cols1, 'y:2', 'b', [0,.1,.2],
                             density=False)
-        assert_equal(o_ring[0][1]['y'], [])  # Bottom
-        assert_equal(o_ring[1][1]['y'], [6, 6])  # Top
+        assert_array_equal(o_ring[0][1]['y'], [])  # Bottom
+        assert_array_equal(o_ring[1][1]['y'], [6, 6])  # Top
 
     def test_density_a(self):
         # First radius is 0.05

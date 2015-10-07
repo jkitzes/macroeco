@@ -21,5 +21,5 @@ other.
 """
 
 from ._compare import (nll, lrt, AIC, AIC_compare,
-                       sum_of_squares, full_model_nll, deviance, r_squared,
+                       sum_of_squares, r_squared,
                        preston_bin, pueyo_bins)

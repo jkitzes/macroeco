@@ -12,10 +12,10 @@ Support Functions
 .. autosummary::
    :toctree: generated/
 
-   setup_log
    log_start_end
    inherit_docstring_from
    doc_sub
+   check_parameter_file
 
 """
 """
@@ -31,8 +31,8 @@ Data Formatting Functions
 
 """
 
-from .misc import (setup_log, _thread_excepthook, log_start_end,
-                   inherit_docstring_from, doc_sub)
+from .misc import (log_start_end, _thread_excepthook,
+                   inherit_docstring_from, doc_sub, check_parameter_file)
 from .rcparams import ggplot_rc
 from .format_data import (data_read_write, format_dense)
 

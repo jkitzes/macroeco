@@ -27,7 +27,7 @@ the :ref:`using-macroeco` tutorial and the :ref:`reference` guide.
 
 import sys as _sys
 
-__version__ = '0.3'
+__version__ = '1.0.1'
 
 import empirical
 import models
@@ -35,9 +35,8 @@ import compare
 import main
 import misc
 
-def mecodesktop():
-    if len(_sys.argv) > 1:
-        param_path = _sys.argv[1]
+def desktop(param_path=False):
+    if param_path:
         main.main(param_path)
     else:
-        print "Macroeco Desktop must be called with path to parameters file"
+        main.launch()

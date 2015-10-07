@@ -38,6 +38,24 @@ def nll(data, model):
     float
         Negative log likelihood
 
+    Examples
+    ---------
+
+    >>> import macroeco.models as md
+    >>> import macroeco.compare as comp
+
+    >>> # Generate random data
+    >>> rand_samp = md.logser.rvs(p=0.9, size=100)
+
+    >>> # Get nll for p = 0.9
+    >>> comp.nll(rand_samp, md.logser(p=0.9))
+    237.6871819262054
+
+    >>> # Get the nll for the MLE for p
+    >>> mle_p = md.logser.fit_mle(rand_samp)
+    >>> comp.nll(rand_samp, md.logser(*mle_p))
+    235.2841347820297
+
     """
 
     try:
@@ -48,21 +66,23 @@ def nll(data, model):
 
 
 @doc_sub(_data_doc)
-def lrt(data, model_null, model_alt, df=None):
+def lrt(data, model_full, model_reduced, df=None):
     """
     Compare two nested models using a likelihood ratio test
 
     Parameters
     ----------
     {0}
-    model_null : obj
-        A frozen scipy distribution object representing the null model.
-    model_alt : scipy distribution object
-        A frozen scipy distribution object representing the alternative model.
+    model_full : obj
+        A frozen scipy distribution object representing the full model
+        (more complex model).
+    model_reduced : scipy distribution object
+        A frozen scipy distribution object representing the reduced model
+        (simpler model).
     df : int
         The degrees of freedom for the lrt (optional). If none, df is
         calculated as the difference between the number of parameters in the
-        null and alternative models.
+        full and reduced models.
 
     Returns
     -------
@@ -74,24 +94,47 @@ def lrt(data, model_null, model_alt, df=None):
     Parameters of distribution objects must be given as keyword arguments. Ex.
     ``norm = stats.norm(loc=0, scale=1)``
 
-    A p-value < alpha suggests signficant evidence for the alternative model.
+    A p-value < alpha suggests significant evidence for the full (more complex)
+    model. In other words, the null hypothesis is that the reduced model is
+    correct
 
     The LRT only applies to nested models. The G^2 statistic and G-test rely on
-    the the assumption that -2log(Likelihood_null / Likelihood_alt) is
-    approximately chi-squared distributed. This assumption breaks down for
-    small samples sizes.
+    the assumption that the test statistic is approximately chi-squared
+    distributed. This assumption breaks down for small samples sizes.
+
+    Examples
+    --------
+
+    >>> import macroeco.models as md
+    >>> import macroeco.compare as comp
+
+    >>> # Generate random data
+    >>> rand_samp = md.nbinom_ztrunc.rvs(20, 0.5, size=100)
+
+    >>> # Fit Zero-truncated NBD (Full model)
+    >>> mle_nbd = md.nbinom_ztrunc.fit_mle(rand_samp)
+
+    >>> # Fit a logseries (limiting case of Zero-truncated NBD, reduced model)
+    >>> mle_logser = md.logser.fit_mle(rand_samp)
+
+    >>> # Compare models with LRT
+    >>> comp.lrt(rand_samp, md.nbinom_ztrunc(mu=mle_nbd[0], k_agg=mle_nbd[1]), md.logser(p=mle_logser[0]))
+    (15.33429080890221, 9.0066719644695982e-05)
+
+    >>> # Reject the null hypothesis that the logseries is a better model and
+    >>> # choose the Zero-truncated NBD.
 
     """
 
     # Calculate G^2 statistic
-    ll_null = nll(data, model_null) * -1
-    ll_alt = nll(data, model_alt) * -1
-    test_stat = -2 * (ll_null - ll_alt)
+    ll_full = nll(data, model_full) * -1
+    ll_reduced = nll(data, model_reduced) * -1
+    test_stat = 2 * (ll_full - ll_reduced)
 
     # Set df if necessary
     if not df:
-        df =  ( len(model_alt.args) + len(model_alt.kwds)
-              - len(model_null.args) - len(model_null.kwds) )
+        df =  ( len(model_full.args) + len(model_full.kwds)
+              - len(model_reduced.args) - len(model_reduced.kwds) )
 
     return test_stat, stats.chisqprob(test_stat, df)
 
@@ -109,7 +152,7 @@ def AIC(data, model, params=None, corrected=True):
         Number of parameters in the model. If None, calculated from model
         object.
     corrected : bool
-        If True, calculates the small-sample size correct AICC. Default False.
+        If True, calculates the small-sample size correct AICC. Default True.
 
     Returns
     -------
@@ -119,6 +162,40 @@ def AIC(data, model, params=None, corrected=True):
     Notes
     -----
     AICC should be used when the number of observations is < 40.
+
+    Examples
+    --------
+
+    >>> import macroeco.models as md
+    >>> import macroeco.compare as comp
+
+    >>> # Generate random data
+    >>> rand_samp = md.nbinom_ztrunc.rvs(20, 0.5, size=100)
+
+    >>> # Fit Zero-truncated NBD (Full model)
+    >>> mle_nbd = md.nbinom_ztrunc.fit_mle(rand_samp)
+
+    >>> # Fit a logseries (limiting case of Zero-truncated NBD, reduced model)
+    >>> mle_logser = md.logser.fit_mle(rand_samp)
+
+    >>> # Get AIC for ztrunc_nbinom
+    >>> comp.AIC(rand_samp, md.nbinom_ztrunc(*mle_nbd))
+    765.51518598676421
+
+    >>> # Get AIC for logser
+    >>> comp.AIC(rand_samp, md.logser(*mle_logser))
+    777.05165086534805
+
+    >>> # Support for for zero-truncated NBD over logseries because AIC is
+    >>> # smaller
+
+    >>> # Call AIC with params given as 2 (should be the same as above)
+    >>> comp.AIC(rand_samp, md.nbinom_ztrunc(*mle_nbd), params=2)
+    765.51518598676421
+
+    >>> # Call AIC without sample size correction
+    >>> comp.AIC(rand_samp, md.nbinom_ztrunc(*mle_nbd), params=2, corrected=False)
+    765.39147464655798
 
     References
     ----------
@@ -164,6 +241,32 @@ def AIC_compare(aic_list):
     AIC weights can be interpreted as the probability that a given model is the
     best model in the set.
 
+    Examples
+    --------
+
+    >>> # Generate random data
+    >>> rand_samp = md.nbinom_ztrunc.rvs(20, 0.5, size=100)
+
+    >>> # Fit Zero-truncated NBD (Full model)
+    >>> mle_nbd = md.nbinom_ztrunc.fit_mle(rand_samp)
+
+    >>> # Fit a logseries (limiting case of Zero-truncated NBD, reduced model)
+    >>> mle_logser = md.logser.fit_mle(rand_samp)
+
+    >>> # Get AIC for ztrunc_nbinom
+    >>> nbd_aic = comp.AIC(rand_samp, md.nbinom_ztrunc(*mle_nbd))
+
+    >>> # Get AIC for logser
+    >>> logser_aic = comp.AIC(rand_samp, md.logser(*mle_logser))
+
+    >>> # Make AIC list and get weights
+    >>> aic_list = [nbd_aic, logser_aic]
+    >>> comp.AIC_compare(aic_list)
+    (array([  0.        ,  19.11806518]),
+    array([  9.99929444e-01,   7.05560486e-05]))
+
+    >>> # Zero-truncated NBD is a far superior model based on AIC weights
+
     """
 
     aic_values = np.array(aic_list)
@@ -173,83 +276,6 @@ def AIC_compare(aic_list):
     weights = values / np.sum(values)
 
     return delta, weights
-
-
-def deviance(red_model_nll, full_model_nll):
-    """
-    Calculates the deviance given the negative log-likelihood for a reduced
-    model and the negative log-likelihood for the full model.
-
-    Parameters
-    ----------
-    red_model_nll : float
-        Reduced model negative log-likelihood
-    full_model_nll : float
-        Full model negative log-likelihood
-
-    Returns
-    -------
-    : float
-        Deviance
-
-    Notes
-    -----
-    Deviance is 2 * (red_model_nll - full_model_nll)
-
-
-    """
-    return 2 * (red_model_nll - full_model_nll)
-
-
-@doc_sub(_data_doc)
-def full_model_nll(data, model, **kwargs):
-    """
-    Fits a full model to the data.  Every data point has a parameter
-
-    Parameters
-    -----------
-    {0}
-    model : Scipy distribution object
-        The model to be fit to the data
-    kwargs : keyword args
-        Additional keyword arguments for model fitting procedure
-
-    Returns
-    -------
-    : float
-        Negative log likelihood of full model given data
-
-    Notes
-    -----
-    Full model log likelihoods are used when calculating deviance
-
-    """
-    data = np.sort(data)
-    unique_data = np.unique(data)
-
-    try:
-        mle_params = [model.fit_mle(np.array([dp]), **kwargs) for dp in unique_data]
-    except AttributeError:
-        try:
-            mle_params = [model.fit(np.array([dp])) for dp in unique_data]
-        except AttributeError:
-            raise AttributeError("%s has no attribute fit_mle or fit" %
-                str(model))
-
-    data_df = pd.DataFrame(unique_data, columns=["unq_data"])
-    data_df['mle_params'] = mle_params
-    data_df.set_index("unq_data", inplace=True)
-    fitted_data = pd.DataFrame(np.arange(len(data)), index=data).join(data_df)
-    full_mle = fitted_data.mle_params
-
-    try:
-        ll = [model(*full_mle.iloc[i]).logpmf(data[i]) for i in
-                                            xrange(len(data))]
-    except:
-        ll = [model(*full_mle.iloc[i]).logpdf(data[i]) for i in
-                                            xrange(len(data))]
-
-    return -np.sum(ll)
 
 
 def sum_of_squares(obs, pred):
@@ -304,6 +330,36 @@ def r_squared(obs, pred, one_to_one=False, log_trans=False):
     Using the traditional R^2 to compare the fit of observed and predicted
     values may be misleading as the relationship may not be one-to-one but the
     R^2 value may be quite high. The one-to-one option alleviates this problem.
+    Note that with the one-to-one option R^2 can be negative.
+
+    Examples
+    --------
+
+    >>> import numpy as np
+    >>> import macroeco.compare as comp
+
+    >>> # Generate some data
+    >>> x_vals = np.linspace(1, 20, num=100)
+    >>> y_vals = np.random.normal(4 + x_vals*2, 1)
+
+    >>> # Standard R^2
+    >>> comp.r_squared(x_vals, y_vals)
+    0.99336568326291697
+
+    >>> # R^2 about the 1:1 line, will be a poor fit (possibly negative)
+    >>> comp.r_squared(x_vals, y_vals, one_to_one=True)
+    -6.8621799432144988
+
+    >>> # Generate some other data
+    >>> y_vals = np.random.normal(x_vals, 1)
+
+    >>> # Normal R^2
+    >>> comp.r_squared(x_vals, y_vals)
+    0.97651897660174425
+
+    >>> # R^2 on to the one to one line
+    >>> comp.r_squared(x_vals, y_vals, one_to_one=True)
+    0.97591430200514639
 
     References
     ----------
@@ -348,6 +404,18 @@ def preston_bin(data, max_num):
     Uses Preston's method of binning, which has exclusive lower boundaries and
     inclusive upper boundaries. Densities are not split between bins.
 
+    Examples
+    --------
+
+    >>> import macroeco.compare as comp
+    >>> import numpy as np
+
+    >>> # Load some data and get Preston bins
+    >>> data = np.array([1, 1, 1, 1, 4, 5, 6, 7, 12, 34, 56])
+    >>> comp.preston_bin(data, np.max(data))
+    (array([4, 0, 1, 3, 1, 0, 2]),
+    array([  1.,   2.,   3.,   5.,   9.,  17.,  33.,  65.]))
+
     References
     ----------
     .. [#]
@@ -388,7 +456,7 @@ def pueyo_bins(data):
 
     Notes
     -----
-    Bins the data in into bins of lenth 2**i, i=0, 1, 2 ...
+    Bins the data in into bins of length 2**i, i=0, 1, 2 ...
     The empirical probability densities will sum to 1 if multiplied by the
     respective 2**i.
 
